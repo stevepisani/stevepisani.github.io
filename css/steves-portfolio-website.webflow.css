@@ -2063,6 +2063,7 @@ figcaption {
   .navigation {
     padding-right: 20px;
     padding-left: 20px;
+    border-radius: 0px;
   }
 
   .menu-button {
@@ -2166,6 +2167,12 @@ figcaption {
   .email-link {
     font-size: 30px;
     line-height: 46px;
+  }
+
+  .div-block-6 {
+    overflow: hidden;
+    margin-left: auto;
+    border-radius: 20px;
   }
 
   .div-block-7 {
