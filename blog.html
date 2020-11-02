@@ -1,71 +1,30 @@
-<!DOCTYPE html>
-<!--  Last Published: Tue Oct 27 2020 17:35:01 GMT+0000 (Coordinated Universal Time)  -->
-<html data-wf-page="5f905b88aedd68166186f144" data-wf-site="5f905b88070d4631544fa3bd"lang="en-us" xml:lang="en" xmlns= "http://www.w3.org/1999/xhtml">
-<head>
-  <meta charset="utf-8">
-  <title>Blog</title>
-  <meta content="Blog" property="og:title">
-  <meta content="Blog" property="twitter:title">
-  <meta content="width=device-width, initial-scale=1" name="viewport">
-  <meta content="Webflow" name="generator">
-  <link href="assets/css/normalize.css" rel="stylesheet" type="text/css">
-  <link href="assets/css/webflow.css" rel="stylesheet" type="text/css">
-  <link href="assets/css/steves-portfolio-website.webflow.css" rel="stylesheet" type="text/css">
-  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
-  <script type="text/javascript">WebFont.load({  google: {    families: ["Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic"]  }});</script>
-  <!-- [if lt IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js" type="text/javascript"></script><![endif] -->
-  <script type="text/javascript">!function(o,c){var n=c.documentElement,t=" w-mod-";n.className+=t+"js",("ontouchstart"in o||o.DocumentTouch&&c instanceof DocumentTouch)&&(n.className+=t+"touch")}(window,document);</script>
-  <link href="assets/images/SJ-P2-1.png" rel="shortcut icon" type="image/x-icon">
-  <link href="assets/images/SJ-P2-1.png" rel="apple-touch-icon">
-</head>
-<body>
-  <div data-collapse="medium" data-animation="default" data-duration="400" role="banner" class="navigation w-nav">
-    <div class="div-block-6">
-      <div class="navigation-items">
-        <div class="div-block">
-          <a href="index.html" class="logo-link w-nav-brand"><img src="assets/images/SJ-P2-1.png" width="104" alt="" class="logo-image"></a>
-        </div>
-        <div class="navigation-wrap">
-          <div class="text-block-2"><strong>Steve </strong>Pisani</div>
-          <nav role="navigation" class="navigation-items w-nav-menu">
-            <div>
-              <a href="index.html" class="navigation-item w-nav-link">Home</a>
-              <a href="blog.html" aria-current="page" class="navigation-item w-nav-link w--current">Blog</a>
-            </div>
-            <div>
-              <a href="about.html" class="navigation-item w-nav-link">About</a>
-              <a href="assets/files/Steven Pisani Resume.pdf" target="_blank" class="navigation-item file-download-link w-nav-link">Resume</a>
-            </div>
-          </nav>
-          <div class="menu-button w-nav-button"><img src="assets/images/menu-icon_1menu-icon.png" width="22" alt="" class="menu-icon"></div>
-        </div>
+--- 
+layout: default
+title: Blog
+---
+
+<div class="section">
+  <div class="div-block-12"></div>
+  <div class="container blog-intro">
+    <div class="w-layout-grid grid">
+      <div id="w-node-f2c6de040bbf-6186f144">
+        <h1 class="heading-jumbo">Blog</h1>
       </div>
-    </div>
-  </div>
-  <div class="section">
-    <div class="div-block-12"></div>
-    <div class="container blog-intro">
-      <div class="w-layout-grid grid">
-        <div id="w-node-f2c6de040bbf-6186f144">
-          <h1 class="heading-jumbo">Blog</h1>
-        </div>
-        <div id="w-node-f2c6de040bc4-6186f144">
-          <div>My thoughts on topics I like, links to elsewhere on the Internet I enjoy, and some of my projects! <br><br>*** If you have gotten here <em>before </em>there is actually any content, 🎉 congratulations! 🎉<br>You have won the chance to reach out to me via any of the socials linked below and I will talk your ear off on any topic of your choosing. </div>
-        </div>
-        <div id="w-node-68dc2f24a250-6186f144" class="text-block-7"><span class="sw-crawl sw-title">EPISODE MMXX<br>BUSY AT WORK<br></span><span class="sw-crawl"><br>Steve has been too busy with work to publish content for a blog...</span></div>
+      <div id="w-node-f2c6de040bc4-6186f144">
+        <div>My thoughts on topics I like, links to elsewhere on the Internet I enjoy, and some of my projects! <br><br>*** If you have gotten here <em>before </em>there is actually any content, 🎉 congratulations! 🎉<br>You have won the chance to reach out to me via any of the socials linked below and I will talk your ear off on any topic of your choosing. </div>
       </div>
+      <div id="w-node-68dc2f24a250-6186f144" class="text-block-7"><span class="sw-crawl sw-title">EPISODE MMXX<br>BUSY AT WORK<br></span><span class="sw-crawl"><br>Steve has been too busy with work to publish content for a blog...</span></div>
+    <div>
+      <h1>Latest Posts</h1>
+
+      <ul>
+        {% for post in site.posts %}
+          <li>
+            <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
+            {{ post.excerpt }}
+          </li>
+        {% endfor %}
+      </ul></div>
     </div>
   </div>
-  <div class="footer-wrap">
-    <div><strong>Steve </strong>Pisani</div>
-    <div class="footer-links">
-      <a href="https://www.linkedin.com/in/steven-pisani/" target="_blank" class="footer-item">Linkedin</a>
-      <a href="https://github.com/stevepisani" target="_blank" class="footer-item">Github</a>
-      <a href="https://twitter.com/StevenPisani" target="_blank" class="footer-item">Twitter</a>
-    </div>
-  </div>
-  <script src="https://d3e54v103j8qbb.cloudfront.net/js/jquery-3.5.1.min.dc5e7f18c8.js?site=5f905b88070d4631544fa3bd" type="text/javascript" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
-  <script src="assets/js/webflow.js" type="text/javascript"></script>
-  <!-- [if lte IE 9]><script src="https://cdnjs.cloudflare.com/ajax/libs/placeholders/3.0.2/placeholders.min.js"></script><![endif] -->
-</body>
-</html>
+</div>
