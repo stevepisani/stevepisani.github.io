@@ -1694,3 +1694,7 @@ figcaption {
   font-size: 0.8rem;
   color: #9b9b9b;
 }
+
+#blog-intro {
+  padding-bottom: 20px;
+}
