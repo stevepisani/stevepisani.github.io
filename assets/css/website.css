@@ -143,7 +143,7 @@ figcaption {
   background-color: transparent;
 }
 
-.container.blog-intro {
+.container.blog-wrap {
   position: relative;
   top: 25px;
   width: 75%;
@@ -1330,7 +1330,7 @@ figcaption {
     overflow: visible;
   }
 
-  .container.blog-intro {
+  .container.blog-wrap {
     position: relative;
     left: auto;
     z-index: 2;
