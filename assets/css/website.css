@@ -725,7 +725,7 @@ figcaption {
   padding-bottom: 0px;
 }
 
-.div-block-6 {
+.nav-block {
   overflow: visible;
   margin-left: 15%;
   padding-right: 70px;
@@ -1411,7 +1411,7 @@ figcaption {
     grid-template-columns: 1fr;
   }
 
-  .div-block-6 {
+  .nav-block {
     overflow: hidden;
     margin-left: auto;
     border-radius: 20px;
