@@ -144,11 +144,10 @@ figcaption {
 }
 
 .container.blog-intro {
-  position: absolute;
-  left: 15%;
+  position: relative;
   top: 25px;
   width: 75%;
-  height: 100%;
+  height: auto;
   border-radius: 20px;
   background-color: #fff;
   box-shadow: 13px 13px 3px 0 #000;
@@ -984,12 +983,14 @@ figcaption {
   object-position: 50% 50%;
 }
 
-.div-block-12 {
+.blog__background {
   min-height: 1000px;
   border-radius: 20px;
   background-image: url('../images/outer_space.jpg');
   background-position: 0px 0px;
   background-size: cover;
+  background-repeat: repeat-y;
+  background-size: auto;
 }
 
 .grid {
@@ -1484,17 +1485,6 @@ figcaption {
     grid-template-columns: 1fr;
     -ms-grid-rows: auto auto auto auto auto;
     grid-template-rows: auto auto auto auto auto;
-  }
-
-  .div-block-12 {
-    position: absolute;
-    z-index: 1;
-    width: 100%;
-    min-height: 1000px;
-    background-size: cover;
-    background-attachment: scroll;
-    -o-object-fit: fill;
-    object-fit: fill;
   }
 
   .text-block-7 {
