@@ -4,15 +4,12 @@ layout: default
 
 <div class="section">
   <div class="div-block-12"></div>
-  <div class="container blog-intro">
-      <div style="padding-left: 10px; padding-right: 10px;">
-        <h1>{{ page.title }}</h1>
-        <p>{{ page.date | date_to_string }} - {{ page.author }}</p>
-        
-        {% include read_time.html %}
+  <div class="container blog-intro" style="padding-left: 20px; padding-right: 20px;">
+      
+      <h1 id="post__title">{{ page.title }}</h1>
+      <p id="post__date_author">{{ page.date | date_to_string }} · {% include read_time.html %} read</p>
+    
+      {{ content }}
 
-        {{ content }}
-
-      </div>
   </div>
 </div>
