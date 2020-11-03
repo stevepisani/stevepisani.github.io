@@ -5,14 +5,11 @@ layout: default
 <div class="section">
   <div class="div-block-12"></div>
   <div class="container blog-intro">
-      <div id="w-node-f2c6de040bbf-6186f144">
+      <div style="padding-left: 10px; padding-right: 10px;">
         <h1>{{ page.title }}</h1>
         <p>{{ page.date | date_to_string }} - {{ page.author }}</p>
-      </div>
-      <div id="w-node-f2c6de040bc4-6186f144">
-        <div>
-          {{ content }}
-        </div>
+        {{ content }}
+
       </div>
   </div>
 </div>
