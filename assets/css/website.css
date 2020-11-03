@@ -1696,11 +1696,12 @@ figcaption {
 }
 
 #blog-intro {
+  padding-top: 20px;
   padding-bottom: 20px;
 }
 
 #blog__posts {
-  
+
 }
 
 #post__link_card {
