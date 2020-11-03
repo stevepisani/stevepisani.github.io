@@ -1685,3 +1685,18 @@ figcaption {
     grid-column-end: span 1;
   }
 }
+
+
+#post__title {
+  font-size: 3rem;
+}
+
+#post__date_author {
+  font-size: 0.8rem;
+  color: #9b9b9b;
+}
+
+#post__readtime {
+  font-size: 0.8rem;
+  color: #9b9b9b;
+}
