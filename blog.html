@@ -20,19 +20,17 @@ title: Blog
           {% for post in site.posts %}
             <div id="post__link_card" >
               <!-- <img style="float: left; width:70%" src="https://picsum.photos/seed/{{ post.title }}/200/200"> -->
-              <div id="post__link_card_title" 
-                   style="background-image:  {% if post.image_url %} url({{ post.image_url}}) {% else %} url('https://picsum.photos/seed/{{ post.title }}/1000/200') {% endif %};" ></div>
+              <div id="post__title_image" 
+                   style="background-image:  {% if post.image_url %} url({{ post.image_url}}) {% else %} url('https://picsum.photos/seed/{{ post.title }}/2000/400') {% endif %};" ></div>
               <div style="padding-left: 30px;">
                 <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
                 <div id="post__date_author">{{ post.date | date_to_string }}</div>
                 {{ post.excerpt | truncate: 200 }}
               </div>
-              
-              
             </div>
           {% endfor %}
       </div>
-      
+
     </div>
   </div>
 </div>

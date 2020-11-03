@@ -151,9 +151,6 @@ figcaption {
   border-radius: 20px;
   background-color: #fff;
   box-shadow: 13px 13px 3px 0 #000;
-  padding-left: 20px; 
-  padding-right: 20px;
-  padding-bottom: 80px;
 }
 
 .heading-jumbo {
@@ -1714,15 +1711,15 @@ figcaption {
   margin: 20px;
 }
 
-#post__link_card_title {
+#post__title_image {
   border-top-right-radius: 20px;
   border-top-left-radius: 20px;
-  height: 100px;
+  height: 200px;
   width: auto;
   /* background-image: url('../images/outer_space.jpg'); */
   background-position: 0px 0px;
   background-size: cover;
-  background-repeat: repeat-y;
-  background-size: auto;
+  /* background-repeat: no-repeat; */
+  /* background-size: auto; */
 
 }

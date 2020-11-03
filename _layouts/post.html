@@ -5,11 +5,13 @@ layout: default
 <div class="section">
   <div class="blog__background">
     <div class="container blog-wrap">
-      
-      <h1 id="post__title">{{ page.title }}</h1>
-      <p id="post__date_author">{{ page.date | date_to_string }} · {% include read_time.html %} read</p>
-    
-      {{ content }}
+      <div id="post__title_image" 
+           style="background-image:  {% if post.image_url %} url({{ post.image_url}}) {% else %} url('https://picsum.photos/seed/{{ post.title }}/2000/400') {% endif %};" ></div>
+      <div style="  padding-left: 20px;padding-right: 20px;padding-bottom: 80px;">
+        <h1 id="post__title">{{ page.title }}</h1>
+        <p id="post__date_author">{{ page.date | date_to_string }} · {% include read_time.html %} read</p>
+        {{ content }}
+      </div>
     </div>
   </div>
 </div>
