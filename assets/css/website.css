@@ -1698,3 +1698,30 @@ figcaption {
 #blog-intro {
   padding-bottom: 20px;
 }
+
+#blog__posts {
+  
+}
+
+#post__link_card {
+  border-style: solid;
+  border-width: thin;
+  border-color:lightgray;
+  border-radius: 20px;
+  background-color: rgba(247, 245, 245, 0.233);
+  box-shadow: 7px 7px 3px 0 #000;
+  margin: 20px;
+}
+
+#post__link_card_title {
+  border-top-right-radius: 20px;
+  border-top-left-radius: 20px;
+  height: 100px;
+  width: auto;
+  /* background-image: url('../images/outer_space.jpg'); */
+  background-position: 0px 0px;
+  background-size: cover;
+  background-repeat: repeat-y;
+  background-size: auto;
+
+}
