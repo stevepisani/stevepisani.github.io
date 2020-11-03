@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Test2"
-date:   2020-11-03 00:00:00 -7000
+date:   2020-11-03
 author: Steve
 image_url: https://picsum.photos/seed/fire/1000/200
 ---
