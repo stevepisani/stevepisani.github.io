@@ -48,3 +48,5 @@ All of this is my long-winded way of saying:
 _when you're making something, take the time to understand constraints that might be piggy-backing in your work and if they are holding you back._
 
 ###### Note: <br> I don't remember where I first heard the SRB to horse story but I came across it most recently in [Joe Celkos' "SQL for Smarties"](https://www.amazon.com/Joe-Celkos-SQL-Smarties-Programming/dp/0128007613?sa-no-redirect=1&pldnSite=1) which I highly recommend.
+
+###### Note2: Tangentially related, here is Richard Feynman's explaination of why train acels don't need differentials: https://youtu.be/WAwDvbIfkos
