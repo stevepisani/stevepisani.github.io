@@ -30,7 +30,7 @@ One of my favorite bits of Internet lore is the connection between the design of
 > 
 > <br>This story does not end there, however. 
 > 
-> Look at a NASA Space Shuttle and the two big booster rockets attached to the sides of the main fuel tank. These are solid rocket boosters or SRBs. The SRBs are made by Thiokol at their factory at Utah. The engineers who designed the SRBs might have preferred to make them a bit fatter, but the SRBs had to be shipped by train from the > factory to the launch site in Florida. The railroad line from the factory runs through a tunnel in the mountains and the SRBs have to fit through that tunnel. The tunnel is slightly wider than the railroad track. 
+> Look at a NASA Space Shuttle and the two big booster rockets attached to the sides of the main fuel tank. These are solid rocket boosters or SRBs. The SRBs are made by Thiokol at their factory at Utah. The engineers who designed the SRBs might have preferred to make them a bit fatter, but the SRBs had to be shipped by train from the factory to the launch site in Florida. The railroad line from the factory runs through a tunnel in the mountains and the SRBs have to fit through that tunnel. The tunnel is slightly wider than the railroad track. 
 > 
 > So, the major design feature of what is arguably the world’s most advanced transportation system was determined by the width of a horse’s ass.
   
