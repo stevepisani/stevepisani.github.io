@@ -3,7 +3,7 @@ layout: post
 title:  "Rockets and Horses"
 date:   2020-11-05T15:52:00+00:00
 author: Steve
-image_url: https://upload.wikimedia.org/wikipedia/commons/d/db/Two_Space_Shuttle_SRBs_on_the_Crawler_transporter.jpg
+image_url: https://cdn141.picsart.com/290268859060211.png
 ---
 
 One of my favorite bits of Internet lore is the connection between the design of the rocket boosters on the space shuttle and the size of Roman war chariots. Here is the rough retelling: 
