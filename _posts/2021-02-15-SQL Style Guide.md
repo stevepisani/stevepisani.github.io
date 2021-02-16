@@ -6,44 +6,44 @@ author: Steve
 image_url: https://images.unsplash.com/photo-1520589884715-55ac7417f2ee?ixlib=rb-1.2.1&q=85&fm=jpg&crop=entropy&cs=srgb&w=1200
 ---
 
+When writing SQL, it is important to stay consistant to help anyone reading your queries (including _future_ you) quickly understand the logic in your code and pick out errors or opportunities for improvement. By sticking to a style guide, you can remove many of the headaches associated with reading, writing, and reviewing SQL in a team or by yourself. 
+
+These suggestions are not written in stone and, if you have a suggestion or disagreement, I would love to chat about it.
+
 ### Example
 ```sql
-with hubspot_interest a
+  with date_spine as (
+    select
+      day
+    from date_tables
+  )
+
+  , account_revenue as (
+    select  
+      account_id
+      , created_date as joined_date
+      , revenue
+    from customers.revenue
+    where revenue > 0
+      and date(created_date) >= ( select min(created_at) from customers.groups )
+  )
+
   select
-    email
-    , timestamp_millis(property_beacon_interest) as expressed_interest_at
-  from hubspot.contact
-  where property_beacon_interest is not null
-)
-
-, support_interest as (
-  select
-      con.email
-      , con.created_at as expressed_interest_at
-  from helpscout.conversation as con
-  inner join helpscout.conversation_tag as tag
-    on con.id = tag.conversation_id
-  where tag.tag = 'beacon-interest'
-) 
-
-, combined_interest as (
-    select * from hubspot_interest
-    union all
-    select * from support_interest
-)
-
-, final as (
-  select 
-    email
-    , min(expressed_interest_at) as expressed_interest_at
-  from combined_interest
-  group by email
-)
-
-select
-  email
-  , expressed_interest_at
-from final
+    c.audience_id
+    , d.day as date_of_interest
+    , sum(ar.revenue) as daily_audience_revenue
+  from customers.groups as c
+  inner join date_spine as d
+    on c.created_at <= d.day
+  left outer join account_revenue as ar
+    on c.account_id = r.account_id
+  where c.created_at <= joined_date
+  group by   
+    c.audience_id
+    , d.day
+  order by
+    c.audience_id
+    , d.day
 ```
 
 ---
