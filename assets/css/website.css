@@ -725,7 +725,7 @@ figcaption {
 }
 
 .nav-block {
-  overflow: visible;
+  overflow: hidden;
   margin-left: 15%;
   padding-right: 70px;
   -webkit-box-flex: 0;
