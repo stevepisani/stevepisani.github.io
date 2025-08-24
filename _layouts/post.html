@@ -2,16 +2,24 @@
 layout: default
 ---
 
-<div class="section">
+<div class="section" id="main">
   <div class="blog__background">
     <div class="container blog-wrap">
       <div id="post__title_image" 
            style="background-image:  {% if page.image_url %} url({{ page.image_url}}) {% else %} url('https://picsum.photos/seed/{{ page.title }}/2000/400') {% endif %};" ></div>
-      <div style="  padding-left: 20px;padding-right: 20px;padding-bottom: 80px;">
+      <article style="padding-left: 20px;padding-right: 20px;padding-bottom: 80px;">
         <h1 id="post__title">{{ page.title }}</h1>
         <p id="post__date_author">{{ page.date | date_to_string }} · {% include read_time.html %} read</p>
         {{ content }}
-      </div>
+        
+        <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid #e2e8f0;">
+          <p style="margin-bottom: 20px;"><strong>Enjoyed this post?</strong></p>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <a href="mailto:steve@stevenpisani.com?subject=Re: {{ page.title }}" class="button">Get in Touch</a>
+            <a href="/blog" class="button cc-white-button">Read More Posts</a>
+          </div>
+        </div>
+      </article>
     </div>
   </div>
 </div>
