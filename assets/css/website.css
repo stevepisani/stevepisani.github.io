@@ -1035,6 +1035,9 @@ figcaption {
 }
 
 .blog__background {
+  position: relative;
+  margin: -50px 300px 0 300px;
+
   min-height: 1000px;
   border-radius: 20px;
   background-image: url('../images/outer_space.jpg');
