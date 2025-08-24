@@ -36,15 +36,6 @@
   top: 6px;
 }
 
-/* Improved Navigation */
-.navigation {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
 
 .navigation-item.w--current {
   position: relative;
