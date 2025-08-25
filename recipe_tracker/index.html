@@ -201,86 +201,162 @@
     
     /* Mobile Responsive Design */
     @media (max-width: 768px) {
-      .wrap { padding: 12px; }
-      h1 { font-size: 1.25rem; }
+      .wrap { padding: 8px; }
+      h1 { font-size: 1.1rem; }
       .badge { display: none; }
       
-      /* Stack header elements */
-      header > .wrap > div:first-child {
-        flex-direction: column;
-        gap: 12px;
-        align-items: stretch !important;
+      /* Compact header */
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
       }
       
-      /* Mobile navigation */
+      /* Header title row */
+      header > .wrap > div:first-child {
+        gap: 8px;
+        align-items: center !important;
+      }
+      
+      /* Compact back button */
       a[href="/"] {
-        width: 100%;
-        text-align: center;
+        padding: 6px 10px !important;
+        font-size: 0.85rem !important;
+        min-width: auto !important;
+        white-space: nowrap;
+      }
+      
+      /* Hide quickstart tip on mobile */
+      #quickstartTip {
+        display: none !important;
+      }
+      
+      /* Compact auth section */
+      #authRow {
+        gap: 6px !important;
+        padding: 8px 0 !important;
+      }
+      
+      #authRow input {
+        font-size: 0.85rem !important;
+        padding: 6px 10px !important;
+        min-height: 36px !important;
+      }
+      
+      #authRow button {
+        font-size: 0.85rem !important;
+        padding: 6px 12px !important;
+        min-height: 36px !important;
+      }
+      
+      #authStatus {
+        display: none !important;
+      }
+      
+      /* Compact auth when signed in */
+      #authCompact {
+        padding: 6px 0 !important;
+        gap: 4px !important;
+      }
+      
+      #authCompact .small {
+        font-size: 0.75rem !important;
+      }
+      
+      #signOutCompact {
+        padding: 3px 8px !important;
+        font-size: 0.7rem !important;
+        min-height: auto !important;
       }
       
       /* Controls */
       .controls {
         grid-template-columns: 1fr;
-        gap: 12px;
+        gap: 8px;
       }
       
-      /* Progress text mobile */
-      .controls > div:last-child {
-        justify-content: center !important;
-      }
-      
+      /* Compact search row */
       .search {
-        flex-direction: column;
+        display: grid;
+        grid-template-columns: 1fr 80px;
+        gap: 6px;
         width: 100%;
       }
       
-      .search > * {
-        width: 100%;
+      .search input {
+        grid-column: 1 / -1;
+      }
+      
+      .search select {
+        font-size: 0.85rem !important;
+        padding: 6px 8px !important;
+        min-height: 36px !important;
+      }
+      
+      /* Progress text mobile - hide it */
+      .controls > div:last-child {
+        display: none !important;
       }
       
       /* Buttons row */
       .controls > div:nth-child(2) {
         display: flex !important;
-        gap: 8px;
+        gap: 6px;
       }
       
       #importList, #addOne {
         flex: 1;
+        font-size: 0.85rem !important;
+        padding: 8px 10px !important;
+        min-height: 36px !important;
       }
       
       #refresh {
         flex: 0 0 auto;
+        padding: 6px 8px !important;
+        min-height: 36px !important;
+        font-size: 16px !important;
       }
       
-      /* Stats bar */
+      /* Hide progress bar wrapper on mobile */
+      .wrap.small.muted {
+        display: none !important;
+      }
+      
+      /* Hide separator lines on mobile to save space */
+      .sep {
+        display: none !important;
+      }
+      
+      /* Stats bar - make it horizontal and compact */
       .stats-bar {
-        flex-direction: column;
+        flex-direction: row !important;
         gap: 12px !important;
-        padding: 12px !important;
+        padding: 8px !important;
+        margin-bottom: 8px !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
       
       .stat-item {
-        flex-direction: row;
-        justify-content: space-between;
-        width: 100%;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border);
-      }
-      
-      .stat-item:last-child {
-        border-bottom: none;
+        flex-direction: column;
+        align-items: center;
+        min-width: fit-content;
+        padding: 0;
+        border: none !important;
       }
       
       .stat-value {
-        font-size: 1.25rem;
+        font-size: 1rem;
       }
       
-      /* Recipe of the day mobile */
+      .stat-label {
+        font-size: 0.65rem !important;
+      }
+      
+      /* Hide recipe of the day on mobile */
       .stat-item[style*="flex:1"] {
-        flex-direction: column !important;
-        align-items: center !important;
-        text-align: center;
-        padding-top: 12px;
+        display: none !important;
       }
       
       /* Cards grid */
@@ -342,17 +418,17 @@
         align-items: flex-start;
       }
       
-      /* Touch-friendly inputs */
-      input, select, textarea, button {
+      /* Touch-friendly inputs in cards */
+      .card input, .card select, .card textarea, .card button {
         font-size: 16px !important;
         min-height: 44px;
       }
       
-      textarea.notesInput {
+      .card textarea.notesInput {
         min-height: 80px;
       }
       
-      textarea.titleInput {
+      .card textarea.titleInput {
         min-height: auto;
         padding: 10px 14px;
       }
