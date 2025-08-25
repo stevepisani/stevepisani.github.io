@@ -64,6 +64,66 @@
     .hide{display:none !important}
     .tip{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-top:12px;color:var(--text-light);font-size:.875rem;line-height:1.5}
     .kbd{background:white;border:1px solid var(--border);border-bottom-width:2px;padding:2px 6px;border-radius:4px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:.85rem}
+    
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: var(--shadow-sm); }
+      50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(0,74,173,0.3); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card { animation: slideIn 0.3s ease-out; }
+    
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      padding: 16px;
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Floating action button for random recipe */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0,74,173,0.3);
+      cursor: pointer;
+      font-size: 24px;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    .fab:hover {
+      transform: scale(1.1) rotate(180deg);
+      box-shadow: 0 6px 20px rgba(0,74,173,0.4);
+    }
   </style>
 </head>
 <body>
@@ -76,16 +136,27 @@
         </div>
         <a href="/" style="color:var(--primary);text-decoration:none;font-weight:500;padding:8px 16px;border:1px solid var(--primary);border-radius:8px;transition:all 0.2s ease" onmouseover="this.style.background='var(--primary)';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='var(--primary)'">← Back to Site</a>
       </div>
-      <div class="tip">
+      <div class="tip" id="quickstartTip">
         <strong>Quick Start:</strong> Sign in with your email to get started. Use <b>Import list</b> to add recipes from NYT collections or paste multiple titles. Photos are stored privately with secure URLs.
+        <br><strong>Shortcuts:</strong> <kbd>Cmd+K</kbd> Search • <kbd>Cmd+I</kbd> Import • <kbd>Cmd+N</kbd> New • <kbd>R</kbd> Random
       </div>
-      <div class="sep"></div>
+      <div class="tip hide" id="shortcutsTip" style="background:#e8f5e9;border-color:#a5d6a7">
+        <strong>Shortcuts:</strong> <kbd>Cmd+K</kbd> Search • <kbd>Cmd+I</kbd> Import • <kbd>Cmd+N</kbd> New • <kbd>R</kbd> Random Recipe
+      </div>
+      <div class="sep" id="authSep"></div>
       <div class="auth" id="authRow">
         <input id="email" type="text" placeholder="Email for sign-in link (magic link)">
         <button id="sendLink" class="accent">Send sign-in link</button>
         <span id="authStatus" class="small muted"></span>
         <span style="flex:1"></span>
         <button id="signOut" class="danger hide">Sign out</button>
+      </div>
+      <div class="auth hide" id="authCompact" style="padding:8px 0;justify-content:space-between">
+        <span class="small" style="color:var(--text-light)">
+          <span style="color:var(--ok);margin-right:4px">●</span>
+          Signed in as <strong id="userEmail"></strong>
+        </span>
+        <button id="signOutCompact" class="small" style="padding:4px 12px;background:transparent;border:1px solid var(--border);color:var(--text-light)">Sign out</button>
       </div>
       <div class="sep"></div>
       <div class="controls">
@@ -118,8 +189,33 @@
   </header>
 
   <main class="wrap">
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-item">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total Recipes</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statCooked">0</div>
+        <div class="stat-label">Cooked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statAvgRating">0</div>
+        <div class="stat-label">Avg Rating</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statStreak">0</div>
+        <div class="stat-label">Week Streak 🔥</div>
+      </div>
+      <div class="stat-item" style="flex:1">
+        <div style="font-size:0.9rem;color:var(--text-light);text-align:center">
+          <strong>Recipe of the Day:</strong> <span id="recipeOfDay" style="color:var(--primary);cursor:pointer">Loading...</span>
+        </div>
+      </div>
+    </div>
     <div id="cards" class="grid"></div>
   </main>
+  
+  <button class="fab" id="randomBtn" title="Suggest random recipe (Press R)">🎲</button>
 
   <template id="cardTemplate">
     <div class="card" data-id="">
@@ -152,6 +248,7 @@
   </template>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999"></canvas>
   <script>
     // Global error handlers
     window.addEventListener('error', (e) => {
@@ -161,6 +258,96 @@
     window.addEventListener('unhandledrejection', (e) => {
       console.error('Unhandled promise rejection:', e.reason);
       e.preventDefault(); // Prevent the default browser behavior
+    });
+    
+    // Confetti animation
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      const pieces = [];
+      const colors = ['#004aad', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+      
+      for (let i = 0; i < 150; i++) {
+        pieces.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          w: Math.random() * 10 + 5,
+          h: Math.random() * 5 + 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          speed: Math.random() * 3 + 2,
+          rotation: Math.random() * 360,
+          rotationSpeed: Math.random() * 10 - 5
+        });
+      }
+      
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        pieces.forEach((p, index) => {
+          ctx.save();
+          ctx.translate(p.x + p.w/2, p.y + p.h/2);
+          ctx.rotate(p.rotation * Math.PI / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+          ctx.restore();
+          
+          p.y += p.speed;
+          p.rotation += p.rotationSpeed;
+          
+          if (p.y > canvas.height) {
+            pieces.splice(index, 1);
+          }
+        });
+        
+        if (pieces.length > 0) {
+          requestAnimationFrame(draw);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      
+      draw();
+    }
+    
+    // Recipe of the day suggestion
+    function getRandomRecipe() {
+      const pending = cache.filter(r => !r.cooked);
+      if (pending.length === 0) return null;
+      return pending[Math.floor(Math.random() * pending.length)];
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Cmd/Ctrl + K for search focus
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search').focus();
+      }
+      // Cmd/Ctrl + I for import
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        document.getElementById('importList').click();
+      }
+      // Cmd/Ctrl + N for new recipe
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        document.getElementById('addOne').click();
+      }
+      // R for random recipe suggestion
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        const recipe = getRandomRecipe();
+        if (recipe) {
+          const card = document.querySelector(`[data-id="${recipe.id}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.style.animation = 'pulse 1s ease-in-out';
+            setTimeout(() => { card.style.animation = ''; }, 1000);
+          }
+        }
+      }
     });
     
     // ---- EDIT THESE 3 LINES ----
@@ -289,6 +476,46 @@
       const cookedCount = list.filter(r=>r.cooked).length;
       $('#progressText').textContent = `${cookedCount} of ${list.length} cooked`;
       $('#progressBar').style.width = (list.length? (100*cookedCount/list.length):0).toFixed(1)+'%';
+      
+      // Update stats
+      if (list.length > 0) {
+        $('#statsBar').style.display = 'flex';
+        $('#statTotal').textContent = list.length;
+        $('#statCooked').textContent = cookedCount;
+        const avgRating = list.filter(r => r.rating > 0).reduce((acc, r) => acc + r.rating, 0) / (list.filter(r => r.rating > 0).length || 1);
+        $('#statAvgRating').textContent = avgRating.toFixed(1);
+        
+        // Calculate weekly streak
+        const today = new Date();
+        const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const cookedThisWeek = list.filter(r => r.date_cooked && new Date(r.date_cooked) >= oneWeekAgo).length;
+        const cookedLastWeek = list.filter(r => r.date_cooked && new Date(r.date_cooked) >= twoWeeksAgo && new Date(r.date_cooked) < oneWeekAgo).length;
+        let streak = cookedThisWeek > 0 ? 1 : 0;
+        if (cookedLastWeek > 0 && cookedThisWeek > 0) streak = 2;
+        $('#statStreak').textContent = streak;
+        
+        // Recipe of the day
+        const pending = list.filter(r => !r.cooked);
+        if (pending.length > 0) {
+          const today = new Date().toDateString();
+          const seed = today.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+          const recipe = pending[seed % pending.length];
+          $('#recipeOfDay').textContent = recipe.title || 'None';
+          $('#recipeOfDay').onclick = () => {
+            const card = document.querySelector(`[data-id="${recipe.id}"]`);
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              card.style.animation = 'pulse 1s ease-in-out';
+              setTimeout(() => { card.style.animation = ''; }, 1000);
+            }
+          };
+        } else {
+          $('#recipeOfDay').textContent = 'All cooked! 🎉';
+        }
+      } else {
+        $('#statsBar').style.display = 'none';
+      }
 
       const cards = $('#cards'); cards.innerHTML = '';
       for (const r of items){
@@ -439,7 +666,10 @@
             statusPill.textContent = 'Cooked';
             statusPill.classList.add('ok');
             statusPill.classList.remove('pending');
-            markCookedBtn.textContent = 'Marked!';
+            markCookedBtn.textContent = '✓ Marked!';
+            
+            // Launch confetti!
+            launchConfetti();
             
             // Update cache to ensure consistency
             const idx = cache.findIndex(item => item.id === r.id);
@@ -855,7 +1085,7 @@
       $('#email').value = '';
     });
 
-    $('#signOut').addEventListener('click', async ()=>{
+    async function handleSignOut() {
       try {
         const { error } = await supabase.auth.signOut();
         if (error) {
@@ -875,14 +1105,39 @@
         console.error('Signout exception:', err);
         alert('Signout failed: ' + err.message);
       }
-    });
+    }
+    
+    $('#signOut').addEventListener('click', handleSignOut);
+    $('#signOutCompact').addEventListener('click', handleSignOut);
 
     function refreshUIForAuth(){
       const signedIn = !!sessionUser;
-      $('#signOut').classList.toggle('hide', !signedIn);
-      $('#email').disabled = signedIn;
-      $('#sendLink').disabled = signedIn;
-      $('#authStatus').textContent = signedIn ? `Signed in as ${sessionUser?.email}` : '';
+      
+      if (signedIn) {
+        // Hide the main auth section and quickstart
+        $('#authRow').classList.add('hide');
+        $('#quickstartTip').classList.add('hide');
+        $('#authSep').classList.add('hide');
+        
+        // Show compact auth and shortcuts
+        $('#authCompact').classList.remove('hide');
+        $('#shortcutsTip').classList.remove('hide');
+        $('#userEmail').textContent = sessionUser?.email || '';
+      } else {
+        // Show the main auth section and quickstart
+        $('#authRow').classList.remove('hide');
+        $('#quickstartTip').classList.remove('hide');
+        $('#authSep').classList.remove('hide');
+        
+        // Hide compact auth and shortcuts
+        $('#authCompact').classList.add('hide');
+        $('#shortcutsTip').classList.add('hide');
+        
+        // Reset auth form
+        $('#email').disabled = false;
+        $('#sendLink').disabled = false;
+        $('#authStatus').textContent = '';
+      }
     }
 
     // enforce allowed emails on client (RLS also protects on server)
@@ -915,6 +1170,21 @@
       }, 0);
     });
 
+    // Random recipe button
+    $('#randomBtn').addEventListener('click', () => {
+      const recipe = getRandomRecipe();
+      if (recipe) {
+        const card = document.querySelector(`[data-id="${recipe.id}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.style.animation = 'pulse 1s ease-in-out';
+          setTimeout(() => { card.style.animation = ''; }, 1000);
+        }
+      } else {
+        alert('No pending recipes to suggest! Great job cooking!');
+      }
+    });
+    
     // init (handles redirect after magic link)
     async function init() {
       try {
