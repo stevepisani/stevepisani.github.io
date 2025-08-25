@@ -29,10 +29,22 @@
     h1{margin:0;font-size:1.75rem;font-weight:600;color:var(--text)}
     .badge{font-size:.75rem;padding:4px 12px;background:var(--primary);color:white;border-radius:999px;font-weight:500}
     .controls{display:grid;grid-template-columns: 1fr auto auto;gap:10px;align-items:center}
-    .search{display:flex;gap:8px;align-items:center}
+    .search{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     input[type="text"],input[type="url"],input[type="date"],textarea,select{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:white;color:var(--text);transition:all 0.2s ease;font-family:inherit}
     input:focus,textarea:focus,select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,74,173,0.1)}
     textarea{min-height:72px;resize:vertical}
+    textarea.titleInput{
+      min-height:auto !important;
+      resize:none;
+      overflow:hidden;
+      font-family:inherit;
+      font-size:1rem;
+      font-weight:500;
+      line-height:1.4;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      word-break:break-word;
+    }
     button{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:white;color:var(--text);cursor:pointer;font-weight:500;transition:all 0.2s ease;font-family:inherit}
     button:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
     .accent{border:none;background:var(--primary);color:white}
@@ -48,6 +60,22 @@
     .card{background:white;border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm);transition:all 0.3s ease}
     .card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
     .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+    
+    /* Recipe title styling */
+    .titleInput {
+      font-weight: 500;
+      font-size: 1rem;
+      line-height: 1.4;
+      min-height: auto;
+      height: auto;
+      padding: 8px 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow: hidden;
+      display: block;
+      width: 100%;
+    }
     .thumb{width:100%;aspect-ratio:16/10;background:var(--bg-secondary);border:2px dashed var(--border);border-radius:8px;display:grid;place-items:center;color:var(--text-muted);overflow:hidden;transition:all 0.2s ease}
     .thumb:hover{border-color:var(--primary);background:#f0f7ff}
     .thumb img{width:100%;height:100%;object-fit:cover;display:block}
@@ -55,8 +83,44 @@
     .pill{font-size:.75rem;padding:3px 10px;border-radius:999px;font-weight:500}
     .pill.ok{background:#dcfce7;color:#15803d;border:1px solid #86efac}
     .pill.pending{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
-    .ratingPill{transition:all 0.2s ease}
-    .ratingPill:hover{transform:scale(1.05);box-shadow:var(--shadow-sm)}
+    /* Star Rating Component */
+    .star-rating {
+      display: inline-flex;
+      gap: 2px;
+      padding: 4px 8px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+    .star-rating:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .star {
+      cursor: pointer;
+      font-size: 16px;
+      color: #ddd;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .star:hover {
+      transform: scale(1.2);
+    }
+    .star.filled {
+      color: #fbbf24;
+    }
+    .star.hover {
+      color: #fbbf24;
+      transform: scale(1.1);
+    }
+    .rating-label {
+      margin-left: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
     .progress{height:8px;background:var(--bg-secondary);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
     .progress>div{height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));width:0%;transition:width 0.3s ease}
     .sep{height:1px;background:var(--border);margin:12px 0}
@@ -74,7 +138,17 @@
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes starPop {
+      0% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.3) rotate(180deg); }
+      100% { transform: scale(1) rotate(360deg); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
     .card { animation: slideIn 0.3s ease-out; }
+    .star.pop { animation: starPop 0.4s ease-out; }
     
     /* Stats bar */
     .stats-bar {
@@ -124,6 +198,207 @@
       transform: scale(1.1) rotate(180deg);
       box-shadow: 0 6px 20px rgba(0,74,173,0.4);
     }
+    
+    /* Mobile Responsive Design */
+    @media (max-width: 768px) {
+      .wrap { padding: 12px; }
+      h1 { font-size: 1.25rem; }
+      .badge { display: none; }
+      
+      /* Stack header elements */
+      header > .wrap > div:first-child {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch !important;
+      }
+      
+      /* Mobile navigation */
+      a[href="/"] {
+        width: 100%;
+        text-align: center;
+      }
+      
+      /* Controls */
+      .controls {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      /* Progress text mobile */
+      .controls > div:last-child {
+        justify-content: center !important;
+      }
+      
+      .search {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .search > * {
+        width: 100%;
+      }
+      
+      /* Buttons row */
+      .controls > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px;
+      }
+      
+      #importList, #addOne {
+        flex: 1;
+      }
+      
+      #refresh {
+        flex: 0 0 auto;
+      }
+      
+      /* Stats bar */
+      .stats-bar {
+        flex-direction: column;
+        gap: 12px !important;
+        padding: 12px !important;
+      }
+      
+      .stat-item {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .stat-item:last-child {
+        border-bottom: none;
+      }
+      
+      .stat-value {
+        font-size: 1.25rem;
+      }
+      
+      /* Recipe of the day mobile */
+      .stat-item[style*="flex:1"] {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center;
+        padding-top: 12px;
+      }
+      
+      /* Cards grid */
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      /* Card layout */
+      .card {
+        padding: 16px;
+      }
+      
+      .thumb {
+        aspect-ratio: 16/9;
+      }
+      
+      /* Star rating mobile */
+      .star-rating {
+        padding: 6px 8px;
+        justify-content: space-between;
+        width: 100%;
+      }
+      
+      .star {
+        font-size: 20px;
+        padding: 2px;
+      }
+      
+      .rating-label {
+        font-size: 0.7rem;
+      }
+      
+      /* Button row in cards */
+      .row {
+        flex-wrap: wrap;
+      }
+      
+      .row button {
+        padding: 12px;
+        font-size: 0.9rem;
+        min-width: 0 !important;
+        flex: 1 1 45%;
+      }
+      
+      /* FAB position */
+      .fab {
+        bottom: 20px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+      }
+      
+      /* Compact auth for mobile */
+      #authCompact {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      
+      /* Touch-friendly inputs */
+      input, select, textarea, button {
+        font-size: 16px !important;
+        min-height: 44px;
+      }
+      
+      textarea.notesInput {
+        min-height: 80px;
+      }
+      
+      textarea.titleInput {
+        min-height: auto;
+        padding: 10px 14px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      h1 { font-size: 1.1rem; }
+      
+      /* Star rating for very small screens */
+      .star-rating {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 8px;
+      }
+      
+      .star {
+        font-size: 18px;
+      }
+      
+      .rating-label {
+        width: 100%;
+        text-align: center;
+        margin-top: 4px;
+      }
+      
+      /* Single column buttons */
+      .row button {
+        flex: 1 1 100%;
+      }
+    }
+    
+    /* Touch device optimizations */
+    @media (hover: none) {
+      button:hover {
+        transform: none;
+      }
+      
+      .card:hover {
+        transform: none;
+      }
+      
+      .thumb:hover {
+        border-color: var(--border);
+        background: var(--bg-secondary);
+      }
+    }
   </style>
 </head>
 <body>
@@ -138,10 +413,6 @@
       </div>
       <div class="tip" id="quickstartTip">
         <strong>Quick Start:</strong> Sign in with your email to get started. Use <b>Import list</b> to add recipes from NYT collections or paste multiple titles. Photos are stored privately with secure URLs.
-        <br><strong>Shortcuts:</strong> <kbd>Cmd+K</kbd> Search • <kbd>Cmd+I</kbd> Import • <kbd>Cmd+N</kbd> New • <kbd>R</kbd> Random
-      </div>
-      <div class="tip hide" id="shortcutsTip" style="background:#e8f5e9;border-color:#a5d6a7">
-        <strong>Shortcuts:</strong> <kbd>Cmd+K</kbd> Search • <kbd>Cmd+I</kbd> Import • <kbd>Cmd+N</kbd> New • <kbd>R</kbd> Random Recipe
       </div>
       <div class="sep" id="authSep"></div>
       <div class="auth" id="authRow">
@@ -173,10 +444,10 @@
             <option value="cooked">Sort: Cooked date</option>
           </select>
         </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end">
+        <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
           <button id="importList">Import list</button>
           <button id="addOne">Add recipe</button>
-          <button id="refresh">Refresh</button>
+          <button id="refresh" title="Sync recipes" style="padding:8px 12px;min-width:auto;font-size:18px;background:transparent;border:1px solid var(--border)">↻</button>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <div id="progressText" class="small muted" style="display:flex;align-items:center"></div>
@@ -225,7 +496,7 @@
         <input class="file hide" type="file" accept="image/*" capture="environment"/>
       </div>
       <div class="row">
-        <input class="titleInput" type="text" placeholder="Recipe title"/>
+        <textarea class="titleInput" placeholder="Recipe title" rows="1"></textarea>
       </div>
       <div class="row">
         <input class="linkInput" type="url" placeholder="Recipe link (optional)"/>
@@ -234,7 +505,19 @@
         <input class="dateInput" type="date" />
         <div class="labels">
           <span class="pill pending statusPill">Pending</span>
-          <span class="pill ratingPill" style="cursor:pointer;background:#fff3cd;color:#856404;border:1px solid #ffeaa7">☆☆☆☆☆ (0/10)</span>
+          <div class="star-rating" data-rating="0">
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
+            <span class="star" data-value="6">★</span>
+            <span class="star" data-value="7">★</span>
+            <span class="star" data-value="8">★</span>
+            <span class="star" data-value="9">★</span>
+            <span class="star" data-value="10">★</span>
+            <span class="rating-label">0/10</span>
+          </div>
         </div>
       </div>
       <textarea class="notesInput" placeholder="Comments or tweaks you made…"></textarea>
@@ -526,7 +809,7 @@
         const dateInput = t.querySelector('.dateInput');
         const notesInput = t.querySelector('.notesInput');
         const statusPill = t.querySelector('.statusPill');
-        const ratingPill = t.querySelector('.ratingPill');
+        const ratingPill = t.querySelector('.star-rating');
         const openBtn = t.querySelector('.openLink');
         const removeBtn = t.querySelector('.remove');
         const markCookedBtn = t.querySelector('.markCooked');
@@ -536,6 +819,14 @@
         const file = t.querySelector('.file');
 
         titleInput.value = r.title||'';
+        // Auto-resize title textarea
+        const adjustTitleHeight = () => {
+          titleInput.style.height = 'auto';
+          const newHeight = Math.max(titleInput.scrollHeight, 40);
+          titleInput.style.height = newHeight + 'px';
+        };
+        // Small delay to ensure proper rendering
+        setTimeout(adjustTitleHeight, 0);
         linkInput.value = r.link||'';
         dateInput.value = r.date_cooked||'';
         notesInput.value = r.notes||'';
@@ -544,8 +835,17 @@
         statusPill.classList.toggle('pending', !r.cooked);
         markCookedBtn.classList.toggle('hide', !!r.cooked);
         markUncookedBtn.classList.toggle('hide', !r.cooked);
-        const stars = '★'.repeat(r.rating||0) + '☆'.repeat(10 - (r.rating||0));
-        ratingPill.textContent = stars + ` (${r.rating||0}/10)`;
+        // Set up star rating display
+        const stars = ratingPill.querySelectorAll('.star');
+        const ratingLabel = ratingPill.querySelector('.rating-label');
+        const currentRating = r.rating || 0;
+        ratingPill.dataset.rating = currentRating;
+        
+        // Update star display
+        stars.forEach((star, index) => {
+          star.classList.toggle('filled', index < currentRating);
+        });
+        ratingLabel.textContent = `${currentRating}/10`;
 
         if (r.photo_path){
           // Fetch a fresh signed URL each render (simple + secure)
@@ -566,7 +866,12 @@
         const titleAbort = { controller: null };
         const linkAbort = { controller: null };
         const notesAbort = { controller: null };
-        titleInput.addEventListener('input', e => {
+        const handleTitleInput = (e) => {
+          // Auto-resize
+          titleInput.style.height = 'auto';
+          const newHeight = Math.max(titleInput.scrollHeight, 40);
+          titleInput.style.height = newHeight + 'px';
+          
           clearTimeout(titleTimeout);
           // Cancel any pending request
           if (titleAbort.controller) {
@@ -591,7 +896,9 @@
               titleAbort.controller = null;
             }
           }, 1500);
-        });
+        };
+        
+        titleInput.addEventListener('input', handleTitleInput);
         linkInput.addEventListener('input', e => {
           clearTimeout(linkTimeout);
           // Cancel any pending request
@@ -766,20 +1073,55 @@
           thumb.style.cursor = '';
         });
 
-        // rating
-        ratingPill.title = 'Click to set rating (0-10)';
-        ratingPill.style.cursor='pointer';
-        ratingPill.addEventListener('click', async () => {
-          try {
-            const val = prompt('Rating 0-10 stars?', r.rating ?? 0);
-            if (val === null) return;
-            const n = Math.max(0, Math.min(10, parseInt(val, 10) || 0));
-            await updateRecipe(r.id, {rating: n});
-            const stars = '★'.repeat(n) + '☆'.repeat(10 - n);
-            ratingPill.textContent = stars + ` (${n}/10)`;
-          } catch (err) {
-            console.error('Update rating error:', err);
-          }
+        // Interactive star rating
+        const starElements = ratingPill.querySelectorAll('.star');
+        const label = ratingPill.querySelector('.rating-label');
+        
+        // Add hover effect
+        starElements.forEach((star, index) => {
+          star.addEventListener('mouseenter', () => {
+            starElements.forEach((s, i) => {
+              s.classList.toggle('hover', i <= index);
+            });
+            label.textContent = `${index + 1}/10`;
+          });
+          
+          star.addEventListener('click', async () => {
+            const newRating = index + 1;
+            try {
+              await updateRecipe(r.id, {rating: newRating});
+              
+              // Update display
+              ratingPill.dataset.rating = newRating;
+              starElements.forEach((s, i) => {
+                s.classList.toggle('filled', i < newRating);
+                // Add pop animation to clicked stars
+                if (i <= index) {
+                  s.classList.add('pop');
+                  setTimeout(() => s.classList.remove('pop'), 400);
+                }
+              });
+              label.textContent = `${newRating}/10`;
+              
+              // Update cache
+              const idx = cache.findIndex(item => item.id === r.id);
+              if (idx >= 0) {
+                cache[idx].rating = newRating;
+              }
+            } catch (err) {
+              console.error('Update rating error:', err);
+            }
+          });
+        });
+        
+        // Reset hover on mouse leave
+        ratingPill.addEventListener('mouseleave', () => {
+          const currentRating = parseInt(ratingPill.dataset.rating) || 0;
+          starElements.forEach((s, i) => {
+            s.classList.remove('hover');
+            s.classList.toggle('filled', i < currentRating);
+          });
+          label.textContent = `${currentRating}/10`;
         });
 
         cards.appendChild(t);
@@ -805,15 +1147,16 @@
         return;
       }
       const btn = $('#refresh');
-      const originalText = btn.textContent;
-      btn.textContent = 'Loading...';
+      btn.style.animation = 'spin 1s linear infinite';
       btn.disabled = true;
       
-      cache = await listRecipes();
-      render(cache);
-      
-      btn.textContent = originalText;
-      btn.disabled = false;
+      try {
+        cache = await listRecipes();
+        render(cache);
+      } finally {
+        btn.style.animation = '';
+        btn.disabled = false;
+      }
     }
 
     // Helper function to fetch NYT collection recipes automatically
@@ -1119,9 +1462,8 @@
         $('#quickstartTip').classList.add('hide');
         $('#authSep').classList.add('hide');
         
-        // Show compact auth and shortcuts
+        // Show compact auth
         $('#authCompact').classList.remove('hide');
-        $('#shortcutsTip').classList.remove('hide');
         $('#userEmail').textContent = sessionUser?.email || '';
       } else {
         // Show the main auth section and quickstart
@@ -1129,9 +1471,8 @@
         $('#quickstartTip').classList.remove('hide');
         $('#authSep').classList.remove('hide');
         
-        // Hide compact auth and shortcuts
+        // Hide compact auth
         $('#authCompact').classList.add('hide');
-        $('#shortcutsTip').classList.add('hide');
         
         // Reset auth form
         $('#email').disabled = false;
