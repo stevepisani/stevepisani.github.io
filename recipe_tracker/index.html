@@ -1,0 +1,1558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recipe Tracker — NYT 2025 (Shared)</title>
+  <meta name="description" content="Shared tracker for NYT Cooking's Most Popular Recipes 2025 (So Far). Works on mobile, syncs via Supabase. Private images via signed URLs.">
+  <link href="/assets/css/normalize.css" rel="stylesheet" type="text/css">
+  <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js" type="text/javascript"></script>
+  <script type="text/javascript">WebFont.load({  google: {    families: ["Montserrat:100,100italic,200,200italic,300,300italic,400,400italic,500,500italic,600,600italic,700,700italic,800,800italic,900,900italic"]  }});</script>
+  <style>
+    :root{
+      --primary:#004aad; --primary-dark:#003a8c; --primary-light:#0066cc;
+      --bg:#ffffff; --bg-secondary:#f8fafc; --card:#ffffff;
+      --text:#1a1b1f; --text-light:#4a5568; --text-muted:#718096;
+      --accent:#004aad; --ok:#10b981; --warn:#f59e0b; --danger:#ef4444;
+      --border:#e2e8f0; --border-light:#f1f5f9;
+      --shadow-sm:0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+      --shadow-md:0 4px 6px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.06);
+      --shadow-lg:0 10px 25px rgba(0, 0, 0, 0.1), 0 6px 10px rgba(0, 0, 0, 0.05);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg-secondary);color:var(--text);
+      font-family: Montserrat, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size:16px;line-height:1.75;font-weight:400;
+      -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    header{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--border);box-shadow:var(--shadow-sm)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:1.75rem;font-weight:600;color:var(--text)}
+    .badge{font-size:.75rem;padding:4px 12px;background:var(--primary);color:white;border-radius:999px;font-weight:500}
+    .controls{display:grid;grid-template-columns: 1fr auto auto;gap:10px;align-items:center}
+    .search{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    input[type="text"],input[type="url"],input[type="date"],textarea,select{width:100%;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:white;color:var(--text);transition:all 0.2s ease;font-family:inherit}
+    input:focus,textarea:focus,select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,74,173,0.1)}
+    textarea{min-height:72px;resize:vertical}
+    textarea.titleInput{
+      min-height:auto !important;
+      resize:none;
+      overflow:hidden;
+      font-family:inherit;
+      font-size:1rem;
+      font-weight:500;
+      line-height:1.4;
+      white-space:pre-wrap;
+      word-wrap:break-word;
+      word-break:break-word;
+    }
+    button{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:white;color:var(--text);cursor:pointer;font-weight:500;transition:all 0.2s ease;font-family:inherit}
+    button:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+    .accent{border:none;background:var(--primary);color:white}
+    .accent:hover{background:var(--primary-dark)}
+    .ok{border:none;background:var(--ok);color:white}
+    .ok:hover{background:#059669}
+    .warn{border:none;background:var(--warn);color:white}
+    .warn:hover{background:#d97706}
+    .danger{border:none;background:var(--danger);color:white}
+    .danger:hover{background:#dc2626}
+    .muted{color:var(--text-muted)} .small{font-size:.875rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+    .card{background:white;border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow-sm);transition:all 0.3s ease}
+    .card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+    
+    /* Recipe title styling */
+    .titleInput {
+      font-weight: 500;
+      font-size: 1rem;
+      line-height: 1.4;
+      min-height: auto;
+      height: auto;
+      padding: 8px 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow: hidden;
+      display: block;
+      width: 100%;
+    }
+    .thumb{width:100%;aspect-ratio:16/10;background:var(--bg-secondary);border:2px dashed var(--border);border-radius:8px;display:grid;place-items:center;color:var(--text-muted);overflow:hidden;transition:all 0.2s ease}
+    .thumb:hover{border-color:var(--primary);background:#f0f7ff}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .labels{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{font-size:.75rem;padding:3px 10px;border-radius:999px;font-weight:500}
+    .pill.ok{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+    .pill.pending{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
+    /* Star Rating Component */
+    .star-rating {
+      display: inline-flex;
+      gap: 2px;
+      padding: 4px 8px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+    .star-rating:hover {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+    .star {
+      cursor: pointer;
+      font-size: 16px;
+      color: #ddd;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .star:hover {
+      transform: scale(1.2);
+    }
+    .star.filled {
+      color: #fbbf24;
+    }
+    .star.hover {
+      color: #fbbf24;
+      transform: scale(1.1);
+    }
+    .rating-label {
+      margin-left: 8px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .progress{height:8px;background:var(--bg-secondary);border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+    .progress>div{height:100%;background:linear-gradient(90deg,var(--primary),var(--primary-light));width:0%;transition:width 0.3s ease}
+    .sep{height:1px;background:var(--border);margin:12px 0}
+    .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .hide{display:none !important}
+    .tip{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-top:12px;color:var(--text-light);font-size:.875rem;line-height:1.5}
+    .kbd{background:white;border:1px solid var(--border);border-bottom-width:2px;padding:2px 6px;border-radius:4px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace;font-size:.85rem}
+    
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: var(--shadow-sm); }
+      50% { transform: scale(1.02); box-shadow: 0 0 20px rgba(0,74,173,0.3); }
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes starPop {
+      0% { transform: scale(1) rotate(0deg); }
+      50% { transform: scale(1.3) rotate(180deg); }
+      100% { transform: scale(1) rotate(360deg); }
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .card { animation: slideIn 0.3s ease-out; }
+    .star.pop { animation: starPop 0.4s ease-out; }
+    
+    /* Stats bar */
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      padding: 16px;
+      background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    /* Floating action button for random recipe */
+    .fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0,74,173,0.3);
+      cursor: pointer;
+      font-size: 24px;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    .fab:hover {
+      transform: scale(1.1) rotate(180deg);
+      box-shadow: 0 6px 20px rgba(0,74,173,0.4);
+    }
+    
+    /* Mobile Responsive Design */
+    @media (max-width: 768px) {
+      .wrap { padding: 12px; }
+      h1 { font-size: 1.25rem; }
+      .badge { display: none; }
+      
+      /* Stack header elements */
+      header > .wrap > div:first-child {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch !important;
+      }
+      
+      /* Mobile navigation */
+      a[href="/"] {
+        width: 100%;
+        text-align: center;
+      }
+      
+      /* Controls */
+      .controls {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      /* Progress text mobile */
+      .controls > div:last-child {
+        justify-content: center !important;
+      }
+      
+      .search {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .search > * {
+        width: 100%;
+      }
+      
+      /* Buttons row */
+      .controls > div:nth-child(2) {
+        display: flex !important;
+        gap: 8px;
+      }
+      
+      #importList, #addOne {
+        flex: 1;
+      }
+      
+      #refresh {
+        flex: 0 0 auto;
+      }
+      
+      /* Stats bar */
+      .stats-bar {
+        flex-direction: column;
+        gap: 12px !important;
+        padding: 12px !important;
+      }
+      
+      .stat-item {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      
+      .stat-item:last-child {
+        border-bottom: none;
+      }
+      
+      .stat-value {
+        font-size: 1.25rem;
+      }
+      
+      /* Recipe of the day mobile */
+      .stat-item[style*="flex:1"] {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center;
+        padding-top: 12px;
+      }
+      
+      /* Cards grid */
+      .grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      
+      /* Card layout */
+      .card {
+        padding: 16px;
+      }
+      
+      .thumb {
+        aspect-ratio: 16/9;
+      }
+      
+      /* Star rating mobile */
+      .star-rating {
+        padding: 6px 8px;
+        justify-content: space-between;
+        width: 100%;
+      }
+      
+      .star {
+        font-size: 20px;
+        padding: 2px;
+      }
+      
+      .rating-label {
+        font-size: 0.7rem;
+      }
+      
+      /* Button row in cards */
+      .row {
+        flex-wrap: wrap;
+      }
+      
+      .row button {
+        padding: 12px;
+        font-size: 0.9rem;
+        min-width: 0 !important;
+        flex: 1 1 45%;
+      }
+      
+      /* FAB position */
+      .fab {
+        bottom: 20px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
+      }
+      
+      /* Compact auth for mobile */
+      #authCompact {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      
+      /* Touch-friendly inputs */
+      input, select, textarea, button {
+        font-size: 16px !important;
+        min-height: 44px;
+      }
+      
+      textarea.notesInput {
+        min-height: 80px;
+      }
+      
+      textarea.titleInput {
+        min-height: auto;
+        padding: 10px 14px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      h1 { font-size: 1.1rem; }
+      
+      /* Star rating for very small screens */
+      .star-rating {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 8px;
+      }
+      
+      .star {
+        font-size: 18px;
+      }
+      
+      .rating-label {
+        width: 100%;
+        text-align: center;
+        margin-top: 4px;
+      }
+      
+      /* Single column buttons */
+      .row button {
+        flex: 1 1 100%;
+      }
+    }
+    
+    /* Touch device optimizations */
+    @media (hover: none) {
+      button:hover {
+        transform: none;
+      }
+      
+      .card:hover {
+        transform: none;
+      }
+      
+      .thumb:hover {
+        border-color: var(--border);
+        background: var(--bg-secondary);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:16px">
+          <h1>Recipe Tracker — NYT 2025</h1>
+          <span class="badge">Shared Tracker</span>
+        </div>
+        <a href="/" style="color:var(--primary);text-decoration:none;font-weight:500;padding:8px 16px;border:1px solid var(--primary);border-radius:8px;transition:all 0.2s ease" onmouseover="this.style.background='var(--primary)';this.style.color='white'" onmouseout="this.style.background='transparent';this.style.color='var(--primary)'">← Back to Site</a>
+      </div>
+      <div class="tip" id="quickstartTip">
+        <strong>Quick Start:</strong> Sign in with your email to get started. Use <b>Import list</b> to add recipes from NYT collections or paste multiple titles. Photos are stored privately with secure URLs.
+      </div>
+      <div class="sep" id="authSep"></div>
+      <div class="auth" id="authRow">
+        <input id="email" type="text" placeholder="Email for sign-in link (magic link)">
+        <button id="sendLink" class="accent">Send sign-in link</button>
+        <span id="authStatus" class="small muted"></span>
+        <span style="flex:1"></span>
+        <button id="signOut" class="danger hide">Sign out</button>
+      </div>
+      <div class="auth hide" id="authCompact" style="padding:8px 0;justify-content:space-between">
+        <span class="small" style="color:var(--text-light)">
+          <span style="color:var(--ok);margin-right:4px">●</span>
+          Signed in as <strong id="userEmail"></strong>
+        </span>
+        <button id="signOutCompact" class="small" style="padding:4px 12px;background:transparent;border:1px solid var(--border);color:var(--text-light)">Sign out</button>
+      </div>
+      <div class="sep"></div>
+      <div class="controls">
+        <div class="search">
+          <input id="search" type="text" placeholder="Search recipes…">
+          <select id="filter">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="cooked">Cooked</option>
+          </select>
+          <select id="sort">
+            <option value="title">Sort: Title</option>
+            <option value="created">Sort: Added</option>
+            <option value="cooked">Sort: Cooked date</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+          <button id="importList">Import list</button>
+          <button id="addOne">Add recipe</button>
+          <button id="refresh" title="Sync recipes" style="padding:8px 12px;min-width:auto;font-size:18px;background:transparent;border:1px solid var(--border)">↻</button>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <div id="progressText" class="small muted" style="display:flex;align-items:center"></div>
+        </div>
+      </div>
+      <div class="wrap small muted" style="padding-top:0">
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="stats-bar" id="statsBar" style="display:none">
+      <div class="stat-item">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total Recipes</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statCooked">0</div>
+        <div class="stat-label">Cooked</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statAvgRating">0</div>
+        <div class="stat-label">Avg Rating</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statStreak">0</div>
+        <div class="stat-label">Week Streak 🔥</div>
+      </div>
+      <div class="stat-item" style="flex:1">
+        <div style="font-size:0.9rem;color:var(--text-light);text-align:center">
+          <strong>Recipe of the Day:</strong> <span id="recipeOfDay" style="color:var(--primary);cursor:pointer">Loading...</span>
+        </div>
+      </div>
+    </div>
+    <div id="cards" class="grid"></div>
+  </main>
+  
+  <button class="fab" id="randomBtn" title="Suggest random recipe (Press R)">🎲</button>
+
+  <template id="cardTemplate">
+    <div class="card" data-id="">
+      <div class="thumb">
+        <span>Tap to add photo</span>
+        <img class="hide" alt="Recipe photo"/>
+        <input class="file hide" type="file" accept="image/*" capture="environment"/>
+      </div>
+      <div class="row">
+        <textarea class="titleInput" placeholder="Recipe title" rows="1"></textarea>
+      </div>
+      <div class="row">
+        <input class="linkInput" type="url" placeholder="Recipe link (optional)"/>
+      </div>
+      <div class="row">
+        <input class="dateInput" type="date" />
+        <div class="labels">
+          <span class="pill pending statusPill">Pending</span>
+          <div class="star-rating" data-rating="0">
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
+            <span class="star" data-value="6">★</span>
+            <span class="star" data-value="7">★</span>
+            <span class="star" data-value="8">★</span>
+            <span class="star" data-value="9">★</span>
+            <span class="star" data-value="10">★</span>
+            <span class="rating-label">0/10</span>
+          </div>
+        </div>
+      </div>
+      <textarea class="notesInput" placeholder="Comments or tweaks you made…"></textarea>
+      <div class="row">
+        <button class="ok markCooked">Mark cooked</button>
+        <button class="warn markUncooked hide">Mark uncooked</button>
+        <button class="accent openLink">Open</button>
+        <button class="danger remove">Remove</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999"></canvas>
+  <script>
+    // Global error handlers
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.error || e.message);
+    });
+    
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      e.preventDefault(); // Prevent the default browser behavior
+    });
+    
+    // Confetti animation
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      
+      const pieces = [];
+      const colors = ['#004aad', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+      
+      for (let i = 0; i < 150; i++) {
+        pieces.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height - canvas.height,
+          w: Math.random() * 10 + 5,
+          h: Math.random() * 5 + 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          speed: Math.random() * 3 + 2,
+          rotation: Math.random() * 360,
+          rotationSpeed: Math.random() * 10 - 5
+        });
+      }
+      
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        pieces.forEach((p, index) => {
+          ctx.save();
+          ctx.translate(p.x + p.w/2, p.y + p.h/2);
+          ctx.rotate(p.rotation * Math.PI / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+          ctx.restore();
+          
+          p.y += p.speed;
+          p.rotation += p.rotationSpeed;
+          
+          if (p.y > canvas.height) {
+            pieces.splice(index, 1);
+          }
+        });
+        
+        if (pieces.length > 0) {
+          requestAnimationFrame(draw);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      }
+      
+      draw();
+    }
+    
+    // Recipe of the day suggestion
+    function getRandomRecipe() {
+      const pending = cache.filter(r => !r.cooked);
+      if (pending.length === 0) return null;
+      return pending[Math.floor(Math.random() * pending.length)];
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Cmd/Ctrl + K for search focus
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('search').focus();
+      }
+      // Cmd/Ctrl + I for import
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        document.getElementById('importList').click();
+      }
+      // Cmd/Ctrl + N for new recipe
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        document.getElementById('addOne').click();
+      }
+      // R for random recipe suggestion
+      if (e.key === 'r' && !e.metaKey && !e.ctrlKey && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        const recipe = getRandomRecipe();
+        if (recipe) {
+          const card = document.querySelector(`[data-id="${recipe.id}"]`);
+          if (card) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            card.style.animation = 'pulse 1s ease-in-out';
+            setTimeout(() => { card.style.animation = ''; }, 1000);
+          }
+        }
+      }
+    });
+    
+    // ---- EDIT THESE 3 LINES ----
+    const SUPABASE_URL = "https://dkaiavlnmtetqigxnkwb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrYWlhdmxubXRldHFpZ3hua3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYwOTA3NjIsImV4cCI6MjA3MTY2Njc2Mn0.d-YKOURWHLJ5erK0GsECFMwelsrX3N2wxtns5e1TwZQ";
+    const ALLOWED_EMAILS = ["sjp543@gmail.com","lexipisani@gmail.com"]; // put both of your emails here
+    // ----------------------------
+
+    // Settings
+    const BUCKET = 'photos';                 // Create this bucket, set it to PRIVATE
+    const SIGNED_URL_TTL = 60*60*24*7;       // 7 days (in seconds)
+
+    // Initialize Supabase client with error handling
+    let supabase;
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (err) {
+      console.error('Failed to initialize Supabase:', err);
+      alert('Failed to initialize. Please refresh the page.');
+    }
+    
+    const $ = s => document.querySelector(s);
+    let sessionUser = null;
+    let cache = [];
+
+    // Data helpers
+    async function listRecipes(){
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .order('created_at',{ascending:true});
+      if (error){ console.error(error); alert('Error loading recipes'); return []; }
+      return data;
+    }
+    async function insertRecipe(rec){
+      const { data, error } = await supabase.from('recipes').insert(rec).select().single();
+      if (error){ console.error(error); alert('Insert failed'); return null; }
+      return data;
+    }
+    async function updateRecipe(id, patch, abortSignal = null){
+      patch.updated_at = new Date().toISOString();
+      
+      // Create options object for the query
+      const queryOptions = {};
+      if (abortSignal) {
+        queryOptions.signal = abortSignal;
+      }
+      
+      try {
+        const { error } = await supabase.from('recipes').update(patch).eq('id', id);
+        if (error){ 
+          console.error(error); 
+          // Don't show alert for aborted requests
+          if (!abortSignal || !abortSignal.aborted) {
+            alert('Update failed: ' + error.message);
+          }
+          return false;
+        }
+        // Update local cache
+        const idx = cache.findIndex(r => r.id === id);
+        if (idx >= 0) {
+          cache[idx] = { ...cache[idx], ...patch };
+          // Don't re-render during typing, only on successful save
+          // render(cache) is removed here to prevent UI jumping
+        }
+        return true;
+      } catch (err) {
+        // Check if it was an abort error
+        if (err.name === 'AbortError' || (abortSignal && abortSignal.aborted)) {
+          console.log('Update request was cancelled');
+          return false;
+        }
+        throw err;
+      }
+    }
+    async function deleteRecipe(id){
+      const { error } = await supabase.from('recipes').delete().eq('id', id);
+      if (error){ console.error(error); alert('Delete failed'); }
+    }
+
+    // Storage (private bucket + signed URLs)
+    async function uploadPhoto(file, recipeId){
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Photo must be less than 5MB');
+        return null;
+      }
+      
+      const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+      // Validate file type
+      if (!['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        alert('Please upload an image file (jpg, png, gif, webp)');
+        return null;
+      }
+      
+      const path = `${recipeId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if (error){ 
+        console.error(error); 
+        alert('Photo upload failed: ' + error.message); 
+        return null; 
+      }
+      return path; // store path in DB
+    }
+    async function getSignedUrl(path){
+      if (!path) return null;
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+      if (error){ console.error(error); return null; }
+      return data?.signedUrl || null;
+    }
+
+    // UI render
+    async function render(list){
+      const q = $('#search').value.trim().toLowerCase();
+      const filter = $('#filter').value;
+      const sort = $('#sort').value;
+      let items = [...list];
+      if (q){ items = items.filter(r => (r.title||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q)); }
+      if (filter==='pending') items = items.filter(r=>!r.cooked);
+      if (filter==='cooked') items = items.filter(r=>r.cooked);
+      if (sort==='title') items.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
+      if (sort==='created') items.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+      if (sort==='cooked') items.sort((a,b)=> (rDate(a)||'').localeCompare(rDate(b)||''));
+      function rDate(x){return x.date_cooked || ''}
+
+      const cookedCount = list.filter(r=>r.cooked).length;
+      $('#progressText').textContent = `${cookedCount} of ${list.length} cooked`;
+      $('#progressBar').style.width = (list.length? (100*cookedCount/list.length):0).toFixed(1)+'%';
+      
+      // Update stats
+      if (list.length > 0) {
+        $('#statsBar').style.display = 'flex';
+        $('#statTotal').textContent = list.length;
+        $('#statCooked').textContent = cookedCount;
+        const avgRating = list.filter(r => r.rating > 0).reduce((acc, r) => acc + r.rating, 0) / (list.filter(r => r.rating > 0).length || 1);
+        $('#statAvgRating').textContent = avgRating.toFixed(1);
+        
+        // Calculate weekly streak
+        const today = new Date();
+        const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
+        const cookedThisWeek = list.filter(r => r.date_cooked && new Date(r.date_cooked) >= oneWeekAgo).length;
+        const cookedLastWeek = list.filter(r => r.date_cooked && new Date(r.date_cooked) >= twoWeeksAgo && new Date(r.date_cooked) < oneWeekAgo).length;
+        let streak = cookedThisWeek > 0 ? 1 : 0;
+        if (cookedLastWeek > 0 && cookedThisWeek > 0) streak = 2;
+        $('#statStreak').textContent = streak;
+        
+        // Recipe of the day
+        const pending = list.filter(r => !r.cooked);
+        if (pending.length > 0) {
+          const today = new Date().toDateString();
+          const seed = today.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+          const recipe = pending[seed % pending.length];
+          $('#recipeOfDay').textContent = recipe.title || 'None';
+          $('#recipeOfDay').onclick = () => {
+            const card = document.querySelector(`[data-id="${recipe.id}"]`);
+            if (card) {
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              card.style.animation = 'pulse 1s ease-in-out';
+              setTimeout(() => { card.style.animation = ''; }, 1000);
+            }
+          };
+        } else {
+          $('#recipeOfDay').textContent = 'All cooked! 🎉';
+        }
+      } else {
+        $('#statsBar').style.display = 'none';
+      }
+
+      const cards = $('#cards'); cards.innerHTML = '';
+      for (const r of items){
+        const t = document.querySelector('#cardTemplate').content.cloneNode(true);
+        const card = t.querySelector('.card'); card.dataset.id = r.id;
+        const titleInput = t.querySelector('.titleInput');
+        const linkInput = t.querySelector('.linkInput');
+        const dateInput = t.querySelector('.dateInput');
+        const notesInput = t.querySelector('.notesInput');
+        const statusPill = t.querySelector('.statusPill');
+        const ratingPill = t.querySelector('.star-rating');
+        const openBtn = t.querySelector('.openLink');
+        const removeBtn = t.querySelector('.remove');
+        const markCookedBtn = t.querySelector('.markCooked');
+        const markUncookedBtn = t.querySelector('.markUncooked');
+        const thumb = t.querySelector('.thumb');
+        const img = t.querySelector('img');
+        const file = t.querySelector('.file');
+
+        titleInput.value = r.title||'';
+        // Auto-resize title textarea
+        const adjustTitleHeight = () => {
+          titleInput.style.height = 'auto';
+          const newHeight = Math.max(titleInput.scrollHeight, 40);
+          titleInput.style.height = newHeight + 'px';
+        };
+        // Small delay to ensure proper rendering
+        setTimeout(adjustTitleHeight, 0);
+        linkInput.value = r.link||'';
+        dateInput.value = r.date_cooked||'';
+        notesInput.value = r.notes||'';
+        statusPill.textContent = r.cooked ? 'Cooked' : 'Pending';
+        statusPill.classList.toggle('ok', !!r.cooked);
+        statusPill.classList.toggle('pending', !r.cooked);
+        markCookedBtn.classList.toggle('hide', !!r.cooked);
+        markUncookedBtn.classList.toggle('hide', !r.cooked);
+        // Set up star rating display
+        const stars = ratingPill.querySelectorAll('.star');
+        const ratingLabel = ratingPill.querySelector('.rating-label');
+        const currentRating = r.rating || 0;
+        ratingPill.dataset.rating = currentRating;
+        
+        // Update star display
+        stars.forEach((star, index) => {
+          star.classList.toggle('filled', index < currentRating);
+        });
+        ratingLabel.textContent = `${currentRating}/10`;
+
+        if (r.photo_path){
+          // Fetch a fresh signed URL each render (simple + secure)
+          getSignedUrl(r.photo_path).then(url => {
+            if (url) {
+              img.src = url;
+              img.classList.remove('hide');
+              thumb.querySelector('span')?.classList.add('hide');
+            }
+          }).catch(err => {
+            console.error('Failed to get signed URL:', err);
+          });
+        }
+
+        // events with debouncing for text inputs
+        let titleTimeout, linkTimeout, notesTimeout;
+        // Store abort controllers per field to cancel pending requests
+        const titleAbort = { controller: null };
+        const linkAbort = { controller: null };
+        const notesAbort = { controller: null };
+        const handleTitleInput = (e) => {
+          // Auto-resize
+          titleInput.style.height = 'auto';
+          const newHeight = Math.max(titleInput.scrollHeight, 40);
+          titleInput.style.height = newHeight + 'px';
+          
+          clearTimeout(titleTimeout);
+          // Cancel any pending request
+          if (titleAbort.controller) {
+            titleAbort.controller.abort();
+          }
+          // Show typing indicator
+          titleInput.style.borderColor = 'var(--warn)';
+          titleTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              titleAbort.controller = new AbortController();
+              await updateRecipe(r.id, {title: e.target.value}, titleAbort.controller.signal);
+              titleInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { titleInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update title error:', err);
+                titleInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { titleInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              titleAbort.controller = null;
+            }
+          }, 1500);
+        };
+        
+        titleInput.addEventListener('input', handleTitleInput);
+        linkInput.addEventListener('input', e => {
+          clearTimeout(linkTimeout);
+          // Cancel any pending request
+          if (linkAbort.controller) {
+            linkAbort.controller.abort();
+          }
+          // Show typing indicator
+          linkInput.style.borderColor = 'var(--warn)';
+          linkTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              linkAbort.controller = new AbortController();
+              await updateRecipe(r.id, {link: e.target.value}, linkAbort.controller.signal);
+              linkInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { linkInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update link error:', err);
+                linkInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { linkInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              linkAbort.controller = null;
+            }
+          }, 1500);
+        });
+        dateInput.addEventListener('change', async e => {
+          try {
+            dateInput.style.borderColor = 'var(--warn)';
+            await updateRecipe(r.id, {date_cooked: e.target.value, cooked: !!e.target.value});
+            dateInput.style.borderColor = 'var(--ok)';
+            setTimeout(() => { dateInput.style.borderColor = ''; }, 1000);
+          } catch (err) {
+            console.error('Update date error:', err);
+            dateInput.style.borderColor = 'var(--danger)';
+            setTimeout(() => { dateInput.style.borderColor = ''; }, 2000);
+          }
+        });
+        notesInput.addEventListener('input', e => {
+          clearTimeout(notesTimeout);
+          // Cancel any pending request
+          if (notesAbort.controller) {
+            notesAbort.controller.abort();
+          }
+          // Show typing indicator
+          notesInput.style.borderColor = 'var(--warn)';
+          notesTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              notesAbort.controller = new AbortController();
+              await updateRecipe(r.id, {notes: e.target.value}, notesAbort.controller.signal);
+              notesInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { notesInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update notes error:', err);
+                notesInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { notesInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              notesAbort.controller = null;
+            }
+          }, 1500);
+        });
+        markCookedBtn.addEventListener('click', async ()=>{
+          const today = new Date().toISOString().slice(0,10);
+          const dateToUse = r.date_cooked || today;
+          const success = await updateRecipe(r.id,{cooked:true, date_cooked: dateToUse});
+          if (success) {
+            // Update UI immediately
+            dateInput.value = dateToUse;
+            statusPill.textContent = 'Cooked';
+            statusPill.classList.add('ok');
+            statusPill.classList.remove('pending');
+            markCookedBtn.textContent = '✓ Marked!';
+            
+            // Launch confetti!
+            launchConfetti();
+            
+            // Update cache to ensure consistency
+            const idx = cache.findIndex(item => item.id === r.id);
+            if (idx >= 0) {
+              cache[idx].cooked = true;
+              cache[idx].date_cooked = dateToUse;
+            }
+            
+            setTimeout(()=>{ 
+              markCookedBtn.textContent = 'Mark cooked';
+              markCookedBtn.classList.add('hide');
+              markUncookedBtn.classList.remove('hide');
+            }, 1500);
+          }
+        });
+        markUncookedBtn.addEventListener('click', async ()=>{
+          const success = await updateRecipe(r.id,{cooked:false, date_cooked: null});
+          if (success) {
+            // Update UI immediately
+            dateInput.value = '';
+            statusPill.textContent = 'Pending';
+            statusPill.classList.remove('ok');
+            statusPill.classList.add('pending');
+            markUncookedBtn.textContent = 'Unmarked!';
+            
+            // Update cache and re-render to ensure consistency
+            const idx = cache.findIndex(item => item.id === r.id);
+            if (idx >= 0) {
+              cache[idx].cooked = false;
+              cache[idx].date_cooked = null;
+            }
+            
+            setTimeout(()=>{ 
+              markUncookedBtn.textContent = 'Mark uncooked';
+              markUncookedBtn.classList.add('hide');
+              markCookedBtn.classList.remove('hide');
+            }, 1500);
+          }
+        });
+        openBtn.addEventListener('click', ()=>{
+          const url = linkInput.value.trim();
+          if (url) {
+            // Ensure URL has protocol
+            const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+            window.open(finalUrl, '_blank');
+          } else {
+            alert('No link available for this recipe');
+          }
+        });
+        removeBtn.addEventListener('click', async () => {
+          try {
+            if (!confirm('Remove this recipe?')) return;
+            await deleteRecipe(r.id);
+            cache = cache.filter(item => item.id !== r.id);
+            render(cache);
+          } catch (err) {
+            console.error('Delete error:', err);
+          }
+        });
+
+        // photo
+        thumb.addEventListener('click', ()=>{
+          if (!sessionUser) {
+            alert('Please sign in to upload photos');
+            return;
+          }
+          file.click();
+        });
+        file.addEventListener('change', async (e)=>{
+          const f = e.target.files?.[0]; 
+          if (!f) return;
+          
+          // Show loading state
+          thumb.style.opacity = '0.5';
+          thumb.style.cursor = 'wait';
+          
+          const path = await uploadPhoto(f, r.id);
+          if (path){ 
+            const updated = await updateRecipe(r.id, { photo_path: path });
+            if (updated) {
+              // Update UI immediately with object URL
+              const objUrl = URL.createObjectURL(f);
+              img.src = objUrl;
+              img.classList.remove('hide');
+              thumb.querySelector('span')?.classList.add('hide');
+              
+              // Clean up after a delay
+              setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+            }
+          }
+          
+          // Reset loading state
+          thumb.style.opacity = '';
+          thumb.style.cursor = '';
+        });
+
+        // Interactive star rating
+        const starElements = ratingPill.querySelectorAll('.star');
+        const label = ratingPill.querySelector('.rating-label');
+        
+        // Add hover effect
+        starElements.forEach((star, index) => {
+          star.addEventListener('mouseenter', () => {
+            starElements.forEach((s, i) => {
+              s.classList.toggle('hover', i <= index);
+            });
+            label.textContent = `${index + 1}/10`;
+          });
+          
+          star.addEventListener('click', async () => {
+            const newRating = index + 1;
+            try {
+              await updateRecipe(r.id, {rating: newRating});
+              
+              // Update display
+              ratingPill.dataset.rating = newRating;
+              starElements.forEach((s, i) => {
+                s.classList.toggle('filled', i < newRating);
+                // Add pop animation to clicked stars
+                if (i <= index) {
+                  s.classList.add('pop');
+                  setTimeout(() => s.classList.remove('pop'), 400);
+                }
+              });
+              label.textContent = `${newRating}/10`;
+              
+              // Update cache
+              const idx = cache.findIndex(item => item.id === r.id);
+              if (idx >= 0) {
+                cache[idx].rating = newRating;
+              }
+            } catch (err) {
+              console.error('Update rating error:', err);
+            }
+          });
+        });
+        
+        // Reset hover on mouse leave
+        ratingPill.addEventListener('mouseleave', () => {
+          const currentRating = parseInt(ratingPill.dataset.rating) || 0;
+          starElements.forEach((s, i) => {
+            s.classList.remove('hover');
+            s.classList.toggle('filled', i < currentRating);
+          });
+          label.textContent = `${currentRating}/10`;
+        });
+
+        cards.appendChild(t);
+      }
+      if (!items.length){
+        const p = document.createElement('div');
+        p.className = 'muted small';
+        if (!sessionUser) {
+          p.innerHTML = 'Please sign in to view and manage recipes.';
+        } else if (q || filter !== 'all') {
+          p.innerHTML = 'No recipes match your search/filter criteria.';
+        } else {
+          p.innerHTML = 'No recipes yet. Use <b>Import list</b> or <b>Add recipe</b>.';
+        }
+        cards.appendChild(p);
+      }
+    }
+
+    async function refresh(){
+      if (!sessionUser) {
+        cache = [];
+        render([]);
+        return;
+      }
+      const btn = $('#refresh');
+      btn.style.animation = 'spin 1s linear infinite';
+      btn.disabled = true;
+      
+      try {
+        cache = await listRecipes();
+        render(cache);
+      } finally {
+        btn.style.animation = '';
+        btn.disabled = false;
+      }
+    }
+
+    // Helper function to fetch NYT collection recipes automatically
+    async function fetchNYTCollection(url) {
+      try {
+        // Try multiple CORS proxy services
+        const proxies = [
+          'https://corsproxy.io/?',
+          'https://api.allorigins.win/raw?url=',
+          'https://cors-anywhere.herokuapp.com/'
+        ];
+        
+        let content = null;
+        let lastError = null;
+        
+        // Try each proxy until one works
+        for (const proxy of proxies) {
+          try {
+            const response = await fetch(proxy + encodeURIComponent(url), {
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml'
+              }
+            });
+            
+            if (response.ok) {
+              content = await response.text();
+              break;
+            }
+          } catch (err) {
+            lastError = err;
+            console.log(`Proxy ${proxy} failed, trying next...`);
+          }
+        }
+        
+        if (!content) {
+          throw lastError || new Error('All proxy services failed');
+        }
+        
+        // Parse the HTML content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        
+        // Try multiple selectors to find recipes
+        const selectors = [
+          'article a[href*="/recipes/"] h3',
+          'h3.recipe-name',
+          'a[href*="/recipes/"] .recipe-card-title',
+          '[class*="recipeCard"] h3',
+          'article h3'
+        ];
+        
+        let recipes = [];
+        
+        for (const selector of selectors) {
+          const elements = doc.querySelectorAll(selector);
+          if (elements.length > 0) {
+            recipes = Array.from(elements).map(el => {
+              const link = el.closest('a')?.getAttribute('href');
+              const title = el.textContent.trim();
+              const fullLink = link ? `https://cooking.nytimes.com${link.startsWith('/') ? link : '/' + link}` : '';
+              return { title, link: fullLink };
+            }).filter(r => r.title);
+            
+            if (recipes.length > 0) break;
+          }
+        }
+        
+        // If no recipes found with specific selectors, try a more general approach
+        if (recipes.length === 0) {
+          const links = doc.querySelectorAll('a[href*="/recipes/"]');
+          recipes = Array.from(links).map(a => {
+            const title = a.textContent.trim().replace(/\s+/g, ' ');
+            const href = a.getAttribute('href');
+            const link = href ? `https://cooking.nytimes.com${href.startsWith('/') ? href : '/' + href}` : '';
+            return { title, link };
+          }).filter(r => r.title && r.title.length > 3 && r.title.length < 100);
+          
+          // Remove duplicates
+          const seen = new Set();
+          recipes = recipes.filter(r => {
+            const key = r.title.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+        
+        return recipes;
+      } catch (err) {
+        console.error('Error fetching NYT collection:', err);
+        return null;
+      }
+    }
+
+    // import list
+    $('#importList').addEventListener('click', async ()=>{
+      if (!sessionUser) return alert('Sign in first.');
+      const text = prompt(`Paste recipes to import:\n• One recipe title per line\n• Or "Title | Link" to include URL\n• Or paste a NYT collection URL to auto-import\n\nExample NYT URL:\nhttps://cooking.nytimes.com/68861692-nyt-cooking/126768340-most-popular-recipes-2025-so-far`);
+      if (text===null || !text.trim()) return;
+      
+      const btn = $('#importList');
+      const originalText = btn.textContent;
+      
+      // Check if it's a NYT collection URL
+      if (text.includes('cooking.nytimes.com')) {
+        btn.textContent = 'Fetching NYT recipes...';
+        btn.disabled = true;
+        
+        try {
+          const recipes = await fetchNYTCollection(text.trim());
+          
+          if (!recipes || recipes.length === 0) {
+            // Fallback to manual method if automated fetch fails
+            const instructions = `Automated import failed. Here's how to import manually:
+
+1. Open this link in a new tab:
+   ${text}
+
+2. Open browser console (F12 → Console tab)
+
+3. Run this code:
+   copy(Array.from(document.querySelectorAll('article a[href*="/recipes/"]')).map(a => {
+     const title = a.querySelector('h3')?.textContent.trim() || '';
+     const link = 'https://cooking.nytimes.com' + a.getAttribute('href');
+     return title + ' | ' + link;
+   }).filter(x => x.split('|')[0].trim()).join('\\n'))
+
+4. Click "Import list" again and paste the result`;
+            
+            alert(instructions);
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
+          }
+          
+          // Import the fetched recipes
+          btn.textContent = `Importing ${recipes.length} NYT recipes...`;
+          
+          let successCount = 0;
+          for (const recipe of recipes) {
+            if (recipe.title) {
+              const result = await insertRecipe({ 
+                title: recipe.title, 
+                link: recipe.link || '', 
+                cooked: false, 
+                rating: 0 
+              });
+              if (result) successCount++;
+              
+              // Update progress
+              btn.textContent = `Importing... ${successCount}/${recipes.length}`;
+            }
+          }
+          
+          btn.textContent = originalText;
+          btn.disabled = false;
+          
+          if (successCount > 0) {
+            await refresh();
+            alert(`Successfully imported ${successCount} recipes from NYT!`);
+          } else {
+            alert('Failed to import recipes');
+          }
+          return;
+          
+        } catch (err) {
+          console.error('NYT import error:', err);
+          alert('Error fetching NYT recipes. Please try the manual method.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+      }
+      
+      // Regular text import (not NYT URL)
+      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        alert('No recipes to import');
+        return;
+      }
+      
+      btn.textContent = `Importing ${lines.length} recipes...`;
+      btn.disabled = true;
+      
+      let successCount = 0;
+      for (const ln of lines){
+        const [t, ...rest] = ln.split('|');
+        const title = (t||'').trim();
+        const link = rest.join('|').trim();
+        if (title){
+          const result = await insertRecipe({ title, link, cooked:false, rating:0 });
+          if (result) successCount++;
+        }
+      }
+      
+      btn.textContent = originalText;
+      btn.disabled = false;
+      
+      if (successCount > 0) {
+        await refresh();
+        alert(`Successfully imported ${successCount} recipes`);
+      } else {
+        alert('Failed to import recipes');
+      }
+    });
+
+    $('#addOne').addEventListener('click', async ()=>{
+      if (!sessionUser) return alert('Sign in first.');
+      const t = prompt('Recipe title'); 
+      if (t===null || !t.trim()) return;
+      
+      const l = prompt('Link (optional)');
+      if (l === null) return; // User cancelled
+      
+      const recipe = await insertRecipe({ 
+        title: t.trim(), 
+        link: l.trim(), 
+        cooked:false, 
+        rating:0 
+      });
+      
+      if (recipe) {
+        cache.push(recipe);
+        render(cache);
+        // Scroll to the new recipe
+        setTimeout(() => {
+          const newCard = document.querySelector(`[data-id="${recipe.id}"]`);
+          if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    });
+
+    $('#refresh').addEventListener('click', () => {
+      refresh().catch(err => console.error('Refresh error:', err));
+    });
+    $('#search').addEventListener('input', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Search render error:', err);
+      }
+    });
+    $('#filter').addEventListener('change', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Filter render error:', err);
+      }
+    });
+    $('#sort').addEventListener('change', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Sort render error:', err);
+      }
+    });
+
+    // Auth (magic link)
+    $('#sendLink').addEventListener('click', async ()=>{
+      const email = $('#email').value.trim();
+      if (!email) return alert('Enter your email');
+      const redirectTo = `${window.location.origin}${window.location.pathname}`.replace(/\/?$/, '/');
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo }
+      });
+      if (error){ console.error(error); alert('Failed to send link'); return; }
+      $('#authStatus').textContent = 'Check your email for a sign-in link.';
+      $('#email').value = '';
+    });
+
+    async function handleSignOut() {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('Signout error:', error);
+          alert('Signout failed: ' + error.message);
+          return;
+        }
+        
+        // Clear local state
+        sessionUser = null;
+        refreshUIForAuth();
+        cache = [];
+        render([]);
+        
+        console.log('User signed out successfully');
+      } catch (err) {
+        console.error('Signout exception:', err);
+        alert('Signout failed: ' + err.message);
+      }
+    }
+    
+    $('#signOut').addEventListener('click', handleSignOut);
+    $('#signOutCompact').addEventListener('click', handleSignOut);
+
+    function refreshUIForAuth(){
+      const signedIn = !!sessionUser;
+      
+      if (signedIn) {
+        // Hide the main auth section and quickstart
+        $('#authRow').classList.add('hide');
+        $('#quickstartTip').classList.add('hide');
+        $('#authSep').classList.add('hide');
+        
+        // Show compact auth
+        $('#authCompact').classList.remove('hide');
+        $('#userEmail').textContent = sessionUser?.email || '';
+      } else {
+        // Show the main auth section and quickstart
+        $('#authRow').classList.remove('hide');
+        $('#quickstartTip').classList.remove('hide');
+        $('#authSep').classList.remove('hide');
+        
+        // Hide compact auth
+        $('#authCompact').classList.add('hide');
+        
+        // Reset auth form
+        $('#email').disabled = false;
+        $('#sendLink').disabled = false;
+        $('#authStatus').textContent = '';
+      }
+    }
+
+    // enforce allowed emails on client (RLS also protects on server)
+    function isAllowedEmail(email){
+      if (!email) return false;
+      return ALLOWED_EMAILS.map(s=>s.toLowerCase()).includes(email.toLowerCase());
+    }
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      // Use setTimeout to avoid async issues with browser extensions
+      setTimeout(async () => {
+        try {
+          sessionUser = session?.user || null;
+          refreshUIForAuth();
+          
+          if (sessionUser && !isAllowedEmail(sessionUser.email)) {
+            alert('This app is restricted. Please use an allowed email.');
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          if (sessionUser) {
+            await refresh();
+          } else {
+            render([]);
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err);
+        }
+      }, 0);
+    });
+
+    // Random recipe button
+    $('#randomBtn').addEventListener('click', () => {
+      const recipe = getRandomRecipe();
+      if (recipe) {
+        const card = document.querySelector(`[data-id="${recipe.id}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.style.animation = 'pulse 1s ease-in-out';
+          setTimeout(() => { card.style.animation = ''; }, 1000);
+        }
+      } else {
+        alert('No pending recipes to suggest! Great job cooking!');
+      }
+    });
+    
+    // init (handles redirect after magic link)
+    async function init() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Init session error:', error);
+        }
+        sessionUser = session?.user || null;
+        refreshUIForAuth();
+        if (sessionUser) {
+          await refresh();
+        } else {
+          render([]);
+        }
+      } catch (err) {
+        console.error('Init error:', err);
+        render([]);
+      }
+    }
+    
+    // Start initialization after DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      // Delay to ensure all scripts are loaded
+      setTimeout(init, 100);
+    }
+  </script>
+</body>
+</html>
