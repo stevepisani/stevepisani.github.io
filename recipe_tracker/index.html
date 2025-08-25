@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Recipe Tracker — NYT 2025 (Shared)</title>
+  <meta name="description" content="Shared tracker for NYT Cooking's Most Popular Recipes 2025 (So Far). Works on mobile, syncs via Supabase. Private images via signed URLs.">
+  <style>
+    :root{
+      --bg:#0f0f12; --card:#17171c; --muted:#9aa0a6; --text:#e8eaed; --accent:#8ab4f8;
+      --ok:#34c759; --warn:#fbbc05; --danger:#ff6b6b; --border:#2a2a33;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0d0d11,#0f0f12);color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial}
+    header{position:sticky;top:0;z-index:10;backdrop-filter:blur(6px);background:rgba(15,15,18,.7);border-bottom:1px solid var(--border)}
+    .wrap{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:1.35rem}
+    .badge{font-size:.8rem;padding:4px 8px;border:1px solid var(--border);border-radius:999px;color:var(--muted)}
+    .controls{display:grid;grid-template-columns: 1fr auto auto;gap:10px;align-items:center}
+    .search{display:flex;gap:8px;align-items:center}
+    input[type="text"],input[type="url"],input[type="date"],textarea,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);transition:border-color 0.3s ease}
+    textarea{min-height:72px;resize:vertical}
+    button{padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer}
+    button:hover{border-color:#3a3a44}
+    .accent{border-color:transparent;background:linear-gradient(180deg,#2a4b86,#2a3a63)}
+    .ok{border-color:transparent;background:linear-gradient(180deg,#1e7a42,#165e32)}
+    .warn{border-color:transparent;background:linear-gradient(180deg,#8a6b2b,#6b5a1f)}
+    .danger{border-color:transparent;background:linear-gradient(180deg,#8a2b2b,#6b1f1f)}
+    .muted{color:var(--muted)} .small{font-size:.88rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+    .thumb{width:100%;aspect-ratio:16/10;background:#0b0b0f;border:1px dashed #393945;border-radius:12px;display:grid;place-items:center;color:var(--muted);overflow:hidden}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+    .labels{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .pill{font-size:.75rem;color:#cbd5e1;border:1px solid var(--border);padding:2px 8px;border-radius:999px}
+    .pill.ok{border-color:#2d774a;color:#a7f3d0}.pill.pending{border-color:#4b5563;color:#d1d5db}
+    .progress{height:8px;background:#1d1f27;border-radius:999px;overflow:hidden;border:1px solid var(--border)}
+    .progress>div{height:100%;background:linear-gradient(90deg,#2a7cf0,#7aa2f7);width:0%}
+    .sep{height:1px;background:var(--border);margin:8px 0}
+    .auth{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .hide{display:none !important}
+    .tip{background:#101217;border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px;color:var(--muted);font-size:.9rem}
+    .kbd{border:1px solid var(--border);border-bottom-width:2px;padding:0 4px;border-radius:6px;font-family:ui-monospace, SFMono-Regular, Menlo, monospace}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <h1>Recipe Tracker — NYT 2025</h1>
+        <span class="badge">Supabase • Private Photos</span>
+      </div>
+      <div class="tip">
+        Use magic-link sign-in. Import titles with <b>Import list</b> (one per line, or <span class="kbd">Title | Link</span>). Photos are stored privately; URLs are time-limited.
+      </div>
+      <div class="sep"></div>
+      <div class="auth" id="authRow">
+        <input id="email" type="text" placeholder="Email for sign-in link (magic link)">
+        <button id="sendLink" class="accent">Send sign-in link</button>
+        <span id="authStatus" class="small muted"></span>
+        <span style="flex:1"></span>
+        <button id="signOut" class="danger hide">Sign out</button>
+      </div>
+      <div class="sep"></div>
+      <div class="controls">
+        <div class="search">
+          <input id="search" type="text" placeholder="Search recipes…">
+          <select id="filter">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="cooked">Cooked</option>
+          </select>
+          <select id="sort">
+            <option value="title">Sort: Title</option>
+            <option value="created">Sort: Added</option>
+            <option value="cooked">Sort: Cooked date</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button id="importList">Import list</button>
+          <button id="addOne">Add recipe</button>
+          <button id="refresh">Refresh</button>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <div id="progressText" class="small muted" style="display:flex;align-items:center"></div>
+        </div>
+      </div>
+      <div class="wrap small muted" style="padding-top:0">
+        <div class="progress"><div id="progressBar"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="cards" class="grid"></div>
+  </main>
+
+  <template id="cardTemplate">
+    <div class="card" data-id="">
+      <div class="thumb">
+        <span>Tap to add photo</span>
+        <img class="hide" alt="Recipe photo"/>
+        <input class="file hide" type="file" accept="image/*" capture="environment"/>
+      </div>
+      <div class="row">
+        <input class="titleInput" type="text" placeholder="Recipe title"/>
+      </div>
+      <div class="row">
+        <input class="linkInput" type="url" placeholder="Recipe link (optional)"/>
+      </div>
+      <div class="row">
+        <input class="dateInput" type="date" />
+        <div class="labels">
+          <span class="pill pending statusPill">Pending</span>
+          <span class="pill ratingPill">☆☆☆☆☆</span>
+        </div>
+      </div>
+      <textarea class="notesInput" placeholder="Comments or tweaks you made…"></textarea>
+      <div class="row">
+        <button class="ok markCooked">Mark cooked</button>
+        <button class="warn markUncooked hide">Mark uncooked</button>
+        <button class="accent openLink">Open</button>
+        <button class="danger remove">Remove</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Global error handlers
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.error || e.message);
+    });
+    
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled promise rejection:', e.reason);
+      e.preventDefault(); // Prevent the default browser behavior
+    });
+    
+    // ---- EDIT THESE 3 LINES ----
+    const SUPABASE_URL = "https://dkaiavlnmtetqigxnkwb.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrYWlhdmxubXRldHFpZ3hua3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYwOTA3NjIsImV4cCI6MjA3MTY2Njc2Mn0.d-YKOURWHLJ5erK0GsECFMwelsrX3N2wxtns5e1TwZQ";
+    const ALLOWED_EMAILS = ["sjp543@gmail.com","lexipisani@gmail.com"]; // put both of your emails here
+    // ----------------------------
+
+    // Settings
+    const BUCKET = 'photos';                 // Create this bucket, set it to PRIVATE
+    const SIGNED_URL_TTL = 60*60*24*7;       // 7 days (in seconds)
+
+    // Initialize Supabase client with error handling
+    let supabase;
+    try {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (err) {
+      console.error('Failed to initialize Supabase:', err);
+      alert('Failed to initialize. Please refresh the page.');
+    }
+    
+    const $ = s => document.querySelector(s);
+    let sessionUser = null;
+    let cache = [];
+
+    // Data helpers
+    async function listRecipes(){
+      const { data, error } = await supabase
+        .from('recipes')
+        .select('*')
+        .order('created_at',{ascending:true});
+      if (error){ console.error(error); alert('Error loading recipes'); return []; }
+      return data;
+    }
+    async function insertRecipe(rec){
+      const { data, error } = await supabase.from('recipes').insert(rec).select().single();
+      if (error){ console.error(error); alert('Insert failed'); return null; }
+      return data;
+    }
+    async function updateRecipe(id, patch, abortSignal = null){
+      patch.updated_at = new Date().toISOString();
+      
+      // Create options object for the query
+      const queryOptions = {};
+      if (abortSignal) {
+        queryOptions.signal = abortSignal;
+      }
+      
+      try {
+        const { error } = await supabase.from('recipes').update(patch).eq('id', id);
+        if (error){ 
+          console.error(error); 
+          // Don't show alert for aborted requests
+          if (!abortSignal || !abortSignal.aborted) {
+            alert('Update failed: ' + error.message);
+          }
+          return false;
+        }
+        // Update local cache
+        const idx = cache.findIndex(r => r.id === id);
+        if (idx >= 0) {
+          cache[idx] = { ...cache[idx], ...patch };
+          // Don't re-render during typing, only on successful save
+          // render(cache) is removed here to prevent UI jumping
+        }
+        return true;
+      } catch (err) {
+        // Check if it was an abort error
+        if (err.name === 'AbortError' || (abortSignal && abortSignal.aborted)) {
+          console.log('Update request was cancelled');
+          return false;
+        }
+        throw err;
+      }
+    }
+    async function deleteRecipe(id){
+      const { error } = await supabase.from('recipes').delete().eq('id', id);
+      if (error){ console.error(error); alert('Delete failed'); }
+    }
+
+    // Storage (private bucket + signed URLs)
+    async function uploadPhoto(file, recipeId){
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Photo must be less than 5MB');
+        return null;
+      }
+      
+      const ext = (file.name.split('.').pop()||'jpg').toLowerCase();
+      // Validate file type
+      if (!['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+        alert('Please upload an image file (jpg, png, gif, webp)');
+        return null;
+      }
+      
+      const path = `${recipeId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if (error){ 
+        console.error(error); 
+        alert('Photo upload failed: ' + error.message); 
+        return null; 
+      }
+      return path; // store path in DB
+    }
+    async function getSignedUrl(path){
+      if (!path) return null;
+      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+      if (error){ console.error(error); return null; }
+      return data?.signedUrl || null;
+    }
+
+    // UI render
+    async function render(list){
+      const q = $('#search').value.trim().toLowerCase();
+      const filter = $('#filter').value;
+      const sort = $('#sort').value;
+      let items = [...list];
+      if (q){ items = items.filter(r => (r.title||'').toLowerCase().includes(q) || (r.notes||'').toLowerCase().includes(q)); }
+      if (filter==='pending') items = items.filter(r=>!r.cooked);
+      if (filter==='cooked') items = items.filter(r=>r.cooked);
+      if (sort==='title') items.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
+      if (sort==='created') items.sort((a,b)=> new Date(a.created_at)-new Date(b.created_at));
+      if (sort==='cooked') items.sort((a,b)=> (rDate(a)||'').localeCompare(rDate(b)||''));
+      function rDate(x){return x.date_cooked || ''}
+
+      const cookedCount = list.filter(r=>r.cooked).length;
+      $('#progressText').textContent = `${cookedCount} of ${list.length} cooked`;
+      $('#progressBar').style.width = (list.length? (100*cookedCount/list.length):0).toFixed(1)+'%';
+
+      const cards = $('#cards'); cards.innerHTML = '';
+      for (const r of items){
+        const t = document.querySelector('#cardTemplate').content.cloneNode(true);
+        const card = t.querySelector('.card'); card.dataset.id = r.id;
+        const titleInput = t.querySelector('.titleInput');
+        const linkInput = t.querySelector('.linkInput');
+        const dateInput = t.querySelector('.dateInput');
+        const notesInput = t.querySelector('.notesInput');
+        const statusPill = t.querySelector('.statusPill');
+        const ratingPill = t.querySelector('.ratingPill');
+        const openBtn = t.querySelector('.openLink');
+        const removeBtn = t.querySelector('.remove');
+        const markCookedBtn = t.querySelector('.markCooked');
+        const markUncookedBtn = t.querySelector('.markUncooked');
+        const thumb = t.querySelector('.thumb');
+        const img = t.querySelector('img');
+        const file = t.querySelector('.file');
+
+        titleInput.value = r.title||'';
+        linkInput.value = r.link||'';
+        dateInput.value = r.date_cooked||'';
+        notesInput.value = r.notes||'';
+        statusPill.textContent = r.cooked ? 'Cooked' : 'Pending';
+        statusPill.classList.toggle('ok', !!r.cooked);
+        statusPill.classList.toggle('pending', !r.cooked);
+        markCookedBtn.classList.toggle('hide', !!r.cooked);
+        markUncookedBtn.classList.toggle('hide', !r.cooked);
+        ratingPill.textContent = '★'.repeat(r.rating||0) + '☆'.repeat(10 - (r.rating||0));
+
+        if (r.photo_path){
+          // Fetch a fresh signed URL each render (simple + secure)
+          getSignedUrl(r.photo_path).then(url => {
+            if (url) {
+              img.src = url;
+              img.classList.remove('hide');
+              thumb.querySelector('span')?.classList.add('hide');
+            }
+          }).catch(err => {
+            console.error('Failed to get signed URL:', err);
+          });
+        }
+
+        // events with debouncing for text inputs
+        let titleTimeout, linkTimeout, notesTimeout;
+        // Store abort controllers per field to cancel pending requests
+        const titleAbort = { controller: null };
+        const linkAbort = { controller: null };
+        const notesAbort = { controller: null };
+        titleInput.addEventListener('input', e => {
+          clearTimeout(titleTimeout);
+          // Cancel any pending request
+          if (titleAbort.controller) {
+            titleAbort.controller.abort();
+          }
+          // Show typing indicator
+          titleInput.style.borderColor = 'var(--warn)';
+          titleTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              titleAbort.controller = new AbortController();
+              await updateRecipe(r.id, {title: e.target.value}, titleAbort.controller.signal);
+              titleInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { titleInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update title error:', err);
+                titleInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { titleInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              titleAbort.controller = null;
+            }
+          }, 1500);
+        });
+        linkInput.addEventListener('input', e => {
+          clearTimeout(linkTimeout);
+          // Cancel any pending request
+          if (linkAbort.controller) {
+            linkAbort.controller.abort();
+          }
+          // Show typing indicator
+          linkInput.style.borderColor = 'var(--warn)';
+          linkTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              linkAbort.controller = new AbortController();
+              await updateRecipe(r.id, {link: e.target.value}, linkAbort.controller.signal);
+              linkInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { linkInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update link error:', err);
+                linkInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { linkInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              linkAbort.controller = null;
+            }
+          }, 1500);
+        });
+        dateInput.addEventListener('change', async e => {
+          try {
+            dateInput.style.borderColor = 'var(--warn)';
+            await updateRecipe(r.id, {date_cooked: e.target.value, cooked: !!e.target.value});
+            dateInput.style.borderColor = 'var(--ok)';
+            setTimeout(() => { dateInput.style.borderColor = ''; }, 1000);
+          } catch (err) {
+            console.error('Update date error:', err);
+            dateInput.style.borderColor = 'var(--danger)';
+            setTimeout(() => { dateInput.style.borderColor = ''; }, 2000);
+          }
+        });
+        notesInput.addEventListener('input', e => {
+          clearTimeout(notesTimeout);
+          // Cancel any pending request
+          if (notesAbort.controller) {
+            notesAbort.controller.abort();
+          }
+          // Show typing indicator
+          notesInput.style.borderColor = 'var(--warn)';
+          notesTimeout = setTimeout(async () => {
+            try {
+              // Create new abort controller for this request
+              notesAbort.controller = new AbortController();
+              await updateRecipe(r.id, {notes: e.target.value}, notesAbort.controller.signal);
+              notesInput.style.borderColor = 'var(--ok)';
+              setTimeout(() => { notesInput.style.borderColor = ''; }, 1000);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Update notes error:', err);
+                notesInput.style.borderColor = 'var(--danger)';
+                setTimeout(() => { notesInput.style.borderColor = ''; }, 2000);
+              }
+            } finally {
+              notesAbort.controller = null;
+            }
+          }, 1500);
+        });
+        markCookedBtn.addEventListener('click', async ()=>{
+          const today = new Date().toISOString().slice(0,10);
+          const dateToUse = r.date_cooked || today;
+          const success = await updateRecipe(r.id,{cooked:true, date_cooked: dateToUse});
+          if (success) {
+            // Update UI immediately
+            dateInput.value = dateToUse;
+            statusPill.textContent = 'Cooked';
+            statusPill.classList.add('ok');
+            statusPill.classList.remove('pending');
+            markCookedBtn.textContent = 'Marked!';
+            
+            // Update cache to ensure consistency
+            const idx = cache.findIndex(item => item.id === r.id);
+            if (idx >= 0) {
+              cache[idx].cooked = true;
+              cache[idx].date_cooked = dateToUse;
+            }
+            
+            setTimeout(()=>{ 
+              markCookedBtn.textContent = 'Mark cooked';
+              markCookedBtn.classList.add('hide');
+              markUncookedBtn.classList.remove('hide');
+            }, 1500);
+          }
+        });
+        markUncookedBtn.addEventListener('click', async ()=>{
+          const success = await updateRecipe(r.id,{cooked:false, date_cooked: null});
+          if (success) {
+            // Update UI immediately
+            dateInput.value = '';
+            statusPill.textContent = 'Pending';
+            statusPill.classList.remove('ok');
+            statusPill.classList.add('pending');
+            markUncookedBtn.textContent = 'Unmarked!';
+            
+            // Update cache and re-render to ensure consistency
+            const idx = cache.findIndex(item => item.id === r.id);
+            if (idx >= 0) {
+              cache[idx].cooked = false;
+              cache[idx].date_cooked = null;
+            }
+            
+            setTimeout(()=>{ 
+              markUncookedBtn.textContent = 'Mark uncooked';
+              markUncookedBtn.classList.add('hide');
+              markCookedBtn.classList.remove('hide');
+            }, 1500);
+          }
+        });
+        openBtn.addEventListener('click', ()=>{
+          const url = linkInput.value.trim();
+          if (url) {
+            // Ensure URL has protocol
+            const finalUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+            window.open(finalUrl, '_blank');
+          } else {
+            alert('No link available for this recipe');
+          }
+        });
+        removeBtn.addEventListener('click', async () => {
+          try {
+            if (!confirm('Remove this recipe?')) return;
+            await deleteRecipe(r.id);
+            cache = cache.filter(item => item.id !== r.id);
+            render(cache);
+          } catch (err) {
+            console.error('Delete error:', err);
+          }
+        });
+
+        // photo
+        thumb.addEventListener('click', ()=>{
+          if (!sessionUser) {
+            alert('Please sign in to upload photos');
+            return;
+          }
+          file.click();
+        });
+        file.addEventListener('change', async (e)=>{
+          const f = e.target.files?.[0]; 
+          if (!f) return;
+          
+          // Show loading state
+          thumb.style.opacity = '0.5';
+          thumb.style.cursor = 'wait';
+          
+          const path = await uploadPhoto(f, r.id);
+          if (path){ 
+            const updated = await updateRecipe(r.id, { photo_path: path });
+            if (updated) {
+              // Update UI immediately with object URL
+              const objUrl = URL.createObjectURL(f);
+              img.src = objUrl;
+              img.classList.remove('hide');
+              thumb.querySelector('span')?.classList.add('hide');
+              
+              // Clean up after a delay
+              setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+            }
+          }
+          
+          // Reset loading state
+          thumb.style.opacity = '';
+          thumb.style.cursor = '';
+        });
+
+        // rating
+        ratingPill.title = 'Click to set rating (0-10)';
+        ratingPill.style.cursor='pointer';
+        ratingPill.addEventListener('click', async () => {
+          try {
+            const val = prompt('Rating 0-10 stars?', r.rating ?? 0);
+            if (val === null) return;
+            const n = Math.max(0, Math.min(10, parseInt(val, 10) || 0));
+            await updateRecipe(r.id, {rating: n});
+            ratingPill.textContent = '★'.repeat(n) + '☆'.repeat(10 - n);
+          } catch (err) {
+            console.error('Update rating error:', err);
+          }
+        });
+
+        cards.appendChild(t);
+      }
+      if (!items.length){
+        const p = document.createElement('div');
+        p.className = 'muted small';
+        if (!sessionUser) {
+          p.innerHTML = 'Please sign in to view and manage recipes.';
+        } else if (q || filter !== 'all') {
+          p.innerHTML = 'No recipes match your search/filter criteria.';
+        } else {
+          p.innerHTML = 'No recipes yet. Use <b>Import list</b> or <b>Add recipe</b>.';
+        }
+        cards.appendChild(p);
+      }
+    }
+
+    async function refresh(){
+      if (!sessionUser) {
+        cache = [];
+        render([]);
+        return;
+      }
+      const btn = $('#refresh');
+      const originalText = btn.textContent;
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+      
+      cache = await listRecipes();
+      render(cache);
+      
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+
+    // Helper function to fetch NYT collection recipes automatically
+    async function fetchNYTCollection(url) {
+      try {
+        // Try multiple CORS proxy services
+        const proxies = [
+          'https://corsproxy.io/?',
+          'https://api.allorigins.win/raw?url=',
+          'https://cors-anywhere.herokuapp.com/'
+        ];
+        
+        let content = null;
+        let lastError = null;
+        
+        // Try each proxy until one works
+        for (const proxy of proxies) {
+          try {
+            const response = await fetch(proxy + encodeURIComponent(url), {
+              headers: {
+                'Accept': 'text/html,application/xhtml+xml'
+              }
+            });
+            
+            if (response.ok) {
+              content = await response.text();
+              break;
+            }
+          } catch (err) {
+            lastError = err;
+            console.log(`Proxy ${proxy} failed, trying next...`);
+          }
+        }
+        
+        if (!content) {
+          throw lastError || new Error('All proxy services failed');
+        }
+        
+        // Parse the HTML content
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        
+        // Try multiple selectors to find recipes
+        const selectors = [
+          'article a[href*="/recipes/"] h3',
+          'h3.recipe-name',
+          'a[href*="/recipes/"] .recipe-card-title',
+          '[class*="recipeCard"] h3',
+          'article h3'
+        ];
+        
+        let recipes = [];
+        
+        for (const selector of selectors) {
+          const elements = doc.querySelectorAll(selector);
+          if (elements.length > 0) {
+            recipes = Array.from(elements).map(el => {
+              const link = el.closest('a')?.getAttribute('href');
+              const title = el.textContent.trim();
+              const fullLink = link ? `https://cooking.nytimes.com${link.startsWith('/') ? link : '/' + link}` : '';
+              return { title, link: fullLink };
+            }).filter(r => r.title);
+            
+            if (recipes.length > 0) break;
+          }
+        }
+        
+        // If no recipes found with specific selectors, try a more general approach
+        if (recipes.length === 0) {
+          const links = doc.querySelectorAll('a[href*="/recipes/"]');
+          recipes = Array.from(links).map(a => {
+            const title = a.textContent.trim().replace(/\s+/g, ' ');
+            const href = a.getAttribute('href');
+            const link = href ? `https://cooking.nytimes.com${href.startsWith('/') ? href : '/' + href}` : '';
+            return { title, link };
+          }).filter(r => r.title && r.title.length > 3 && r.title.length < 100);
+          
+          // Remove duplicates
+          const seen = new Set();
+          recipes = recipes.filter(r => {
+            const key = r.title.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        }
+        
+        return recipes;
+      } catch (err) {
+        console.error('Error fetching NYT collection:', err);
+        return null;
+      }
+    }
+
+    // import list
+    $('#importList').addEventListener('click', async ()=>{
+      if (!sessionUser) return alert('Sign in first.');
+      const text = prompt(`Paste recipes to import:\n• One recipe title per line\n• Or "Title | Link" to include URL\n• Or paste a NYT collection URL to auto-import\n\nExample NYT URL:\nhttps://cooking.nytimes.com/68861692-nyt-cooking/126768340-most-popular-recipes-2025-so-far`);
+      if (text===null || !text.trim()) return;
+      
+      const btn = $('#importList');
+      const originalText = btn.textContent;
+      
+      // Check if it's a NYT collection URL
+      if (text.includes('cooking.nytimes.com')) {
+        btn.textContent = 'Fetching NYT recipes...';
+        btn.disabled = true;
+        
+        try {
+          const recipes = await fetchNYTCollection(text.trim());
+          
+          if (!recipes || recipes.length === 0) {
+            // Fallback to manual method if automated fetch fails
+            const instructions = `Automated import failed. Here's how to import manually:
+
+1. Open this link in a new tab:
+   ${text}
+
+2. Open browser console (F12 → Console tab)
+
+3. Run this code:
+   copy(Array.from(document.querySelectorAll('article a[href*="/recipes/"]')).map(a => {
+     const title = a.querySelector('h3')?.textContent.trim() || '';
+     const link = 'https://cooking.nytimes.com' + a.getAttribute('href');
+     return title + ' | ' + link;
+   }).filter(x => x.split('|')[0].trim()).join('\\n'))
+
+4. Click "Import list" again and paste the result`;
+            
+            alert(instructions);
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
+          }
+          
+          // Import the fetched recipes
+          btn.textContent = `Importing ${recipes.length} NYT recipes...`;
+          
+          let successCount = 0;
+          for (const recipe of recipes) {
+            if (recipe.title) {
+              const result = await insertRecipe({ 
+                title: recipe.title, 
+                link: recipe.link || '', 
+                cooked: false, 
+                rating: 0 
+              });
+              if (result) successCount++;
+              
+              // Update progress
+              btn.textContent = `Importing... ${successCount}/${recipes.length}`;
+            }
+          }
+          
+          btn.textContent = originalText;
+          btn.disabled = false;
+          
+          if (successCount > 0) {
+            await refresh();
+            alert(`Successfully imported ${successCount} recipes from NYT!`);
+          } else {
+            alert('Failed to import recipes');
+          }
+          return;
+          
+        } catch (err) {
+          console.error('NYT import error:', err);
+          alert('Error fetching NYT recipes. Please try the manual method.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+      }
+      
+      // Regular text import (not NYT URL)
+      const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+      if (lines.length === 0) {
+        alert('No recipes to import');
+        return;
+      }
+      
+      btn.textContent = `Importing ${lines.length} recipes...`;
+      btn.disabled = true;
+      
+      let successCount = 0;
+      for (const ln of lines){
+        const [t, ...rest] = ln.split('|');
+        const title = (t||'').trim();
+        const link = rest.join('|').trim();
+        if (title){
+          const result = await insertRecipe({ title, link, cooked:false, rating:0 });
+          if (result) successCount++;
+        }
+      }
+      
+      btn.textContent = originalText;
+      btn.disabled = false;
+      
+      if (successCount > 0) {
+        await refresh();
+        alert(`Successfully imported ${successCount} recipes`);
+      } else {
+        alert('Failed to import recipes');
+      }
+    });
+
+    $('#addOne').addEventListener('click', async ()=>{
+      if (!sessionUser) return alert('Sign in first.');
+      const t = prompt('Recipe title'); 
+      if (t===null || !t.trim()) return;
+      
+      const l = prompt('Link (optional)');
+      if (l === null) return; // User cancelled
+      
+      const recipe = await insertRecipe({ 
+        title: t.trim(), 
+        link: l.trim(), 
+        cooked:false, 
+        rating:0 
+      });
+      
+      if (recipe) {
+        cache.push(recipe);
+        render(cache);
+        // Scroll to the new recipe
+        setTimeout(() => {
+          const newCard = document.querySelector(`[data-id="${recipe.id}"]`);
+          if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+      }
+    });
+
+    $('#refresh').addEventListener('click', () => {
+      refresh().catch(err => console.error('Refresh error:', err));
+    });
+    $('#search').addEventListener('input', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Search render error:', err);
+      }
+    });
+    $('#filter').addEventListener('change', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Filter render error:', err);
+      }
+    });
+    $('#sort').addEventListener('change', () => {
+      try {
+        render(cache);
+      } catch (err) {
+        console.error('Sort render error:', err);
+      }
+    });
+
+    // Auth (magic link)
+    $('#sendLink').addEventListener('click', async ()=>{
+      const email = $('#email').value.trim();
+      if (!email) return alert('Enter your email');
+      const redirectTo = `${window.location.origin}${window.location.pathname}`.replace(/\/?$/, '/');
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: redirectTo }
+      });
+      if (error){ console.error(error); alert('Failed to send link'); return; }
+      $('#authStatus').textContent = 'Check your email for a sign-in link.';
+      $('#email').value = '';
+    });
+
+    $('#signOut').addEventListener('click', async ()=>{
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('Signout error:', error);
+          alert('Signout failed: ' + error.message);
+          return;
+        }
+        
+        // Clear local state
+        sessionUser = null;
+        refreshUIForAuth();
+        cache = [];
+        render([]);
+        
+        console.log('User signed out successfully');
+      } catch (err) {
+        console.error('Signout exception:', err);
+        alert('Signout failed: ' + err.message);
+      }
+    });
+
+    function refreshUIForAuth(){
+      const signedIn = !!sessionUser;
+      $('#signOut').classList.toggle('hide', !signedIn);
+      $('#email').disabled = signedIn;
+      $('#sendLink').disabled = signedIn;
+      $('#authStatus').textContent = signedIn ? `Signed in as ${sessionUser?.email}` : '';
+    }
+
+    // enforce allowed emails on client (RLS also protects on server)
+    function isAllowedEmail(email){
+      if (!email) return false;
+      return ALLOWED_EMAILS.map(s=>s.toLowerCase()).includes(email.toLowerCase());
+    }
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      // Use setTimeout to avoid async issues with browser extensions
+      setTimeout(async () => {
+        try {
+          sessionUser = session?.user || null;
+          refreshUIForAuth();
+          
+          if (sessionUser && !isAllowedEmail(sessionUser.email)) {
+            alert('This app is restricted. Please use an allowed email.');
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          if (sessionUser) {
+            await refresh();
+          } else {
+            render([]);
+          }
+        } catch (err) {
+          console.error('Auth state change error:', err);
+        }
+      }, 0);
+    });
+
+    // init (handles redirect after magic link)
+    async function init() {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Init session error:', error);
+        }
+        sessionUser = session?.user || null;
+        refreshUIForAuth();
+        if (sessionUser) {
+          await refresh();
+        } else {
+          render([]);
+        }
+      } catch (err) {
+        console.error('Init error:', err);
+        render([]);
+      }
+    }
+    
+    // Start initialization after DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      // Delay to ensure all scripts are loaded
+      setTimeout(init, 100);
+    }
+  </script>
+</body>
+</html>
