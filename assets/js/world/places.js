@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PALETTE, pbr, surface, lavaSet, woodSet, bambooSet, glow } from './materials.js';
 import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
-import { saturnV, launcher } from './rocket.js';
+import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
 import { palm, lavaRock, tikiTorch } from './props.js';
@@ -122,10 +122,10 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     return put(holder, dir, { ...opts, sink: (opts.sink || 0) + footDrop(dir, r) + 0.02 }, clear);
   };
 
-  // Your rocket, a Saturn V (rocket.js): how you got here, parked on its launcher on a landing
-  // pad, beside its red umbilical tower. "Fly home" leaves for the classic site. At night it has
-  // to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and
-  // beacons on the escape tower and the umbilical tower blink like an aircraft's.
+  // Your ship (rocket.js): how you got here, a Saturn V cut down into an Outer Wilds-style lander,
+  // standing on its legs on a landing pad. "Fly home" leaves for the classic site. At night it
+  // has to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and a
+  // beacon on the escape tower's nose blinks like an aircraft's.
   {
     const pad = new THREE.Group();
     const PAD_TOP = 0.2;
@@ -141,19 +141,14 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     pad.updateMatrixWorld(true);
     const fromPath = pad.worldToLocal(surfacePoint(SPOTS.spawn)).setY(0).normalize();
 
-    // the Saturn V on its launcher, badge towards the path, the umbilical tower off to one side
-    // behind it (so from the path it stands beside the rocket, not in front of it)
-    const saturn = saturnV({ height: 8, badge });
-    saturn.faceBadge(fromPath.x, fromPath.z);
-    const tSide = fromPath.clone().negate().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.75);
-    const base = launcher(saturn, { side: [tSide.x, tSide.z] });
+    // the lander on its four legs, hatch, porthole and badge turned towards the path
+    const ship = saturnLander({ badge });
+    ship.faceFront(fromPath.x, fromPath.z);
     const rocket = new THREE.Group();
     rocket.position.y = PAD_TOP;
-    rocket.add(base.group);
-    saturn.group.position.y = 0.12;
-    rocket.add(saturn.group);
+    rocket.add(ship.group);
     pad.add(rocket);
-    const top = saturn.top + 0.12;
+    const top = ship.top;
 
     // blinking beacon on the escape tower's nose
     const beacon = mesh(new THREE.SphereGeometry(0.07, 12, 8), glow(PALETTE.coral, 8), [0, top + 0.07, 0], rocket);
@@ -168,7 +163,6 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
     animated.push((t) => {
       beacon.visible = (t % 1.6) < 0.18;
-      base.beacon.visible = ((t + 0.8) % 1.6) < 0.18;
       const k = Math.floor(t * 4) % 8;
       edge.forEach((l, i) => { l.visible = i !== k; });
     });
@@ -185,13 +179,11 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       lens.lookAt(aim);
       lens.castShadow = false;
       // wide and soft-edged, so it washes the hull instead of drawing a hot oval on it
-      const flood = new THREE.SpotLight(PALETTE.moon, quality.high ? 11 : 14, 13, 0.55, 1, 1.1);
+      const flood = new THREE.SpotLight(PALETTE.moon, quality.high ? 9 : 12, 9, 0.62, 1, 1.2);
       flood.position.set(x, PAD_TOP + 0.15, z);
       flood.target.position.set(0, top * 0.55, 0);
       pad.add(flood, flood.target);
     }
-    // the tower is solid too
-    colliders.push({ center: pad.localToWorld(base.tower.position.clone()), radius: 0.55 });
     colliders.push({ center: pad.position.clone(), radius: 1.2 });
     interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
   }
