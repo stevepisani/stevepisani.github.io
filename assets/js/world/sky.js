@@ -2,7 +2,7 @@
 // a ringed gas giant, a moon, the sun, and the odd shooting star.
 import * as THREE from 'three';
 import * as T from './textures.js';
-import { toon } from './stylize.js';
+import { pbr } from './materials.js';
 
 export function buildSky({ quality }) {
   const group = new THREE.Group();
@@ -27,10 +27,10 @@ export function buildSky({ quality }) {
           float n1 = fbm(d*2.2 + vec3(0., 0., time*0.004));
           float n2 = fbm(d*3.7 + 5.0);
           float band = smoothstep(0.55, 0.0, abs(d.y*0.8 + d.x*0.35 - 0.1));   // a milky-way-ish band
-          vec3 col = vec3(0.012, 0.014, 0.04);
-          col += vec3(0.35, 0.12, 0.55) * pow(n1, 3.0) * 1.4 * (0.4 + band);
-          col += vec3(0.05, 0.35, 0.45) * pow(n2, 4.0) * 1.6 * band;
-          col += vec3(0.6, 0.25, 0.35) * pow(n1*n2, 3.0) * 1.2;
+          vec3 col = vec3(0.006, 0.007, 0.02);
+          col += vec3(0.28, 0.08, 0.42) * pow(n1, 3.2) * 0.9 * (0.3 + band);
+          col += vec3(0.03, 0.22, 0.32) * pow(n2, 4.0) * 1.1 * band;
+          col += vec3(0.5, 0.18, 0.26) * pow(n1*n2, 3.2) * 0.8;
           gl_FragColor = vec4(col, 1.0);
         }`,
     })
@@ -76,13 +76,13 @@ export function buildSky({ quality }) {
   {
     const planet = new THREE.Group();
     planet.position.set(-190, 110, -260);
-    const body = new THREE.Mesh(new THREE.SphereGeometry(55, 48, 32), toon({ map: T.planetBands(), rim: 0.6 }));
+    const body = new THREE.Mesh(new THREE.SphereGeometry(55, 48, 32), pbr({ map: T.planetBands(), roughness: 1, emissive: 0x2a1408, emissiveIntensity: 0.35, fog: false }));
     body.rotation.z = 0.4;
     planet.add(body);
     const rg = new THREE.RingGeometry(72, 112, 128, 1);
     const p = rg.attributes.position, uv = rg.attributes.uv, v = new THREE.Vector3();
     for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); uv.setXY(i, (v.length() - 72) / 40, 0.5); }
-    const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ map: T.ringStripes(), side: THREE.DoubleSide, transparent: true, depthWrite: false }));
+    const ring = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ map: T.ringStripes(), side: THREE.DoubleSide, transparent: true, depthWrite: false, fog: false }));
     ring.rotation.set(Math.PI / 2.25, 0.3, 0);
     planet.add(ring);
     group.add(planet);
@@ -90,7 +90,7 @@ export function buildSky({ quality }) {
 
   // A small moon.
   {
-    const moon = new THREE.Mesh(new THREE.IcosahedronGeometry(16, 3), toon({ color: 0xc9c2e0, rim: 0.5 }));
+    const moon = new THREE.Mesh(new THREE.IcosahedronGeometry(16, 3), pbr({ color: 0xc9c2e0, roughness: 1, emissive: 0x9fb4ff, emissiveIntensity: 0.25, fog: false }));
     moon.position.set(240, 150, 140);
     group.add(moon);
   }
@@ -98,11 +98,12 @@ export function buildSky({ quality }) {
   // The sun: a glowing disc plus the key light that goes with it.
   const sunDir = new THREE.Vector3(0.55, 0.62, 0.56).normalize();
   {
-    const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow('rgba(255,220,170,1)'), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    // a cool, distant blue-white star: the source of the moonlight
+    const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow('rgba(170,195,255,0.9)'), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
     sun.position.copy(sunDir).multiplyScalar(500);
-    sun.scale.setScalar(140);
+    sun.scale.setScalar(90);
     group.add(sun);
-    const core = new THREE.Mesh(new THREE.CircleGeometry(12, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xfff2d8).multiplyScalar(3), toneMapped: false }));
+    const core = new THREE.Mesh(new THREE.CircleGeometry(5, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0xe8eeff).multiplyScalar(4), toneMapped: false, fog: false }));
     core.position.copy(sun.position);
     core.lookAt(0, 0, 0);
     group.add(core);

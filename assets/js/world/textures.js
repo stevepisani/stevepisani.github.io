@@ -4,6 +4,7 @@ import * as THREE from 'three';
 
 const FONT_DISPLAY = '"Fraunces", Georgia, serif';
 const FONT_MONO = '"JetBrains Mono", ui-monospace, monospace';
+const FONT_SCRIPT = '"Pacifico", "Brush Script MT", cursive';
 
 function canvas(w, h) {
   const c = document.createElement('canvas');
@@ -26,26 +27,37 @@ function texture(c, { repeat } = {}) {
 // Wait (briefly) for web fonts so canvas text doesn't render in a fallback face.
 export async function fontsReady() {
   if (!document.fonts) return;
-  const loads = ['800 40px Fraunces', '600 20px "JetBrains Mono"'].map((f) => document.fonts.load(f));
+  const loads = ['800 40px Fraunces', '600 20px "JetBrains Mono"', '40px Pacifico'].map((f) => document.fonts.load(f));
   await Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 1500))]);
 }
 
-/** Pink neon "STEVE'S" with a teal "space tiki bar" underneath. Emissive, so bloom picks it up. */
+/**
+ * Neon in a 1950s brush script, drawn as tubes: a wide soft glow, the coloured tube,
+ * and a thin hot core, the way bent glass neon actually looks.
+ */
 export function neonSign() {
   const [c, g] = canvas(1024, 320);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const glow = (text, font, y, color, blur) => {
+  g.lineJoin = g.lineCap = 'round';
+  const tube = (text, font, y, color, width) => {
     g.font = font;
     g.shadowColor = color;
-    for (const b of [blur, blur / 2, 0]) {
-      g.shadowBlur = b;
-      g.fillStyle = b ? color : '#fff';
-      g.fillText(text, 512, y);
+    g.strokeStyle = color;
+    for (const [blur, w, a] of [[46, width * 2.2, 0.35], [22, width * 1.4, 0.7], [8, width, 1]]) {
+      g.shadowBlur = blur;
+      g.globalAlpha = a;
+      g.lineWidth = w;
+      g.strokeText(text, 512, y);
     }
+    g.globalAlpha = 1;
+    g.shadowBlur = 0;
+    g.strokeStyle = '#fff6fb';
+    g.lineWidth = Math.max(1.5, width * 0.35);
+    g.strokeText(text, 512, y);
   };
-  glow("STEVE'S", `800 170px ${FONT_DISPLAY}`, 130, '#ff4fa3', 40);
-  glow('· SPACE TIKI BAR ·', `600 46px ${FONT_MONO}`, 262, '#3ff5e8', 24);
+  tube("Steve's", `180px ${FONT_SCRIPT}`, 140, '#ff4fa3', 7);
+  tube('SPACE  TIKI  BAR', `600 40px ${FONT_MONO}`, 272, '#3ff5e8', 2.5);
   return texture(c);
 }
 

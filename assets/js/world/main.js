@@ -10,18 +10,16 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { createPipeline } from './render.js';
+import { Fire } from './fire.js';
+import { PALETTE, restyle, glow } from './materials.js';
 import { buildPlanet, surfacePoint } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS } from './places.js';
 import { Player, bindInput } from './player.js';
-import { toonify, glowMat } from './stylize.js';
 import { fontsReady } from './textures.js';
+import { loadHeroes } from './hero.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -182,11 +180,14 @@ async function start() {
   const progress = $('veil-progress');
   const setProgress = (k) => progress.style.setProperty('--p', k);
 
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !quality.high, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, quality.high ? 2 : 1.5));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // antialias off: SMAA in the post chain handles it (and AO dislikes MSAA)
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, quality.high ? 1.75 : 1.25));
+  renderer.shadowMap.enabled = quality.high;
+  renderer.shadowMap.type = THREE.PCFShadowMap; // soft via shadow.radius (PCFSoft was removed in r18x)
 
   const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(PALETTE.night, 0.016); // distance fades into the night sky
   const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, 0.05, 2000);
 
   // Models: one GLB, plus fonts for the canvas textures.
@@ -198,7 +199,7 @@ async function start() {
     fontsReady(),
   ]);
   const library = new Map(gltf.scene.children.map((c) => [c.name, c]));
-  toonify(gltf.scene);
+  restyle(gltf.scene, { tint: 0xd8cfc4 });
   const prop = (name, scale = 1) => {
     const src = library.get(name);
     if (!src) { console.warn('missing model', name); return new THREE.Group(); }
@@ -209,20 +210,30 @@ async function start() {
     return o;
   };
 
+  const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality });
-  const bar = buildBar({ prop, quality, posts: data.posts });
-  const places = buildPlaces({ prop, quality });
+  const bar = buildBar({ prop, quality, posts: data.posts, heroes });
+  const places = buildPlaces({ prop, quality, heroes });
   scene.add(sky.group, planet.group, bar.group, places.group);
   serve = (id) => bar.serve(id);
 
-  scene.add(new THREE.HemisphereLight(0xa9c4ff, 0x6a4a3a, 1.35));
-  const sun = new THREE.DirectionalLight(0xffe6c4, 2.3);
-  sun.position.copy(sky.sunDir).multiplyScalar(60);
-  scene.add(sun);
-  const fill = new THREE.DirectionalLight(0x8f7bff, 0.7);
-  fill.position.copy(sky.sunDir).multiplyScalar(-60);
-  scene.add(fill);
+  // Night: a faint sky/ground ambient, cool moonlight as the key (with soft shadows around the
+  // bar), and every warm tone comes from practical lights: torches, lamps, neon, fire.
+  scene.add(new THREE.HemisphereLight(0x33407a, 0x241a16, 0.8));
+  const moon = new THREE.DirectionalLight(PALETTE.moon, 1.5);
+  moon.position.copy(sky.sunDir).multiplyScalar(40).add(bar.group.position);
+  moon.target = bar.group;
+  if (quality.high) {
+    moon.castShadow = true;
+    moon.shadow.mapSize.set(2048, 2048);
+    const sc = moon.shadow.camera;
+    sc.left = sc.bottom = -11; sc.right = sc.top = 11; sc.near = 1; sc.far = 90;
+    moon.shadow.bias = -0.0004;
+    moon.shadow.normalBias = 0.03;
+    moon.shadow.radius = 4;
+  }
+  scene.add(moon, moon.target);
 
   const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
   const interactables = [...bar.interactables, ...places.interactables];
@@ -237,32 +248,12 @@ async function start() {
     player.pitch = Math.atan2(upAmt, Math.sqrt(Math.max(0, to.lengthSq() - upAmt * upAmt)));
   }
 
-  // Post-processing on capable devices: HDR-only bloom, then a light grade and vignette.
-  let composer = null;
-  if (quality.high) {
-    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
-    composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.65, 0.4, 1.6));
-    composer.addPass(new OutputPass());
-    composer.addPass(new ShaderPass({
-      uniforms: { tDiffuse: { value: null } },
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }',
-      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
-        void main(){
-          vec4 c = texture2D(tDiffuse, vUv);
-          float l = dot(c.rgb, vec3(.299,.587,.114));
-          c.rgb = mix(vec3(l), c.rgb, 1.1);
-          float v = smoothstep(.95, .35, distance(vUv, vec2(.5)));
-          c.rgb *= mix(.75, 1., v);
-          gl_FragColor = c;
-        }`,
-    }));
-  }
+  const pipeline = createPipeline(renderer, scene, camera, quality);
 
   function resize() {
     const w = root.clientWidth, h = root.clientHeight;
     renderer.setSize(w, h, false);
-    composer && composer.setSize(w, h);
+    pipeline.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
@@ -279,7 +270,7 @@ async function start() {
   };
   const hoverRing = marker(0xffffff);
   const destRing = marker(0x3ff5e8);
-  const barRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 40).rotateX(-Math.PI / 2), glowMat(0x3ff5e8, 2));
+  const barRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 40).rotateX(-Math.PI / 2), glow(PALETTE.aqua, 2));
   const standOn = (obj, point, lift = 0.04) => {
     const up = point.clone().normalize();
     obj.position.copy(surfacePoint(up, lift));
@@ -484,11 +475,12 @@ async function start() {
       if (show) beacon.style.transform = `translate(${((_v.x + 1) / 2 * root.clientWidth).toFixed(0)}px, ${((1 - _v.y) / 2 * root.clientHeight).toFixed(0)}px)`;
     } else if (!beacon.hidden) beacon.hidden = true;
 
+    Fire.tick(t);
     sky.update(t, camera);
     planet.update(t, camera);
     bar.update(t);
     places.update(t);
-    composer ? composer.render() : renderer.render(scene, camera);
+    pipeline.render(dt);
   }
 
   player.applyToCamera();
