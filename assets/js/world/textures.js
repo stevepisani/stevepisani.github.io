@@ -101,7 +101,7 @@ export function chalkboard(posts) {
 /** Robot bartender's shirt: pineapples, obviously. */
 export function pineappleShirt() {
   const [c, g] = canvas(512, 512);
-  g.fillStyle = '#f4f1ea';
+  g.fillStyle = '#4fb6b0'; // teal shirt so the pineapples pop
   g.fillRect(0, 0, 512, 512);
   for (let row = 0; row < 6; row++) {
     for (let col = 0; col < 6; col++) {
@@ -212,7 +212,9 @@ export function label(text, { bg = '#f4ead2', fg = '#3a2a18', w = 256, h = 96 } 
   g.fillStyle = fg;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  g.font = `800 ${Math.floor(h * 0.55)}px ${FONT_DISPLAY}`;
+  // shrink the text until it fits with a little margin
+  let size = Math.floor(h * 0.55);
+  do { g.font = `800 ${size}px ${FONT_DISPLAY}`; size -= 2; } while (g.measureText(text).width > w * 0.9 && size > 8);
   g.fillText(text, w / 2, h / 2 + 4);
   return texture(c);
 }

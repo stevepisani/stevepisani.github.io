@@ -1,35 +1,51 @@
-# The space tiki bar on the homepage.
-# Each spot is something in the bar you can click; it opens the panel with the same id.
+# The asteroid homepage (index.html + assets/js/world/).
 
-# Things the robot bartender says, in rotation.
+# The tiki menu you order from at the bar. Each item opens <template id="panel-<id>">
+# in the 3D world; href is where the link goes without 3D (and for crawlers).
+menu:
+  - id: about
+    drink: The Founder's Mai Tai
+    what: About Steve
+    href: /about
+  - id: writing
+    drink: Hot Takes on the Rocks
+    what: Writing
+    href: /blog
+  - id: shelf
+    drink: Top Shelf Neat
+    what: The reading list
+    href: /bookshelf
+  - id: lab
+    drink: Lab Experiment No. 9
+    what: Things I'm building
+    href: /lab
+  - id: launch
+    drink: The Liftoff
+    what: Next rocket launch, live
+    href: /classic
+  - id: contact
+    drink: Tip the Bartender
+    what: Say hello
+    href: mailto:steve@stevenpisani.com
+  - id: resume
+    drink: Close Out the Tab
+    what: Résumé
+    href: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+
+# Things the robot bartender says while you're seated, in rotation.
 bartender:
   - "Welcome to Steve's. Best view in the solar system. Terrible parking."
-  - "The chalkboard is the drinks menu. It's also where Steve keeps his writing."
-  - "Top shelf is the reading list. Tap a bottle."
-  - "The tiki mugs are lab experiments. Most of them are safe to drink."
-  - "The telescope is pointed at the next rocket launch. Have a look."
-  - "Steve likes technology, his cat, all things energy, rockets, well-formatted SQL, and arguing about cheesesteaks."
+  - "What'll it be? Everything on the menu is on the house."
+  - "The Mai Tai is the house special. It comes with a biography."
   - "I'm an AI. The pineapple shirt was his idea."
+  - "If you walk around the back there's a campfire. It's a small planet; you can't miss it."
+  - "The telescope out front is pointed at the next rocket launch."
 
-spots:
-  - id: about
-    label: The bartender
-    hint: About Steve
-  - id: writing
-    label: The menu
-    hint: Writing
-  - id: shelf
-    label: Top shelf
-    hint: Bookshelf
-  - id: lab
-    label: Tiki mugs
-    hint: Lab experiments
-  - id: launch
-    label: The telescope
-    hint: Next rocket launch
-  - id: contact
-    label: Tip jar
-    hint: Say hello
-  - id: resume
-    label: Your tab
-    hint: Resume
+# Shown at the campfire on the far side of the planet.
+likes:
+  - Technology, especially the kind that runs quietly in the background
+  - My cat
+  - All things energy
+  - Rockets
+  - Well-formatted SQL (leading commas, lowercase, fight me)
+  - Arguing about where to get the best cheesesteak
