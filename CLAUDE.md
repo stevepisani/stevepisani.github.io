@@ -10,8 +10,8 @@ Jekyll personal site for stevenpisani.com, built by GitHub Pages (the `github-pa
 
 ### Setup
 ```bash
-# Install dependencies (requires Ruby and Bundler)
-gem install bundler:2.1.4
+# Install dependencies (Ruby 3.x + Bundler)
+gem install bundler
 bundle install
 ```
 
