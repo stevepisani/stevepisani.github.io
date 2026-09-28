@@ -1,0 +1,20 @@
+# The "Where's Steve?" clock on the homepage, Weasley-style.
+# Each rule is checked in order against the current time in Philadelphia;
+# the first match wins. days: 0=Sun … 6=Sat. hours are 24h, [start, end).
+# Edit freely — this is a toy, not a calendar.
+hands:
+  - Building data things
+  - In a meeting
+  - Cooking
+  - Reading
+  - Asleep
+  - Mortal peril
+rules:
+  - { hand: Asleep,               days: [0,1,2,3,4,5,6], hours: [0, 7] }
+  - { hand: Asleep,               days: [0,1,2,3,4,5,6], hours: [23, 24] }
+  - { hand: In a meeting,         days: [1,2,3,4,5],     hours: [10, 11] }
+  - { hand: In a meeting,         days: [1,2,3,4,5],     hours: [14, 15] }
+  - { hand: Building data things, days: [1,2,3,4,5],     hours: [7, 18] }
+  - { hand: Cooking,              days: [0,1,2,3,4,5,6], hours: [18, 20] }
+  - { hand: Reading,              days: [0,1,2,3,4,5,6], hours: [20, 23] }
+  - { hand: Mortal peril,         days: [0,6],           hours: [7, 18] }

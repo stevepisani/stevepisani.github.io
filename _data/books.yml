@@ -1,0 +1,53 @@
+# The bookshelf on /bookshelf. Curated from my old reading list (circa 2020).
+# Add `note:` to any book for a hover blurb. Add `fav: true` to star it.
+- shelf: Fiction
+  books:
+    - { title: Dune }
+    - { title: Blindsight, author: Peter Watts }
+    - { title: Echopraxia, author: Peter Watts }
+    - { title: The Player of Games, author: Iain M. Banks }
+    - { title: Use of Weapons, author: Iain M. Banks }
+    - { title: Consider Phlebas, author: Iain M. Banks }
+    - { title: The Three-Body Problem, author: Liu Cixin }
+    - { title: We Are Legion (We Are Bob), author: Dennis E. Taylor }
+    - { title: Seveneves, author: Neal Stephenson }
+    - { title: Cryptonomicon, author: Neal Stephenson }
+    - { title: Neuromancer, author: William Gibson }
+    - { title: Shōgun, author: James Clavell }
+    - { title: East of Eden, author: John Steinbeck }
+    - { title: Slaughterhouse-Five, author: Kurt Vonnegut }
+    - { title: Breakfast of Champions, author: Kurt Vonnegut }
+    - { title: Fahrenheit 451, author: Ray Bradbury }
+    - { title: The Stand, author: Stephen King }
+    - { title: Neverwhere, author: Neil Gaiman }
+    - { title: The Count of Monte Cristo, author: Alexandre Dumas }
+    - { title: Annihilation, author: Jeff VanderMeer }
+- shelf: History & Science
+  books:
+    - { title: A Short History of Nearly Everything, author: Bill Bryson }
+    - { title: "Guns, Germs, and Steel", author: Jared Diamond }
+    - { title: Sapiens, author: Yuval Noah Harari }
+    - { title: "1776", author: David McCullough }
+    - { title: "Benjamin Franklin: An American Life", author: Walter Isaacson }
+    - { title: Leonardo da Vinci, author: Walter Isaacson }
+    - { title: "Surely You're Joking, Mr. Feynman!", author: Richard Feynman }
+    - { title: "Taming the Sun", author: Varun Sivaram }
+    - { title: Life 3.0, author: Max Tegmark }
+- shelf: Data & Craft
+  books:
+    - { title: Designing Data-Intensive Applications, author: Martin Kleppmann }
+    - { title: The Data Warehouse Toolkit, author: Ralph Kimball }
+    - { title: The Visual Display of Quantitative Information, author: Edward Tufte }
+    - { title: Everybody Lies, author: Seth Stephens-Davidowitz }
+    - { title: Clean Code, author: Robert C. Martin }
+    - { title: The Goal, author: Eliyahu M. Goldratt }
+    - { title: Zero to One, author: Peter Thiel }
+    - { title: Draft No. 4, author: John McPhee }
+- shelf: Mind & Kitchen
+  books:
+    - { title: Meditations, author: Marcus Aurelius }
+    - { title: Letters from a Stoic, author: Seneca }
+    - { title: "Man's Search for Meaning", author: Viktor Frankl }
+    - { title: A Mind for Numbers, author: Barbara Oakley }
+    - { title: The Art of Learning, author: Josh Waitzkin }
+    - { title: "Salt, Fat, Acid, Heat", author: Samin Nosrat }

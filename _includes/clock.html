@@ -1,0 +1,27 @@
+{%- assign hands = site.data.clock.hands -%}
+{%- assign n = hands | size -%}
+<figure class="clock" id="clock" data-rules='{{ site.data.clock.rules | jsonify }}' data-hands='{{ hands | jsonify }}'>
+  <svg viewBox="-110 -110 220 220" role="img" aria-labelledby="clock-title">
+    <title id="clock-title">A Weasley-style clock showing what Steve is probably doing</title>
+    <circle r="104" class="clock__rim"/>
+    <circle r="96" class="clock__face"/>
+    {%- for h in hands -%}
+      {%- assign deg = forloop.index0 | times: 360 | divided_by: n -%}
+      <g transform="rotate({{ deg }})">
+        <line y1="-96" y2="-86" class="clock__tick"/>
+        <text y="-66" class="clock__label" data-hand="{{ h }}" transform="rotate({{ deg | times: -1 }} 0 -66)">{{ h }}</text>
+      </g>
+    {%- endfor -%}
+    <g class="clock__hand" id="clock-hand">
+      <path d="M0 12 L-5 0 L0 -52 L5 0 Z"/>
+      <circle cy="-56" r="7"/>
+      <text y="-53" class="clock__face-emoji">🧔</text>
+    </g>
+    <circle r="5" class="clock__pin"/>
+  </svg>
+  <figcaption>
+    <span class="kicker">Where's Steve?</span>
+    <strong id="clock-status">Probably building data things.</strong>
+    <span class="clock__time" id="clock-time"></span>
+  </figcaption>
+</figure>
