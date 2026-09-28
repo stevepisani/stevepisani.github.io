@@ -1,22 +1,80 @@
---- 
-layout: default
-title: Steve Pisani's Corner of the Internet
-description: Data Engineer and Technology Expert based in Philadelphia. Specializing in data architecture, analytics, and engineering solutions for modern businesses.
 ---
-
-<div class="section home-main" id="main">
-  <div class="container">
-    <div class="div-block-2">
-      <div class="div-block-5"><img src="/assets/images/me.png" loading="lazy" sizes="(max-width: 479px) 100vw, (max-width: 767px) 48vw, 47vw" srcset="assets/images/me-p-500.png 500w, assets/images/me-p-800.png 800w, assets/images/me.png 889w" alt="Steve Pisani - Professional headshot" class="image-2">
-        <div class="div-block-3">
-          <h1 class="name-text"><span class="text-span"><strong class="bold-text-3">Steven John Pisani Jr.</strong></span></h1>
-          <p class="paragraph"><span class="text-span-2"><strong class="bold-text"> Data Expert. Engineer. Maker.</strong></span></p>
-        </div>
-      </div>
-    </div>
-    <div class="intro-wrap">
-      <h2 class="heading-jumbo"><strong class="bold-text-2">Hi! I'm a data engineer in the always sunny city of Philadelphia, PA.</strong></h2>
-      <p class="paragraph"><strong>I specialize in building scalable data architectures, analytics platforms, and engineering solutions that help businesses make data-driven decisions. Also, I like technology, my cat, and all things energy.</strong></p>
-    </div>
+layout: default
+title: Steve Pisani
+description: Steve Pisani is a data architect in Philadelphia and founder of Tabby Stack. This is his corner of the internet — writing, experiments, books, and more.
+body_class: home
+---
+<section class="wrap hero">
+  <div class="hero__text">
+    <p class="kicker">Hi, I'm</p>
+    <h1 class="hero__name">Steve Pisani<span class="wave" aria-hidden="true">.</span></h1>
+    <p class="hero__lede">
+      I'm a data architect in the always sunny city of Philadelphia. By day I design the systems that turn raw data into
+      something a business can actually use. This site is where I keep everything else: writing, experiments, books,
+      and whatever I'm tinkering with this week.
+    </p>
+    <p class="hero__cta">
+      <a class="btn" href="{{ '/about' | relative_url }}">More about me</a>
+      <a class="btn btn--ghost" href="mailto:{{ site.email }}">Say hello</a>
+    </p>
   </div>
-</div>
+  <div class="hero__photo">
+    <img src="{{ '/assets/images/me-p-500.png' | relative_url }}"
+         srcset="{{ '/assets/images/me-p-500.png' | relative_url }} 500w, {{ '/assets/images/me-p-800.png' | relative_url }} 800w"
+         sizes="(max-width: 720px) 60vw, 320px" alt="Steve Pisani" width="320" height="320">
+  </div>
+</section>
+
+<section class="wrap grid-2">
+  <div class="card card--work">
+    <p class="kicker">Day job</p>
+    <h2>Founder &amp; lead data architect, Tabby Stack</h2>
+    <p>
+      Tabby Stack is my data consulting firm. I lead engineering teams and architect data platforms, from ingestion
+      pipelines to ML models running in production.
+    </p>
+    <ul class="chips" aria-label="Current focus">
+      <li>Snowflake</li><li>dbt</li><li>Airflow</li><li>Python</li><li>ML in the warehouse</li><li>Healthcare analytics</li>
+    </ul>
+    <p class="card__links">
+      <a href="{{ site.links.resume }}" target="_blank" rel="noopener">Resume ↗</a>
+      <a href="{{ site.links.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>
+      <a href="{{ site.links.github }}" target="_blank" rel="noopener">GitHub ↗</a>
+    </p>
+  </div>
+  <div class="card card--clock">
+    {% include clock.html %}
+  </div>
+</section>
+
+<section class="wrap section">
+  <div class="section__head">
+    <h2>Recent writing</h2>
+    <a href="{{ '/blog' | relative_url }}">All posts →</a>
+  </div>
+  <ul class="post-list">
+    {% for post in site.posts limit: 3 %}
+      {% include post-row.html post=post %}
+    {% endfor %}
+  </ul>
+</section>
+
+<section class="wrap section">
+  <div class="section__head">
+    <h2>From the lab</h2>
+    <a href="{{ '/lab' | relative_url }}">Everything →</a>
+  </div>
+  <div class="lab-grid">
+    {% for item in site.data.lab limit: 3 %}
+      {% include lab-card.html item=item %}
+    {% endfor %}
+  </div>
+</section>
+
+<section class="wrap section likes">
+  <h2 class="visually-hidden">Things I like</h2>
+  <p>
+    Things I like, in no particular order: <mark>technology</mark>, <mark>my cat</mark>, <mark>all things energy</mark>,
+    <mark>rockets</mark>, <mark>well-formatted SQL</mark>, and arguing about <mark>where to get the best cheesesteak</mark>.
+  </p>
+</section>

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Jekyll-based personal website hosted on GitHub Pages at stevenpisani.com. The site uses Jekyll 4.1.1 with custom Webflow-based CSS styling.
+Jekyll personal site for stevenpisani.com, built by GitHub Pages (the `github-pages` gem, so Jekyll 3.x and only whitelisted plugins). It is a professional home page plus a playground: writing, a "lab" of experiments, and a bookshelf. No CSS framework and no build step beyond Jekyll.
 
 ## Development Commands
 
@@ -26,32 +26,25 @@ bundle exec jekyll build
 
 ## Architecture
 
-### Jekyll Structure
-- **_layouts/**: HTML templates for pages
-  - `default.html`: Base template with navigation and footer
-  - `post.html`: Blog post template with hero image and reading time
-- **_posts/**: Blog posts in Markdown format (YYYY-MM-DD-title format)
-- **_includes/**: Reusable components (footer, navigation, read_time)
-- **_config.yml**: Jekyll configuration and site metadata
+- `_layouts/`: `default.html` (shell, SEO via `{% seo %}`), `page.html` (kicker/heading/lede header + prose), `post.html`
+- `_includes/`: `nav.html`, `footer.html`, `clock.html` (Weasley clock), `cover.html` (post cover, gradient fallback seeded by title), `post-row.html`, `lab-card.html`, `read_time.html`
+- `_data/`: content lives here, edit these rather than HTML
+  - `timeline.yml`: career timeline on /about
+  - `lab.yml`: experiments on /lab (first three also appear on the homepage)
+  - `books.yml`: shelves on /bookshelf
+  - `clock.yml`: hands and time rules for the "Where's Steve?" clock
+- `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url`, `description`
+- Pages: `index.html`, `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html`, `404.html`, `401.html`
+- `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab
 
-### Styling
-- Uses Webflow-generated CSS (`webflow.css`, `website.css`)
-- Normalize.css for cross-browser consistency
-- Custom styles in `assets/css/website.css`
-
-### Key Pages
-- `index.html`: Homepage with personal introduction
-- `blog.html`: Blog listing page
-- `about.html`: About page
-- `404.html`, `401.html`: Error pages
-
-### Assets
-- Images stored in `assets/images/`
-- JavaScript in `assets/js/` (primarily Webflow scripts)
-- Uses Google Fonts (Montserrat) via WebFont loader
+### Styling and scripts
+- `assets/css/site.css`: the only stylesheet. Colors are custom properties on `:root` with three themes: light (default), dark (system preference or chosen), terminal (chosen). New components should use the tokens, never raw colors.
+- `assets/js/site.js`: theme cycling (auto → light → dark → terminal) and the clock. No jQuery.
+- `assets/css/normalize.css` is kept only for `recipe_tracker/`.
+- Fonts: Fraunces (display), Inter (body), JetBrains Mono (labels/code) from Google Fonts.
 
 ## Important Notes
-- CNAME file contains custom domain configuration (stevenpisani.com)
-- Site uses Jekyll front matter for page metadata
-- Blog posts support custom hero images via `image_url` front matter
-- Reading time calculation included for blog posts
+- CNAME holds the custom domain; don't remove it.
+- Post permalinks use Jekyll's default (`/YYYY/MM/DD/Title.html`); don't change them, they're linked externally.
+- Use `relative_url` for internal links and assets.
+- Non-site files (this file, README, Makefile, Gemfile) are in `exclude:` in `_config.yml` so they aren't published.

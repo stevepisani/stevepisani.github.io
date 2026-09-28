@@ -1,37 +1,12 @@
---- 
-layout: default
-title: Blog
-description: Steve Pisani's thoughts on data engineering, technology, and industry insights. Explore articles on SQL best practices, data architecture, and more.
 ---
-
-<div class="section" id="main">
-  <div class="blog__background">
-    <div class="container blog-wrap">
-      
-      <div id="blog-intro">
-        <div id="w-node-f2c6de040bbf-6186f144">
-          <h1 class="heading-jumbo">Thoughts & Insights</h1>
-        </div>
-        <div id="w-node-f2c6de040bc4-6186f144">
-          <p class="paragraph">My thoughts on data engineering, technology trends, and industry insights. Plus links to interesting content around the web and some of my projects!</p>
-        </div>
-      </div>
-
-      <div id="blog__posts">
-          {% for post in site.posts %}
-            <article id="post__link_card" class="card">
-              <div id="post__title_image" 
-                   style="background-image:  {% if post.image_url %} url({{ post.image_url}}) {% else %} url('https://picsum.photos/seed/{{ post.title }}/2000/400') {% endif %};" ></div>
-              <div style="padding-left: 30px;">
-                <h2><a href="{{ post.url }}" style="text-decoration: none; color: inherit;">{{ post.title }}</a></h2>
-                <div id="post__date_author">{{ post.date | date_to_string }}</div>
-                {{ post.excerpt | truncate: 200 }}
-                <a href="{{ post.url }}" style="display: inline-block; margin-top: 16px; color: #004aad; font-weight: 500;">Read more →</a>
-              </div>
-            </article>
-          {% endfor %}
-      </div>
-
-    </div>
-  </div>
-</div>
+layout: page
+title: Writing
+kicker: Writing
+heading: Thoughts & tangents
+lede: Data engineering, technology, and the occasional piece of internet lore I can't stop thinking about.
+---
+<ul class="post-list post-list--full">
+  {% for post in site.posts %}
+    {% include post-row.html post=post %}
+  {% endfor %}
+</ul>
