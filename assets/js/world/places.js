@@ -3,10 +3,10 @@
 import * as THREE from 'three';
 import { PALETTE, pbr, surface, lavaSet, woodSet, bambooSet, glow } from './materials.js';
 import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
-import { createFire } from './fire.js';
+import { saturnLander } from './rocket.js';
+import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, moai, tikiTorch } from './props.js';
-import { heroOr } from './hero.js';
+import { palm, lavaRock, tikiTorch } from './props.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS } from './planet.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
@@ -122,9 +122,10 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     return put(holder, dir, { ...opts, sink: (opts.sink || 0) + footDrop(dir, r) + 0.02 }, clear);
   };
 
-  // Your rocket: how you got here, parked on a landing pad. "Fly home" leaves for the classic
-  // site. At night it has to be findable: floodlights wash up the hull, the pad's edge lights
-  // blink in turn, and a beacon on the nose blinks like an aircraft's.
+  // Your ship (rocket.js): how you got here, a Saturn V cut down into an Outer Wilds-style lander,
+  // standing on its legs on a landing pad. "Fly home" leaves for the classic site. At night it
+  // has to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and a
+  // beacon on the escape tower's nose blinks like an aircraft's.
   {
     const pad = new THREE.Group();
     const PAD_TOP = 0.2;
@@ -135,26 +136,22 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     deck.rotation.y = Math.PI / 8;
     deck.castShadow = false;
 
+    // place the pad first: the rocket turns its badge, and the tower stands, relative to the path
+    put(pad, SPOTS.rocket, { heading: 0.4 }, 2.8);
+    pad.updateMatrixWorld(true);
+    const fromPath = pad.worldToLocal(surfacePoint(SPOTS.spawn)).setY(0).normalize();
+
+    // the lander on its four legs, hatch, porthole and badge turned towards the path
+    const ship = saturnLander({ badge });
+    ship.faceFront(fromPath.x, fromPath.z);
     const rocket = new THREE.Group();
     rocket.position.y = PAD_TOP;
+    rocket.add(ship.group);
     pad.add(rocket);
-    const parts = [['space-kit_rocket-basea', 0], ['space-kit_rocket-fuela', 1.6], ['space-kit_rocket-sidesa', 2.4], ['space-kit_rocket-topa', 4.0]];
-    for (const [name, y] of parts) {
-      const p = prop(name, 1.6);
-      p.position.y = y;
-      rocket.add(p);
-    }
-    // the kit's parts sit off to one side of their origin: centre the rocket on the pad (and so on
-    // its collider, click target, floodlights and beacon)
-    rocket.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(rocket);
-    const mid = box.getCenter(new THREE.Vector3());
-    for (const c of rocket.children) { c.position.x -= mid.x; c.position.z -= mid.z; }
-    const top = box.max.y - PAD_TOP;
+    const top = ship.top;
 
-    // blinking beacon on a short mast above the nose
-    mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4, 6), pbr({ color: PALETTE.chrome, metalness: 1, roughness: 0.3 }), [0, top + 0.18, 0], rocket);
-    const beacon = mesh(new THREE.SphereGeometry(0.09, 12, 8), glow(PALETTE.coral, 8), [0, top + 0.42, 0], rocket);
+    // blinking beacon on the escape tower's nose
+    const beacon = mesh(new THREE.SphereGeometry(0.07, 12, 8), glow(PALETTE.coral, 8), [0, top + 0.07, 0], rocket);
     beacon.castShadow = false;
     // edge lights round the pad, chasing
     const edge = [];
@@ -170,11 +167,8 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       edge.forEach((l, i) => { l.visible = i !== k; });
     });
 
-    put(pad, SPOTS.rocket, { heading: 0.4 }, 2.8);
-    pad.updateMatrixWorld(true);
     // Floodlights at the pad's edge, cool like the moonlight, aimed up the hull. The first one
     // stands on the side you walk up from (phones only get that one).
-    const fromPath = pad.worldToLocal(surfacePoint(SPOTS.spawn));
     const a0 = Math.atan2(fromPath.z, fromPath.x) + 0.45; // a little off-axis, so it models the hull
     const aim = pad.localToWorld(new THREE.Vector3(0, top * 0.5, 0));
     for (const a of quality.high ? [a0, a0 + Math.PI] : [a0]) {
@@ -185,34 +179,10 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       lens.lookAt(aim);
       lens.castShadow = false;
       // wide and soft-edged, so it washes the hull instead of drawing a hot oval on it
-      const flood = new THREE.SpotLight(PALETTE.moon, quality.high ? 9 : 12, 10, 0.62, 1, 1.2);
+      const flood = new THREE.SpotLight(PALETTE.moon, quality.high ? 9 : 12, 9, 0.62, 1, 1.2);
       flood.position.set(x, PAD_TOP + 0.15, z);
       flood.target.position.set(0, top * 0.55, 0);
       pad.add(flood, flood.target);
-    }
-    // Steve's SJPJr badge (the site's logo, NASA-meatball style) on the hull: one on the side
-    // you walk up from, one opposite. Each lies flat on the hull facet it lands on.
-    if (badge) {
-      new THREE.TextureLoader().load(badge, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = 8;
-        const mat = pbr({ map: tex, transparent: true, alphaTest: 0.4, roughness: 0.45, polygonOffset: true, polygonOffsetFactor: -2 });
-        const ray = new THREE.Raycaster();
-        const h = 3.3; // mid-body, above the orange band
-        for (const a of [a0 - 0.45, a0 - 0.45 + Math.PI]) {
-          const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-          const from = pad.localToWorld(out.clone().multiplyScalar(4).setY(PAD_TOP + h));
-          const to = pad.localToWorld(new THREE.Vector3(0, PAD_TOP + h, 0));
-          ray.set(from, to.sub(from).normalize());
-          const hit = ray.intersectObject(rocket, true).find((i) => i.face);
-          if (!hit) continue;
-          const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
-          const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.95), mat);
-          decal.position.copy(rocket.worldToLocal(hit.point.clone().addScaledVector(n, 0.015)));
-          rocket.add(decal);
-          decal.lookAt(hit.point.clone().addScaledVector(n, 1)); // face outward, square to the facet
-        }
-      });
     }
     colliders.push({ center: pad.position.clone(), radius: 1.2 });
     interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
@@ -253,34 +223,25 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     interactables.push({ id: 'launch', label: 'Telescope', verb: 'See the next rocket launch', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2 });
   }
 
-  // Campfire on the far side, with log benches. An Outer Wilds nod.
+  // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
+  // the trail comes in, and roast marshmallows.
   {
-    const camp = new THREE.Group();
-    camp.add(prop('nature-kit_campfire-stones', 2.2));
-    const fire = createFire({ width: 0.7, height: 1.2, light: 7, distance: 10, shadow: quality.high });
-    fire.group.position.y = 0.05;
-    camp.add(fire.group);
-    [[1.4, 0.3, 0.3], [-1.2, 0.8, 2.2], [0.2, -1.5, 1.4]].forEach(([x, z, ry]) => {
-      const l = prop('nature-kit_log', 2.4);
-      l.position.set(x, 0, z);
-      l.rotation.y = ry;
-      camp.add(l);
-    });
-    const marsh = mesh(new THREE.CylinderGeometry(0.01, 0.01, 1.1, 4), pbr({ color: 0x8a5634 }), [0.7, 0.55, 0.2], camp);
-    marsh.rotation.z = 1.0;
-    mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.1, 10), pbr({ color: 0xfff4e0, emissive: 0x442200, roughness: 0.6 }), [0.25, 0.83, 0.2], camp).rotation.z = 1.0;
-    animated.push((t) => fire.update(t));
-    // two moai keep watch over the fire
-    [[-2.6, -2.2, 0.9], [2.4, -2.6, -0.8]].forEach(([x, z, ry], i) => {
-      const m = heroOr(heroes, 'moai', () => moai({ height: 2.2 + i * 0.4 }));
-      m.position.set(x, -0.1, z);
-      m.rotation.y = ry;
-      camp.add(m);
-    });
+    const cf = buildCampfire({ quality, heroes });
+    const camp = cf.group;
     put(camp, SPOTS.campfire, { heading: 0.8 }, 3);
-    colliders.push({ center: camp.position.clone(), radius: 0.6 });
+    camp.updateMatrixWorld(true);
+    const trailEnd = camp.worldToLocal(surfacePoint(dirFrom(2.43, -1.58)));
+    const local = cf.seatToward(trailEnd.x, trailEnd.z);
+    camp.updateMatrixWorld(true);
+    const toWorld = (v) => camp.localToWorld(v.clone());
+    const seat = { eye: toWorld(local.eye), look: toWorld(local.look), stand: toWorld(local.stand), dip: toWorld(local.dip), rise: toWorld(local.rise) };
+    animated.push((t) => cf.update(t));
+    colliders.push({ center: camp.position.clone(), radius: 0.8 });
     for (const [x, z] of [[-2.6, -2.2], [2.4, -2.6]]) colliders.push({ center: camp.localToWorld(new THREE.Vector3(x, 0, z)), radius: 0.6 });
-    interactables.push({ id: 'campfire', label: 'Campfire', verb: 'Sit by the fire', object: camp, point: camp.position.clone(), approach: surfacePoint(dirFrom(2.47, -1.6)), radius: 2.8 });
+    interactables.push({
+      id: 'campfire', label: 'Campfire', verb: 'Sit and roast a marshmallow', object: camp, point: camp.position.clone(),
+      approach: surfacePoint(toWorld(local.approach).normalize()), radius: 2.8, seat, hotSpot: toWorld(cf.hotSpot),
+    });
   }
 
   // Satellite dish, pointed at the sky.

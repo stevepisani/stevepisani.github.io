@@ -6,7 +6,7 @@
 // clickable, one just-in-time hint at a time, every section is also one click away
 // in the top bar, and every state has an obvious way back (Esc, ×, browser Back).
 //
-// #world[data-state] = loading | walk | seat | fallback
+// #world[data-state] = loading | walk | seat | camp | fallback
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -20,6 +20,7 @@ import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
 import { Player, bindInput } from './player.js';
 import { fontsReady } from './textures.js';
 import { loadHeroes } from './hero.js';
+import { createRoaster, verdict } from './camp.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -270,6 +271,7 @@ async function start() {
   const badge = document.querySelector('link[rel="icon"]')?.href || null;
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
+  scene.add(camera); // things you hold (the marshmallow stick) ride on it
 
   // Night: a faint sky/ground ambient, cool moonlight as the key (with soft shadows around the
   // bar), and every warm tone comes from practical lights: torches, lamps, neon, fire.
@@ -292,6 +294,8 @@ async function start() {
   const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
   const interactables = [...bar.interactables, ...places.interactables];
   const barSpot = interactables.find((i) => i.id === 'seat');
+  const campSpot = interactables.find((i) => i.id === 'campfire');
+  const roaster = createRoaster(camera, { reducedMotion });
   const signPoint = bar.group.localToWorld(new THREE.Vector3(0, 2.6, 0));
   player.spawn(SPOTS.spawn, signPoint);
   // tilt the view so the bar and its sign sit comfortably in frame
@@ -359,6 +363,7 @@ async function start() {
     if (it.id === 'menu') return sitDown({ pickUp: true });
     if (it.id === 'drinks') return sitDown({ then: () => openPanel('drinks') });
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
+    if (it.id === 'campfire') return sitAtFire();
     openPanel(it.id);
   }
   let destT = -1;
@@ -444,20 +449,27 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
-    if (state === 'seat') {
+    if (state === 'seat' || state === 'camp') {
       if (flight || leaving || drink) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
       seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
       seatLook.pitch = THREE.MathUtils.clamp(seatLook.pitch - dy, -0.95, 0.95);
     } else if (player.enabled) player.look(dx, dy);
   };
+  // At the fire: press and hold (without dragging) to reach the marshmallow into the flames;
+  // a drag still looks around. Space does the same from the keyboard.
+  const roast = { pointer: false, key: false, timer: 0 };
   const input = bindInput(player, canvas, {
     onTap,
     onHover,
     onDrag: look,
+    onPress: () => { if (state === 'camp') { clearTimeout(roast.timer); roast.timer = setTimeout(() => { roast.pointer = true; }, 120); } },
+    onDragStart: () => { clearTimeout(roast.timer); roast.pointer = false; },
+    onRelease: () => { clearTimeout(roast.timer); roast.pointer = false; },
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
       if (state === 'seat' && panel.hidden && menu.hidden) { pickUpMenu(); return; }
+      if (state === 'camp' && panel.hidden && menu.hidden) { eatIt(); return; }
       if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
       const it = nearestInReach();
       it ? use(it) : goUse(barSpot);
@@ -734,7 +746,70 @@ async function start() {
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
     else if (state === 'seat' && held) putDownMenu(); // first Esc puts the menu down, the next one leaves
     else if (state === 'seat') leaveBar();
+    else if (state === 'camp') leaveFire();
   });
+  addEventListener('keydown', (e) => { if (e.code === 'Space' && state === 'camp' && !e.target.closest('button, a, input, textarea')) { roast.key = true; e.preventDefault(); } });
+  addEventListener('keyup', (e) => { if (e.code === 'Space') roast.key = false; });
+
+  /* ---------- The campfire: sit on a log, roast marshmallows ---------- */
+  // The same continuous body motion as the bar: step up behind the log, sit, face the fire.
+  // Getting up stands you back where you walked in, still facing the fire.
+  let campPose = null, eaten = 0, thought;
+  const campLeave = $('camp-leave'), campEat = $('camp-eat');
+  function sitAtFire() {
+    leaving = false;
+    seatLook.yaw = seatLook.pitch = 0;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('camp');
+    const S = campSpot.seat;
+    campPose = poseLooking(S.eye, S.look);
+    const step = Math.min(900, Math.max(300, camera.position.distanceTo(S.stand) * 420));
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: step },
+      { ...poseLooking(S.dip, S.look), ms: 520 },
+      { ...campPose, ms: 480 },
+    ], () => {
+      if (state !== 'camp') return;
+      roaster.show(true);
+      showHint(coarse ? 'Press and hold to roast a marshmallow.' : 'Press and hold (or Space) to roast a marshmallow.', 'roast');
+    });
+  }
+  function leaveFire() {
+    if (state !== 'camp' || leaving) return;
+    roaster.show(false);
+    clearTimeout(thought);
+    bubble.hidden = true;
+    if (hint.dataset.key === 'roast') hint.hidden = true;
+    player.spawn(campSpot.approach.clone().normalize(), campSpot.point, -0.12);
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    const finish = () => { leaving = false; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
+    leaving = true;
+    const S = campSpot.seat;
+    flyPath([
+      { ...poseLooking(S.rise, S.look), ms: 480 },
+      { ...poseLooking(S.stand, S.look), ms: 800 },
+      { pos: endPos, quat: endQuat, ms: 700 },
+    ], finish);
+  }
+  // Eat what's on the stick (or blow it out first, if it's on fire), and hear how it went.
+  // Every marshmallow comes with something Steve thinks about by the fire.
+  function eatIt() {
+    if (state !== 'camp' || flight) return;
+    if (roaster.state.burning) { roaster.blowOut(); say('Phew. Blown out.', 2500); return; }
+    const k = roaster.eat();
+    if (k === null) return;
+    clearHint('roast');
+    say(verdict(k), 3200);
+    const like = (data.likes || [])[eaten++ % Math.max(1, (data.likes || []).length)];
+    clearTimeout(thought);
+    if (like) thought = setTimeout(() => { if (state === 'camp') say('On my mind: ' + like, 5000); }, 3400);
+  }
+  campLeave.addEventListener('click', () => leaveFire());
+  campEat.addEventListener('click', () => eatIt());
 
   /* ---------- Loop ---------- */
   const timer = new THREE.Timer();
@@ -746,7 +821,7 @@ async function start() {
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
-    if (state !== 'seat' || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
+    if ((state !== 'seat' && state !== 'camp') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
     else if (e.key === 'ArrowRight') seatKeys.x = v;
@@ -762,7 +837,9 @@ async function start() {
   function frame(now) {
     timer.update(now);
     // ?test: bigger steps so walks finish under slow software rendering; ambient time frozen
-    const dt = Math.min(timer.getDelta(), TEST ? 0.25 : 0.05);
+    const delta = timer.getDelta();
+    const dt = Math.min(delta, TEST ? 0.25 : 0.05);
+    const realDt = Math.min(delta, 0.1); // for things the guest does (the marshmallow), even under ?test
     if (!TEST) t += dt;
 
     if (state === 'walk') {
@@ -778,7 +855,13 @@ async function start() {
       else if (!hint.hidden && hint.dataset.key === 'walk' && player.pos.distanceTo(movedFrom) > 3) clearHint('walk');
     }
     if (flight) flightStep(performance.now());
-    else if (state === 'seat' && seatPose) {
+    else if (state === 'camp' && campPose) {
+      camera.position.copy(campPose.pos);
+      camera.quaternion.copy(campPose.quat)
+        .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
+        .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
+      if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2);
+    } else if (state === 'seat' && seatPose) {
       camera.position.copy(seatPose.pos);
       camera.quaternion.copy(seatPose.quat)
         .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
@@ -830,6 +913,17 @@ async function start() {
       }
     } else if (!beacon.hidden) beacon.hidden = true;
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
+    // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
+    const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
+    if (state === 'camp' && !leaving) roaster.update(realDt, atFire && (roast.pointer || roast.key), campSpot.hotSpot);
+    campLeave.hidden = !atFire;
+    campEat.hidden = !(atFire && roaster.state.on && !roaster.state.eating);
+    if (!campEat.hidden) {
+      const label = roaster.state.burning ? 'Blow it out' : 'Eat it';
+      if (campEat.textContent !== label) campEat.textContent = label;
+      campEat.classList.toggle('is-burning', roaster.state.burning);
+    }
+    if (roaster.state.toast > 0.25 && hint.dataset.key === 'roast' && !hint.hidden) clearHint('roast');
 
     Fire.tick(t);
     sky.update(t, camera);
@@ -854,7 +948,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast };
   window.__sceneReady = true;
 }
 
