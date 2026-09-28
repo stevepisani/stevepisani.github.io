@@ -122,9 +122,13 @@ export class Player {
 
     // collisions: circles on the surface; push out along the tangent plane
     for (const c of this.colliders) {
-      const d = this._v.copy(this.pos).sub(c.center);
-      d.addScaledVector(up, -d.dot(up));
       const min = c.radius + BODY;
+      const d = this._v.copy(this.pos).sub(c.center);
+      // Only nearby colliders: flattened onto the tangent plane, something on the far side of
+      // the planet lands right under your feet (the campfire moai sit opposite the spawn point)
+      // and would shove you around every frame.
+      if (d.lengthSq() > (min + 1) * (min + 1)) continue;
+      d.addScaledVector(up, -d.dot(up));
       const len = d.length();
       if (len < min && len > 1e-5) this.pos.addScaledVector(d, (min - len) / len);
     }
@@ -152,7 +156,7 @@ export class Player {
  * Pointer + keyboard. One gesture vocabulary for mouse, pen, and touch:
  * a press that doesn't move is a tap (onTap), a press that moves is a look.
  */
-export function bindInput(player, canvas, { onTap, onHover, onKeyAction }) {
+export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag }) {
   const keys = new Set();
   const recompute = () => {
     const k = player.keys;
@@ -186,10 +190,12 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction }) {
       press.dragged = true;
       canvas.classList.add('is-dragging');
     }
-    if (press.dragged && player.enabled) {
+    if (press.dragged) {
       const s = e.pointerType === 'mouse' ? mouseSens : touchSens;
       // drag the world: moving the pointer right turns you left, like grabbing the scene
-      player.look(-(e.clientX - press.lx) * s, -(e.clientY - press.ly) * s);
+      const dx = -(e.clientX - press.lx) * s, dy = -(e.clientY - press.ly) * s;
+      if (onDrag) onDrag(dx, dy);
+      else if (player.enabled) player.look(dx, dy);
     }
     press.lx = e.clientX; press.ly = e.clientY;
   });

@@ -34,7 +34,7 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent, { cast = true, recei
   return m;
 }
 
-export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }) {
+export function buildBar({ prop, quality, favorites = [], heroes, menuItems = [], reducedMotion = false }) {
   const bar = new THREE.Group();
   bar.name = 'bar';
   const animated = [];
@@ -70,6 +70,15 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     g.add(fire.group);
     g.userData.update = fire.update;
     return g;
+  };
+
+  // The mug set: the teal tiki mug, a parrot mug and a pineapple mug (generated hero models),
+  // each falling back to the procedural mug. Drinks, the shelf and the counter all draw on it.
+  const MUGS = ['tiki-mug', 'parrot-mug', 'pineapple-mug'];
+  const mugFallback = [PALETTE.teal, PALETTE.coral, PALETTE.amber];
+  const anyMug = (i, { garnish = true } = {}) => {
+    const slot = MUGS[i % MUGS.length];
+    return heroOr(heroes, slot, () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish }));
   };
 
   /* ---------- A big carved tiki guards the entrance ---------- */
@@ -156,7 +165,7 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     mesh(new THREE.ShapeGeometry(tri), surface(woodSet(0x2a180e), { roughness: 0.9, side: THREE.DoubleSide }), [0, 0, -0.02], sign);
     const face = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.03), new THREE.MeshBasicMaterial({ map: T.neonSign(), transparent: true, toneMapped: false, depthWrite: false }));
     face.material.userData.keep = true;
-    face.material.color.setScalar(2.2); // push into HDR so bloom catches the tubes
+    face.material.color.setScalar(1.35); // just into HDR: the bright tube cores bloom, the letters stay crisp
     face.position.set(0, -0.15, 0.03);
     sign.add(face);
     const neonLight = new THREE.PointLight(PALETTE.hibiscus, 3, 7, 1.6);
@@ -193,6 +202,8 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     mesh(new THREE.BoxGeometry(3.9, 0.02, 0.02), glow(PALETTE.amber, 2.2), [0, 0.84, 0.52], counter, { cast: false });
   }
 
+  const boardGroup = new THREE.Group(); // the favorite-drinks chalkboard, hung on the back bar below
+
   /* ---------- Back bar: tapa-cloth wall, lit shelves of bottles and mugs ---------- */
   {
     const back = new THREE.Group();
@@ -218,12 +229,22 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
       b.rotation.y = i;
       back.add(b);
     }
-    const glazes = [PALETTE.teal, PALETTE.coral, 0x3a2416, PALETTE.aqua, 0x7a3b22];
     for (let i = 0; i < 9; i++) {
-      const mug = heroOr(heroes, 'tiki-mug', () => tikiMug({ glaze: glazes[i % 5], shape: i % 3 === 1 ? 'moai' : 'tall', garnish: false }));
+      const mug = anyMug(i, { garnish: false });
       mug.position.set(-1.55 + i * 0.39, 1.53, 0.02);
       mug.scale.setScalar(1.4);
       back.add(mug);
+    }
+    // Favorite drinks, chalked on a board hung on the back wall where you see it from your
+    // stool, to the robot's left. Faintly self-lit, so the chalk reads in the dim bar.
+    {
+      const map = T.chalkboard(favorites);
+      boardGroup.position.set(-0.95, 2.19, -0.2); // above the mugs on the top shelf
+      boardGroup.rotation.x = 0.06; // hangs a touch forward
+      back.add(boardGroup);
+      mesh(new THREE.BoxGeometry(1.04, 0.8, 0.04), M.beam, [0, 0, -0.015], boardGroup);
+      const face = mesh(new THREE.PlaneGeometry(0.96, 0.72), pbr({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.95 }), [0, 0, 0.007], boardGroup);
+      face.castShadow = false;
     }
     const shelfLight = new THREE.PointLight(PALETTE.amber, 1.4, 3.5, 2);
     shelfLight.position.set(0, 1.9, 0.6);
@@ -256,8 +277,8 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     bowl.scale.setScalar(1.3);
     bar.add(bowl);
     animated.push((t) => bowl.userData.update(t));
-    [[-1.35, 0.72, PALETTE.coral], [-1.05, 0.58, PALETTE.teal]].forEach(([x, z, c]) => {
-      const mug = tikiMug({ glaze: c });
+    [[-1.35, 0.72, 1], [-1.05, 0.58, 2]].forEach(([x, z, i]) => { // a parrot and a pineapple
+      const mug = anyMug(i);
       mug.position.set(x, BAR_TOP, z);
       mug.scale.setScalar(1.3);
       bar.add(mug);
@@ -265,6 +286,30 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     const coconut = prop('food-kit_coconut-half', 0.55);
     coconut.position.set(-1.7, BAR_TOP, 0.62);
     bar.add(coconut);
+  }
+
+  /* ---------- The menu, propped up in front of your stool: click it to pick it up ---------- */
+  // The whole card (with its bamboo frame) flies up to you; nothing of it stays on the bar.
+  const MENU_W = 0.16, MENU_H = 0.24, MENU_LEAN = 1.1; // leans well back, so it never blocks the robot
+  const menuCard = new THREE.Group();
+  const menuStand = new THREE.Group();
+  {
+    menuStand.position.set(0.05, BAR_TOP, 1.0);
+    menuStand.rotation.y = -0.08; // turned a touch toward the middle stool
+    bar.add(menuStand);
+    menuCard.rotation.x = -MENU_LEAN;
+    menuStand.add(menuCard);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(MENU_W, MENU_H), pbr({ map: T.menuCard(menuItems), roughness: 0.8 }));
+    face.position.set(0, MENU_H / 2, 0.004);
+    face.castShadow = face.receiveShadow = true;
+    menuCard.add(face);
+    mesh(new THREE.BoxGeometry(MENU_W, MENU_H, 0.006), M.beam, [0, MENU_H / 2, 0], menuCard);
+    const rod = new THREE.CylinderGeometry(0.006, 0.006, 1, 8);
+    for (const [x, y, len, rz] of [[0, 0, MENU_W + 0.02, Math.PI / 2], [0, MENU_H, MENU_W + 0.02, Math.PI / 2], [-MENU_W / 2, MENU_H / 2, MENU_H + 0.02, 0], [MENU_W / 2, MENU_H / 2, MENU_H + 0.02, 0]]) {
+      const r = mesh(rod, M.bamboo, [x, y, 0.006], menuCard);
+      r.scale.y = len;
+      r.rotation.z = rz;
+    }
   }
 
   /* ---------- Rattan stools; the middle one is yours ---------- */
@@ -282,20 +327,19 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     return s;
   });
 
-  /* ---------- Chalkboard easel by the entrance: the writing list ---------- */
-  const boardGroup = new THREE.Group();
+  /* ---------- Your stool sits in a pool of light, so the bar needs no label ---------- */
   {
-    boardGroup.position.set(-2.9, DECK, 2.55);
-    boardGroup.rotation.y = 0.55;
-    bar.add(boardGroup);
-    [[-0.5, 0.1], [0.5, 0.1], [0, -0.45]].forEach(([x, z]) => {
-      const leg = mesh(new THREE.CylinderGeometry(0.035, 0.045, 2.0, 6), M.beam, [x, 0.95, z * 0.6], boardGroup);
-      leg.rotation.x = z * 0.25;
-    });
-    const frame = mesh(new THREE.BoxGeometry(1.25, 1.55, 0.05), M.beam, [0, 1.25, 0.12], boardGroup);
-    frame.rotation.x = -0.12;
-    const face = mesh(new THREE.PlaneGeometry(1.15, 1.45), pbr({ map: T.chalkboard(posts), roughness: 0.95 }), [0, 1.25, 0.15], boardGroup);
-    face.rotation.x = -0.12;
+    const lamp = new THREE.Group();
+    lamp.position.set(stools[1].position.x, EAVE - 0.55, 1.5);
+    bar.add(lamp);
+    mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.55, 5), pbr({ color: PALETTE.lava }), [0, 0.3, 0], lamp, { cast: false });
+    mesh(new THREE.ConeGeometry(0.16, 0.16, 16, 1, true), surface(bambooSet(), { roughness: 0.6, side: THREE.DoubleSide }), [0, 0, 0], lamp);
+    mesh(new THREE.SphereGeometry(0.045, 12, 8), glow(PALETTE.amber, 4), [0, -0.05, 0], lamp, { cast: false });
+    const pool = new THREE.SpotLight(PALETTE.amber, quality.high ? 9 : 6, 4.5, 0.62, 0.7, 1.4);
+    pool.position.set(0, -0.06, 0);
+    lamp.add(pool);
+    pool.target.position.set(stools[1].position.x, DECK, 1.45);
+    bar.add(pool.target);
   }
 
   /* ---------- Torches flanking the entrance and the back ---------- */
@@ -330,9 +374,15 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
 
   /* ---------- World-space helpers for the player ---------- */
   const toWorld = (x, y, z) => bar.localToWorld(new THREE.Vector3(x, y, z));
+  // Your body at the middle stool: where your eyes are (and look) as you step up, sit and get up.
+  const sx = stools[1].position.x;
   const seat = {
-    eye: toWorld(stools[1].position.x, DECK + 1.25, 1.55),
+    eye: toWorld(sx, DECK + 1.25, 1.55),
     look: toWorld(0.05, DECK + 1.25, -0.55), // the robot, across the counter
+    stand: toWorld(sx, DECK + 1.6, 1.9),      // standing just behind the stool
+    dip: toWorld(sx, DECK + 1.16, 1.5),       // lowest point while sitting down, leaning in
+    lean: toWorld(sx, DECK + 1.3, 1.42),      // leaning forward to push up off the stool
+    barTop: toWorld(0.05, DECK + 0.9, 0.4),   // where your eyes go while you sit or stand
     served: new THREE.Vector3(0, BAR_TOP, 0.82),
   };
 
@@ -348,33 +398,59 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
 
   const interactables = [
     { id: 'seat', label: "Steve's", verb: 'Sit at the bar', object: bar, point: toWorld(0, 1, 1.8), approach: toWorld(0, 0, 2.35), radius: 2.6 },
-    { id: 'writing', label: 'Chalkboard', verb: 'Read my writing', object: boardGroup, point: toWorld(-2.9, 1.2, 2.55), approach: toWorld(-2.3, 0, 3.35), radius: 2.0 },
+    // listed after the bar, so clicking the card itself picks it up (and walks you over if need be)
+    { id: 'menu', label: 'Menu', verb: 'Pick up the menu', object: menuCard, point: toWorld(0.05, BAR_TOP + 0.1, 0.95), approach: toWorld(0, 0, 2.35), radius: 2.6 },
+    { id: 'drinks', label: 'Favorite drinks', verb: 'Read the recipes', object: boardGroup, point: toWorld(-0.95, DECK + 2.19, -1.65), approach: toWorld(0, 0, 2.35), radius: 2.6 },
   ];
 
   // Serving: the robot shakes, then slides a fresh tiki mug across the counter to your seat.
-  // Timing: shake starts at once, the mug appears at 0.9s and has arrived by 1.3s. Keeps the last few.
+  // Timing: shake starts at once, the mug appears at 0.9s and has arrived by 1.3s, when
+  // `onServed(mug)` is called. Each section's drink is its own colour.
+  // Keeps the last few on the bar.
   const drinks = [];
   const sliding = [];
-  const GLAZE = { about: PALETTE.coral, writing: PALETTE.teal, lab: PALETTE.aqua, shelf: 0x3a2416, contact: PALETTE.hibiscus, resume: 0x7a3b22, launch: 0x3f7fd0, campfire: 0x5a3a24 };
+  const ORDER = ['about', 'writing', 'lab', 'shelf', 'contact', 'resume', 'launch', 'campfire'];
+  const LIQUID = [PALETTE.amber, PALETTE.coral, PALETTE.aqua];
   const SLIDE = 0.4;
-  function serve(id) {
+  function serve(id, onServed) {
     robot.shake(0.85);
     setTimeout(() => {
-      const d = heroOr(heroes, 'tiki-mug', () => tikiMug({ glaze: GLAZE[id] || PALETTE.teal, shape: drinks.length % 2 ? 'moai' : 'tall' }));
-      // first one straight in front of you (a phone's portrait view is narrow), then either side
-      const to = seat.served.clone().add(new THREE.Vector3([0, -0.26, 0.26][drinks.length % 3], 0, (drinks.length % 2) * 0.1));
+      const i = Math.max(0, ORDER.indexOf(id));
+      // always the open-topped tiki mug, so you can look into it; the drink's colour changes
+      const d = anyMug(0, { garnish: false });
+      // The drink: a glossy surface just below the rim, so there's something to look into.
+      // Fitted to the rim itself (the mug's highest vertices), not the bounding box, which
+      // the handle pulls off-centre.
+      d.updateMatrixWorld(true);
+      const top = new THREE.Box3().setFromObject(d).max.y;
+      const rim = new THREE.Box3(), v = new THREE.Vector3();
+      d.traverse((m) => {
+        if (!m.isMesh) return;
+        const pos = m.geometry.attributes.position;
+        for (let k = 0; k < pos.count; k++) { v.fromBufferAttribute(pos, k).applyMatrix4(m.matrixWorld); if (v.y > top * 0.94) rim.expandByPoint(v); }
+      });
+      const mouth = rim.getCenter(new THREE.Vector3()).setY(top);
+      const radius = Math.min(rim.max.x - rim.min.x, rim.max.z - rim.min.z) * 0.5 * 0.8; // inside the rim's thickness
+      const liquid = new THREE.Mesh(new THREE.CircleGeometry(radius, 28).rotateX(-Math.PI / 2),
+        pbr({ color: LIQUID[i % LIQUID.length], emissive: LIQUID[i % LIQUID.length], emissiveIntensity: 0.12, roughness: 0.12 }));
+      liquid.position.set(mouth.x, top * 0.88, mouth.z);
+      d.add(liquid);
+      d.userData.mouth = mouth; // top centre, in the mug's frame
+      d.userData.height = top;
+      // first one just left of the menu, where a phone's narrow portrait view still shows it
+      const to = seat.served.clone().add(new THREE.Vector3([-0.2, 0.3, -0.46][drinks.length % 3], 0, (drinks.length % 2) * -0.08));
       d.scale.setScalar(1.3);
-      d.rotation.y = (Math.random() - 0.5) * 0.6;
+      d.rotation.y = 0.15; // mugs face +z: toward you
       bar.add(d);
       drinks.push(d);
       if (drinks.length > 5) bar.remove(drinks.shift());
       robot.pour(SLIDE + 0.25);
-      if (reducedMotion) d.position.copy(to);
+      if (reducedMotion) { d.position.copy(to); onServed && onServed(d); }
       else {
         // from the robot's side of the bar top, sliding to you
         const from = new THREE.Vector3(to.x * 0.4 + ROBOT_SERVE.x * 0.6, BAR_TOP, 0.3);
         d.position.copy(from);
-        sliding.push({ d, from, to, k: 0 });
+        sliding.push({ d, from, to, k: 0, onServed });
       }
     }, 900);
   }
@@ -386,10 +462,14 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
     interactables,
     serve,
     robot,
+    /** The menu card on the bar (what gets picked up) and a point just above it for its label. */
+    menu: { card: menuCard, label: toWorld(0.05, BAR_TOP + 0.12, 0.9), height: MENU_H },
     /** The guest sat down: the robot rolls over to face them. */
     greet() { robot.greet(ROBOT_SERVE, new THREE.Vector3(stools[1].position.x, DECK, stools[1].position.z)); },
     /** The guest left: back to its spot. */
     farewell() { robot.idle(); },
+    /** Someone's walking up (a world point): turn to them and wave them over. */
+    beckon(worldPoint) { robot.beckon(bar.worldToLocal(worldPoint.clone())); },
     // t: ambient time (frozen under ?test); dt: real frame time, for things people cause
     update(t, dt = 0) {
       for (const f of animated) f(t);
@@ -399,7 +479,7 @@ export function buildBar({ prop, quality, posts, heroes, reducedMotion = false }
         s.k = Math.min(1, s.k + dt / SLIDE);
         const e = 1 - Math.pow(1 - s.k, 3); // decelerates, like a glass sliding on lacquer
         s.d.position.lerpVectors(s.from, s.to, e);
-        if (s.k === 1) sliding.splice(i, 1);
+        if (s.k === 1) { sliding.splice(i, 1); s.onServed && s.onServed(s.d); }
       }
     },
   };
