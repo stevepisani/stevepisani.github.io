@@ -1,0 +1,44 @@
+# Favorite drinks and recipes: the chalkboard behind the bar, the "Favorite drinks" panel at
+# the bar, and /drinks. Add, reorder or replace freely; the board shows the first six names.
+#
+# STARTERS: these three are well-documented classics, put here as placeholders. Replace them
+# with your own favorites.
+#
+#   name:    what it's called
+#   origin:  where it comes from (optional)
+#   glass:   what it's served in (optional)
+#   build:   ingredients, one per line
+#   method:  how to make it
+#   note:    anything else (optional)
+
+- name: Mai Tai
+  origin: Trader Vic's, Oakland, 1944
+  glass: Double old fashioned, crushed ice
+  build:
+    - 2 oz aged Jamaican rum
+    - 3/4 oz fresh lime juice
+    - 1/2 oz orange curaçao
+    - 1/4 oz orgeat
+    - 1/4 oz rich simple syrup
+  method: Shake with crushed ice and pour it all into the glass, unstrained. Garnish with the spent lime shell and a sprig of mint.
+
+- name: Jungle Bird
+  origin: Aviary Bar, Kuala Lumpur Hilton, 1978
+  glass: Double old fashioned, over ice
+  build:
+    - 1 1/2 oz blackstrap or dark Jamaican rum
+    - 3/4 oz Campari
+    - 1 1/2 oz pineapple juice
+    - 1/2 oz fresh lime juice
+    - 1/2 oz demerara syrup
+  method: Shake with ice and strain over fresh ice. Garnish with a pineapple wedge.
+
+- name: Painkiller
+  origin: Soggy Dollar Bar, British Virgin Islands, 1970s
+  glass: Tiki mug or highball, crushed ice
+  build:
+    - 2 oz Pusser's rum
+    - 4 oz pineapple juice
+    - 1 oz orange juice
+    - 1 oz cream of coconut
+  method: Shake with ice and pour over crushed ice. Grate fresh nutmeg on top.

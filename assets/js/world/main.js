@@ -13,7 +13,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint } from './planet.js';
+import { buildPlanet, surfacePoint, surfaceRadius } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS } from './places.js';
@@ -54,11 +54,20 @@ function markCurrent(id) {
   });
 }
 
-function openPanel(id, { push = true } = {}) {
+function openPanel(id, { push = true, from = null } = {}) {
   const tpl = $('panel-' + id);
   if (!tpl) return false;
   panelBody.replaceChildren(tpl.content.cloneNode(true));
   panel.hidden = false;
+  // served in a mug: the panel pours open out of the mug's mouth (a screen point)
+  panel.classList.remove('is-pouring');
+  if (from) {
+    const r = panel.getBoundingClientRect();
+    panel.style.setProperty('--ox', (from.x - r.left).toFixed(0) + 'px');
+    panel.style.setProperty('--oy', (from.y - r.top).toFixed(0) + 'px');
+    void panel.offsetWidth; // restart the animation
+    panel.classList.add('is-pouring');
+  }
   panel.dataset.id = id;
   root.dataset.panel = id;
   menu.hidden = true;
@@ -82,9 +91,11 @@ function closePanel({ fromHistory } = {}) {
   afterPanel();
 }
 
-// Where you land after closing a panel: back to the menu if you were at the bar.
+// Where you land after closing a panel: at the bar, the mug goes back down and the menu comes
+// back up for the next order; otherwise back to the menu if you were holding it.
 function afterPanel() {
-  if (state === 'seat') showMenu('seat');
+  if (state === 'seat' && drinkUp()) putDownDrink();
+  else if (state === 'seat' && seatMenuHeld()) showMenu('seat');
   else canvas.focus({ preventScroll: true });
 }
 
@@ -109,22 +120,40 @@ addEventListener('popstate', () => {
   else { pushed = false; closePanel({ fromHistory: true }); }
 });
 
+// At the bar the menu is a card you pick up off the counter and put back down; the world
+// replaces these once it's built. Everywhere else it's just shown and hidden.
+let leaveBar = () => hideMenu();
+let pickUpMenu = () => showMenu('seat');
+let putDownMenu = () => hideMenu();
+let seatMenuHeld = () => !menu.hidden;
+// Ordering at the bar: the world makes the drink, serves it and lifts it to you, then the
+// content opens out of the mug. Before (or without) the world it just opens the panel.
+let order = (id) => openPanel(id);
+let drinkUp = () => false;
+let putDownDrink = () => {};
+
 $('panel-close').addEventListener('click', () => closePanel());
-$('panel-back').addEventListener('click', () => { closePanel(); if (state !== 'seat') showMenu('nav'); });
-$('menu-close').addEventListener('click', () => { if (state === 'seat') leaveBar(); else hideMenu(); });
-menuBtn.addEventListener('click', () => (menu.hidden ? showMenu(state === 'seat' ? 'seat' : 'nav') : hideMenu()));
+$('panel-back').addEventListener('click', () => {
+  closePanel();
+  if (state !== 'seat') showMenu('nav');
+  else if (!seatMenuHeld() && !drinkUp()) pickUpMenu();
+});
+$('menu-close').addEventListener('click', () => { if (state === 'seat') putDownMenu(); else hideMenu(); });
+menuBtn.addEventListener('click', () => {
+  if (state === 'seat') { if (menu.hidden) pickUpMenu(); else putDownMenu(); }
+  else if (menu.hidden) showMenu('nav');
+  else hideMenu();
+});
 
 // Every [data-order] link (top bar and menu) opens its panel in place. Without JS it's a normal link.
-let serve = () => {};
-let leaveBar = () => hideMenu();
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[data-order]');
   if (!a || state === 'fallback' || e.metaKey || e.ctrlKey || e.shiftKey) return;
   const id = a.dataset.order;
   if (!$('panel-' + id)) return;
   e.preventDefault();
-  if (state === 'seat') serve(id);
-  openPanel(id);
+  if (state === 'seat') order(id);
+  else openPanel(id);
 });
 
 function fillLaunch(el) {
@@ -213,15 +242,22 @@ async function start() {
   const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality });
-  const bar = buildBar({ prop, quality, posts: data.posts, heroes, reducedMotion });
-  const places = buildPlaces({ prop, quality, heroes });
+  // the card on the bar lists the same items as the HTML menu
+  const menuItems = [...menu.querySelectorAll('.menu__list a')].map((a) => ({
+    label: a.querySelector('.menu__label').textContent.trim(),
+    note: a.querySelector('.menu__note').textContent.trim(),
+  }));
+  const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, menuItems, reducedMotion });
+  // the site's logo (the favicon) goes on the rocket
+  const badge = document.querySelector('link[rel="icon"]')?.href || null;
+  const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
-  serve = (id) => bar.serve(id);
 
   // Night: a faint sky/ground ambient, cool moonlight as the key (with soft shadows around the
   // bar), and every warm tone comes from practical lights: torches, lamps, neon, fire.
-  scene.add(new THREE.HemisphereLight(0x33407a, 0x241a16, 0.8));
-  const moon = new THREE.DirectionalLight(PALETTE.moon, 1.5);
+  // (a touch brighter than pitch dark, so everything on the planet reads as a shape at night)
+  scene.add(new THREE.HemisphereLight(0x33407a, 0x241a16, 1.2));
+  const moon = new THREE.DirectionalLight(PALETTE.moon, 1.8);
   moon.position.copy(sky.sunDir).multiplyScalar(40).add(bar.group.position);
   moon.target = bar.group;
   if (quality.high) {
@@ -270,15 +306,11 @@ async function start() {
   };
   const hoverRing = marker(0xffffff);
   const destRing = marker(0x3ff5e8);
-  const barRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 40).rotateX(-Math.PI / 2), glow(PALETTE.aqua, 2));
   const standOn = (obj, point, lift = 0.04) => {
     const up = point.clone().normalize();
     obj.position.copy(surfacePoint(up, lift));
     obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
   };
-  standOn(barRing, barSpot.approach, 0.26); // on the deck
-  barRing.visible = !done.get('sat');
-  scene.add(barRing);
 
   /* ---------- Picking ---------- */
   const raycaster = new THREE.Raycaster();
@@ -306,6 +338,8 @@ async function start() {
   function use(it) {
     player.stop();
     if (it.id === 'seat') return sitDown();
+    if (it.id === 'menu') return sitDown({ pickUp: true });
+    if (it.id === 'drinks') return sitDown({ then: () => openPanel('drinks') });
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     openPanel(it.id);
   }
@@ -318,7 +352,21 @@ async function start() {
     showDest(it.approach);
   }
 
+  // A tap is followed by a click at the same spot. On phones the menu opens right under the
+  // finger, so that click would land on a menu item and order it: eat it.
+  function swallowNextClick() {
+    const stop = (e) => { e.preventDefault(); e.stopPropagation(); };
+    document.addEventListener('click', stop, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 500);
+  }
+
   function onTap(x, y) {
+    if (state === 'seat' && panel.hidden && menu.hidden) {
+      const p = pick(x, y);
+      if (p && p.thing && p.thing.id === 'menu') { swallowNextClick(); pickUpMenu(); }
+      else if (p && p.thing && p.thing.id === 'drinks') { swallowNextClick(); openPanel('drinks'); }
+      return;
+    }
     if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
     const p = pick(x, y);
     if (!p) return;
@@ -331,6 +379,20 @@ async function start() {
   const tip = $('tip');
   let hovered = null;
   function onHover(x, y) {
+    // seated: only the menu card is clickable
+    if (x !== null && state === 'seat' && panel.hidden && menu.hidden && !cardFlight) {
+      const p = pick(x, y);
+      const onCard = !!(p && p.thing && (p.thing.id === 'menu' || p.thing.id === 'drinks'));
+      canvas.style.cursor = onCard ? 'pointer' : '';
+      hovered = onCard ? p.thing : null;
+      tip.hidden = !onCard;
+      if (onCard) {
+        tip.querySelector('strong').textContent = p.thing.label;
+        tip.querySelector('span').textContent = p.thing.verb;
+        tip.style.transform = `translate(${x + 16}px, ${y + 14}px)`;
+      }
+      return;
+    }
     if (x === null || state !== 'walk' || !panel.hidden || !menu.hidden) {
       hovered = null; tip.hidden = true; hoverRing.material.opacity = 0; canvas.style.cursor = '';
       return;
@@ -360,11 +422,24 @@ async function start() {
     return best;
   }
 
+  // Seated, you can still look around: a head turn on top of the seat's pose, within what a
+  // neck allows. It resets when you sit down again.
+  const seatLook = { yaw: 0, pitch: 0 };
+  const look = (dx, dy) => {
+    if (state === 'seat') {
+      if (flight || leaving || drink) return;
+      // same feel as walking (player.look): drag the world, so dragging right turns you left
+      seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
+      seatLook.pitch = THREE.MathUtils.clamp(seatLook.pitch - dy, -0.95, 0.95);
+    } else if (player.enabled) player.look(dx, dy);
+  };
   const input = bindInput(player, canvas, {
     onTap,
     onHover,
+    onDrag: look,
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
+      if (state === 'seat' && panel.hidden && menu.hidden) { pickUpMenu(); return; }
       if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
       const it = nearestInReach();
       it ? use(it) : goUse(barSpot);
@@ -378,25 +453,214 @@ async function start() {
     const m = new THREE.Matrix4().lookAt(eye, target, eye.clone().normalize());
     return { pos: eye.clone(), quat: new THREE.Quaternion().setFromRotationMatrix(m) };
   }
-  function flyTo(pose, ms, then) {
-    if (reducedMotion) { camera.position.copy(pose.pos); camera.quaternion.copy(pose.quat); then && then(); return; }
-    flight = { t0: performance.now(), ms, from: { pos: camera.position.clone(), quat: camera.quaternion.clone() }, to: pose, then };
+  // Move your eyes through a few poses ({ pos, quat, ms }) like a body would: one smooth curve
+  // from wherever the camera is now, eased in and out as a whole so it never stops at a key.
+  // Reduced motion: jump to the last pose.
+  function flyPath(keys, then) {
+    const last = keys[keys.length - 1];
+    if (reducedMotion) { camera.position.copy(last.pos); camera.quaternion.copy(last.quat); flight = null; then && then(); return; }
+    const from = { pos: camera.position.clone(), quat: camera.quaternion.clone(), ms: 0 };
+    const poses = [from, ...keys];
+    const ends = [];
+    let total = 0;
+    for (const k of keys) ends.push(total += k.ms);
+    const curve = new THREE.CatmullRomCurve3(poses.map((p) => p.pos), false, 'centripetal');
+    flight = { t0: performance.now(), total, ends, poses, curve, then };
+  }
+  function flightStep(now) {
+    const f = flight;
+    const k = Math.min(1, (now - f.t0) / f.total);
+    const t = (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2) * f.total; // eased time along the path
+    let i = 0;
+    while (i < f.ends.length - 1 && t > f.ends[i]) i++;
+    const start = i ? f.ends[i - 1] : 0;
+    const local = Math.min(1, (t - start) / (f.ends[i] - start || 1));
+    camera.position.copy(f.curve.getPoint((i + local) / f.ends.length));
+    camera.quaternion.copy(f.poses[i].quat).slerp(f.poses[i + 1].quat, local); // the path's own easing is enough
+    if (k === 1) { flight = null; f.then && f.then(); }
   }
 
+  /* ---------- The menu card: pick it up off the bar, put it back down ---------- */
+  // Picking up flies the 3D card from the counter to where the HTML menu sits on screen,
+  // sized to match, then the HTML menu fades in over it. Putting down is the reverse.
+  // The camera never moves; only the card does. Reduced motion: no flight.
+  const card = bar.menu.card;
+  const cardHome = { parent: card.parent, pos: card.position.clone(), quat: card.quaternion.clone() };
+  let held = false;
+  let cardFlight = null;
+  const _m = new THREE.Matrix4();
+  seatMenuHeld = () => held;
+
+  function cardWorldHome() {
+    cardHome.parent.updateMatrixWorld(true);
+    _m.compose(cardHome.pos, cardHome.quat, new THREE.Vector3(1, 1, 1)).premultiply(cardHome.parent.matrixWorld);
+    const pos = new THREE.Vector3(), quat = new THREE.Quaternion();
+    _m.decompose(pos, quat, new THREE.Vector3());
+    return { pos, quat };
+  }
+  // Where the card must be, facing the camera, to cover the HTML menu card's rectangle.
+  function cardInHand() {
+    const r = menu.querySelector('.menu__card').getBoundingClientRect();
+    const c = canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector3(((r.left + r.width / 2 - c.left) / c.width) * 2 - 1, -((r.top + r.height / 2 - c.top) / c.height) * 2 + 1, 0.5);
+    const dist = (bar.menu.height * 1.08 * c.height) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * r.height);
+    const dir = ndc.unproject(camera).sub(camera.position).normalize();
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const quat = camera.quaternion.clone();
+    // the card's origin is its bottom edge: drop it by half its height along the camera's up
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const pos = camera.position.clone().addScaledVector(dir, dist / dir.dot(fwd)).addScaledVector(up, -bar.menu.height / 2);
+    return { pos, quat };
+  }
+  function flyCard(from, to, ms, then) {
+    scene.attach(card);
+    card.position.copy(from.pos);
+    card.quaternion.copy(from.quat);
+    card.visible = true;
+    cardFlight = { t0: performance.now(), ms, from, to, then };
+  }
+  function cardBackOnBar() {
+    cardFlight = null;
+    cardHome.parent.add(card);
+    card.position.copy(cardHome.pos);
+    card.quaternion.copy(cardHome.quat);
+    card.visible = true;
+  }
+
+  pickUpMenu = () => {
+    if (state !== 'seat') return;
+    // still settling onto the stool: pick it up once the view is still, so the card lands in the right place
+    if (leaving) return;
+    if (flight) { const then = flight.then; flight.then = () => { then && then(); pickUpMenu(); }; return; }
+    if (held) { if (menu.hidden && panel.hidden) showMenu('seat'); return; }
+    held = true;
+    done.set('menu');
+    tip.hidden = true;
+    canvas.style.cursor = '';
+    if (reducedMotion) { card.visible = false; showMenu('seat'); return; }
+    menu.classList.add('is-arriving'); // laid out (so it can be measured) but invisible
+    showMenu('seat');
+    flyCard(cardWorldHome(), cardInHand(), 520, () => {
+      menu.classList.remove('is-arriving');
+      setTimeout(() => { if (held) card.visible = false; }, 180);
+    });
+  };
+  putDownMenu = () => {
+    if (!held) { hideMenu(); return; }
+    const from = menu.hidden || reducedMotion ? null : cardInHand();
+    held = false;
+    hideMenu();
+    menu.classList.remove('is-arriving');
+    canvas.focus({ preventScroll: true });
+    if (!from) return cardBackOnBar();
+    flyCard(from, cardWorldHome(), 420, cardBackOnBar);
+  };
+
+  /* ---------- Ordering: watch it made, then drink it in ---------- */
+  // Choosing from the menu puts the menu down so you can watch the bartender shake the drink
+  // and slide it over. Then you lift the mug and look into it, and the content pours open out
+  // of it. Closing that sets the mug back on the bar and the menu comes back up. The camera
+  // stays put; only the menu and the mug move. Reduced motion: no flights.
+  let drink = null;   // { mug, home: { parent, pos, quat } } while the mug is off the bar
+  let ordering = false;
+  const objFlights = [];
+  const X_AX = new THREE.Vector3(1, 0, 0);
+  function worldPose(o) {
+    o.updateWorldMatrix(true, false);
+    const pos = new THREE.Vector3(), quat = new THREE.Quaternion();
+    o.matrixWorld.decompose(pos, quat, new THREE.Vector3());
+    return { pos, quat };
+  }
+  function flyObject(obj, from, to, ms, then) {
+    scene.attach(obj);
+    obj.position.copy(from.pos);
+    obj.quaternion.copy(from.quat);
+    objFlights.push({ obj, from, to, ms, t0: performance.now(), then });
+  }
+  // Held up in front of you, tipped toward you so you're looking down into it.
+  function drinkInHand(mug) {
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+    const quat = camera.quaternion.clone().multiply(new THREE.Quaternion().setFromAxisAngle(X_AX, 1.05));
+    const mouth = camera.position.clone().addScaledVector(fwd, 0.42).addScaledVector(up, -0.04);
+    const mouthOffset = mug.userData.mouth.clone().multiplyScalar(mug.scale.x).applyQuaternion(quat);
+    return { pos: mouth.clone().sub(mouthOffset), quat, mouth };
+  }
+  function drinkHome(d) {
+    d.home.parent.updateMatrixWorld(true);
+    const m = new THREE.Matrix4().compose(d.home.pos, d.home.quat, d.mug.scale).premultiply(d.home.parent.matrixWorld);
+    const pos = new THREE.Vector3(), quat = new THREE.Quaternion();
+    m.decompose(pos, quat, new THREE.Vector3());
+    return { pos, quat };
+  }
+  function liftDrink(mug, id) {
+    const home = { parent: mug.parent, pos: mug.position.clone(), quat: mug.quaternion.clone() };
+    const d = (drink = { mug, home });
+    const to = drinkInHand(mug);
+    const reveal = () => {
+      if (drink !== d) return;
+      ordering = false;
+      const m = to.mouth.clone().project(camera);
+      const r = canvas.getBoundingClientRect();
+      openPanel(id, { from: { x: r.left + ((m.x + 1) / 2) * r.width, y: r.top + ((1 - m.y) / 2) * r.height } });
+    };
+    if (reducedMotion) { scene.attach(mug); mug.position.copy(to.pos); mug.quaternion.copy(to.quat); return reveal(); }
+    // a beat to see it land, then lift it
+    setTimeout(() => { if (drink === d) flyObject(mug, worldPose(mug), to, 850, reveal); }, 250);
+  }
+  function drinkBackOnBar() {
+    const d = drink;
+    if (!d) return;
+    for (let i = objFlights.length - 1; i >= 0; i--) if (objFlights[i].obj === d.mug) objFlights.splice(i, 1);
+    d.home.parent.attach(d.mug);
+    d.mug.position.copy(d.home.pos);
+    d.mug.quaternion.copy(d.home.quat);
+    drink = null;
+  }
+  order = (id) => {
+    if (drink && !ordering) { openPanel(id); return; } // already holding one: just change what's in it
+    if (ordering) return;
+    ordering = true;
+    if (held) putDownMenu(); else hideMenu();
+    bar.serve(id, (mug) => {
+      if (state !== 'seat') { ordering = false; return; }
+      liftDrink(mug, id);
+    });
+  };
+  drinkUp = () => !!drink;
+  putDownDrink = () => {
+    const d = drink;
+    if (!d) return;
+    const back = () => { drinkBackOnBar(); if (state === 'seat') pickUpMenu(); };
+    if (reducedMotion) return back();
+    for (let i = objFlights.length - 1; i >= 0; i--) if (objFlights[i].obj === d.mug) objFlights.splice(i, 1);
+    flyObject(d.mug, worldPose(d.mug), drinkHome(d), 650, () => { if (drink === d) back(); });
+  };
+
   let chatter;
-  function sitDown() {
+  let leaving = false;
+  function sitDown({ pickUp = false, then = null } = {}) {
+    leaving = false;
+    seatLook.yaw = seatLook.pitch = 0;
     input.clear();
     player.stop();
     clearHint('walk');
     done.set('sat');
-    barRing.visible = false;
     tip.hidden = true;
     setState('seat');
     bar.greet();
     seatPose = poseLooking(bar.seat.eye, bar.seat.look);
-    flyTo(seatPose, 800, () => {
+    // step up behind the stool, dip down onto it with an eye on the bar, settle facing the robot
+    const S = bar.seat;
+    const step = Math.min(700, Math.max(250, camera.position.distanceTo(S.stand) * 420));
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: step },
+      { ...poseLooking(S.dip, S.barTop), ms: 480 },
+      { ...seatPose, ms: 420 },
+    ], () => {
       if (state !== 'seat') return;
-      if (panel.hidden) showMenu('seat');
+      if (pickUp && panel.hidden) pickUpMenu();
+      else if (then && panel.hidden) then();
       say(data.bartender[0]);
       let i = 1;
       clearInterval(chatter);
@@ -405,24 +669,52 @@ async function start() {
   }
 
   leaveBar = () => {
+    drinkBackOnBar();
+    ordering = false;
     hideMenu();
+    held = false;
+    menu.classList.remove('is-arriving');
+    cardBackOnBar();
     closePanel();
     clearInterval(chatter);
     bubble.hidden = true;
-    flight = null;
     bar.farewell();
-    // stand up where you walked in, facing back down the path
+    // You end up standing where you walked in, facing back down the path. Get up into that
+    // exact view (lean forward, stand behind the stool, turn around as you step back), so the
+    // walk picks up from the same frame.
+    const wasSeated = state === 'seat';
     player.spawn(barSpot.approach.clone().normalize(), surfacePoint(SPOTS.spawn), -0.05);
-    setState('walk');
-    player.applyToCamera();
-    canvas.focus({ preventScroll: true });
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    const finish = () => {
+      leaving = false;
+      setState('walk');
+      player.applyToCamera();
+      canvas.focus({ preventScroll: true });
+    };
+    if (!wasSeated) { flight = null; return finish(); }
+    leaving = true;
+    const S = bar.seat;
+    // halfway through the turn you're looking along the counter, so it turns the natural way
+    const mid = S.stand.clone().lerp(endPos, 0.45);
+    const side = mid.clone().add(new THREE.Vector3(3, 0, 0));
+    flyPath([
+      // unhurried, so the turn never disorients: about 4 s, the turn peaking near 140°/s
+      { ...poseLooking(S.lean, S.barTop), ms: 480 },
+      { ...poseLooking(S.stand, S.look), ms: 760 },
+      { ...poseLooking(mid, side), ms: 1350 },
+      { pos: endPos, quat: endQuat, ms: 1450 },
+    ], finish);
   };
   $('leave').addEventListener('click', () => leaveBar());
+  const seatLeave = $('seat-leave');
+  seatLeave.addEventListener('click', () => leaveBar());
 
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!panel.hidden) closePanel();
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
+    else if (state === 'seat' && held) putDownMenu(); // first Esc puts the menu down, the next one leaves
     else if (state === 'seat') leaveBar();
   });
 
@@ -431,8 +723,23 @@ async function start() {
   let t = 0;
   const _v = new THREE.Vector3();
   const beacon = $('beacon');
-  const beaconAt = bar.group.localToWorld(new THREE.Vector3(0, 1.9, 1.6)); // just above the stools
   let movedFrom = null;
+  const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
+  const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
+  const seatKeys = { x: 0, y: 0 };
+  const seatArrow = (e, down) => {
+    if (state !== 'seat' || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
+    const v = down ? 1 : 0;
+    if (e.key === 'ArrowLeft') seatKeys.x = -v;
+    else if (e.key === 'ArrowRight') seatKeys.x = v;
+    else if (e.key === 'ArrowUp') seatKeys.y = v;
+    else if (e.key === 'ArrowDown') seatKeys.y = -v;
+    else return;
+    if (down) e.preventDefault();
+  };
+  addEventListener('keydown', (e) => seatArrow(e, true));
+  addEventListener('keyup', (e) => seatArrow(e, false));
+  let beckoned = false;
 
   function frame(now) {
     timer.update(now);
@@ -441,6 +748,10 @@ async function start() {
     if (!TEST) t += dt;
 
     if (state === 'walk') {
+      // the bartender waves you over once as you walk up (again if you wander off and come back)
+      const toBar = player.pos.distanceTo(barSpot.approach);
+      if (!beckoned && toBar < 9 && toBar > 2.5) { beckoned = true; bar.beckon(player.pos); }
+      else if (toBar > 13) beckoned = false;
       player.enabled = panel.hidden && menu.hidden;
       player.update(dt);
       if (!flight) player.applyToCamera(t, !reducedMotion);
@@ -448,15 +759,14 @@ async function start() {
       if (!movedFrom) movedFrom = player.pos.clone();
       else if (!hint.hidden && hint.dataset.key === 'walk' && player.pos.distanceTo(movedFrom) > 3) clearHint('walk');
     }
-    if (flight) {
-      const k = Math.min(1, (performance.now() - flight.t0) / flight.ms);
-      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
-      camera.position.lerpVectors(flight.from.pos, flight.to.pos, e);
-      camera.quaternion.copy(flight.from.quat).slerp(flight.to.quat, e);
-      if (k === 1) { const then = flight.then; flight = null; then && then(); }
-    } else if (state === 'seat' && seatPose) {
+    if (flight) flightStep(performance.now());
+    else if (state === 'seat' && seatPose) {
       camera.position.copy(seatPose.pos);
-      camera.quaternion.copy(seatPose.quat);
+      camera.quaternion.copy(seatPose.quat)
+        .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
+        .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
+      // arrow keys look around too
+      if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2); // → turns right, ↑ looks up
     }
 
     // destination ring: appears where you clicked, then fades
@@ -467,15 +777,41 @@ async function start() {
       destRing.material.opacity = Math.max(0, 0.9 * (1 - k));
       if (k >= 1) destT = -1;
     }
-    // the bar's ring and its floating label, until they've sat down once
-    if (barRing.visible) {
-      if (!reducedMotion) barRing.scale.setScalar(1 + Math.sin(t * 3) * 0.08);
-      _v.copy(beaconAt).project(camera);
+    // a mug on its way to or from your hands
+    for (let i = objFlights.length - 1; i >= 0; i--) {
+      const f = objFlights[i];
+      const k = Math.min(1, (performance.now() - f.t0) / f.ms);
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      f.obj.position.lerpVectors(f.from.pos, f.to.pos, e);
+      f.obj.position.addScaledVector(f.obj.position.clone().normalize(), Math.sin(e * Math.PI) * 0.05);
+      f.obj.quaternion.copy(f.from.quat).slerp(f.to.quat, e);
+      if (k === 1) { objFlights.splice(i, 1); f.then && f.then(); }
+    }
+    // the menu card flying to or from your hands
+    if (cardFlight) {
+      const k = Math.min(1, (performance.now() - cardFlight.t0) / cardFlight.ms);
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      card.position.lerpVectors(cardFlight.from.pos, cardFlight.to.pos, e);
+      card.position.addScaledVector(card.position.clone().normalize(), Math.sin(e * Math.PI) * 0.06); // a little lift on the way
+      card.quaternion.copy(cardFlight.from.quat).slerp(cardFlight.to.quat, e);
+      if (k === 1) { const then = cardFlight.then; cardFlight = null; then && then(); }
+    }
+    // The bar needs no label: it's the lit, open thing at the end of the path, your stool sits in
+    // a pool of light, and the bartender waves you over. The menu card gets one, until the first
+    // time it's picked up.
+    let label = null;
+    if (state === 'seat' && !held && !cardFlight && !flight && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
+    if (label) {
+      _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
-      const show = state === 'walk' && onScreen && panel.hidden && menu.hidden && !hovered;
+      const show = onScreen && panel.hidden && menu.hidden && !hovered;
       beacon.hidden = !show;
-      if (show) beacon.style.transform = `translate(${((_v.x + 1) / 2 * root.clientWidth).toFixed(0)}px, ${((1 - _v.y) / 2 * root.clientHeight).toFixed(0)}px)`;
+      if (show) {
+        if (beacon.textContent !== label[1]) beacon.textContent = label[1];
+        beacon.style.transform = `translate(${((_v.x + 1) / 2 * root.clientWidth).toFixed(0)}px, ${((1 - _v.y) / 2 * root.clientHeight).toFixed(0)}px)`;
+      }
     } else if (!beacon.hidden) beacon.hidden = true;
+    seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
 
     Fire.tick(t);
     sky.update(t, camera);
@@ -500,7 +836,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pick };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius };
   window.__sceneReady = true;
 }
 

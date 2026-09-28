@@ -25,5 +25,13 @@
   "moai": {
     "file": "moai.glb",
     "height": 2.4
+  },
+  "parrot-mug": {
+    "file": "parrot-mug.glb",
+    "height": 0.2
+  },
+  "pineapple-mug": {
+    "file": "pineapple-mug.glb",
+    "height": 0.17
   }
 }

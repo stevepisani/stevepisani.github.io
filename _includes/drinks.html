@@ -1,0 +1,12 @@
+{%- comment -%} Recipe cards from _data/drinks.yml (the /drinks page and the bar's panel). {%- endcomment -%}
+<div class="recipes">
+  {% for d in site.data.drinks %}
+  <section class="recipe">
+    <h3 class="recipe__name">{{ d.name }}</h3>
+    {% if d.origin or d.glass %}<p class="recipe__meta">{% if d.origin %}{{ d.origin }}{% endif %}{% if d.origin and d.glass %} · {% endif %}{% if d.glass %}{{ d.glass }}{% endif %}</p>{% endif %}
+    <ul class="recipe__build">{% for line in d.build %}<li>{{ line }}</li>{% endfor %}</ul>
+    <p class="recipe__method">{{ d.method }}</p>
+    {% if d.note %}<p class="recipe__note">{{ d.note }}</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>

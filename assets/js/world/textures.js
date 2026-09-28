@@ -45,7 +45,8 @@ export function neonSign() {
     g.font = font;
     g.shadowColor = color;
     g.strokeStyle = color;
-    for (const [blur, w, a] of [[46, width * 2.2, 0.35], [22, width * 1.4, 0.7], [8, width, 1]]) {
+    // a tight halo only: the world's bloom adds the rest, and two soft glows smear the letters
+    for (const [blur, w, a] of [[18, width * 1.8, 0.35], [8, width * 1.3, 0.75], [3, width, 1]]) {
       g.shadowBlur = blur;
       g.globalAlpha = a;
       g.lineWidth = w;
@@ -54,60 +55,50 @@ export function neonSign() {
     g.globalAlpha = 1;
     g.shadowBlur = 0;
     g.strokeStyle = '#fff6fb';
-    g.lineWidth = Math.max(1.5, width * 0.35);
+    g.lineWidth = Math.max(2, width * 0.45);
     g.strokeText(text, 512, y);
   };
-  tube("Steve's", `180px ${FONT_SCRIPT}`, 140, '#ff4fa3', 7);
-  tube('SPACE  TIKI  BAR', `600 40px ${FONT_MONO}`, 272, '#3ff5e8', 2.5);
+  tube("Steve's", `190px ${FONT_SCRIPT}`, 135, '#ff4fa3', 10);
+  tube('SPACE  TIKI  BAR', `600 54px ${FONT_MONO}`, 272, '#3ff5e8', 4.5);
   return texture(c);
 }
 
 /** Chalkboard drinks menu. Posts become cocktails; reading time is the price. */
-export function chalkboard(posts) {
-  const [c, g] = canvas(640, 800);
+export function chalkboard(drinks) {
+  // landscape, hung on the back wall behind the bar: "Favorite drinks" and their names
+  const W = 800, H = 600;
+  const [c, g] = canvas(W, H);
   g.fillStyle = '#1d2a22';
-  g.fillRect(0, 0, 640, 800);
-  // chalk dust smudges
-  for (let i = 0; i < 40; i++) {
-    g.fillStyle = `rgba(255,255,255,${Math.random() * 0.035})`;
+  g.fillRect(0, 0, W, H);
+  let seed = 5;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); // same smudges every visit
+  for (let i = 0; i < 40; i++) { // chalk dust
+    g.fillStyle = `rgba(255,255,255,${rand() * 0.035})`;
     g.beginPath();
-    g.ellipse(Math.random() * 640, Math.random() * 800, 40 + Math.random() * 120, 20 + Math.random() * 60, Math.random() * 3, 0, 7);
+    g.ellipse(rand() * W, rand() * H, 40 + rand() * 120, 20 + rand() * 60, rand() * 3, 0, 7);
     g.fill();
   }
   g.strokeStyle = '#7a5230';
-  g.lineWidth = 28;
-  g.strokeRect(14, 14, 612, 772);
-
-  g.fillStyle = '#f7f3e8';
+  g.lineWidth = 26;
+  g.strokeRect(13, 13, W - 26, H - 26);
   g.textAlign = 'center';
-  g.font = `800 64px ${FONT_DISPLAY}`;
-  g.fillText('DRINKS', 320, 110);
-  g.font = `600 22px ${FONT_MONO}`;
-  g.fillStyle = '#ffd36e';
-  g.fillText('(the writing menu)', 320, 150);
-
-  g.textAlign = 'left';
-  let y = 215;
-  for (const p of posts.slice(0, 5)) {
-    const words = p.title.split(' ');
-    const lines = [];
-    let line = '';
-    g.font = `600 27px ${FONT_DISPLAY}`;
-    for (const w of words) {
-      const test = line ? line + ' ' + w : w;
-      if (g.measureText(test).width > 440 && line) { lines.push(line); line = w; } else line = test;
-    }
-    lines.push(line);
+  g.fillStyle = '#f7f3e8';
+  g.font = `800 58px ${FONT_DISPLAY}`;
+  g.fillText('Favorite drinks', W / 2, 105);
+  g.strokeStyle = 'rgba(247,243,232,.6)';
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(W / 2 - 190, 128); g.quadraticCurveTo(W / 2, 140, W / 2 + 190, 128); g.stroke();
+  const list = drinks.slice(0, 6);
+  const step = Math.min(72, 380 / Math.max(1, list.length));
+  list.forEach((name, i) => {
+    const y = 205 + i * step;
+    g.fillStyle = '#ffd36e';
+    g.font = `600 30px ${FONT_MONO}`;
+    g.fillText('✶', W / 2 - 250, y);
     g.fillStyle = '#f7f3e8';
-    lines.slice(0, 2).forEach((l, i) => g.fillText(l, 60, y + i * 32));
-    g.fillStyle = '#9ff0d6';
-    g.font = `600 22px ${FONT_MONO}`;
-    g.textAlign = 'right';
-    g.fillText(`${p.mins} min`, 580, y);
-    g.textAlign = 'left';
-    y += Math.min(lines.length, 2) * 32 + 44;
-    if (y > 740) break;
-  }
+    g.font = `600 44px ${FONT_DISPLAY}`;
+    g.fillText(name, W / 2, y, W - 200);
+  });
   return texture(c);
 }
 
@@ -261,5 +252,118 @@ export function label(text, { bg = '#f4ead2', fg = '#3a2a18', w = 256, h = 96 } 
   let size = Math.floor(h * 0.55);
   do { g.font = `800 ${size}px ${FONT_DISPLAY}`; size -= 2; } while (g.measureText(text).width > w * 0.9 && size > 8);
   g.fillText(text, w / 2, h / 2 + 4);
+  return texture(c);
+}
+
+// The tiki mask from the HTML menu (index.html), as the same SVG path data.
+const TIKI_HEAD = 'M6 6q14-8 28 0v40q-14 12-28 0z';
+const TIKI_CUT = 'M8 16h24v5H8zM10 24q5-3 9 0q-4 4-9 0zM21 24q5-3 9 0q-4 4-9 0zM17 27h6l2 9h-10zM10 40q10 6 20 0v5q-10 5-20 0z';
+const TIKI_TEETH = 'M13 41h3v3h-3zM18.5 41.5h3v3h-3zM24 41h3v3h-3z';
+
+/**
+ * The menu that stands on the bar: the same design as the HTML menu (world.css .menu),
+ * lashed bamboo frame, parchment, "Steve's" in script, a tapa band, and the real items
+ * (`items` = [{ label, note }], read from the page). 2:3, like the card it's drawn on.
+ */
+export function menuCard(items) {
+  const W = 512, H = 768, P = 26;
+  const [c, g] = canvas(W, H);
+  const paper = '#f7ecd4', soft = '#7a5a3c'; // --paper and --ink-soft in world.css
+  const lacquer = css(PALETTE.stain), coral = css(PALETTE.coral), lava = css(PALETTE.lava);
+  g.fillStyle = lacquer;
+  g.fillRect(0, 0, W, H);
+  // bamboo poles
+  const pole = (x, y, w, h, across) => {
+    g.fillStyle = css(PALETTE.bamboo);
+    g.fillRect(x, y, w, h);
+    const len = across ? h : w;
+    for (let t = 70; t < len; t += 76) {
+      g.fillStyle = '#6b4a22';
+      across ? g.fillRect(x, y + t, w, 4) : g.fillRect(x + t, y, 4, h);
+    }
+    const sh = across ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y, 0, y + h);
+    sh.addColorStop(0, 'rgba(255,255,255,.3)'); sh.addColorStop(0.35, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,0,0,.35)');
+    g.fillStyle = sh;
+    g.fillRect(x, y, w, h);
+  };
+  pole(0, 0, W, P, false); pole(0, H - P, W, P, false); pole(0, 0, P, H, true); pole(W - P, 0, P, H, true);
+  g.fillStyle = lacquer;
+  for (const [x, y] of [[P / 2, P / 2], [W - P / 2, P / 2], [P / 2, H - P / 2], [W - P / 2, H - P / 2]]) { g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); }
+  // parchment with a darker rim and an inner rule
+  g.fillStyle = paper;
+  g.fillRect(P, P, W - 2 * P, H - 2 * P);
+  const rim = g.createRadialGradient(W / 2, H * 0.3, W * 0.3, W / 2, H * 0.45, H * 0.65);
+  rim.addColorStop(0, 'rgba(122,80,30,0)'); rim.addColorStop(1, 'rgba(122,80,30,.22)');
+  g.fillStyle = rim;
+  g.fillRect(P, P, W - 2 * P, H - 2 * P);
+  g.strokeStyle = lacquer; g.lineWidth = 3;
+  g.strokeRect(P + 12, P + 12, W - 2 * P - 24, H - 2 * P - 24);
+  // header: tiki, "Steve's", tiki
+  g.textAlign = 'center';
+  g.textBaseline = 'alphabetic';
+  g.font = '64px ' + FONT_SCRIPT;
+  g.fillStyle = lava; g.fillText("Steve's", W / 2 + 4, 132);
+  g.fillStyle = coral; g.fillText("Steve's", W / 2, 128);
+  const mask = (x, flip) => {
+    g.save(); g.translate(x, 64); g.scale(flip ? -1.3 : 1.3, 1.3); if (flip) g.translate(-40, 0);
+    g.fillStyle = lacquer; g.fill(new Path2D(TIKI_HEAD)); g.fill(new Path2D(TIKI_TEETH));
+    g.fillStyle = paper; g.fill(new Path2D(TIKI_CUT));
+    g.restore();
+  };
+  mask(58, false); mask(W - 58 - 52, true);
+  // tapa band
+  const by = 156;
+  g.fillStyle = lacquer; g.fillRect(P + 20, by, W - 2 * P - 40, 3); g.fillRect(P + 20, by + 17, W - 2 * P - 40, 3);
+  g.fillStyle = coral;
+  for (let x = P + 20; x < W - P - 30; x += 14) { g.beginPath(); g.moveTo(x, by + 16); g.lineTo(x + 7, by + 5); g.lineTo(x + 14, by + 16); g.fill(); }
+  g.fillStyle = lacquer;
+  g.font = 'italic 600 30px ' + FONT_DISPLAY;
+  g.fillText("What'll it be?", W / 2, 222);
+  // the items: plain labels, one line on what's there
+  const top = 262, step = Math.min(66, (H - P - 40 - top) / Math.max(1, items.length));
+  items.forEach((it, i) => {
+    const y = top + i * step;
+    if (i) { g.strokeStyle = 'rgba(74,44,26,.35)'; g.setLineDash([2, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(P + 40, y - 12); g.lineTo(W - P - 40, y - 12); g.stroke(); g.setLineDash([]); }
+    g.fillStyle = lacquer;
+    g.font = '800 25px ' + FONT_DISPLAY;
+    if ('letterSpacing' in g) g.letterSpacing = '2px';
+    g.fillText(it.label.toUpperCase(), W / 2, y + 16);
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+    g.fillStyle = soft;
+    g.font = 'italic 17px ' + FONT_DISPLAY;
+    g.fillText(it.note, W / 2, y + 40, W - 2 * P - 60);
+  });
+  const t = texture(c);
+  t.anisotropy = 8;
+  return t;
+}
+
+/** The rocket's landing pad: scuffed concrete, a coral ring, a dashed aqua circle and chevrons. */
+export function landingPad() {
+  const S = 512, cx = S / 2;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#3a3a40';
+  g.fillRect(0, 0, S, S);
+  let seed = 11;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); // same pad every visit
+  for (let i = 0; i < 2200; i++) { // concrete speckle
+    g.fillStyle = rand() < 0.5 ? 'rgba(0,0,0,.18)' : 'rgba(255,255,255,.06)';
+    g.fillRect(rand() * S, rand() * S, 2, 2);
+  }
+  const scorch = g.createRadialGradient(cx, cx, 10, cx, cx, 170);
+  scorch.addColorStop(0, 'rgba(10,8,8,.75)'); scorch.addColorStop(1, 'rgba(10,8,8,0)');
+  g.fillStyle = scorch; g.fillRect(0, 0, S, S);
+  g.lineCap = 'butt';
+  g.strokeStyle = css(PALETTE.coral); g.lineWidth = 22;
+  g.beginPath(); g.arc(cx, cx, 205, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = css(PALETTE.aqua); g.lineWidth = 8; g.setLineDash([26, 18]);
+  g.beginPath(); g.arc(cx, cx, 150, 0, Math.PI * 2); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = css(PALETTE.amber);
+  for (let i = 0; i < 8; i++) { // chevrons pointing in to the centre
+    g.save(); g.translate(cx, cx); g.rotate((i / 8) * Math.PI * 2);
+    g.beginPath(); g.moveTo(-22, -185); g.lineTo(0, -165); g.lineTo(22, -185); g.lineTo(22, -176); g.lineTo(0, -156); g.lineTo(-22, -176); g.closePath(); g.fill();
+    g.restore();
+  }
   return texture(c);
 }

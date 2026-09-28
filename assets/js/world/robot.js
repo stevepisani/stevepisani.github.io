@@ -255,6 +255,11 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       moveTo(home.pos, home.heading, 1.1);
       pose('rest');
     },
+    /** Turn on the spot to face `guest` (parent frame) and wave. */
+    beckon(guest) {
+      moveTo(root.position.clone(), Math.atan2(guest.x - root.position.x, guest.z - root.position.z), 0.8);
+      pose('greet', 1.8);
+    },
     shake(seconds) {
       shakeUntil = clock + seconds;
       pose('shake', seconds, 'rest');

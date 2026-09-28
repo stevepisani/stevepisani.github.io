@@ -38,8 +38,10 @@ credit Meshy on the site or keep using these files.
 | `puffer-lamp.glb` | remesh `01a0e67e-54c9-76aa-8879-b84111b23809` of refine `01a0e679-9d73-7601-a00f-cf5fc43781e9` | 4,000 | 212 KB | 3rd try (the first came out as a spiked sea mine); 512px textures; `glow` makes it lit from inside |
 | `volcano-bowl.glb` | `01a0e679-87f4-72a0-993e-53ef5d1f9fa5` | 3,000 | 83 KB | 3rd try (the first was a deep pot); 512px textures |
 | `moai.glb` | `01a0e679-809c-757a-8cf7-b8ac2fefee1e` | 8,000 | 294 KB | 3rd try (the first came out as painted wood) |
+| `parrot-mug.glb` | remesh `01a0e8fe-7d83-7127-8dfb-bc9e7cf809d1` of refine `01a0e8fc-e2cd-70fa-9563-e6cd5613662d` | 2,500 | 171 KB | on the counter and the shelf; 512px textures |
+| `pineapple-mug.glb` | remesh `01a0e8fe-8075-77b1-aa97-06431fb4bb62` of refine `01a0e8fc-a283-736d-866a-52cd5d03e09d` | 2,500 | 208 KB | second of two tries (clearer mug shape); 512px textures |
 
-All six come to 1.59 MB. **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
+All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second run on 2026-09-28, 4 generations and 2 remeshes, 130 credits). **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
 `01a0e679-8689…`, `01a0e67d-b488…`, `01a0e67d-ecaf…`) all gave the robot legs instead of
 one wheel, however the prompt put it, so no robot file is registered and the code-built one
 in `assets/js/world/robot.js` tends the bar. Run cost: 580 credits (19 generations at 30,

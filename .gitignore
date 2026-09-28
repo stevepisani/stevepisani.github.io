@@ -5,3 +5,4 @@ _site
 vendor
 .env
 tools/node_modules
+.bundle

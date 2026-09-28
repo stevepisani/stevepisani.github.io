@@ -12,6 +12,8 @@ procedural stand-in; drop a GLB in `assets/models/hero/`, list it in
   "puffer-lamp":  { "file": "puffer-lamp.glb",  "height": 0.4, "glow": 1.2 },
   "volcano-bowl": { "file": "volcano-bowl.glb", "height": 0.1 },
   "moai":         { "file": "moai.glb",         "height": 2.4 },
+  "parrot-mug":   { "file": "parrot-mug.glb",   "height": 0.2 },
+  "pineapple-mug": { "file": "pineapple-mug.glb", "height": 0.17 },
   "robot":        { "file": "robot.glb",        "height": 1.9 }
 }
 ```
@@ -62,6 +64,16 @@ Texture: Dark stained weathered wood, burnt accents in the carved grooves. Natur
 > A ceramic tiki mug, 17 cm tall, classic 1960s tiki bar style: a slightly waisted cylindrical tumbler with no handle, a tiki face moulded in relief on the front (heavy brow, big lozenge eyes, wide grin), glossy drip glaze. Open top, hollow inside. Realistic PBR ceramic, game-ready.
 
 Texture: Glossy ceramic drip glaze in deep teal #0F5E63 fading to dark brown at the base, glaze pooling darker in the recesses.
+
+**parrot-mug**
+> A ceramic tiki bar parrot mug, 18 cm tall, classic 1960s style: a stylised macaw parrot perched upright forming the body of the mug, its curled tail making the handle, its head at the top beside a wide round opening, wings folded against the sides. Hollow with an open top. Glossy glazed ceramic. Realistic PBR, game-ready.
+
+Texture: Glossy ceramic glaze: bright red body, yellow and blue wing feathers, cream beak, black eyes, darker glaze pooling in the carved feather details.
+
+**pineapple-mug**
+> A classic ceramic pineapple tiki mug, 15 cm tall: a pineapple-shaped cup with a diamond-pattern textured body, an open round top rimmed by short carved leaves, and a small loop handle. Hollow with an open top. Glossy glazed ceramic. Realistic PBR, game-ready.
+
+Texture: Glossy golden-yellow ceramic glaze with amber in the diamond recesses and green glazed leaves around the rim.
 
 **puffer-lamp**
 > A hanging pufferfish lamp from a 1950s tiki bar: a real dried porcupine pufferfish inflated into a round balloon shape, with a fish face at the front (big round eyes, small pouting mouth), small side fins and a little tail fin at the back, skin covered in short pale spines. A short cord on top. 50 cm long. Realistic PBR, game-ready.
