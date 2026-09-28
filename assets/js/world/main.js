@@ -213,7 +213,7 @@ async function start() {
   const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality });
-  const bar = buildBar({ prop, quality, posts: data.posts, heroes });
+  const bar = buildBar({ prop, quality, posts: data.posts, heroes, reducedMotion });
   const places = buildPlaces({ prop, quality, heroes });
   scene.add(sky.group, planet.group, bar.group, places.group);
   serve = (id) => bar.serve(id);
@@ -392,6 +392,7 @@ async function start() {
     barRing.visible = false;
     tip.hidden = true;
     setState('seat');
+    bar.greet();
     seatPose = poseLooking(bar.seat.eye, bar.seat.look);
     flyTo(seatPose, 800, () => {
       if (state !== 'seat') return;
@@ -409,6 +410,7 @@ async function start() {
     clearInterval(chatter);
     bubble.hidden = true;
     flight = null;
+    bar.farewell();
     // stand up where you walked in, facing back down the path
     player.spawn(barSpot.approach.clone().normalize(), surfacePoint(SPOTS.spawn), -0.05);
     setState('walk');
@@ -478,7 +480,7 @@ async function start() {
     Fire.tick(t);
     sky.update(t, camera);
     planet.update(t, camera);
-    bar.update(t);
+    bar.update(t, dt);
     places.update(t);
     pipeline.render(dt);
   }

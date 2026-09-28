@@ -16,6 +16,8 @@ export const PALETTE = {
   hibiscus: 0xd6336c,  // neon pink
   teal: 0x0f5e63,
   aqua: 0x5fc7c4,      // glass floats, neon accents
+  cream: 0xeadcbc,     // enamel trim on the tin-toy robot
+  chrome: 0xc9ced8,
   moon: 0x9fb4ff,      // moonlight
   night: 0x070913,     // sky / fog
 };
@@ -191,6 +193,29 @@ export function rattanSet() {
   }, { repeat: [4, 2] });
 }
 
+/** Worn lithographed tin: fine scratches and dents, for the bump channel of enamel(). */
+export function tinSet() {
+  return textureSet('tin', 256, 256, (g, w, h, r, bump) => {
+    g.fillStyle = bump ? '#808080' : '#ffffff';
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 160; i++) {
+      const x = r() * w, y = r() * h, a = r() * 7, len = 4 + r() * 22;
+      g.strokeStyle = bump ? `rgba(0,0,0,${0.15 + r() * 0.3})` : `rgba(90,80,70,${0.05 + r() * 0.12})`;
+      g.lineWidth = 0.6 + r();
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len);
+      g.stroke();
+    }
+    for (let i = 0; i < 12; i++) {
+      g.fillStyle = bump ? 'rgba(0,0,0,.12)' : 'rgba(60,50,40,.06)';
+      g.beginPath();
+      g.arc(r() * w, r() * h, 3 + r() * 9, 0, 7);
+      g.fill();
+    }
+  }, { repeat: [2, 2] });
+}
+
 /* ---------------- Materials ---------------- */
 
 export function pbr(params = {}) {
@@ -205,6 +230,17 @@ export function surface(set, { color = 0xffffff, bumpScale = 1.5, roughness = 0.
     bump = bump.clone(); bump.repeat.set(...repeat); bump.needsUpdate = true;
   }
   return pbr({ map, bumpMap: bump, bumpScale, color, roughness, ...rest });
+}
+
+/** Glossy baked enamel over tin (the robot bartender): clear-coated, lightly scuffed. */
+export function enamel(color, { roughness = 0.38, ...rest } = {}) {
+  const { map, bump } = tinSet();
+  return new THREE.MeshPhysicalMaterial({ color, map, bumpMap: bump, bumpScale: 0.6, roughness, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.12, ...rest });
+}
+
+/** Polished chrome trim. */
+export function chrome({ roughness = 0.22, ...rest } = {}) {
+  return pbr({ color: PALETTE.chrome, metalness: 1, roughness, ...rest });
 }
 
 /** Unlit, HDR-bright material for things that glow (bloom threshold is 1). */
