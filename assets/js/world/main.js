@@ -145,7 +145,24 @@ menuBtn.addEventListener('click', () => {
   else hideMenu();
 });
 
-// Every [data-order] link (top bar and menu) opens its panel in place. Without JS it's a normal link.
+// Every [data-order] link (top bar and menu) opens its panel in place. Their real hrefs (a
+// page, the résumé on Google Drive, a mailto:) are only the fallback for no JS or no WebGL:
+// while panels are in charge they point at the panel, so choosing from the menu, and anything
+// the drink animation does, can never leave the page. (Some app webviews act on an outbound
+// link before our click handler can stop it.) fallback() puts the real links back.
+const orderLinks = [...document.querySelectorAll('a[data-order]')].filter((a) => $('panel-' + a.dataset.order));
+for (const a of orderLinks) {
+  a.dataset.href = a.getAttribute('href');
+  a.dataset.target = a.getAttribute('target') || '';
+  a.setAttribute('href', '#' + a.dataset.order);
+  a.removeAttribute('target');
+}
+function restoreLinks() {
+  for (const a of orderLinks) {
+    a.setAttribute('href', a.dataset.href);
+    if (a.dataset.target) a.setAttribute('target', a.dataset.target);
+  }
+}
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a[data-order]');
   if (!a || state === 'fallback' || e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -196,6 +213,7 @@ if (initial && $('panel-' + initial)) openPanel(initial, { push: false });
 function fallback(reason) {
   console.info('World: showing the plain menu.', reason || '');
   setState('fallback');
+  restoreLinks();
   $('veil').hidden = true;
   showMenu('nav');
 }

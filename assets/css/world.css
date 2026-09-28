@@ -113,6 +113,9 @@
 .menu__leave { font: 600 .9rem var(--font-body); color: var(--paper); background: var(--lacquer); border: 0; border-radius: 999px; min-height: 44px; padding: 0 18px; cursor: pointer; }
 .menu__leave:hover { background: var(--coral); }
 .menu[data-mode="nav"] .menu__leave { display: none; }
+/* only the no-WebGL menu links out (at the bar every item opens in place) */
+.menu__ext { display: none; font-weight: 600; }
+.world[data-state="fallback"] .menu__ext { display: inline; }
 /* while the 3D card flies up to your hands, the HTML menu fades in over it */
 .menu.is-arriving .menu__card { opacity: 0; animation: none; }
 .menu__card { transition: opacity .18s; }

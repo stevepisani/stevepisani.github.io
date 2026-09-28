@@ -50,7 +50,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
           {% for item in site.data.bar.menu %}
           <li>
             <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>
-              <span class="menu__label">{{ item.label }}</span>
+              <span class="menu__label">{{ item.label }}{% if item.href contains '://' or item.href contains 'mailto:' %}<span class="menu__ext" title="Opens outside this site"> ↗</span>{% endif %}</span>
               <span class="menu__note">{{ item.note }}</span>
             </a>
           </li>
@@ -94,7 +94,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <ol class="panel__timeline">
     {% for t in site.data.timeline limit: 4 %}<li><strong>{{ t.role }}</strong>, {{ t.org }} <span>{{ t.dates }}</span></li>{% endfor %}
   </ol>
-  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume }}" target="_blank" rel="noopener">Résumé ↗</a></p>
+  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume }}" target="_blank" rel="noopener">Résumé on Google Drive ↗</a></p>
 </template>
 
 <template id="panel-writing">
@@ -141,7 +141,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     <span class="launch__meta" data-launch-meta></span>
     <span class="launch__clock" data-launch-clock></span>
   </div>
-  <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs</a>.</p>
+  <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>.</p>
 </template>
 
 <template id="panel-contact">
@@ -150,9 +150,9 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <p>Want to collaborate, talk shop, or argue about cheesesteaks? Tips are not required, but emails are appreciated.</p>
   <ul class="panel__contact">
     <li><a href="mailto:{{ site.email }}">✉️ {{ site.email }}</a></li>
-    <li><a href="{{ site.links.linkedin }}" target="_blank" rel="me noopener">💼 LinkedIn</a></li>
-    <li><a href="{{ site.links.github }}" target="_blank" rel="me noopener">🐙 GitHub</a></li>
-    <li><a href="{{ site.links.twitter }}" target="_blank" rel="me noopener">🐦 Twitter</a></li>
+    <li><a href="{{ site.links.linkedin }}" target="_blank" rel="me noopener">💼 LinkedIn ↗</a></li>
+    <li><a href="{{ site.links.github }}" target="_blank" rel="me noopener">🐙 GitHub ↗</a></li>
+    <li><a href="{{ site.links.twitter }}" target="_blank" rel="me noopener">🐦 Twitter ↗</a></li>
     <li><a href="{{ '/feed.xml' | relative_url }}">📡 RSS</a></li>
   </ul>
 </template>
@@ -164,7 +164,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     {% for t in site.data.timeline %}{% unless t.kind == 'school' %}<p><span>{{ t.role }}, {{ t.org }}</span><span>{{ t.dates | split: ' – ' | first | split: ' ' | last }}</span></p>{% endunless %}{% endfor %}
     <p class="panel__receipt-total"><span>Open since</span><span>2016</span></p>
   </div>
-  <p class="panel__links"><a class="btn" href="{{ site.links.resume }}" target="_blank" rel="noopener">Open the full résumé ↗</a></p>
+  <p class="panel__links"><a class="btn" href="{{ site.links.resume }}" target="_blank" rel="noopener">Open the full résumé on Google Drive ↗</a></p>
 </template>
 
 <template id="panel-campfire">
