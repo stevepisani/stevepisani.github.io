@@ -2,7 +2,7 @@
 // Its surface height is an analytic function of direction, so the mesh and the
 // player's feet agree exactly without any physics or raycasting.
 import * as THREE from 'three';
-import { toon } from './stylize.js';
+import { pbr, PALETTE } from './materials.js';
 
 export const RADIUS = 20;
 export const BAR_DIR = new THREE.Vector3(0, 1, 0); // the bar sits on the north pole
@@ -70,7 +70,8 @@ export function buildPlanet({ quality }) {
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const d = new THREE.Vector3();
-  const grass = new THREE.Color(0x6fbf73), grassDeep = new THREE.Color(0x4f9e63), sand = new THREE.Color(0xf0d19a), rock = new THREE.Color(0x9a86b8);
+  // night palette: deep moss, black volcanic ground, pale ash-sand clearing around the bar
+  const grass = new THREE.Color(0x2f4a2a), grassDeep = new THREE.Color(0x1d3322), sand = new THREE.Color(0x7a6c5c), rock = new THREE.Color(0x231c1a);
   const c = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
     d.fromBufferAttribute(pos, i).normalize();
@@ -81,17 +82,21 @@ export function buildPlanet({ quality }) {
     const beach = THREE.MathUtils.smoothstep(lat, 0.9, 0.95);
     const low = THREE.MathUtils.smoothstep(-h, 0.05, 0.3) * THREE.MathUtils.smoothstep(-lat, -0.2, 0.6);
     c.copy(grass).lerp(grassDeep, THREE.MathUtils.clamp(0.5 + h * 1.6, 0, 1)).lerp(sand, beach).lerp(rock, low);
+    // grain: per-facet variation so the ground reads as sand and soil, not a flat colour
+    const n = Math.sin(d.x * 91.7 + d.y * 47.3) * Math.sin(d.z * 83.1 - d.y * 29.9);
+    c.multiplyScalar(0.84 + n * 0.14 + (Math.sin(i * 12.9898) * 0.5 + 0.5) * 0.08);
     colors.set([c.r, c.g, c.b], i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const ground = new THREE.Mesh(geo, toon({ vertexColors: true, rim: 0.25 }));
+  const ground = new THREE.Mesh(geo, pbr({ vertexColors: true, roughness: 0.96 }));
+  ground.receiveShadow = true;
   ground.name = 'ground';
   group.add(ground);
 
   // Atmosphere: an additive fresnel shell. Bright from orbit, fades out as you land.
   const atmoMat = new THREE.ShaderMaterial({
-    uniforms: { camDist: { value: 100 }, color: { value: new THREE.Color(0x7fc8ff) }, warm: { value: new THREE.Color(0xffb27a) } },
+    uniforms: { camDist: { value: 100 }, color: { value: new THREE.Color(0x3a4fa8) }, warm: { value: new THREE.Color(0x8a4a9a) } },
     vertexShader: `varying vec3 vN; varying vec3 vV;
       void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
     fragmentShader: `uniform float camDist; uniform vec3 color; uniform vec3 warm; varying vec3 vN; varying vec3 vV;
@@ -114,10 +119,9 @@ export function buildPlanet({ quality }) {
   blade.translate(0, 0.21, 0);
   const cluster = mergeBlades(blade);
   const count = quality.high ? 9000 : 3000;
-  const grassMat = toon({ color: 0x8fd67c, rim: 0.15 });
+  const grassMat = pbr({ color: 0x5f8a4a, roughness: 0.9 });
   const wind = { value: 0 };
-  grassMat.onBeforeCompile = ((prev) => (shader) => {
-    prev(shader);
+  grassMat.onBeforeCompile = (shader) => {
     shader.uniforms.windTime = wind;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float windTime;')
@@ -126,7 +130,7 @@ export function buildPlanet({ quality }) {
         float sway = sin(windTime * 1.7 + ip.x * 0.8 + ip.z * 0.6) * 0.5 + sin(windTime * 3.1 + ip.y) * 0.2;
         transformed.x += sway * 0.12 * position.y;
         transformed.z += sway * 0.06 * position.y;`);
-  })(grassMat.onBeforeCompile);
+  };
   grassMat.customProgramCacheKey = () => 'grass';
   const grassMesh = new THREE.InstancedMesh(cluster, grassMat, count);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
@@ -144,10 +148,11 @@ export function buildPlanet({ quality }) {
     const k = 0.5 + rand() * 0.45;
     s.set(k, k * (0.75 + rand() * 0.5), k);
     grassMesh.setMatrixAt(placed, m.compose(p, q, s));
-    grassMesh.setColorAt(placed, tint.setHSL(0.27 + rand() * 0.07, 0.5, 0.45 + rand() * 0.15));
+    grassMesh.setColorAt(placed, tint.setHSL(0.26 + rand() * 0.08, 0.45, 0.22 + rand() * 0.12));
     placed++;
   }
   grassMesh.count = placed;
+  grassMesh.receiveShadow = true;
   grassMesh.instanceMatrix.needsUpdate = true;
   group.add(grassMesh);
 
