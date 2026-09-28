@@ -3,8 +3,9 @@
 <head>
   {% include head.html %}
   <script>document.documentElement.dataset.theme = 'dark';</script>
-  <link rel="stylesheet" href="{{ '/assets/css/bar.css' | relative_url }}">
+  <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
   <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js">
+  <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
   <script type="importmap">
     { "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.min.js",
@@ -12,13 +13,12 @@
     } }
   </script>
 </head>
-<body class="bar-page">
-  <a class="skip-link" href="#bar-menu">Skip to the menu</a>
-  {% include nav.html %}
+<body class="world-page">
+  <a class="skip-link" href="#gate">Skip to the menu</a>
   <main id="main">
     {{ content }}
   </main>
   <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
-  <script type="module" src="{{ '/assets/js/bar/main.js' | relative_url }}"></script>
+  <script type="module" src="{{ '/assets/js/world/main.js' | relative_url }}" data-models="{{ '/assets/models/props.glb' | relative_url }}"></script>
 </body>
 </html>
