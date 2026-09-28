@@ -198,35 +198,55 @@ export function tikiFace(base) {
 }
 
 /** Planet with warm bands, for the gas giant in the background. */
-export function planetBands() {
-  const [c, g] = canvas(512, 256);
-  const bands = ['#e8b37a', '#d4895a', '#f1d2a3', '#b86a45', '#eec08b', '#c97c52', '#f5dcb4', '#a85b3c'];
-  let y = 0;
-  while (y < 256) {
-    const h = 8 + Math.random() * 26;
-    g.fillStyle = bands[Math.floor(Math.random() * bands.length)];
-    g.fillRect(0, y, 512, h);
-    y += h;
+/** The moon's surface, equirectangular: albedo (highlands, dark maria, bright-rimmed craters with
+ *  rays) and a matching height map for bump. Craters are stretched toward the poles so they stay
+ *  round on the sphere. */
+export function moonMaps() {
+  const W = 1024, H = 512;
+  const [c, g] = canvas(W, H), [ch, gh] = canvas(W, H);
+  const n = periodicNoise(21);
+  const img = g.createImageData(W, H), himg = gh.createImageData(W, H);
+  const hi = new THREE.Color(PALETTE.lunar), lo = new THREE.Color(PALETTE.mare), col = new THREE.Color();
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let v = 0, amp = 0.5;
+    for (let o = 0, f = 3; o < 5; o++, f *= 2, amp *= 0.5) v += amp * n((x / W) * f, (y / H) * f * 0.5, f);
+    const sea = Math.min(1, Math.max(0, (v - 0.52) * 7));      // dark lava seas
+    const grit = n(x * 0.6, y * 0.6, W * 0.6);
+    col.copy(hi).lerp(lo, sea * 0.85).multiplyScalar(0.86 + grit * 0.22);
+    const i = (y * W + x) * 4;
+    img.data[i] = col.r * 255; img.data[i + 1] = col.g * 255; img.data[i + 2] = col.b * 255; img.data[i + 3] = 255;
+    const h = (0.55 - sea * 0.15 + grit * 0.015) * 255; // no fine grit in the relief: it aliases
+    himg.data[i] = himg.data[i + 1] = himg.data[i + 2] = h; himg.data[i + 3] = 255;
   }
-  g.globalAlpha = 0.25;
-  for (let i = 0; i < 30; i++) {
-    g.fillStyle = bands[i % bands.length];
-    g.beginPath();
-    g.ellipse(Math.random() * 512, Math.random() * 256, 30 + Math.random() * 60, 3 + Math.random() * 5, 0, 0, 7);
-    g.fill();
+  g.putImageData(img, 0, 0);
+  gh.putImageData(himg, 0, 0);
+  let seed = 9;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let k = 0; k < 300; k++) {
+    const y = H * (0.08 + rand() * 0.84), lat = (y / H - 0.5) * Math.PI;
+    const r = 2 + Math.pow(rand(), 3.2) * 34, stretch = 1 / Math.max(0.25, Math.cos(lat));
+    const x = rand() * W;
+    for (const xx of [x, x - W, x + W]) {
+      // rays from the big young ones
+      if (r > 22) {
+        g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 2;
+        for (let j = 0; j < 14; j++) { const a = rand() * 6.28, L = r * (2 + rand() * 3); g.beginPath(); g.moveTo(xx, y); g.lineTo(xx + Math.cos(a) * L * stretch, y + Math.sin(a) * L); g.stroke(); }
+      }
+      // a soft bowl with a raised rim: shading from the bump does the work, as on the real moon
+      const bowl = (ctx, stops) => {
+        ctx.save(); ctx.translate(xx, y); ctx.scale(stretch, 1);
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 1.25);
+        for (const [k, col] of stops) gr.addColorStop(k, col);
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r * 1.25, 0, 7); ctx.fill(); ctx.restore();
+      };
+      bowl(gh, [[0, 'rgba(0,0,0,.45)'], [0.6, 'rgba(0,0,0,.3)'], [0.78, 'rgba(255,255,255,.35)'], [0.86, 'rgba(255,255,255,.2)'], [1, 'rgba(255,255,255,0)']]);
+      bowl(g, [[0, 'rgba(60,56,52,.10)'], [0.7, 'rgba(60,56,52,.06)'], [0.8, 'rgba(255,250,240,.07)'], [1, 'rgba(255,250,240,0)']]);
+    }
   }
-  return texture(c);
-}
-
-/** Planet ring: concentric translucent stripes, mapped radially in world.js. */
-export function ringStripes() {
-  const [c, g] = canvas(512, 8);
-  for (let x = 0; x < 512; x++) {
-    const a = 0.15 + 0.6 * Math.abs(Math.sin(x * 0.09) * Math.sin(x * 0.023));
-    g.fillStyle = `rgba(240, 214, 170, ${x < 30 || x > 490 ? a * 0.3 : a})`;
-    g.fillRect(x, 0, 1, 8);
-  }
-  return texture(c);
+  const map = texture(c);
+  const height = new THREE.CanvasTexture(ch);
+  height.colorSpace = THREE.NoColorSpace;
+  return { map, height };
 }
 
 /** Soft round glow for nebulae, stars, and flame halos. */
