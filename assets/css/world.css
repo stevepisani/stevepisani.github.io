@@ -1,6 +1,6 @@
 /* ==========================================================================
    The asteroid homepage. Loaded only by _layouts/world.html.
-   #world[data-state] = loading | walk | seat | fallback; #world[data-panel] = the open panel
+   #world[data-state] = loading | walk | seat | camp | fallback; #world[data-panel] = the open panel
    ========================================================================== */
 
 .world-page { background: #05060f; color: #eef0fa; overflow: hidden; }
@@ -58,6 +58,7 @@
 /* ---------- Bartender speech ---------- */
 .world__bubble { position: absolute; z-index: 3; left: 50%; top: 88px; transform: translateX(-50%); max-width: min(420px, 86vw); margin: 0; padding: 12px 16px; border-radius: 16px; background: #fff; color: #1a1b2e; font: 500 .95rem/1.4 var(--font-body); box-shadow: 0 10px 30px rgb(0 0 0 / .4); pointer-events: none; animation: rise-c .35s ease-out; }
 .world__bubble::before { content: "🤖 "; }
+.world[data-state="camp"] .world__bubble::before { content: "🔥 "; } /* at the fire it's you talking, not the robot */
 .world__bubble[hidden] { display: none; }
 @keyframes rise-c { from { opacity: 0; } }
 @media (max-width: 760px) { .world[data-state="seat"] .world__bubble { display: none; } }
@@ -130,6 +131,11 @@
 .seat-leave { position: absolute; z-index: 3; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
 .seat-leave:hover { background: rgb(14 16 36 / .85); }
 .seat-leave[hidden] { display: none; }
+.camp-eat { position: absolute; z-index: 3; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; min-width: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
+.camp-eat:hover { background: rgb(14 16 36 / .85); }
+.camp-eat[hidden] { display: none; }
+.camp-eat.is-burning { border-color: var(--coral); }
+.world[data-state="camp"] .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); } /* above the fire's buttons */
 
 /* ---------- Content panel ---------- */
 .panel { position: absolute; z-index: 5; top: 76px; right: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain;
