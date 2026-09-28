@@ -16,7 +16,7 @@ import { PALETTE, restyle, glow } from './materials.js';
 import { buildPlanet, surfacePoint, surfaceRadius } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
-import { buildPlaces, SPOTS } from './places.js';
+import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
 import { Player, bindInput } from './player.js';
 import { fontsReady } from './textures.js';
 import { loadHeroes } from './hero.js';
@@ -259,7 +259,7 @@ async function start() {
 
   const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
   const sky = buildSky({ quality });
-  const planet = buildPlanet({ quality });
+  const planet = buildPlanet({ quality, trailEdge, keepClear });
   // the card on the bar lists the same items as the HTML menu
   const menuItems = [...menu.querySelectorAll('.menu__list a')].map((a) => ({
     label: a.querySelector('.menu__label').textContent.trim(),

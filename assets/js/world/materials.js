@@ -20,6 +20,13 @@ export const PALETTE = {
   leaf: 0x2f5a2c,      // tropical planting: monstera, fern
   lime: 0x8fb33a,      // citrus on the bar
   chrome: 0xc9ced8,
+  brass: 0xc9953a,     // the telescope
+  moss: 0x2f4a2a,      // the planet: mossy ground
+  mossDeep: 0x1d3322,
+  ash: 0x7a6c5c,       // pale ash-sand round the bar
+  basalt: 0x231c1a,    // bare rock in the southern basins
+  soil: 0x3e3229,      // worn earth beside the trails
+  stone: 0x6f665d,     // flagstones and pebbles
   moon: 0x9fb4ff,      // moonlight
   night: 0x070913,     // sky / fog
 };
