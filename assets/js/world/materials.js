@@ -21,6 +21,9 @@ export const PALETTE = {
   lime: 0x8fb33a,      // citrus on the bar
   chrome: 0xc9ced8,
   brass: 0xc9953a,     // the telescope
+  rocketWhite: 0xe8e6e0, // the Saturn V's paint
+  rocketBlack: 0x19191b,
+  towerRed: 0x9a3322,  // its umbilical tower
   moss: 0x2f4a2a,      // the planet: mossy ground
   mossDeep: 0x1d3322,
   ash: 0x7a6c5c,       // pale ash-sand round the bar
@@ -28,6 +31,12 @@ export const PALETTE = {
   soil: 0x3e3229,      // worn earth beside the trails
   stone: 0x6f665d,     // flagstones and pebbles
   moon: 0x9fb4ff,      // moonlight
+  lunar: 0xb9b5ae,     // the moon itself: highlands
+  mare: 0x5f5b57,      //   and its dark seas
+  giantCream: 0xf1d9b0, // the ringed gas giant's bands, light to dark
+  giantTan: 0xd9a06a,
+  giantRust: 0xb0623f,
+  giantUmber: 0x5e3624,
   night: 0x070913,     // sky / fog
 };
 

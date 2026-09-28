@@ -156,7 +156,7 @@ export class Player {
  * Pointer + keyboard. One gesture vocabulary for mouse, pen, and touch:
  * a press that doesn't move is a tap (onTap), a press that moves is a look.
  */
-export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag }) {
+export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag, onPress, onDragStart, onRelease }) {
   const keys = new Set();
   const recompute = () => {
     const k = player.keys;
@@ -182,6 +182,7 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag 
   canvas.addEventListener('pointerdown', (e) => {
     if (press.id !== null) return;
     press.id = e.pointerId; press.x = press.lx = e.clientX; press.y = press.ly = e.clientY; press.dragged = false;
+    if (onPress) onPress();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable; drags still work inside the canvas */ }
   });
   canvas.addEventListener('pointermove', (e) => {
@@ -189,6 +190,7 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag 
     if (!press.dragged && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) {
       press.dragged = true;
       canvas.classList.add('is-dragging');
+      if (onDragStart) onDragStart();
     }
     if (press.dragged) {
       const s = e.pointerType === 'mouse' ? mouseSens : touchSens;
@@ -203,6 +205,7 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag 
     if (e.pointerId !== press.id) return;
     if (!press.dragged && e.type === 'pointerup') onTap(e.clientX, e.clientY);
     press.id = null;
+    if (onRelease) onRelease();
     canvas.classList.remove('is-dragging');
   };
   canvas.addEventListener('pointerup', release);
