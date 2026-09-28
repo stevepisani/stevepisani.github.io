@@ -1,0 +1,31 @@
+# Experiments listed on /lab. status: live | tinkering | retired
+- title: SQL Formatter
+  url: /lab/sql-formatter
+  status: live
+  emoji: "🧹"
+  blurb: >-
+    Paste ugly SQL, get it back in my style: lowercase, leading commas, explicit aliases.
+    It's real SQLFluff running in your browser via WebAssembly.
+  tags: [sqlfluff, pyodide, webassembly]
+- title: Recipe Tracker
+  url: /recipe_tracker/
+  status: live
+  emoji: "🍳"
+  blurb: >-
+    A shared tracker for working through NYT Cooking's most popular recipes of 2025.
+    Ratings, notes, and photos, synced with Supabase.
+  tags: [supabase, vanilla js, food]
+- title: Terminal Mode
+  url: "#theme"
+  status: live
+  emoji: "📟"
+  blurb: >-
+    Hit the theme button in the top-right until the site turns green-on-black. For when you miss 1983.
+  tags: [css variables, theming]
+- title: The Bookshelf
+  url: /bookshelf
+  status: live
+  emoji: "📚"
+  blurb: >-
+    My reading list, rescued from a 2020 Flask app that used to sync it from Notion, now rendered as book spines.
+  tags: [jekyll data, css]

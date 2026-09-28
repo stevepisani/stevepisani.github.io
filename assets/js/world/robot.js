@@ -1,0 +1,309 @@
+// The bartender: a 1950s tin-toy robot. Box head with a big glowing dial face, a glass
+// dome with an antenna on top, riveted teal-and-cream enamel, an aloha shirt under a lei
+// and a bow tie, jointed arms with pincer hands, and one rubber wheel instead of legs.
+//
+// Local frame: stands on y = 0, faces +z. Behaviour (all driven by update(dt)):
+//   greet(point)  roll over and turn to face the guest (a point in the parent's frame)
+//   shake(ms)     raise the shaker and shake it
+//   pour()        reach forward over the counter, as if sliding the drink across
+//   idle()        roll back to its spot by the back bar
+// With reduced motion the robot snaps between poses instead of animating them, and
+// nothing moves on its own.
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import * as T from './textures.js';
+import { PALETTE, pbr, enamel, chrome, glow } from './materials.js';
+
+const WHEEL_R = 0.19;
+const LIFT = 0.25; // a stalk between wheel and hips, so it stands tall enough to see over the counter
+
+function mesh(geo, material, [x, y, z] = [0, 0, 0], parent, { cast = true } = {}) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z);
+  m.castShadow = cast;
+  m.receiveShadow = true;
+  parent && parent.add(m);
+  return m;
+}
+
+const ease = (k) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
+const lerpAngle = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
+
+export function tinRobot({ hero = null, reducedMotion = false } = {}) {
+  const root = new THREE.Group();   // position + heading (rolls around behind the bar)
+  root.name = 'robot';
+  const stand = new THREE.Group();
+  root.add(stand);
+  const body = new THREE.Group();   // everything above the wheel; wobbles when shaking
+  stand.add(body);
+  const M = {
+    aqua: enamel(PALETTE.aqua),   // the main enamel: deep teal alone goes olive under amber light
+    teal: enamel(PALETTE.teal),
+    cream: enamel(PALETTE.cream),
+    chrome: chrome(),
+    rubber: pbr({ color: PALETTE.lava, roughness: 0.9 }),
+    shirt: pbr({ map: T.alohaShirt(), roughness: 0.8 }),
+    tie: pbr({ color: PALETTE.lava, roughness: 0.55 }),
+    glass: new THREE.MeshPhysicalMaterial({ color: PALETTE.aqua, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.22, clearcoat: 1, depthWrite: false }),
+  };
+
+  /* ---------- One wheel in a chrome fork ---------- */
+  const axle = new THREE.Group();   // fork and axle stay put; the wheel inside spins
+  axle.position.y = WHEEL_R;
+  if (!hero) root.add(axle);
+  const wheel = new THREE.Group();
+  axle.add(wheel);
+  const tyre = mesh(new THREE.TorusGeometry(WHEEL_R - 0.05, 0.05, 10, 28), M.rubber, [0, 0, 0], wheel);
+  tyre.rotation.y = Math.PI / 2;
+  const hub = mesh(new THREE.CylinderGeometry(WHEEL_R - 0.07, WHEEL_R - 0.07, 0.07, 20), M.cream, [0, 0, 0], wheel);
+  hub.rotation.z = Math.PI / 2;
+  for (let i = 0; i < 4; i++) { // spokes, so you can see it roll
+    const s = mesh(new THREE.BoxGeometry(0.075, 0.02, WHEEL_R * 1.5), M.chrome, [0, 0, 0], wheel);
+    s.rotation.x = (i / 4) * Math.PI;
+  }
+  for (const x of [-0.07, 0.07]) mesh(new THREE.BoxGeometry(0.025, 0.34, 0.09), M.chrome, [x, 0.12, 0], axle);
+  mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.17, 8), M.chrome, [0, 0, 0], axle).rotation.z = Math.PI / 2;
+
+  const rig = { wheel, body };
+
+  if (hero) {
+    // A generated body (it brings its own wheel): it turns, rolls and rattles as one piece.
+    body.add(hero);
+  } else {
+    /* ---------- Riveted enamel body on a stalk ---------- */
+    stand.position.y = LIFT;
+    mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.2, 12), M.chrome, [0, WHEEL_R + 0.37 - LIFT, 0], stand);
+    mesh(new THREE.CylinderGeometry(0.22, 0.1, 0.16, 20), M.teal, [0, 0.35, 0], body);       // skirt over the stalk
+    mesh(new RoundedBoxGeometry(0.5, 0.2, 0.36, 3, 0.05), M.aqua, [0, 0.52, 0], body);          // hips
+    mesh(new RoundedBoxGeometry(0.54, 0.05, 0.4, 2, 0.02), M.cream, [0, 0.63, 0], body);        // cream band
+    mesh(new RoundedBoxGeometry(0.58, 0.46, 0.38, 3, 0.06), M.shirt, [0, 0.88, 0], body);       // shirt over the torso
+    mesh(new RoundedBoxGeometry(0.6, 0.06, 0.4, 2, 0.02), M.aqua, [0, 1.12, 0], body);          // shoulder plate
+    // shirt buttons and an open collar
+    for (const y of [0.74, 0.86, 0.98]) mesh(new THREE.SphereGeometry(0.014, 8, 6), M.cream, [0, y, 0.192], body);
+    for (const s of [-1, 1]) {
+      const col = mesh(new THREE.BoxGeometry(0.12, 0.08, 0.01), M.shirt, [s * 0.07, 1.05, 0.195], body);
+      col.rotation.z = s * 0.55;
+    }
+    // rivets along the cream band and the shoulder plate
+    {
+      const pts = [];
+      for (let i = 0; i < 9; i++) { const x = -0.22 + i * 0.055; pts.push([x, 0.63, 0.201], [x, 1.12, 0.201], [x, 0.63, -0.201]); }
+      for (let i = 0; i < 5; i++) { const z = -0.14 + i * 0.07; pts.push([0.271, 0.63, z], [-0.271, 0.63, z]); }
+      const rivets = new THREE.InstancedMesh(new THREE.SphereGeometry(0.011, 6, 4), M.chrome, pts.length);
+      const m = new THREE.Matrix4();
+      pts.forEach((p, i) => rivets.setMatrixAt(i, m.makeTranslation(...p)));
+      body.add(rivets);
+    }
+    // bow tie
+    for (const s of [-1, 1]) {
+      const wing = mesh(new THREE.ConeGeometry(0.04, 0.08, 4), M.tie, [s * 0.04, 1.215, 0.1], body);
+      wing.rotation.set(0, Math.PI / 4, s * Math.PI / 2);
+    }
+    mesh(new THREE.BoxGeometry(0.028, 0.028, 0.028), M.tie, [0, 1.215, 0.105], body);
+    // neck and lei
+    mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.1, 16), M.chrome, [0, 1.19, 0], body);
+    {
+      const n = 22;
+      const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.038, 0), pbr({ roughness: 0.7 }), n);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+      const cols = [PALETTE.hibiscus, PALETTE.cream, PALETTE.amber, PALETTE.coral].map((c) => new THREE.Color(c));
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        // a loop that sits on the shoulders and droops lower at the front
+        const d = Math.pow(Math.max(0, Math.sin(a)), 2) * 0.1;
+        q.setFromEuler(e.set(i, i * 2, 0));
+        flowers.setMatrixAt(i, m.compose(new THREE.Vector3(Math.cos(a) * (0.16 + d * 0.3), 1.19 - d, Math.sin(a) * 0.15 + d * 0.7), q, new THREE.Vector3(1, 0.7, 1)));
+        flowers.setColorAt(i, cols[i % cols.length]);
+      }
+      flowers.castShadow = true;
+      body.add(flowers);
+    }
+
+    /* ---------- Box head: dial face, ear bolts, glass dome, antenna ---------- */
+    const head = new THREE.Group();
+    head.position.y = 1.24;
+    body.add(head);
+    mesh(new RoundedBoxGeometry(0.46, 0.38, 0.4, 3, 0.05), M.aqua, [0, 0.19, 0], head);
+    mesh(new RoundedBoxGeometry(0.4, 0.34, 0.03, 2, 0.012), M.cream, [0, 0.19, 0.195], head);
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(0.135, 40), new THREE.MeshBasicMaterial({ map: T.dialFace(), toneMapped: false }));
+    dial.material.color.setScalar(1.6); // just over the bloom threshold, so the face glows
+    dial.material.userData.keep = true;
+    dial.position.set(0, 0.2, 0.213);
+    head.add(dial);
+    const bezel = mesh(new THREE.TorusGeometry(0.14, 0.016, 8, 40), M.chrome, [0, 0.2, 0.213], head);
+    bezel.scale.z = 0.6;
+    const needle = new THREE.Group();
+    needle.position.set(0, 0.2, 0.218);
+    head.add(needle);
+    mesh(new THREE.BoxGeometry(0.008, 0.11, 0.004), glow(PALETTE.hibiscus, 2.5), [0, 0.05, 0], needle, { cast: false });
+    mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.012, 12), M.chrome, [0, 0, 0], needle).rotation.x = Math.PI / 2;
+    // a little grille for a mouth
+    for (let i = 0; i < 5; i++) mesh(new THREE.BoxGeometry(0.03, 0.008, 0.01), M.tie, [-0.06 + i * 0.03, 0.045, 0.212], head, { cast: false });
+    // ear bolts with lamps
+    const ears = [-1, 1].map((s) => {
+      mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.05, 16), M.chrome, [s * 0.25, 0.2, 0], head).rotation.z = Math.PI / 2;
+      return mesh(new THREE.SphereGeometry(0.022, 10, 8), glow(PALETTE.aqua, 3), [s * 0.28, 0.2, 0], head, { cast: false });
+    });
+    // rivets round the face plate
+    for (const [x, y] of [[-0.18, 0.05], [0.18, 0.05], [-0.18, 0.33], [0.18, 0.33]]) mesh(new THREE.SphereGeometry(0.012, 6, 4), M.chrome, [x, y, 0.212], head, { cast: false });
+    // glass dome: a warm valve glowing inside
+    mesh(new THREE.CylinderGeometry(0.15, 0.16, 0.03, 24), M.chrome, [0, 0.395, 0], head);
+    const valve = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.08, 10), glow(PALETTE.amber, 2.4), [0, 0.45, 0], head, { cast: false });
+    const dome = mesh(new THREE.SphereGeometry(0.145, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.glass, [0, 0.41, 0], head, { cast: false });
+    dome.renderOrder = 1;
+    mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.24, 6), M.chrome, [0, 0.66, 0], head);
+    const antenna = mesh(new THREE.SphereGeometry(0.028, 10, 8), glow(PALETTE.coral, 4), [0, 0.79, 0], head, { cast: false });
+
+    /* ---------- Jointed arms with pincer hands ---------- */
+    const arm = (s) => {
+      const shoulder = new THREE.Group();
+      shoulder.position.set(s * 0.33, 1.06, 0);
+      body.add(shoulder);
+      mesh(new THREE.SphereGeometry(0.065, 14, 10), M.chrome, [0, 0, 0], shoulder);
+      mesh(new THREE.CylinderGeometry(0.085, 0.075, 0.1, 14), M.shirt, [0, -0.04, 0], shoulder); // short sleeve
+      mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.26, 10), M.chrome, [0, -0.15, 0], shoulder);
+      for (let i = 0; i < 4; i++) mesh(new THREE.TorusGeometry(0.038, 0.009, 6, 14), M.chrome, [0, -0.1 - i * 0.05, 0], shoulder).rotation.x = Math.PI / 2;
+      const elbow = new THREE.Group();
+      elbow.position.y = -0.29;
+      shoulder.add(elbow);
+      mesh(new THREE.SphereGeometry(0.048, 12, 8), M.teal, [0, 0, 0], elbow);
+      mesh(new THREE.CylinderGeometry(0.032, 0.03, 0.22, 10), M.chrome, [0, -0.13, 0], elbow);
+      const hand = new THREE.Group();
+      hand.position.y = -0.26;
+      elbow.add(hand);
+      mesh(new THREE.CylinderGeometry(0.045, 0.04, 0.04, 12), M.cream, [0, 0.01, 0], hand);
+      const fingers = [-1, 1].map((f) => {
+        const g = new THREE.Group();
+        g.position.set(0, -0.01, f * 0.025);
+        hand.add(g);
+        mesh(new THREE.BoxGeometry(0.018, 0.08, 0.016), M.chrome, [0, -0.04, 0], g).rotation.x = f * 0.25;
+        mesh(new THREE.BoxGeometry(0.018, 0.045, 0.016), M.chrome, [0, -0.085, -f * 0.012], g).rotation.x = -f * 0.5;
+        return g;
+      });
+      return { shoulder, elbow, hand, fingers };
+    };
+    // facing +z, its right hand is on the -x side
+    const right = arm(-1), left = arm(1);
+    // a chrome cocktail shaker, held in the right pincer
+    const shaker = new THREE.Group();
+    shaker.position.y = -0.1;
+    shaker.rotation.x = Math.PI; // cap outward
+    right.hand.add(shaker);
+    mesh(new THREE.CylinderGeometry(0.042, 0.034, 0.13, 16), M.chrome, [0, 0, 0], shaker);
+    mesh(new THREE.CylinderGeometry(0.03, 0.042, 0.05, 16), M.chrome, [0, 0.09, 0], shaker);
+    mesh(new THREE.SphereGeometry(0.016, 8, 6), M.chrome, [0, 0.12, 0], shaker);
+    Object.assign(rig, { head, needle, ears, valve, antenna, left, right });
+  }
+
+  /* ---------- Poses ---------- */
+  // Each arm: [shoulder x, shoulder z, elbow x, pincer open]. Negative x raises the arm forward.
+  const POSES = {
+    rest:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.35, 0.12, -0.9, 0.2] },  // shaker at the chest
+    greet: { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.2, 2.5, -0.35, 0.4] },   // left hand up: aloha
+    shake: { r: [-2.7, -0.2, -0.5, 0.05], l: [-0.8, 0.25, -1.3, 0.1] },    // shaker up by the dome
+    pour:  { r: [-1.45, 0.05, -0.15, 0.1], l: [-0.8, 0.25, -1.3, 0.1] },   // reaching across the counter
+  };
+  const cur = { r: [...POSES.rest.r], l: [...POSES.rest.l] };
+  let target = POSES.rest;
+  const home = { pos: new THREE.Vector3(), heading: 0 };
+  const goal = { pos: new THREE.Vector3(), heading: 0 };
+  const from = { pos: new THREE.Vector3(), heading: 0 };
+  let moveT = 1, moveDur = 0.9;
+  let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest';
+  let rolled = 0;
+
+  function moveTo(pos, heading, dur = 0.9) {
+    from.pos.copy(root.position); from.heading = root.rotation.y;
+    goal.pos.copy(pos); goal.heading = heading;
+    moveDur = dur;
+    moveT = reducedMotion ? 1 : 0;
+    if (reducedMotion) { root.position.copy(pos); root.rotation.y = heading; }
+  }
+  function pose(name, seconds = 0, then = 'rest') {
+    target = POSES[name];
+    poseUntil = seconds ? clock + seconds : -1;
+    after = then;
+    if (reducedMotion) { cur.r = [...target.r]; cur.l = [...target.l]; }
+  }
+
+  function applyArms() {
+    if (!rig.right) return;
+    for (const [side, a] of [['r', rig.right], ['l', rig.left]]) {
+      const [sx, sz, ex, open] = cur[side];
+      const s = side === 'r' ? -1 : 1; // the arm's side (x sign): +z rotation swings a hand toward +x
+      a.shoulder.rotation.set(sx, 0, s * sz);
+      a.elbow.rotation.x = ex;
+      a.fingers.forEach((f, i) => { f.rotation.x = (i ? 1 : -1) * open; });
+    }
+  }
+
+  return {
+    group: root,
+    /** Where it waits: `pos` in the parent frame, facing `heading` (radians about +y). */
+    setHome(pos, heading) {
+      home.pos.copy(pos); home.heading = heading;
+      root.position.copy(pos); root.rotation.y = heading;
+      goal.pos.copy(pos); goal.heading = heading;
+    },
+    /** Roll to `spot` and turn to face `guest` (both in the parent frame). */
+    greet(spot, guest) {
+      const heading = Math.atan2(guest.x - spot.x, guest.z - spot.z);
+      moveTo(spot, heading);
+      pose('greet', 1.4);
+    },
+    idle() {
+      moveTo(home.pos, home.heading, 1.1);
+      pose('rest');
+    },
+    /** Turn on the spot to face `guest` (parent frame) and wave. */
+    beckon(guest) {
+      moveTo(root.position.clone(), Math.atan2(guest.x - root.position.x, guest.z - root.position.z), 0.8);
+      pose('greet', 1.8);
+    },
+    shake(seconds) {
+      shakeUntil = clock + seconds;
+      pose('shake', seconds, 'rest');
+    },
+    pour(seconds) { pose('pour', seconds, 'rest'); },
+    update(dt, t) {
+      clock += dt;
+      // roll and turn
+      if (moveT < 1) {
+        const before = root.position.clone();
+        moveT = Math.min(1, moveT + dt / moveDur);
+        const k = ease(moveT);
+        root.position.lerpVectors(from.pos, goal.pos, k);
+        root.rotation.y = lerpAngle(from.heading, goal.heading, k);
+        rolled += before.distanceTo(root.position) + Math.abs(dt * 0.6); // a turn-in-place still turns the wheel a little
+      }
+      wheel.rotation.x = rolled / WHEEL_R;
+      // arms ease toward the target pose, then back to `after`
+      if (poseUntil > 0 && clock > poseUntil) { poseUntil = -1; target = POSES[after]; if (reducedMotion) { cur.r = [...target.r]; cur.l = [...target.l]; } }
+      if (!reducedMotion) {
+        const k = 1 - Math.exp(-dt * 9);
+        for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) cur[side][i] += (target[side][i] - cur[side][i]) * k;
+      }
+      const shaking = clock < shakeUntil;
+      if (shaking && !reducedMotion) {
+        const w = Math.sin(clock * 34);
+        if (rig.right) { cur.r[0] = target.r[0] + w * 0.22; cur.r[2] = target.r[2] - w * 0.3; }
+        body.rotation.z = w * 0.02;
+        body.position.y = Math.abs(w) * 0.012; // a tin toy rattles when it works
+      } else {
+        body.rotation.z = 0;
+        // a little bob on the wheel, only when motion is allowed
+        body.position.y = reducedMotion ? 0 : Math.sin(t * 2.1) * 0.006;
+      }
+      applyArms();
+      if (rig.needle) {
+        // the gauge swings to VOLCANIC while shaking, idles near MILD
+        // (+z rotation swings it left, toward MILD; the scale spans ±2.2 rad)
+        const aim = shaking ? -1.9 : 1.6 + (reducedMotion ? 0 : Math.sin(t * 1.3) * 0.05);
+        rig.needle.rotation.z += (aim - rig.needle.rotation.z) * (reducedMotion ? 1 : Math.min(1, dt * 8));
+        rig.antenna.visible = (t % 2) > 0.15 || reducedMotion;
+        const pulse = 1 + (reducedMotion ? 0 : Math.sin(t * 3) * 0.15);
+        rig.valve.scale.set(pulse, 1, pulse);
+      }
+    },
+  };
+}

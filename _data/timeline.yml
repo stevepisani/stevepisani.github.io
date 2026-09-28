@@ -1,0 +1,31 @@
+# Career timeline, newest first. Rendered on /about.
+- role: Founder & Lead Data Architect
+  org: Tabby Stack
+  dates: January 2022 – Present
+  current: true
+- role: Senior Data Engineer
+  org: Preset
+  dates: January 2022 – March 2023
+- role: Senior Analytics Engineer
+  org: Flywheel Software
+  dates: December 2020 – December 2021
+- role: Data Engineer
+  org: Inspire Energy
+  dates: April 2019 – December 2020
+- role: Renewables Engineer & Analyst
+  org: Penn Group of Companies
+  dates: July 2018 – April 2019
+- role: Data Engineer
+  org: Susquehanna International Group
+  dates: March 2017 – March 2018
+- role: Technical Strategist
+  org: Exelon Corporation
+  dates: March 2016 – March 2017
+- role: M.S. Engineering Management
+  org: Drexel University
+  dates: "2018"
+  kind: school
+- role: B.S. Electrical Engineering, minor in Entrepreneurship
+  org: Drexel University
+  dates: "2018"
+  kind: school

@@ -1,33 +1,50 @@
-title: Steve's Website
+title: Steve Pisani
+tagline: Data architect, engineer, tinkerer.
 email: steve@stevenpisani.com
-description: >- 
-  Steve's corner of the Internet. My thoughts, interests, and history.
-baseurl: "" 
-url: "https://stevenpisani.com" 
-twitter_username: stevenpisani
-github_username:  stevenpisani
+description: >-
+  Steve Pisani's corner of the internet. Data architect in Philadelphia —
+  plus writing, experiments, books, and whatever else I'm tinkering with.
+baseurl: ""
+url: "https://stevenpisani.com"
+timezone: America/New_York
+lang: en_US
+author:
+  name: Steve Pisani
+twitter:
+  username: StevenPisani
+social:
+  name: Steve Pisani
+  links:
+    - https://www.linkedin.com/in/steven-pisani/
+    - https://github.com/stevepisani
+    - https://twitter.com/StevenPisani
 
-# Build settings
-# theme: minima
+links:
+  resume: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+  linkedin: https://www.linkedin.com/in/steven-pisani/
+  github: https://github.com/stevepisani
+  twitter: https://twitter.com/StevenPisani
+
+markdown: kramdown
+highlighter: rouge
+
 plugins:
   - jekyll-feed
+  - jekyll-seo-tag
 
-# Exclude from processing.
-# The following items will not be processed, by default.
-# Any item listed under the `exclude:` key here will be automatically added to
-# the internal "default list".
-#
-# Excluded items can be processed by explicitly listing the directories or
-# their entries' file path in the `include:` list.
-#
-# exclude:
-#   - .sass-cache/
-#   - .jekyll-cache/
-#   - gemfiles/
-#   - Gemfile
-#   - Gemfile.lock
-#   - node_modules/
-#   - vendor/bundle/
-#   - vendor/cache/
-#   - vendor/gems/
-#   - vendor/ruby/
+defaults:
+  - scope: { path: "", type: posts }
+    values: { layout: post }
+
+include:
+  - .sqlfluff
+
+exclude:
+  - CLAUDE.md
+  - README.md
+  - Makefile
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .jekyll-cache
+  - tools

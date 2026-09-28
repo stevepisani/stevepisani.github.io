@@ -1,9 +1,12 @@
-<div class="footer-wrap">
-  <div><strong>Steve </strong>Pisani</div>
-  <div class="footer-links">
-    <a href="mailto:steve@stevenpisani.com" class="footer-item">Email</a>
-    <a href="https://www.linkedin.com/in/steven-pisani/" target="_blank" rel="noopener" class="footer-item">LinkedIn</a>
-    <a href="https://github.com/stevepisani" target="_blank" rel="noopener" class="footer-item">GitHub</a>
-    <a href="https://twitter.com/StevenPisani" target="_blank" rel="noopener" class="footer-item">Twitter</a>
+<footer class="site-foot">
+  <div class="wrap site-foot__inner">
+    <p class="site-foot__sig">Made in Philadelphia with Jekyll, stubbornness, and <a href="https://github.com/stevepisani/stevepisani.github.io">open source</a>.</p>
+    <nav class="site-foot__links" aria-label="Elsewhere">
+      <a href="mailto:{{ site.email }}">Email</a>
+      <a href="{{ site.links.linkedin }}" rel="me noopener" target="_blank">LinkedIn</a>
+      <a href="{{ site.links.github }}" rel="me noopener" target="_blank">GitHub</a>
+      <a href="{{ site.links.twitter }}" rel="me noopener" target="_blank">Twitter</a>
+      <a href="{{ '/feed.xml' | relative_url }}">RSS</a>
+    </nav>
   </div>
-</div>
+</footer>

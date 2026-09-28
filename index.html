@@ -1,22 +1,178 @@
---- 
-layout: default
-title: Steve Pisani's Corner of the Internet
-description: Data Engineer and Technology Expert based in Philadelphia. Specializing in data architecture, analytics, and engineering solutions for modern businesses.
 ---
+layout: world
+title: Steve Pisani
+description: "Steve Pisani is a data architect in Philadelphia and founder of Tabby Stack. Land on his asteroid, pull up a stool at the tiki bar, and order from the menu: writing, experiments, books, and more."
+---
+{%- comment -%}
+  The homepage is a walkable tiny planet (assets/js/world/). Everything the 3D world
+  shows is also plain HTML here: the gate has real links, the order menu items are real
+  <a href>s, and each <template> holds a panel. Without WebGL the gate simply becomes
+  the menu.
+{%- endcomment -%}
+<div class="world" id="world" data-state="loading">
+  <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="Steve's asteroid: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu."></canvas>
 
-<div class="section home-main" id="main">
-  <div class="container">
-    <div class="div-block-2">
-      <div class="div-block-5"><img src="/assets/images/me.png" loading="lazy" sizes="(max-width: 479px) 100vw, (max-width: 767px) 48vw, 47vw" srcset="assets/images/me-p-500.png 500w, assets/images/me-p-800.png 800w, assets/images/me.png 889w" alt="Steve Pisani - Professional headshot" class="image-2">
-        <div class="div-block-3">
-          <h1 class="name-text"><span class="text-span"><strong class="bold-text-3">Steven John Pisani Jr.</strong></span></h1>
-          <p class="paragraph"><span class="text-span-2"><strong class="bold-text"> Data Expert. Engineer. Maker.</strong></span></p>
+  <div class="veil" id="veil" aria-hidden="true">
+    <span class="veil__name">Steve Pisani</span>
+    <span class="veil__bar"><span id="veil-progress"></span></span>
+  </div>
+
+  <header class="topbar" id="topbar" tabindex="-1">
+    <a class="topbar__id" href="{{ '/' | relative_url }}">
+      <strong>Steve Pisani</strong>
+      <span>Data architect in Philadelphia</span>
+    </a>
+    <nav class="topbar__nav" aria-label="Sections">
+      {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
+      <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
+      {% endunless %}{% endfor %}
+    </nav>
+    <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+  </header>
+
+  <p class="hint" id="hint" role="status" aria-live="polite" hidden></p>
+  <div class="beacon" id="beacon" aria-hidden="true" hidden></div>
+  <div class="tip" id="tip" aria-hidden="true" hidden><strong></strong><span></span></div>
+  <p class="world__bubble" id="bubble" aria-live="polite" hidden></p>
+
+  <section class="menu" id="menu" aria-labelledby="menu-title" hidden>
+    <div class="menu__card">
+      <div class="menu__sheet">
+        <button type="button" class="menu__close" id="menu-close" aria-label="Close menu">×</button>
+        <header class="menu__head">
+          {%- capture tiki -%}<svg class="menu__tiki" viewBox="0 0 40 56" aria-hidden="true" focusable="false"><path d="M6 6q14-8 28 0v40q-14 12-28 0z"/><path class="menu__tiki-cut" d="M8 16h24v5H8zM10 24q5-3 9 0q-4 4-9 0zM21 24q5-3 9 0q-4 4-9 0zM17 27h6l2 9h-10zM10 40q10 6 20 0v5q-10 5-20 0z"/><path d="M13 41h3v3h-3zM18.5 41.5h3v3h-3zM24 41h3v3h-3z"/></svg>{%- endcapture -%}
+          {{ tiki }}
+          <p class="menu__bar">Steve's</p>
+          {{ tiki | replace: 'class="menu__tiki"', 'class="menu__tiki menu__tiki--flip"' }}
+        </header>
+        <h1 class="menu__title" id="menu-title">What'll it be?</h1>
+        <ul class="menu__list">
+          {% for item in site.data.bar.menu %}
+          <li>
+            <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>
+              <span class="menu__label">{{ item.label }}{% if item.href contains '://' or item.href contains 'mailto:' %}<span class="menu__ext" title="Opens outside this site"> ↗</span>{% endif %}</span>
+              <span class="menu__note">{{ item.note }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="menu__foot">
+          <button type="button" class="menu__leave" id="leave">Leave the bar</button>
+          <a href="{{ '/classic' | relative_url }}">Regular website</a>
         </div>
       </div>
     </div>
-    <div class="intro-wrap">
-      <h2 class="heading-jumbo"><strong class="bold-text-2">Hi! I'm a data engineer in the always sunny city of Philadelphia, PA.</strong></h2>
-      <p class="paragraph"><strong>I specialize in building scalable data architectures, analytics platforms, and engineering solutions that help businesses make data-driven decisions. Also, I like technology, my cat, and all things energy.</strong></p>
+  </section>
+
+  <button type="button" class="seat-leave" id="seat-leave" hidden>Leave the bar</button>
+
+  <aside class="panel" id="panel" aria-labelledby="panel-title" hidden>
+    <div class="panel__bar">
+      <button type="button" class="panel__back" id="panel-back">← Menu</button>
+      <button type="button" class="panel__close" id="panel-close" aria-label="Close">×</button>
     </div>
-  </div>
+    <div class="panel__body" id="panel-body"></div>
+  </aside>
 </div>
+
+<script type="application/json" id="world-data">
+{
+  "bartender": {{ site.data.bar.bartender | jsonify }},
+  "drinks": [{% for d in site.data.drinks limit: 6 %}{{ d.name | jsonify }}{% unless forloop.last %},{% endunless %}{% endfor %}]
+}
+</script>
+
+{%- comment -%} Panel contents: id="panel-<menu id>" {%- endcomment -%}
+<template id="panel-about">
+  <p class="kicker">The bartender says</p>
+  <h2 id="panel-title">Hi, I'm Steve.</h2>
+  <img class="panel__photo" src="{{ '/assets/images/me-p-500.png' | relative_url }}" alt="Steve Pisani" width="112" height="112">
+  <p>I'm a data architect born, raised, and based in Philadelphia. By day I design the systems that turn raw data into something a business can actually use.</p>
+  <p>I run <strong>Tabby Stack</strong>, a data consulting firm, where I architect data platforms and lead the teams that build them, from ingestion pipelines to ML models in production.</p>
+  <ul class="chips"><li>Snowflake</li><li>dbt</li><li>Airflow</li><li>Python</li><li>ML in the warehouse</li><li>AI</li></ul>
+  <h3>Recent stops</h3>
+  <ol class="panel__timeline">
+    {% for t in site.data.timeline limit: 4 %}<li><strong>{{ t.role }}</strong>, {{ t.org }} <span>{{ t.dates }}</span></li>{% endfor %}
+  </ol>
+  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume }}" target="_blank" rel="noopener">Résumé on Google Drive ↗</a></p>
+</template>
+
+<template id="panel-writing">
+  <p class="kicker">From the chalkboard</p>
+  <h2 id="panel-title">Writing</h2>
+  <ul class="panel__menu">
+    {% for post in site.posts %}
+    <li><a href="{{ post.url | relative_url }}"><span>{{ post.title }}</span><i></i><time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%b %Y" }}</time></a></li>
+    {% endfor %}
+  </ul>
+  <p class="panel__links"><a class="btn" href="{{ '/blog' | relative_url }}">Everything I've written</a></p>
+</template>
+
+<template id="panel-shelf">
+  <p class="kicker">Top shelf</p>
+  <h2 id="panel-title">The reading list</h2>
+  {% for shelf in site.data.books %}
+  <h3>{{ shelf.shelf }}</h3>
+  <p class="panel__books">{% for b in shelf.books limit: 6 %}<em>{{ b.title }}</em>{% unless forloop.last %} · {% endunless %}{% endfor %}{% if shelf.books.size > 6 %} · and {{ shelf.books.size | minus: 6 }} more{% endif %}</p>
+  {% endfor %}
+  <p class="panel__links"><a class="btn" href="{{ '/bookshelf' | relative_url }}">See the whole shelf</a></p>
+</template>
+
+<template id="panel-lab">
+  <p class="kicker">House specials</p>
+  <h2 id="panel-title">From the lab</h2>
+  <div class="panel__lab">
+    {% for item in site.data.lab %}{% include lab-card.html item=item %}{% endfor %}
+  </div>
+</template>
+
+<template id="panel-drinks">
+  <p class="kicker">Behind the bar</p>
+  <h2 id="panel-title">Favorite drinks</h2>
+  <p>The recipes I keep coming back to.</p>
+  {% include drinks.html %}
+</template>
+
+<template id="panel-launch">
+  <p class="kicker">Through the telescope</p>
+  <h2 id="panel-title">Next launch</h2>
+  <div class="card card--launch" data-launch style="--launch-img: url('{{ '/assets/images/saturnV-p-800.jpeg' | relative_url }}')">
+    <strong class="launch__name" data-launch-name>Checking the manifest…</strong>
+    <span class="launch__meta" data-launch-meta></span>
+    <span class="launch__clock" data-launch-clock></span>
+  </div>
+  <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>.</p>
+</template>
+
+<template id="panel-contact">
+  <p class="kicker">Tip the bartender</p>
+  <h2 id="panel-title">Say hello</h2>
+  <p>Want to collaborate, talk shop, or argue about cheesesteaks? Tips are not required, but emails are appreciated.</p>
+  <ul class="panel__contact">
+    <li><a href="mailto:{{ site.email }}">✉️ {{ site.email }}</a></li>
+    <li><a href="{{ site.links.linkedin }}" target="_blank" rel="me noopener">💼 LinkedIn ↗</a></li>
+    <li><a href="{{ site.links.github }}" target="_blank" rel="me noopener">🐙 GitHub ↗</a></li>
+    <li><a href="{{ site.links.twitter }}" target="_blank" rel="me noopener">🐦 Twitter ↗</a></li>
+    <li><a href="{{ '/feed.xml' | relative_url }}">📡 RSS</a></li>
+  </ul>
+</template>
+
+<template id="panel-resume">
+  <p class="kicker">Your tab</p>
+  <h2 id="panel-title">The résumé</h2>
+  <div class="panel__receipt">
+    {% for t in site.data.timeline %}{% unless t.kind == 'school' %}<p><span>{{ t.role }}, {{ t.org }}</span><span>{{ t.dates | split: ' – ' | first | split: ' ' | last }}</span></p>{% endunless %}{% endfor %}
+    <p class="panel__receipt-total"><span>Open since</span><span>2016</span></p>
+  </div>
+  <p class="panel__links"><a class="btn" href="{{ site.links.resume }}" target="_blank" rel="noopener">Open the full résumé on Google Drive ↗</a></p>
+</template>
+
+<template id="panel-campfire">
+  <p class="kicker">You found the far side</p>
+  <h2 id="panel-title">Campfire</h2>
+  <p>Every good little planet has a campfire around the back. Pull up a log. Here's what I think about when I'm not thinking about data:</p>
+  <ul class="panel__likes">
+    {% for like in site.data.bar.likes %}<li>{{ like }}</li>{% endfor %}
+  </ul>
+  <p>The marshmallow is ready when it's golden. Don't let the robot tell you otherwise.</p>
+</template>
