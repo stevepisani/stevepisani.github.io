@@ -1,6 +1,7 @@
 // Every texture in the bar is drawn on a <canvas>: no image files to load, and the
 // chalkboard menu can list real posts.
 import * as THREE from 'three';
+import { PALETTE } from './materials.js';
 
 const FONT_DISPLAY = '"Fraunces", Georgia, serif';
 const FONT_MONO = '"JetBrains Mono", ui-monospace, monospace';
@@ -110,42 +111,74 @@ export function chalkboard(posts) {
   return texture(c);
 }
 
-/** Robot bartender's shirt: pineapples, obviously. */
-export function pineappleShirt() {
+const css = (n) => '#' + n.toString(16).padStart(6, '0');
+
+/** Robot bartender's aloha shirt: cream hibiscus and teal leaves on coral. */
+export function alohaShirt() {
   const [c, g] = canvas(512, 512);
-  g.fillStyle = '#4fb6b0'; // teal shirt so the pineapples pop
+  g.fillStyle = css(PALETTE.coral);
   g.fillRect(0, 0, 512, 512);
-  for (let row = 0; row < 6; row++) {
-    for (let col = 0; col < 6; col++) {
-      const x = col * 88 + (row % 2) * 44 + 22;
-      const y = row * 88 + 30;
-      // leaves
-      g.fillStyle = '#2f8f4e';
-      for (const a of [-0.5, 0, 0.5]) {
-        g.save();
-        g.translate(x, y);
-        g.rotate(a);
-        g.beginPath();
-        g.ellipse(0, -14, 5, 16, 0, 0, 7);
-        g.fill();
-        g.restore();
-      }
-      // fruit
-      g.fillStyle = '#f2b632';
-      g.beginPath();
-      g.ellipse(x, y + 18, 15, 21, 0, 0, 7);
-      g.fill();
-      g.strokeStyle = '#b97a14';
-      g.lineWidth = 2;
-      for (let k = -2; k <= 2; k++) {
-        g.beginPath();
-        g.moveTo(x - 14, y + 18 + k * 8);
-        g.lineTo(x + 14, y + 26 + k * 8);
-        g.stroke();
-      }
+  const leaf = (x, y, a, s) => {
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.fillStyle = css(PALETTE.teal);
+    g.beginPath(); g.ellipse(0, -26 * s, 9 * s, 26 * s, 0, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 1.5;
+    g.beginPath(); g.moveTo(0, 0); g.lineTo(0, -50 * s); g.stroke();
+    g.restore();
+  };
+  const hibiscus = (x, y, s, rot) => {
+    for (let i = 0; i < 3; i++) leaf(x, y, rot + 1.1 + i * 0.9, s);
+    g.fillStyle = css(PALETTE.cream);
+    for (let i = 0; i < 5; i++) {
+      const a = rot + (i / 5) * Math.PI * 2;
+      g.beginPath(); g.ellipse(x + Math.cos(a) * 15 * s, y + Math.sin(a) * 15 * s, 16 * s, 11 * s, a, 0, 7); g.fill();
+    }
+    g.fillStyle = css(PALETTE.hibiscus);
+    g.beginPath(); g.arc(x, y, 7 * s, 0, 7); g.fill();
+    g.strokeStyle = css(PALETTE.amber); g.lineWidth = 2.5 * s;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + 14 * s, y - 16 * s); g.stroke();
+  };
+  // a repeating half-drop pattern, so it tiles
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 4; col++) {
+      hibiscus(col * 128 + (row % 2) * 64 + 40, row * 128 + 50, 1 + ((row + col) % 3) * 0.15, row + col * 2);
     }
   }
   return texture(c, { repeat: [2, 1] });
+}
+
+/**
+ * The robot's face: a big round gauge, cream with an amber glow, ticked like a 1950s
+ * speedometer from MILD to VOLCANIC. The needle is a separate mesh so it can swing.
+ */
+export function dialFace() {
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  const cx = S / 2;
+  const grd = g.createRadialGradient(cx, cx, 10, cx, cx, cx);
+  grd.addColorStop(0, css(PALETTE.cream));
+  grd.addColorStop(0.75, css(PALETTE.amber));
+  grd.addColorStop(1, css(PALETTE.coral));
+  g.fillStyle = grd;
+  g.fillRect(0, 0, S, S);
+  g.strokeStyle = css(PALETTE.lava);
+  g.fillStyle = css(PALETTE.lava);
+  for (let i = 0; i <= 20; i++) {
+    const a = Math.PI * (0.8 + (i / 20) * 1.4);
+    const r0 = i % 5 ? 96 : 84;
+    g.lineWidth = i % 5 ? 3 : 6;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(a) * r0, cx + Math.sin(a) * r0);
+    g.lineTo(cx + Math.cos(a) * 112, cx + Math.sin(a) * 112);
+    g.stroke();
+  }
+  g.font = '600 17px ' + FONT_MONO;
+  g.textAlign = 'center';
+  g.fillText('MILD', cx - 58, cx + 62);
+  g.fillText('VOLCANIC', cx + 48, cx + 62);
+  g.font = '800 22px ' + FONT_DISPLAY;
+  g.fillText('GROG-O-METER', cx, cx + 34);
+  return texture(c);
 }
 
 /** A carved tiki face wrapped around a mug. */
