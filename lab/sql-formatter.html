@@ -1,0 +1,118 @@
+---
+layout: page
+title: SQL Formatter
+kicker: The lab · SQL formatter
+heading: Make your SQL look like mine
+lede: >-
+  Paste a query and it gets linted and fixed against my SQL style guide, by the real SQLFluff running
+  entirely in your browser. Nothing is sent anywhere.
+permalink: /lab/sql-formatter
+wide: true
+description: Format SQL to Steve Pisani's style guide with SQLFluff running in the browser via Pyodide. Lowercase keywords, leading commas, explicit aliases.
+---
+<div class="fmt" id="fmt"
+     data-pyodide="https://cdn.jsdelivr.net/pyodide/v314.0.7/full/pyodide.mjs"
+     data-sqlfluff="sqlfluff==4.3.0"
+     data-config="{{ '/assets/files/.sqlfluff' | relative_url }}"
+     data-runner="{{ '/assets/py/fluff.py' | relative_url }}">
+  <div class="fmt__bar">
+    <label>Dialect
+      <select id="fmt-dialect">
+        <option value="snowflake" selected>Snowflake</option>
+        <option value="postgres">Postgres</option>
+        <option value="bigquery">BigQuery</option>
+        <option value="redshift">Redshift</option>
+        <option value="duckdb">DuckDB</option>
+        <option value="databricks">Databricks</option>
+        <option value="ansi">ANSI</option>
+      </select>
+    </label>
+    <button class="btn" id="fmt-run" type="button">Format it</button>
+    <a class="fmt__dl" href="{{ '/assets/files/.sqlfluff' | relative_url }}" download=".sqlfluff">Download the .sqlfluff config</a>
+  </div>
+  <div class="fmt__panes">
+    <label class="fmt__pane">
+      <span class="kicker">Your SQL</span>
+      <textarea id="fmt-in" spellcheck="false" rows="14" wrap="off">SELECT A.ID, A.NAME, COUNT(*), SUM(B.AMOUNT) TOTAL
+FROM ACCOUNTS A JOIN ORDERS B ON A.ID = B.ACCOUNT_ID
+WHERE A.STATUS = 'active' AND B.AMOUNT > 0
+GROUP BY 1, 2</textarea>
+    </label>
+    <div class="fmt__pane">
+      <span class="kicker">My SQL <button class="fmt__copy" id="fmt-copy" type="button" hidden>copy</button></span>
+      <pre id="fmt-out" aria-live="polite"><code>Hit "Format it". The first run downloads Python and SQLFluff (~15 MB, then cached), so give it a few seconds.</code></pre>
+    </div>
+  </div>
+  <p class="fmt__status" id="fmt-status" role="status"></p>
+  <ul class="fmt__issues" id="fmt-issues"></ul>
+</div>
+
+<div class="prose">
+  <h2>How it works</h2>
+  <p>
+    <a href="https://pyodide.org">Pyodide</a> is CPython compiled to WebAssembly. The page boots it, installs
+    <a href="https://sqlfluff.com">SQLFluff</a> from PyPI, then runs <code>sqlfluff fix</code> with the same
+    <a href="{{ '/assets/files/.sqlfluff' | relative_url }}" download=".sqlfluff"><code>.sqlfluff</code></a> config you can download and use in your own
+    projects. Anything SQLFluff can't fix on its own, like an aggregate with no alias, shows up as a note underneath.
+  </p>
+  <p>The reasoning behind each rule is in the <a href="{{ '/2021/02/15/SQL-Style-Guide.html' | relative_url }}">SQL style guide</a>.</p>
+</div>
+
+<script type="module">
+  const root = document.getElementById('fmt');
+  const $ = (id) => document.getElementById(id);
+  const input = $('fmt-in'), out = $('fmt-out').firstElementChild, status = $('fmt-status');
+  const issues = $('fmt-issues'), run = $('fmt-run'), copy = $('fmt-copy');
+  let engine; // promise of { pyodide, config, fluff }
+
+  function boot() {
+    engine ??= (async () => {
+      status.textContent = 'Booting Python in your browser…';
+      const { loadPyodide } = await import(root.dataset.pyodide);
+      const pyodide = await loadPyodide();
+      status.textContent = 'Installing SQLFluff…';
+      await pyodide.loadPackage(['micropip', 'regex', 'pyyaml', 'jinja2', 'markupsafe']);
+      await pyodide.pyimport('micropip').install(root.dataset.sqlfluff);
+      const [config, runner] = await Promise.all(
+        [root.dataset.config, root.dataset.runner].map((u) => fetch(u).then((r) => r.text()))
+      );
+      pyodide.runPython(runner);
+      return { config, fluff: pyodide.globals.get('run') };
+    })();
+    engine.catch(() => { engine = undefined; });
+    return engine;
+  }
+
+  async function format() {
+    run.disabled = true;
+    try {
+      const { config, fluff } = await boot();
+      status.textContent = 'Formatting…';
+      const res = JSON.parse(fluff(input.value, config, $('fmt-dialect').value));
+      out.textContent = res.fixed;
+      copy.hidden = false;
+      issues.replaceChildren(...res.violations.map((v) => {
+        const el = (tag, text, cls) => Object.assign(document.createElement(tag), { textContent: text, className: cls || '' });
+        const li = document.createElement('li');
+        li.append(el('code', `L${v.line}:${v.pos}`), ' ', el('strong', v.code), ' ');
+        if (v.name && v.name !== '????') li.append(el('span', v.name, 'fmt__rule'));
+        li.append(v.desc);
+        return li;
+      }));
+      status.textContent = `Fixed ${res.fixed_count} thing${res.fixed_count === 1 ? '' : 's'}. ` +
+        (res.violations.length ? `${res.violations.length} left for a human:` : 'Nothing left to complain about.');
+    } catch (err) {
+      console.error(err);
+      status.textContent = 'Something went wrong loading the formatter. Try again, or use the config with SQLFluff locally.';
+    } finally {
+      run.disabled = false;
+    }
+  }
+
+  run.addEventListener('click', format);
+  input.addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') format(); });
+  input.addEventListener('focus', boot, { once: true }); // warm up while they type
+  copy.addEventListener('click', () => navigator.clipboard.writeText(out.textContent).then(() => {
+    copy.textContent = 'copied'; setTimeout(() => (copy.textContent = 'copy'), 1500);
+  }));
+</script>

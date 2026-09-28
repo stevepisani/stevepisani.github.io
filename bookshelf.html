@@ -1,0 +1,24 @@
+---
+layout: page
+title: Bookshelf
+kicker: The bookshelf
+heading: Books I've read and liked
+lede: Rescued from an old reading list. Tilt your head.
+---
+{% for shelf in site.data.books %}
+<section class="shelf">
+  <h2 class="shelf__name">{{ shelf.shelf }}</h2>
+  <ul class="shelf__books">
+    {% for b in shelf.books %}
+      {%- assign len = b.title | size -%}
+      {%- assign hue = len | times: 47 | plus: forloop.index | times: 13 | modulo: 360 -%}
+      {%- assign height = len | modulo: 5 | times: 10 | plus: 196 -%}
+      <li class="spine" tabindex="0" style="--hue: {{ hue }}; --h: {{ height }}px;"
+          title="{{ b.title }}{% if b.author %} by {{ b.author }}{% endif %}">
+        <span class="spine__title">{{ b.title }}</span>
+        {% if b.author %}<span class="spine__author">{{ b.author }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}

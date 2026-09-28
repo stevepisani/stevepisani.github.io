@@ -1,0 +1,56 @@
+# The asteroid homepage (index.html + assets/js/world/).
+
+# The menu: on the bar (pick it up), or from the Menu button anywhere. label is what
+# people scan, so keep it plain; note says what's actually there, in a few words.
+# No filler: no prices, no made-up drink names. Each item opens <template id="panel-<id>">;
+# href is where the link goes without 3D (and for crawlers).
+
+menu:
+  - id: about
+    label: About me
+    note: Data architect, founder of Tabby Stack
+    href: /about
+  - id: writing
+    label: Writing
+    note: Posts on SQL, data pipelines and rockets
+    href: /blog
+  - id: lab
+    label: Projects
+    note: A SQL formatter, a recipe tracker and other experiments
+    href: /lab
+  - id: shelf
+    label: Reading list
+    note: Books I recommend, from fiction to data
+    href: /bookshelf
+  - id: contact
+    label: Contact
+    note: Email, LinkedIn, GitHub, Twitter
+    href: mailto:steve@stevenpisani.com
+  - id: resume
+    label: Résumé
+    note: Where I've worked, and the full résumé
+    href: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+  - id: drinks
+    label: Favorite drinks
+    note: The recipes I keep coming back to
+    href: /drinks
+  - id: launch
+    label: Next rocket launch
+    note: A live countdown to the next launch anywhere
+    href: /classic
+
+# Things the robot bartender says while you're seated, in rotation.
+bartender:
+  - "Welcome to Steve's. The menu's right in front of you. It's on the house."
+  - "I'm an AI. The aloha shirt was his idea."
+  - "There's a campfire around the back of the planet, if you're curious."
+  - "The telescope out front is pointed at the next rocket launch."
+
+# Shown at the campfire on the far side of the planet.
+likes:
+  - Technology, especially the kind that runs quietly in the background
+  - My cat
+  - All things energy
+  - Rockets
+  - Well-formatted SQL (leading commas, lowercase, fight me)
+  - Arguing about where to get the best cheesesteak

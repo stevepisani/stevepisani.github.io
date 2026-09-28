@@ -1,0 +1,11 @@
+{%- assign p = include.post -%}
+<li class="post-row">
+  <a href="{{ p.url | relative_url }}">
+    {% include cover.html item=p small=true %}
+    <span class="post-row__body">
+      <span class="post-row__title">{{ p.title }}</span>
+      <span class="post-row__excerpt">{{ p.description | default: p.excerpt | strip_html | truncate: 140 }}</span>
+    </span>
+    <time datetime="{{ p.date | date_to_xmlschema }}">{{ p.date | date: "%b %Y" }}</time>
+  </a>
+</li>

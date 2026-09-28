@@ -1,17 +1,20 @@
 ---
 layout: default
 ---
-
-<div class="section" id="main">
-  <div class="blog__background">
-    <div class="container blog-wrap">
-      <div id="post__title_image" 
-           style="background-image:  {% if page.image_url %} url({{ page.image_url}}) {% else %} url('https://picsum.photos/seed/{{ page.title }}/2000/400') {% endif %};" ></div>
-      <article style="padding-left: 20px;padding-right: 20px;padding-bottom: 80px;">
-        <h1 id="post__title">{{ page.title }}</h1>
-        <p id="post__date_author">{{ page.date | date_to_string }} · {% include read_time.html %} read</p>
-        {{ content }}
-      </article>
-    </div>
+<article class="wrap post">
+  <header class="post-head">
+    <p class="kicker"><a href="{{ '/blog' | relative_url }}">← Writing</a></p>
+    <h1>{{ page.title }}</h1>
+    <p class="meta">
+      <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: "%B %-d, %Y" }}</time>
+      · {% include read_time.html %} read
+    </p>
+  </header>
+  {% include cover.html item=page %}
+  <div class="prose">
+    {{ content }}
   </div>
-</div>
+  <footer class="post-foot">
+    <p>Thoughts? Disagree about leading commas? <a href="mailto:{{ site.email }}?subject={{ page.title | uri_escape }}">Email me</a>.</p>
+  </footer>
+</article>

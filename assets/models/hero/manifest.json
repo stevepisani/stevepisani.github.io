@@ -1,0 +1,37 @@
+{
+  "tiki-statue": {
+    "file": "tiki-statue.glb",
+    "height": 2.7
+  },
+  "tiki-post": {
+    "file": "tiki-post.glb",
+    "height": 2.7
+  },
+  "tiki-mug": {
+    "file": "tiki-mug.glb",
+    "height": 0.17,
+    "tint": "aqua",
+    "brightness": 2.2
+  },
+  "puffer-lamp": {
+    "file": "puffer-lamp.glb",
+    "height": 0.4,
+    "glow": 1.2
+  },
+  "volcano-bowl": {
+    "file": "volcano-bowl.glb",
+    "height": 0.1
+  },
+  "moai": {
+    "file": "moai.glb",
+    "height": 2.4
+  },
+  "parrot-mug": {
+    "file": "parrot-mug.glb",
+    "height": 0.2
+  },
+  "pineapple-mug": {
+    "file": "pineapple-mug.glb",
+    "height": 0.17
+  }
+}
