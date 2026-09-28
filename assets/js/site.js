@@ -21,46 +21,51 @@
     if (location.hash === '#theme') btn.classList.add('is-pulsing');
   }
 
-  /* ---- Where's Steve? (a Weasley clock) ---- */
-  var clock = document.getElementById('clock');
-  if (clock) {
-    var rules = JSON.parse(clock.dataset.rules || '[]');
-    var hands = JSON.parse(clock.dataset.hands || '[]');
-    var hand = document.getElementById('clock-hand');
-    var status = document.getElementById('clock-status');
-    var timeEl = document.getElementById('clock-time');
-    var labels = clock.querySelectorAll('.clock__label');
+  /* ---- Next rocket launch (Launch Library 2) ---- */
+  var launch = document.getElementById('launch');
+  if (launch && window.fetch) {
+    var CACHE_KEY = 'next-launch', HOUR = 60 * 60 * 1000;
+    var nameEl = document.getElementById('launch-name');
+    var metaEl = document.getElementById('launch-meta');
+    var clockEl = document.getElementById('launch-clock');
 
-    function phillyNow() {
-      var parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: '2-digit', hourCycle: 'h23'
-      }).formatToParts(new Date());
-      var get = function (type) { return (parts.find(function (p) { return p.type === type; }) || {}).value; };
-      var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return { day: days.indexOf(get('weekday')), hour: parseInt(get('hour'), 10) % 24, minute: get('minute') };
+    function cached() {
+      try {
+        var c = JSON.parse(localStorage.getItem(CACHE_KEY));
+        if (c && Date.now() - c.at < HOUR) return Promise.resolve(c.data);
+      } catch (e) {}
+      return null;
     }
 
-    function pick(now) {
-      for (var i = 0; i < rules.length; i++) {
-        var r = rules[i];
-        if (r.days.indexOf(now.day) !== -1 && now.hour >= r.hours[0] && now.hour < r.hours[1]) return r.hand;
-      }
-      return hands[0];
+    function tminus(net) {
+      var ms = new Date(net) - Date.now();
+      var sign = ms < 0 ? 'T+ ' : 'T- ';
+      ms = Math.abs(ms);
+      var d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60;
+      var pad = function (n) { return String(n).padStart(2, '0'); };
+      return sign + (d ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
     }
 
-    function render() {
-      var now = phillyNow();
-      var current = pick(now);
-      var idx = Math.max(0, hands.indexOf(current));
-      hand.style.transform = 'rotate(' + (idx * 360 / hands.length) + 'deg)';
-      labels.forEach(function (l) { l.classList.toggle('is-active', l.dataset.hand === current); });
-      status.textContent = current === 'Mortal peril' ? 'In mortal peril. Probably fine.' : 'Probably: ' + current.toLowerCase() + '.';
-      var h12 = now.hour % 12 || 12;
-      timeEl.textContent = h12 + ':' + now.minute + (now.hour < 12 ? ' am' : ' pm') + ' in Philadelphia';
-    }
-
-    render();
-    setInterval(render, 60 * 1000);
+    (cached() || fetch(launch.dataset.api).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
+      return data;
+    })).then(function (data) {
+      var soon = Date.now() - HOUR;
+      var next = (data.results || []).filter(function (l) { return new Date(l.net) > soon; })[0];
+      if (!next) throw new Error('no upcoming launches');
+      var provider = next.launch_service_provider && next.launch_service_provider.name;
+      var pad = next.pad && next.pad.location && next.pad.location.name;
+      nameEl.textContent = next.name;
+      metaEl.textContent = [provider, pad].filter(Boolean).join(' · ');
+      var tick = function () { clockEl.textContent = tminus(next.net); };
+      tick();
+      setInterval(tick, 1000);
+    }).catch(function () {
+      nameEl.textContent = 'Ad astra.';
+    });
   }
 
   /* ---- Hello, fellow view-source enjoyer ---- */

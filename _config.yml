@@ -36,6 +36,9 @@ defaults:
   - scope: { path: "", type: posts }
     values: { layout: post }
 
+include:
+  - .sqlfluff
+
 exclude:
   - CLAUDE.md
   - README.md

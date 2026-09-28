@@ -1,0 +1,12 @@
+{%- comment -%}
+  Next rocket launch, from The Space Devs' Launch Library 2 (free, no key, 15 req/hr/IP,
+  so site.js caches it for an hour). Without JS or if the API is down, it's just a Saturn V.
+{%- endcomment -%}
+<a class="card card--launch" id="launch" href="https://thespacedevs.com/llapi" target="_blank" rel="noopener"
+   data-api="https://ll.thespacedevs.com/2.3.0/launches/upcoming/?limit=5&mode=normal"
+   style="--launch-img: url('{{ '/assets/images/saturnV-p-800.jpeg' | relative_url }}')">
+  <span class="kicker">Next launch</span>
+  <strong class="launch__name" id="launch-name">Checking the manifest…</strong>
+  <span class="launch__meta" id="launch-meta">Saturn V on the pad. Still the best-looking thing we've ever launched.</span>
+  <span class="launch__clock" id="launch-clock" aria-live="off"></span>
+</a>

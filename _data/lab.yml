@@ -1,4 +1,12 @@
 # Experiments listed on /lab. status: live | tinkering | retired
+- title: SQL Formatter
+  url: /lab/sql-formatter
+  status: live
+  emoji: "🧹"
+  blurb: >-
+    Paste ugly SQL, get it back in my style: lowercase, leading commas, explicit aliases.
+    It's real SQLFluff running in your browser via WebAssembly.
+  tags: [sqlfluff, pyodide, webassembly]
 - title: Recipe Tracker
   url: /recipe_tracker/
   status: live
@@ -7,14 +15,6 @@
     A shared tracker for working through NYT Cooking's most popular recipes of 2025.
     Ratings, notes, and photos, synced with Supabase.
   tags: [supabase, vanilla js, food]
-- title: Where's Steve?
-  url: /#clock
-  status: live
-  emoji: "🕰️"
-  blurb: >-
-    A Weasley-family-style clock that guesses what I'm up to right now, based on the time in Philadelphia.
-    Rarely accurate, frequently in mortal peril.
-  tags: [svg, time zones, harry potter]
 - title: Terminal Mode
   url: "#theme"
   status: live

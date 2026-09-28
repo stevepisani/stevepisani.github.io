@@ -1,0 +1,70 @@
+# Steve Pisani's SQL style, as a SQLFluff config.
+# Rules explained: https://stevenpisani.com/2021/02/15/SQL-Style-Guide.html
+#
+# Drop this file in the root of your project (or next to dbt_project.yml), then:
+#   pip install sqlfluff
+#   sqlfluff lint models/      # tell me what's wrong
+#   sqlfluff fix models/       # fix what can be fixed
+#
+# Using dbt? `pip install sqlfluff-templater-dbt` and set templater = dbt below.
+
+[sqlfluff]
+dialect = snowflake
+templater = jinja
+max_line_length = 100
+# One known disagreement: layout.select_targets (LT09) wants a *lone* column on
+# the same line as `select`. It's also the rule that puts every column on its
+# own line during `sqlfluff fix`, so it stays on. Add it here if it bugs you.
+exclude_rules =
+
+[sqlfluff:indentation]
+# "2 spaces for indents"
+indent_unit = space
+tab_space_size = 2
+indented_joins = false
+indented_using_on = true
+implicit_indents = allow
+
+# "Separators: put 'em in front"
+[sqlfluff:layout:type:comma]
+line_position = leading
+
+[sqlfluff:layout:type:binary_operator]
+line_position = leading
+
+# "No capitalizing of keywords" (or functions, literals, or types)
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower
+# "Use snake_case"
+[sqlfluff:rules:capitalisation.identifiers]
+extended_capitalisation_policy = lower
+
+# "Always use `as` when aliasing"
+[sqlfluff:rules:aliasing.table]
+aliasing = explicit
+[sqlfluff:rules:aliasing.column]
+aliasing = explicit
+# "Always rename aggregates and function fields"
+[sqlfluff:rules:aliasing.expression]
+allow_scalar = false
+# "Use distinct aliases" is aliasing.unique, on by default.
+
+# "Group using column names or numbers but not both; prefer names"
+[sqlfluff:rules:ambiguous.column_references]
+group_by_and_order_by_style = explicit
+
+# "If joins, alias all tables and include when addressing fields"
+[sqlfluff:rules:references.qualification]
+# on by default; nothing to configure
+
+# "Use CTEs over subqueries"
+[sqlfluff:rules:structure.subquery]
+forbid_subquery_in = both
+
+# "Always end on a new line" is layout.end_of_file, on by default.
