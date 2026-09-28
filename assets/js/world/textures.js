@@ -367,3 +367,92 @@ export function landingPad() {
   }
   return texture(c);
 }
+
+/* ---------- Dressing (decor.js): leaves, net, rope ---------- */
+// Leaves are drawn in greys with alpha; each plant tints them from the palette.
+
+/** A leaf card, stem at the bottom centre: 'monstera' (split and holed), 'ti' (a long strap),
+ *  or 'fern' (a frond of small pinnae). */
+export function leafCard(kind) {
+  const W = 256, H = 512;
+  const [c, g] = canvas(W, H);
+  let seed = kind.length * 17 + 3;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const shade = g.createLinearGradient(0, 0, W, 0);
+  shade.addColorStop(0, '#9a9a9a'); shade.addColorStop(0.5, '#e8e8e8'); shade.addColorStop(1, '#8a8a8a');
+  if (kind === 'monstera') {
+    g.fillStyle = shade;
+    g.beginPath();
+    g.moveTo(W / 2, H - 40);
+    g.bezierCurveTo(-60, H * 0.62, 10, 40, W / 2, 30);
+    g.bezierCurveTo(W - 10, 40, W + 60, H * 0.62, W / 2, H - 40);
+    g.fill();
+    // the splits and holes that make it a monstera
+    g.globalCompositeOperation = 'destination-out';
+    g.lineCap = 'round';
+    for (let i = 0; i < 7; i++) {
+      const y = 90 + i * 52;
+      for (const s of [-1, 1]) {
+        g.lineWidth = 7;
+        g.beginPath(); g.moveTo(W / 2 + s * (60 + i * 3), y); g.lineTo(W / 2 + s * 170, y + 24 + i * 4); g.stroke();
+        if (i % 2) { g.beginPath(); g.ellipse(W / 2 + s * 34, y + 12, 7, 12, s * 0.5, 0, 7); g.fill(); }
+      }
+    }
+    g.globalCompositeOperation = 'source-over';
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(W / 2, H - 40); g.quadraticCurveTo(W / 2 + 4, H / 2, W / 2, 40); g.stroke();
+    // the stem below the leaf
+    g.fillStyle = '#b0b0b0'; g.fillRect(W / 2 - 4, H - 44, 8, 44);
+  } else if (kind === 'ti') {
+    g.fillStyle = shade;
+    g.beginPath();
+    g.moveTo(W / 2, H);
+    g.bezierCurveTo(W / 2 - 70, H * 0.7, W / 2 - 60, H * 0.2, W / 2, 0);
+    g.bezierCurveTo(W / 2 + 60, H * 0.2, W / 2 + 70, H * 0.7, W / 2, H);
+    g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(W / 2, H); g.lineTo(W / 2, 10); g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 2;
+    for (let y = 40; y < H - 30; y += 18) { g.beginPath(); g.moveTo(W / 2, y + 14); g.lineTo(W / 2 - 40, y); g.moveTo(W / 2, y + 14); g.lineTo(W / 2 + 40, y); g.stroke(); }
+  } else { // fern
+    g.strokeStyle = '#c8c8c8'; g.lineWidth = 5;
+    g.beginPath(); g.moveTo(W / 2, H); g.quadraticCurveTo(W / 2 + 10, H / 2, W / 2, 6); g.stroke();
+    for (let y = H - 30; y > 20; y -= 14) {
+      const k = y / H, len = 18 + k * 90;
+      g.fillStyle = `rgb(${190 + rand() * 50 | 0},${190 + rand() * 50 | 0},${190 + rand() * 50 | 0})`;
+      for (const s of [-1, 1]) { g.beginPath(); g.ellipse(W / 2 + s * len / 2, y - 6, len / 2, 6, s * -0.35, 0, 7); g.fill(); }
+    }
+  }
+  const t = texture(c);
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Knotted fishing net: rope-coloured diamonds on transparent, tiles. */
+export function fishingNet() {
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  g.strokeStyle = css(PALETTE.bamboo);
+  g.lineWidth = 4;
+  const n = 4, d = S / n;
+  for (let i = -n; i <= 2 * n; i++) {
+    g.beginPath(); g.moveTo(i * d, 0); g.lineTo(i * d + S, S); g.stroke();
+    g.beginPath(); g.moveTo(i * d, 0); g.lineTo(i * d - S, S); g.stroke();
+  }
+  g.fillStyle = css(PALETTE.thatch);
+  for (let x = 0; x <= n; x++) for (let y = 0; y <= n; y++) { g.beginPath(); g.arc(x * d, y * d, 5, 0, 7); g.fill(); g.beginPath(); g.arc(x * d + d / 2, y * d + d / 2, 5, 0, 7); g.fill(); }
+  return texture(c, { repeat: [5, 3] });
+}
+
+/** Twisted manila rope, to wrap along its length. */
+export function ropeTexture() {
+  const [c, g] = canvas(128, 32);
+  g.fillStyle = css(PALETTE.bamboo);
+  g.fillRect(0, 0, 128, 32);
+  g.strokeStyle = css(PALETTE.thatch);
+  g.lineWidth = 7;
+  for (let x = -32; x < 160; x += 16) { g.beginPath(); g.moveTo(x, 32); g.lineTo(x + 24, 0); g.stroke(); }
+  g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2;
+  for (let x = -32; x < 160; x += 16) { g.beginPath(); g.moveTo(x + 5, 32); g.lineTo(x + 29, 0); g.stroke(); }
+  return texture(c, { repeat: [40, 1] });
+}

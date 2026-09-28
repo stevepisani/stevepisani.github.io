@@ -17,6 +17,8 @@ export const PALETTE = {
   teal: 0x0f5e63,
   aqua: 0x5fc7c4,      // glass floats, neon accents
   cream: 0xeadcbc,     // enamel trim on the tin-toy robot
+  leaf: 0x2f5a2c,      // tropical planting: monstera, fern
+  lime: 0x8fb33a,      // citrus on the bar
   chrome: 0xc9ced8,
   moon: 0x9fb4ff,      // moonlight
   night: 0x070913,     // sky / fog
