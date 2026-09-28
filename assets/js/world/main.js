@@ -1,13 +1,12 @@
-// Steve's asteroid: a walkable tiny planet with a tiki bar you can sit at and order from.
+// Steve's asteroid: you're dropped onto a tiny planet with a tiki bar in view.
+// Walk over, sit down, pick something from the menu.
 //
-// States (on #world[data-state]):
-//   loading  → assets streaming in, gate shows progress
-//   gate     → orbiting view, "Land and explore" / "Take me straight to the bar"
-//   flying   → camera swooping down from orbit
-//   walk     → first-person on the surface
-//   seat     → sitting at the bar with the order menu open
-//   paused   → pointer lock released while walking
-//   fallback → no WebGL: the gate becomes a plain page of links
+// Design rules (Krug, "Don't Make Me Think"; Apple HIG): no start screen, no
+// instructions to read, click/tap where you want to go, clickable things look
+// clickable, one just-in-time hint at a time, every section is also one click away
+// in the top bar, and every state has an obvious way back (Esc, ×, browser Back).
+//
+// #world[data-state] = loading | walk | seat | fallback
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
@@ -16,50 +15,119 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { buildPlanet, RADIUS } from './planet.js';
+import { buildPlanet, surfacePoint } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS } from './places.js';
 import { Player, bindInput } from './player.js';
-import { toonify } from './stylize.js';
+import { toonify, glowMat } from './stylize.js';
 import { fontsReady } from './textures.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
 const canvas = $('world-canvas');
 const data = JSON.parse($('world-data').textContent);
-const params = new URLSearchParams(location.search);
-const TEST = params.has('test');
+const TEST = new URLSearchParams(location.search).has('test');
 const reducedMotion = TEST || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = { high: !coarse && innerWidth > 900 && (navigator.deviceMemory || 8) >= 4 };
 
-const setState = (s) => { root.dataset.state = s; state = s; };
 let state = 'loading';
+const setState = (s) => { state = s; root.dataset.state = s; };
 
-/* ---------------- Panels & menu (plain DOM, no 3D needed) ---------------- */
-const panel = $('panel'), panelBody = $('panel-body'), order = $('order'), bubble = $('bubble');
-let onPanelClose = () => {};
+// "Never show a hint again once it's been used" (HIG onboarding), remembered per browser.
+const done = {
+  get: (k) => { try { return localStorage.getItem('world-' + k) === '1'; } catch (e) { return false; } },
+  set: (k) => { try { localStorage.setItem('world-' + k, '1'); } catch (e) {} },
+};
 
-function openPanel(id, { fromMenu } = {}) {
+/* =====================================================================
+   Content: panels, the menu, the top bar. Works before (and without) 3D.
+   ===================================================================== */
+const panel = $('panel'), panelBody = $('panel-body'), menu = $('menu'), bubble = $('bubble'), hint = $('hint');
+const menuBtn = $('menu-btn');
+let menuMode = null; // 'seat' (you're at the bar) | 'nav' (opened from the Menu button)
+let pushed = false;  // did we push a history entry for the open panel?
+
+function markCurrent(id) {
+  document.querySelectorAll('[data-order]').forEach((a) => {
+    if (a.dataset.order === id) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+}
+
+function openPanel(id, { push = true } = {}) {
   const tpl = $('panel-' + id);
   if (!tpl) return false;
   panelBody.replaceChildren(tpl.content.cloneNode(true));
   panel.hidden = false;
-  panel.dataset.fromMenu = fromMenu ? 'yes' : 'no';
+  panel.dataset.id = id;
+  root.dataset.panel = id;
+  menu.hidden = true;
+  markCurrent(id);
   panelBody.querySelectorAll('[data-launch]').forEach(fillLaunch);
   panel.scrollTop = 0;
-  (panelBody.querySelector('h2') || panel).focus?.();
+  if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
   $('panel-close').focus({ preventScroll: true });
   return true;
 }
-function closePanel() {
+
+function closePanel({ fromHistory } = {}) {
   if (panel.hidden) return;
+  // If opening it added a history entry, go back and let popstate close it,
+  // so the browser's Back button and our × behave identically.
+  if (!fromHistory && pushed) { pushed = false; history.back(); return; }
   panel.hidden = true;
-  onPanelClose();
+  delete root.dataset.panel;
+  markCurrent(null);
+  if (!fromHistory && location.hash) history.replaceState(null, '', location.pathname + location.search);
+  afterPanel();
 }
-$('panel-close').addEventListener('click', closePanel);
-$('panel-back').addEventListener('click', closePanel);
+
+// Where you land after closing a panel: back to the menu if you were at the bar.
+function afterPanel() {
+  if (state === 'seat') showMenu('seat');
+  else canvas.focus({ preventScroll: true });
+}
+
+function showMenu(mode) {
+  menuMode = mode;
+  menu.hidden = false;
+  menu.dataset.mode = mode;
+  $('menu-title').textContent = mode === 'seat' ? "What'll it be?" : 'Menu';
+  menuBtn.setAttribute('aria-expanded', 'true');
+  menu.querySelector('a').focus({ preventScroll: true });
+}
+
+function hideMenu() {
+  menu.hidden = true;
+  menuMode = null;
+  menuBtn.setAttribute('aria-expanded', 'false');
+}
+
+addEventListener('popstate', () => {
+  const id = location.hash.slice(1);
+  if (id && $('panel-' + id)) openPanel(id, { push: false });
+  else { pushed = false; closePanel({ fromHistory: true }); }
+});
+
+$('panel-close').addEventListener('click', () => closePanel());
+$('panel-back').addEventListener('click', () => { closePanel(); if (state !== 'seat') showMenu('nav'); });
+$('menu-close').addEventListener('click', () => { if (state === 'seat') leaveBar(); else hideMenu(); });
+menuBtn.addEventListener('click', () => (menu.hidden ? showMenu(state === 'seat' ? 'seat' : 'nav') : hideMenu()));
+
+// Every [data-order] link (top bar and menu) opens its panel in place. Without JS it's a normal link.
+let serve = () => {};
+let leaveBar = () => hideMenu();
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-order]');
+  if (!a || state === 'fallback' || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  const id = a.dataset.order;
+  if (!$('panel-' + id)) return;
+  e.preventDefault();
+  if (state === 'seat') serve(id);
+  openPanel(id);
+});
 
 function fillLaunch(el) {
   const q = (k) => el.querySelector('[data-launch-' + k + ']');
@@ -73,61 +141,64 @@ function fillLaunch(el) {
 }
 
 let bubbleTimer;
-function say(text, ms = 5200) {
+function say(text, ms = 5000) {
   bubble.textContent = text;
   bubble.hidden = false;
-  bubble.classList.remove('is-in');
-  void bubble.offsetWidth;
-  bubble.classList.add('is-in');
   clearTimeout(bubbleTimer);
   bubbleTimer = setTimeout(() => { bubble.hidden = true; }, ms);
 }
 
-/* ---------------- Fallback ---------------- */
+function showHint(text, key) {
+  if (key && done.get(key)) return;
+  hint.textContent = text;
+  hint.hidden = false;
+  hint.dataset.key = key || '';
+}
+function clearHint(key) {
+  if (key) done.set(key);
+  if (!key || hint.dataset.key === key) hint.hidden = true;
+}
+
+// Deep link straight into content (don't make anyone walk to get it).
+const initial = location.hash.slice(1);
+if (initial && $('panel-' + initial)) openPanel(initial, { push: false });
+
+/* =====================================================================
+   The world
+   ===================================================================== */
 function fallback(reason) {
-  console.info('World: no 3D.', reason || '');
+  console.info('World: showing the plain menu.', reason || '');
   setState('fallback');
-  $('gate-status').textContent = "Your browser can't render the asteroid, so here's the menu instead.";
-  order.hidden = false;
-  $('stand').hidden = true;
+  $('veil').hidden = true;
+  showMenu('nav');
 }
 
 function webgl2() {
   try { return !!document.createElement('canvas').getContext('webgl2'); } catch (e) { return false; }
 }
 
-/* ---------------- The world ---------------- */
 async function start() {
   if (!webgl2()) return fallback('no WebGL2');
-
-  const progress = $('gate-progress');
-  const setProgress = (k, text) => {
-    progress.style.setProperty('--p', k);
-    progress.setAttribute('aria-valuenow', Math.round(k * 100));
-    if (text) $('gate-status').textContent = text;
-  };
+  const progress = $('veil-progress');
+  const setProgress = (k) => progress.style.setProperty('--p', k);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !quality.high, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio, quality.high ? 2 : 1.5));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(coarse ? 80 : 75, 1, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, 0.05, 2000);
 
-  // Load the model pack (one GLB) while fonts settle.
-  const manager = new THREE.LoadingManager();
-  manager.onProgress = (_, loaded, total) => setProgress(0.1 + 0.7 * (loaded / total), 'Loading the tiki bar…');
-  const loader = new GLTFLoader(manager).setMeshoptDecoder(MeshoptDecoder);
+  // Models: one GLB, plus fonts for the canvas textures.
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const modelsUrl = document.querySelector('script[data-models]').dataset.models;
-  setProgress(0.05, 'Plotting a course…');
+  setProgress(0.1);
   const [gltf] = await Promise.all([
-    new Promise((res, rej) => loader.load(modelsUrl, res, (e) => e.total && setProgress(0.05 + 0.7 * (e.loaded / e.total), 'Loading the tiki bar…'), rej)),
+    new Promise((res, rej) => loader.load(modelsUrl, res, (e) => e.total && setProgress(0.1 + 0.8 * (e.loaded / e.total)), rej)),
     fontsReady(),
   ]);
   const library = new Map(gltf.scene.children.map((c) => [c.name, c]));
   toonify(gltf.scene);
-  /** Clone a model from the pack by name, at a uniform scale. */
   const prop = (name, scale = 1) => {
     const src = library.get(name);
     if (!src) { console.warn('missing model', name); return new THREE.Group(); }
@@ -137,14 +208,13 @@ async function start() {
     o.scale.setScalar(scale);
     return o;
   };
-  setProgress(0.85, 'Lighting the torches…');
 
-  // Build the world.
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality });
   const bar = buildBar({ prop, quality, posts: data.posts });
   const places = buildPlaces({ prop, quality });
   scene.add(sky.group, planet.group, bar.group, places.group);
+  serve = (id) => bar.serve(id);
 
   scene.add(new THREE.HemisphereLight(0xa9c4ff, 0x6a4a3a, 1.35));
   const sun = new THREE.DirectionalLight(0xffe6c4, 2.3);
@@ -156,15 +226,23 @@ async function start() {
 
   const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
   const interactables = [...bar.interactables, ...places.interactables];
-  player.spawn(SPOTS.spawn, bar.group.position);
+  const barSpot = interactables.find((i) => i.id === 'seat');
+  const signPoint = bar.group.localToWorld(new THREE.Vector3(0, 2.6, 0));
+  player.spawn(SPOTS.spawn, signPoint);
+  // tilt the view so the bar and its sign sit comfortably in frame
+  {
+    const eye = player.pos.clone().addScaledVector(player.up, player.eye);
+    const to = signPoint.clone().sub(eye);
+    const upAmt = to.dot(player.up);
+    player.pitch = Math.atan2(upAmt, Math.sqrt(Math.max(0, to.lengthSq() - upAmt * upAmt)));
+  }
 
-  // Post-processing: bloom on emissive things, then a gentle grade and vignette.
+  // Post-processing on capable devices: HDR-only bloom, then a light grade and vignette.
   let composer = null;
   if (quality.high) {
-    const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
-    composer = new EffectComposer(renderer, rt);
+    composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
     composer.addPass(new RenderPass(scene, camera));
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.6, 0.4, 1.6)); // high threshold: only glowMat (HDR) lights bloom, not lit surfaces
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), 0.65, 0.4, 1.6));
     composer.addPass(new OutputPass());
     composer.addPass(new ShaderPass({
       uniforms: { tDiffuse: { value: null } },
@@ -173,10 +251,9 @@ async function start() {
         void main(){
           vec4 c = texture2D(tDiffuse, vUv);
           float l = dot(c.rgb, vec3(.299,.587,.114));
-          c.rgb = mix(vec3(l), c.rgb, 1.12);                       // a touch more saturation
-          c.rgb = mix(c.rgb, c.rgb * vec3(1.03, 1.0, 1.06), .5);   // cool-warm split
+          c.rgb = mix(vec3(l), c.rgb, 1.1);
           float v = smoothstep(.95, .35, distance(vUv, vec2(.5)));
-          c.rgb *= mix(.72, 1., v);                                // vignette
+          c.rgb *= mix(.75, 1., v);
           gl_FragColor = c;
         }`,
     }));
@@ -192,216 +269,220 @@ async function start() {
   addEventListener('resize', resize);
   resize();
 
-  /* ---------- Camera choreography ---------- */
-  const orbit = { angle: 0.6 };
-  function orbitPose(t) {
-    const a = orbit.angle + (reducedMotion ? 0 : t * 0.05);
-    const d = RADIUS * 3.1;
-    const pos = new THREE.Vector3(Math.sin(a) * d, RADIUS * 1.25, Math.cos(a) * d);
-    const m = new THREE.Matrix4().lookAt(pos, new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 1, 0));
-    return { pos, quat: new THREE.Quaternion().setFromRotationMatrix(m) };
-  }
-  function poseLooking(eye, target) {
-    const up = eye.clone().normalize();
-    const m = new THREE.Matrix4().lookAt(eye, target, up);
-    return { pos: eye.clone(), quat: new THREE.Quaternion().setFromRotationMatrix(m) };
-  }
-  function playerPose() {
-    player.applyToCamera();
-    return { pos: camera.position.clone(), quat: camera.quaternion.clone() };
+  /* ---------- Markers: where you're going, and where you could go ---------- */
+  const ringGeo = new THREE.RingGeometry(0.28, 0.38, 32).rotateX(-Math.PI / 2);
+  const marker = (color) => {
+    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+    m.renderOrder = 2;
+    scene.add(m);
+    return m;
+  };
+  const hoverRing = marker(0xffffff);
+  const destRing = marker(0x3ff5e8);
+  const barRing = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.62, 40).rotateX(-Math.PI / 2), glowMat(0x3ff5e8, 2));
+  const standOn = (obj, point, lift = 0.04) => {
+    const up = point.clone().normalize();
+    obj.position.copy(surfacePoint(up, lift));
+    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+  };
+  standOn(barRing, barSpot.approach, 0.26); // on the deck
+  barRing.visible = !done.get('sat');
+  scene.add(barRing);
+
+  /* ---------- Picking ---------- */
+  const raycaster = new THREE.Raycaster();
+  raycaster.far = 60;
+  const ndc = new THREE.Vector2();
+  const ground = planet.group.getObjectByName('ground');
+  // mesh -> interactable. The bar group contains the chalkboard, so register the bar first
+  // and let more specific things overwrite their own meshes.
+  const interactMeshes = new Map();
+  const byGenerality = [...interactables].sort((a, b) => (a.id === 'seat' ? -1 : b.id === 'seat' ? 1 : 0));
+  for (const it of byGenerality) it.object && it.object.traverse((o) => { if (o.isMesh) interactMeshes.set(o, it); });
+  const pickList = [...interactMeshes.keys(), ground];
+
+  function pick(x, y) {
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+    raycaster.setFromCamera(ndc, camera);
+    const hit = raycaster.intersectObjects(pickList, false)[0];
+    if (!hit) return null;
+    if (hit.object === ground) return { ground: hit.point };
+    return { thing: interactMeshes.get(hit.object), point: hit.point };
   }
 
-  let flight = null;
-  /** Swoop the camera to `to` (a pose or a function returning one), travelling around the planet, not through it. */
-  function fly(to, ms, then) {
-    const target = typeof to === 'function' ? to : () => to;
-    if (reducedMotion) {
-      const p = target();
-      camera.position.copy(p.pos);
-      camera.quaternion.copy(p.quat);
-      then && then();
+  /* ---------- Doing things ---------- */
+  function use(it) {
+    player.stop();
+    if (it.id === 'seat') return sitDown();
+    if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
+    openPanel(it.id);
+  }
+  let destT = -1;
+  function showDest(point) { standOn(destRing, point); destT = 0; }
+  function goUse(it) {
+    clearHint('walk');
+    if (player.pos.distanceTo(it.approach) < 0.6 || player.pos.distanceTo(it.point) < it.radius * 0.7) return use(it);
+    player.walkTo(it.approach, { arrive: 0.45, onArrive: () => use(it) });
+    showDest(it.approach);
+  }
+
+  function onTap(x, y) {
+    if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
+    const p = pick(x, y);
+    if (!p) return;
+    if (p.thing) return goUse(p.thing);
+    clearHint('walk');
+    player.walkTo(p.ground);
+    showDest(p.ground);
+  }
+
+  const tip = $('tip');
+  let hovered = null;
+  function onHover(x, y) {
+    if (x === null || state !== 'walk' || !panel.hidden || !menu.hidden) {
+      hovered = null; tip.hidden = true; hoverRing.material.opacity = 0; canvas.style.cursor = '';
       return;
     }
-    flight = { start: performance.now(), ms, from: { pos: camera.position.clone(), quat: camera.quaternion.clone() }, target, then };
-  }
-  const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
-  const _d0 = new THREE.Vector3(), _d1 = new THREE.Vector3(), _q = new THREE.Quaternion();
-  function stepFlight() {
-    const k = Math.min(1, (performance.now() - flight.start) / flight.ms);
-    const e = ease(k);
-    const to = flight.target();
-    // slerp the direction from the planet's centre so the path arcs over the surface
-    const r0 = flight.from.pos.length(), r1 = to.pos.length();
-    _d0.copy(flight.from.pos).normalize();
-    _d1.copy(to.pos).normalize();
-    _q.setFromUnitVectors(_d0, _d1);
-    const dir = _d0.clone().applyQuaternion(new THREE.Quaternion().slerp(_q, e));
-    const lift = Math.sin(e * Math.PI) * Math.min(4, _d0.angleTo(_d1) * 6);
-    camera.position.copy(dir).multiplyScalar(THREE.MathUtils.lerp(r0, r1, e) + lift);
-    camera.quaternion.copy(flight.from.quat).slerp(to.quat, e);
-    if (k === 1) { const then = flight.then; flight = null; then && then(); }
-  }
-
-  /* ---------- Modes ---------- */
-  function lockPointer() {
-    if (coarse || TEST) return;
-    const req = canvas.requestPointerLock?.({ unadjustedMovement: true });
-    if (req && req.catch) req.catch(() => canvas.requestPointerLock?.());
-  }
-  function unlockPointer() { if (document.pointerLockElement) document.exitPointerLock(); }
-
-  function goWalk({ from } = {}) {
-    lockPointer(); // must happen inside the click that called us, not after the flight
-    closePanel();
-    order.hidden = true;
-    bubble.hidden = true;
-    if (from === 'seat') {
-      // stand up a step back from the stool, facing the bar
-      const back = bar.seat.eye.clone().normalize();
-      const dirAway = bar.seat.eye.clone().sub(bar.seat.look);
-      dirAway.addScaledVector(back, -dirAway.dot(back)).normalize();
-      const standDir = bar.seat.eye.clone().addScaledVector(dirAway, 1.1).normalize();
-      player.spawn(standDir, bar.seat.look);
+    const p = pick(x, y);
+    hovered = p && p.thing;
+    if (hovered) {
+      tip.hidden = false;
+      tip.querySelector('strong').textContent = hovered.label;
+      tip.querySelector('span').textContent = hovered.verb;
+      tip.style.transform = `translate(${x + 16}px, ${y + 14}px)`;
+      hoverRing.material.opacity = 0;
+      canvas.style.cursor = 'pointer';
+    } else {
+      tip.hidden = true;
+      canvas.style.cursor = p ? 'pointer' : '';
+      if (p) { standOn(hoverRing, p.ground); hoverRing.material.opacity = 0.35; } else hoverRing.material.opacity = 0;
     }
-    setState('flying');
-    fly(playerPose, from === 'seat' ? 700 : 2600, () => {
-      setState('walk');
-      player.enabled = true;
-      canvas.focus({ preventScroll: true });
-    });
   }
 
-  let chatter;
-  function goSeat() {
-    const fromOrbit = state === 'gate' || state === 'loading';
-    player.enabled = false;
-    input.clear();
-    unlockPointer();
-    closePanel();
-    setState('flying');
-    fly(poseLooking(bar.seat.eye, bar.seat.look), fromOrbit ? 2600 : 1200, () => {
-      setState('seat');
-      order.hidden = false;
-      order.querySelector('a').focus({ preventScroll: true });
-      say(data.bartender[0]);
-      let i = 1;
-      clearInterval(chatter);
-      chatter = setInterval(() => { if (state === 'seat' && panel.hidden) say(data.bartender[i++ % data.bartender.length]); }, 11000);
-    });
-  }
-
-  // Ordering from the menu: the robot shakes one up, sets it down, and the panel opens.
-  order.addEventListener('click', (e) => {
-    const a = e.target.closest('a[data-order]');
-    if (!a || state !== 'seat') return;
-    const id = a.dataset.order;
-    if (!$('panel-' + id)) return; // no panel: let the link work normally
-    e.preventDefault();
-    bar.serve(id);
-    say('Coming right up.', 1400);
-    order.hidden = true;
-    setTimeout(() => {
-      openPanel(id, { fromMenu: true });
-      onPanelClose = () => { order.hidden = false; a.focus({ preventScroll: true }); };
-    }, reducedMotion ? 0 : 1100);
-  });
-  $('stand').addEventListener('click', () => goWalk({ from: 'seat' }));
-
-  // Standing interactions (telescope, chalkboard, campfire, rocket, the stool itself)
-  let focus = null;
-  const promptEl = $('prompt'), promptText = $('prompt-text');
-  function nearestInteractable() {
-    const fwd = player.forward(new THREE.Vector3());
-    const up = player.up;
+  function nearestInReach() {
     let best = null, bestD = Infinity;
     for (const it of interactables) {
-      const to = it.point.clone().sub(camera.position);
       const d = player.pos.distanceTo(it.point);
-      if (d > it.radius) continue;
-      to.addScaledVector(up, -to.dot(up));
-      const f = fwd.clone().addScaledVector(up, -fwd.dot(up));
-      const facing = to.lengthSq() < 0.5 ? 1 : f.normalize().dot(to.normalize());
-      if (facing < 0.35) continue;
-      if (d < bestD) { best = it; bestD = d; }
+      if (d < it.radius && d < bestD) { best = it; bestD = d; }
     }
     return best;
   }
-  function act() {
-    if (state !== 'walk' || !focus) return;
-    if (focus.id === 'seat') return goSeat();
-    if (focus.id === 'rocket') { location.href = document.querySelector('.hud__brand').href; return; }
-    player.enabled = false;
-    input.clear();
-    unlockPointer();
-    setState('reading');
-    openPanel(focus.id);
-    onPanelClose = () => { setState('walk'); player.enabled = true; lockPointer(); canvas.focus({ preventScroll: true }); };
-  }
-  promptEl.addEventListener('click', act);
 
   const input = bindInput(player, canvas, {
-    onAction: act,
-    onMenu: () => { unlockPointer(); },
-    onBar: () => goSeat(),
-    joystickEl: $('stick'),
+    onTap,
+    onHover,
+    // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
+    onKeyAction: () => {
+      if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
+      const it = nearestInReach();
+      it ? use(it) : goUse(barSpot);
+    },
   });
 
-  // Pointer lock lost while walking → pause.
-  document.addEventListener('pointerlockchange', () => {
-    if (!document.pointerLockElement && state === 'walk' && !coarse) pause();
-  });
-  function pause() {
-    player.enabled = false;
-    input.clear();
-    setState('paused');
-    $('enter-walk').textContent = 'Resume';
-    $('enter-walk').focus({ preventScroll: true });
+  /* ---------- Sitting and leaving ---------- */
+  let seatPose = null;
+  let flight = null;
+  function poseLooking(eye, target) {
+    const m = new THREE.Matrix4().lookAt(eye, target, eye.clone().normalize());
+    return { pos: eye.clone(), quat: new THREE.Quaternion().setFromRotationMatrix(m) };
   }
-  $('pause-btn').addEventListener('click', () => { if (state === 'walk') { unlockPointer(); pause(); } });
-  $('to-bar').addEventListener('click', goSeat);
+  function flyTo(pose, ms, then) {
+    if (reducedMotion) { camera.position.copy(pose.pos); camera.quaternion.copy(pose.quat); then && then(); return; }
+    flight = { t0: performance.now(), ms, from: { pos: camera.position.clone(), quat: camera.quaternion.clone() }, to: pose, then };
+  }
+
+  let chatter;
+  function sitDown() {
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    done.set('sat');
+    barRing.visible = false;
+    tip.hidden = true;
+    setState('seat');
+    seatPose = poseLooking(bar.seat.eye, bar.seat.look);
+    flyTo(seatPose, 800, () => {
+      if (state !== 'seat') return;
+      if (panel.hidden) showMenu('seat');
+      say(data.bartender[0]);
+      let i = 1;
+      clearInterval(chatter);
+      chatter = setInterval(() => { if (state === 'seat' && panel.hidden) say(data.bartender[i++ % data.bartender.length]); }, 12000);
+    });
+  }
+
+  leaveBar = () => {
+    hideMenu();
+    closePanel();
+    clearInterval(chatter);
+    bubble.hidden = true;
+    flight = null;
+    // stand up where you walked in, facing back down the path
+    player.spawn(barSpot.approach.clone().normalize(), surfacePoint(SPOTS.spawn), -0.05);
+    setState('walk');
+    player.applyToCamera();
+    canvas.focus({ preventScroll: true });
+  };
+  $('leave').addEventListener('click', () => leaveBar());
+
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!panel.hidden) closePanel();
-    else if (state === 'seat') goWalk({ from: 'seat' });
+    else if (!menu.hidden && menuMode === 'nav') hideMenu();
+    else if (state === 'seat') leaveBar();
   });
-
-  $('enter-walk').addEventListener('click', () => {
-    if (state === 'paused') { setState('walk'); player.enabled = true; lockPointer(); canvas.focus({ preventScroll: true }); return; }
-    goWalk();
-  });
-  $('enter-bar').addEventListener('click', goSeat);
 
   /* ---------- Loop ---------- */
   const timer = new THREE.Timer();
   let t = 0;
+  const _v = new THREE.Vector3();
+  const beacon = $('beacon');
+  const beaconAt = bar.group.localToWorld(new THREE.Vector3(0, 1.9, 1.6)); // just above the stools
+  let movedFrom = null;
+
   function frame(now) {
     timer.update(now);
-    const dt = Math.min(timer.getDelta(), 0.05);
-    t += TEST ? 0 : dt;
-
-    if (state === 'walk' || state === 'reading' || state === 'paused') {
-      player.update(dt);
-      player.applyToCamera();
-    } else if (state === 'seat') {
-      const p = poseLooking(bar.seat.eye, bar.seat.look);
-      camera.position.copy(p.pos);
-      camera.quaternion.copy(p.quat);
-      if (!reducedMotion) camera.rotateY(Math.sin(t * 0.3) * 0.02);
-    } else if (state === 'gate' || state === 'loading') {
-      const p = orbitPose(t);
-      camera.position.copy(p.pos);
-      camera.quaternion.copy(p.quat);
-    }
-    if (flight) stepFlight();
+    // ?test: bigger steps so walks finish under slow software rendering; ambient time frozen
+    const dt = Math.min(timer.getDelta(), TEST ? 0.25 : 0.05);
+    if (!TEST) t += dt;
 
     if (state === 'walk') {
-      const next = nearestInteractable();
-      if (next !== focus) {
-        focus = next;
-        promptEl.hidden = !focus;
-        if (focus) promptText.textContent = focus.prompt;
-      }
-    } else if (!promptEl.hidden) { promptEl.hidden = true; focus = null; }
+      player.enabled = panel.hidden && menu.hidden;
+      player.update(dt);
+      if (!flight) player.applyToCamera(t, !reducedMotion);
+      // the walk hint retires once they've actually moved a few metres
+      if (!movedFrom) movedFrom = player.pos.clone();
+      else if (!hint.hidden && hint.dataset.key === 'walk' && player.pos.distanceTo(movedFrom) > 3) clearHint('walk');
+    }
+    if (flight) {
+      const k = Math.min(1, (performance.now() - flight.t0) / flight.ms);
+      const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      camera.position.lerpVectors(flight.from.pos, flight.to.pos, e);
+      camera.quaternion.copy(flight.from.quat).slerp(flight.to.quat, e);
+      if (k === 1) { const then = flight.then; flight = null; then && then(); }
+    } else if (state === 'seat' && seatPose) {
+      camera.position.copy(seatPose.pos);
+      camera.quaternion.copy(seatPose.quat);
+    }
+
+    // destination ring: appears where you clicked, then fades
+    if (destT >= 0) {
+      destT += dt;
+      const k = destT / 0.9;
+      destRing.scale.setScalar(0.6 + k * 0.8);
+      destRing.material.opacity = Math.max(0, 0.9 * (1 - k));
+      if (k >= 1) destT = -1;
+    }
+    // the bar's ring and its floating label, until they've sat down once
+    if (barRing.visible) {
+      if (!reducedMotion) barRing.scale.setScalar(1 + Math.sin(t * 3) * 0.08);
+      _v.copy(beaconAt).project(camera);
+      const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
+      const show = state === 'walk' && onScreen && panel.hidden && menu.hidden && !hovered;
+      beacon.hidden = !show;
+      if (show) beacon.style.transform = `translate(${((_v.x + 1) / 2 * root.clientWidth).toFixed(0)}px, ${((1 - _v.y) / 2 * root.clientHeight).toFixed(0)}px)`;
+    } else if (!beacon.hidden) beacon.hidden = true;
 
     sky.update(t, camera);
     planet.update(t, camera);
@@ -409,32 +490,24 @@ async function start() {
     places.update(t);
     composer ? composer.render() : renderer.render(scene, camera);
   }
+
+  player.applyToCamera();
   renderer.setAnimationLoop(frame);
   document.addEventListener('visibilitychange', () => {
     renderer.setAnimationLoop(document.hidden ? null : frame);
     timer.reset();
   });
 
-  // Ready.
-  setProgress(1, 'Cleared for landing.');
-  setState('gate');
-  $('enter-walk').disabled = false;
-  $('enter-bar').disabled = false;
-  window.__world = { get state() { return state; }, player, camera, goSeat, goWalk, openPanel, renderer, SPOTS, bar };
-  window.__sceneReady = true;
+  // Reveal. The first thing you see is the bar.
+  setProgress(1);
+  setState('walk');
+  $('veil').classList.add('is-gone');
+  setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 700);
+  setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
+  if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  // Deep links: /#bar sits you down, /#about etc. sits you down and orders it.
-  const hash = location.hash.slice(1);
-  if (hash === 'bar' || $('panel-' + hash)) {
-    goSeat();
-    if (hash !== 'bar') {
-      const wait = setInterval(() => {
-        if (state !== 'seat') return;
-        clearInterval(wait);
-        order.querySelector(`[data-order="${hash}"]`)?.click();
-      }, 100);
-    }
-  }
+  window.__world = { get state() { return state; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pick };
+  window.__sceneReady = true;
 }
 
 start().catch((err) => {

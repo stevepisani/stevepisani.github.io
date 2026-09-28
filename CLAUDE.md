@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Jekyll personal site for stevenpisani.com, built by GitHub Pages (the `github-pages` gem, so Jekyll 3.x and only whitelisted plugins). The homepage is a small walkable planet (Three.js): you land on an asteroid in first person, walk around, and sit at a tiki bar where you "order" the site's content from a menu. Every other page is a normal Jekyll page, and the non-3D homepage lives at `/classic`. No CSS framework and no build step beyond Jekyll.
+Jekyll personal site for stevenpisani.com, built by GitHub Pages (the `github-pages` gem, so Jekyll 3.x and only whitelisted plugins). The homepage is a small walkable planet (Three.js): you're dropped onto an asteroid in first person with a tiki bar in view, walk over, sit, and pick the site's content from a menu. Every section is also one click away in the top bar. Every other page is a normal Jekyll page, and the non-3D homepage lives at `/classic`. No CSS framework and no build step beyond Jekyll.
 
 ## Development Commands
 
@@ -40,15 +40,26 @@ bundle exec jekyll build
 - `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab
 
 ### The asteroid (homepage)
+Design rules, from Krug's *Don't Make Me Think* and Apple's HIG. Keep them when changing anything here:
+- No start screen, splash, or instructions panel. The first frame shows the bar and its neon sign ahead, far enough that you have to walk.
+- Site ID + tagline top-left and every section in the top bar at all times (a Menu button under 900px). Nobody is ever forced to walk to reach content.
+- Click/tap where you want to go, drag to look. WASD/arrows and E are extras, never required.
+- Clickable things look clickable without hover: the bar's floating "Sit at the bar" label and ring stay until the first time someone sits.
+- One hint at a time, shown just in time, retired forever (localStorage `world-*`) once used.
+- Plain labels in the menu (`label` in `_data/bar.yml`); themed drink names are secondary flavour only.
+- Every state has a way back: × and Esc close panels, Esc/× leave the bar, the browser Back button closes panels (`#<id>` history entries), and deep links (`/#about`) open content directly.
+- The camera never moves on its own: no intro flights, no idle sway. Respect reduced motion.
+- Tap targets at least 44px.
+
 Plain three.js ES modules in `assets/js/world/`, no bundler, no physics engine:
-- `main.js`: renderer, loading gate, camera choreography (orbit → swoop down), modes (`#world[data-state]` = loading | gate | flying | walk | reading | seat | paused | fallback), interaction prompts, the order menu, panels, bloom + grade post-processing (desktop only).
+- `main.js`: panels, menu, top bar, history (works before and without 3D); then the renderer, picking (hover label + ground ring, click-to-walk, click-to-use), sitting and leaving, hints, bloom + grade post-processing (desktop only). `#world[data-state]` = loading | walk | seat | fallback.
 - `planet.js`: radius-16 planet. `heightAt(dir)` is analytic, so terrain and the player's feet always agree. `place(obj, dir, {heading})` stands anything upright on the sphere; `dirFrom(polar, longitude)` addresses spots (the bar is at the north pole, facing longitude π/2). Also the atmosphere shell and instanced wind-blown grass.
-- `player.js`: first-person controller on a sphere. Orientation is a quaternion that is parallel-transported to the new up vector every step; never `lookAt` with a fixed world up (it flips at the poles). Collisions are circles in the tangent plane. Input: WASD + pointer lock or drag, touch joystick (left) + look (right), E to interact.
-- `bar.js`: the tiki bar, robot bartender, seat pose, drink serving. `places.js`: rocket, signpost, telescope, campfire, dish, boat, and seeded scatter (`SPOTS` holds their positions).
+- `player.js`: first-person controller on a sphere. Orientation is a quaternion that is parallel-transported to the new up vector every step; never `lookAt` with a fixed world up (it flips at the poles). Collisions are circles in the tangent plane. `walkTo(point)` auto-walks and turns you toward your path; timing uses simulation time, not wall clock. Input: one pointer vocabulary for mouse and touch (press without moving = tap, press and move = look), plus WASD/arrows and E/Enter.
+- `bar.js`: the tiki bar on a gentle rise, the upright neon sign, robot bartender, seat pose, drink serving. `places.js`: the stepping-stone path with lanterns, rocket, telescope, campfire, dish, boat, and seeded scatter (`SPOTS` holds their positions). Interactables are `{ id, label, verb, object, point, approach, radius }`: click `object`, walk to `approach`, then use it.
 - `sky.js`: fbm nebula dome, twinkling stars, ringed planet, moon, sun, shooting stars. `stylize.js`: toon material with a cool shadow tint and warm rim; `toonify()` converts loaded models; `glowMat()` for things that should bloom. `textures.js`: canvas textures.
 - Models: Kenney CC0 kits, merged into one `assets/models/props.glb` (meshopt, ~300 KB) by `tools/build-models.mjs`. To add a model, drop its GLB in `tools/models/<kit>/`, run `cd tools && npm install && npm run models`, then clone it in code with `prop('<kit>_<name>', scale)`.
-- Content stays HTML: the gate has real links, the order menu items are `<a href>`s (JS intercepts them to serve a drink and open `<template id="panel-<id>">`), so it works without WebGL and is crawlable. Without WebGL2 the page falls back to the gate + menu. `/#bar` deep-links to the seat; `/#<menu id>` orders that item.
-- Testing hooks: `window.__sceneReady`, `window.__world` (state, player, SPOTS, goSeat...), `?test=1` freezes time and disables motion.
+- Content stays HTML: the top bar and menu items are `<a href>`s (JS intercepts them to open `<template id="panel-<id>">`, and serves a drink if you're seated), so it works without WebGL and is crawlable. Without WebGL2 the menu is the page.
+- Testing hooks: `window.__sceneReady`, `window.__world` (state, player, SPOTS, bar, interactables, sitDown, leaveBar, pick), `?test=1` freezes ambient time, disables motion, and allows large time steps so walks finish under software rendering.
 - Three.js is pinned in the import map in `_layouts/world.html`; bump it there and in the modulepreload together.
 
 ### Styling and scripts

@@ -1,44 +1,44 @@
 # The asteroid homepage (index.html + assets/js/world/).
 
-# The tiki menu you order from at the bar. Each item opens <template id="panel-<id>">
-# in the 3D world; href is where the link goes without 3D (and for crawlers).
+# The menu: at the bar, or from the Menu button anywhere. label is what people scan,
+# so keep it plain; drink is flavour. Each item opens <template id="panel-<id>">;
+# href is where the link goes without 3D (and for crawlers).
+
 menu:
   - id: about
+    label: About me
     drink: The Founder's Mai Tai
-    what: About Steve
     href: /about
   - id: writing
+    label: Writing
     drink: Hot Takes on the Rocks
-    what: Writing
     href: /blog
-  - id: shelf
-    drink: Top Shelf Neat
-    what: The reading list
-    href: /bookshelf
   - id: lab
+    label: Projects
     drink: Lab Experiment No. 9
-    what: Things I'm building
     href: /lab
-  - id: launch
-    drink: The Liftoff
-    what: Next rocket launch, live
-    href: /classic
+  - id: shelf
+    label: Reading list
+    drink: Top Shelf, Neat
+    href: /bookshelf
   - id: contact
+    label: Contact
     drink: Tip the Bartender
-    what: Say hello
     href: mailto:steve@stevenpisani.com
   - id: resume
+    label: Résumé
     drink: Close Out the Tab
-    what: Résumé
     href: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+  - id: launch
+    label: Next rocket launch
+    drink: The Liftoff
+    href: /classic
 
 # Things the robot bartender says while you're seated, in rotation.
 bartender:
-  - "Welcome to Steve's. Best view in the solar system. Terrible parking."
-  - "What'll it be? Everything on the menu is on the house."
-  - "The Mai Tai is the house special. It comes with a biography."
+  - "Welcome to Steve's. Pick anything on the menu. It's on the house."
   - "I'm an AI. The pineapple shirt was his idea."
-  - "If you walk around the back there's a campfire. It's a small planet; you can't miss it."
+  - "There's a campfire around the back of the planet, if you're curious."
   - "The telescope out front is pointed at the next rocket launch."
 
 # Shown at the campfire on the far side of the planet.

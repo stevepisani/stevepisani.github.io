@@ -10,77 +10,56 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   the menu.
 {%- endcomment -%}
 <div class="world" id="world" data-state="loading">
-  <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="Steve's asteroid. Use W A S D to walk, the mouse to look, and E to interact." ></canvas>
+  <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="Steve's asteroid: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu."></canvas>
 
-  <section class="gate" id="gate" aria-labelledby="gate-title">
-    <div class="gate__card">
-      <p class="kicker">Steve Pisani · data architect · Philadelphia</p>
-      <h1 id="gate-title">There's a tiki bar on a <span>very small asteroid</span>.</h1>
-      <p class="gate__lede">It's mine. I build data platforms for a living and this is where I keep everything else. Walk around, pull up a stool, and order something off the menu.</p>
-
-      <div class="gate__progress" id="gate-progress" role="progressbar" aria-label="Loading the asteroid" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
-      <p class="gate__status" id="gate-status">Plotting a course…</p>
-
-      <div class="gate__actions">
-        <button type="button" class="btn" id="enter-walk" disabled>Land and explore</button>
-        <button type="button" class="btn btn--ghost" id="enter-bar" disabled>Take me straight to the bar</button>
-      </div>
-      <p class="gate__controls" id="gate-controls">
-        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> walk</span>
-        <span><kbd>Mouse</kbd> look</span>
-        <span><kbd>E</kbd> sit, order, look</span>
-        <span><kbd>B</kbd> straight to the bar</span>
-        <span><kbd>Space</kbd> hop</span>
-        <span><kbd>Esc</kbd> pause</span>
-      </p>
-      <p class="gate__touch">Left thumb to walk, right thumb to look, tap the button that pops up to interact.</p>
-
-      <nav class="gate__skip" aria-label="Skip the trip">
-        <span>Or skip the trip:</span>
-        <a href="{{ '/about' | relative_url }}">About</a>
-        <a href="{{ '/blog' | relative_url }}">Writing</a>
-        <a href="{{ '/lab' | relative_url }}">Lab</a>
-        <a href="{{ '/bookshelf' | relative_url }}">Books</a>
-        <a href="{{ site.links.resume }}" target="_blank" rel="noopener">Résumé ↗</a>
-        <a href="{{ '/classic' | relative_url }}">Classic site</a>
-      </nav>
-    </div>
-  </section>
-
-  <div class="hud" id="hud">
-    <a class="hud__brand" href="{{ '/classic' | relative_url }}" title="Leave for the classic site"><img src="{{ '/assets/images/SJ-P2-1.png' | relative_url }}" alt="" width="22" height="22"> Steve Pisani <span>· classic site</span></a>
-    <div class="hud__right">
-      <button type="button" class="hud__btn" id="to-bar">🍹 Go to the bar <kbd>B</kbd></button>
-      <button type="button" class="hud__btn hud__btn--icon" id="pause-btn" aria-label="Pause">❚❚</button>
-    </div>
-    <span class="hud__reticle" aria-hidden="true"></span>
-    <button type="button" class="hud__prompt" id="prompt" hidden><kbd>E</kbd> <span id="prompt-text"></span></button>
-    <div class="hud__stick" id="stick" hidden aria-hidden="true"><span></span></div>
+  <div class="veil" id="veil" aria-hidden="true">
+    <span class="veil__name">Steve Pisani</span>
+    <span class="veil__bar"><span id="veil-progress"></span></span>
   </div>
 
+  <header class="topbar" id="topbar" tabindex="-1">
+    <a class="topbar__id" href="{{ '/' | relative_url }}">
+      <strong>Steve Pisani</strong>
+      <span>Data architect in Philadelphia</span>
+    </a>
+    <nav class="topbar__nav" aria-label="Sections">
+      {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
+      <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
+      {% endunless %}{% endfor %}
+    </nav>
+    <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+  </header>
+
+  <p class="hint" id="hint" role="status" aria-live="polite" hidden></p>
+  <div class="beacon" id="beacon" aria-hidden="true" hidden>Sit at the bar</div>
+  <div class="tip" id="tip" aria-hidden="true" hidden><strong></strong><span></span></div>
   <p class="world__bubble" id="bubble" aria-live="polite" hidden></p>
 
-  <section class="order" id="order" aria-labelledby="order-title" hidden>
-    <div class="order__card">
-      <p class="order__eyebrow">Steve's · space tiki bar</p>
-      <h2 id="order-title">Tonight's menu</h2>
-      <ul class="order__list">
+  <section class="menu" id="menu" aria-labelledby="menu-title" hidden>
+    <div class="menu__card">
+      <button type="button" class="menu__close" id="menu-close" aria-label="Close menu">×</button>
+      <p class="menu__eyebrow">Steve's · space tiki bar</p>
+      <h1 class="menu__title" id="menu-title">What'll it be?</h1>
+      <ul class="menu__list">
         {% for item in site.data.bar.menu %}
         <li>
           <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>
-            <span class="order__name">{{ item.drink }}</span>
-            <span class="order__desc">{{ item.what }}</span>
+            <span class="menu__label">{{ item.label }}</span>
+            <span class="menu__drink">{{ item.drink }}</span>
           </a>
         </li>
         {% endfor %}
       </ul>
-      <button type="button" class="order__stand" id="stand">Stand up and wander</button>
+      <div class="menu__foot">
+        <button type="button" class="menu__leave" id="leave">Leave the bar</button>
+        <a href="{{ '/classic' | relative_url }}">Regular website</a>
+      </div>
     </div>
   </section>
 
   <aside class="panel" id="panel" aria-labelledby="panel-title" hidden>
     <div class="panel__bar">
-      <button type="button" class="panel__back" id="panel-back">← Back to the menu</button>
+      <button type="button" class="panel__back" id="panel-back">← Menu</button>
       <button type="button" class="panel__close" id="panel-close" aria-label="Close">×</button>
     </div>
     <div class="panel__body" id="panel-body"></div>
