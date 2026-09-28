@@ -27,19 +27,20 @@ bundle exec jekyll build
 ## Architecture
 
 - `_layouts/`: `default.html` (shell, SEO via `{% seo %}`), `page.html` (kicker/heading/lede header + prose), `post.html`
-- `_includes/`: `nav.html`, `footer.html`, `clock.html` (Weasley clock), `cover.html` (post cover, gradient fallback seeded by title), `post-row.html`, `lab-card.html`, `read_time.html`
+- `_includes/`: `nav.html`, `footer.html`, `launch.html` (next-launch card, Launch Library 2 API), `cover.html` (post cover, gradient fallback seeded by title), `post-row.html`, `lab-card.html`, `read_time.html`
 - `_data/`: content lives here, edit these rather than HTML
   - `timeline.yml`: career timeline on /about
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `books.yml`: shelves on /bookshelf
-  - `clock.yml`: hands and time rules for the "Where's Steve?" clock
 - `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url`, `description`
 - Pages: `index.html`, `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html`, `404.html`, `401.html`
+- `lab/`: lab experiments with their own pages, e.g. `lab/sql-formatter.html` (SQLFluff in the browser via Pyodide; its Python lives in `assets/py/fluff.py`)
+- `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
 - `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab
 
 ### Styling and scripts
-- `assets/css/site.css`: the only stylesheet. Colors are custom properties on `:root` with three themes: light (default), dark (system preference or chosen), terminal (chosen). New components should use the tokens, never raw colors.
-- `assets/js/site.js`: theme cycling (auto → light → dark → terminal) and the clock. No jQuery.
+- `assets/css/site.css`: the only stylesheet. Colors are custom properties on `:root` with three themes: light (default), dark a.k.a. space (Milky Way background; system preference or chosen), terminal (chosen). New components should use the tokens, never raw colors.
+- `assets/js/site.js`: theme cycling (auto → light → dark → terminal) and the next-launch card (cached in localStorage for an hour; the API allows 15 requests/hour/IP). No jQuery.
 - `assets/css/normalize.css` is kept only for `recipe_tracker/`.
 - Fonts: Fraunces (display), Inter (body), JetBrains Mono (labels/code) from Google Fonts.
 

@@ -10,6 +10,8 @@ When writing SQL, it is important to stay consistant to help anyone reading your
 
 These suggestions are not written in stone and, if you have a suggestion or disagreement, I would love to chat about it.
 
+> **Update:** you don't have to memorize any of this. [Download my `.sqlfluff` config](/assets/files/.sqlfluff){: download=".sqlfluff"} and let [SQLFluff](https://sqlfluff.com) enforce it, or paste a query into the [SQL formatter in the lab](/lab/sql-formatter) to see it in action.
+
 ### Example
 ```sql
   with date_spine as (
@@ -19,13 +21,13 @@ These suggestions are not written in stone and, if you have a suggestion or disa
   )
 
   , account_revenue as (
-    select  
+    select
       account_id
       , created_date as joined_date
       , revenue
     from customers.revenue
     where revenue > 0
-      and date(created_date) >= ( select min(created_at) from customers.groups )
+      and date(created_date) >= (select min(g.created_at) as first_at from customers.groups as g)
   )
 
   select
@@ -36,9 +38,9 @@ These suggestions are not written in stone and, if you have a suggestion or disa
   inner join date_spine as d
     on c.created_at <= d.day
   left outer join account_revenue as ar
-    on c.account_id = r.account_id
-  where c.created_at <= joined_date
-  group by   
+    on c.account_id = ar.account_id
+  where c.created_at <= ar.joined_date
+  group by
     c.audience_id
     , d.day
   order by
@@ -102,3 +104,21 @@ The goal of constant SQL formatting is to improve development, review, and under
 ## CTEs & Subqueries
 
 - Use CTEs over subqueries
+
+---
+
+# Enforce it automatically
+
+Style guides only work if nobody has to think about them. Everything above (except the naming judgment calls) is encoded in a [SQLFluff](https://sqlfluff.com) config:
+
+<p><a class="btn" href="/assets/files/.sqlfluff" download=".sqlfluff">Download .sqlfluff</a></p>
+
+Drop it in the root of your project (next to `dbt_project.yml` if you're using dbt), then:
+
+```bash
+pip install sqlfluff
+sqlfluff lint models/   # what's wrong
+sqlfluff fix models/    # fix what can be fixed
+```
+
+It defaults to the Snowflake dialect and the Jinja templater. Change `dialect` for your warehouse, and install `sqlfluff-templater-dbt` if you want it to compile dbt refs.
