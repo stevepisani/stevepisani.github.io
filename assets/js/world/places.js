@@ -3,17 +3,16 @@
 import * as THREE from 'three';
 import * as T from './textures.js';
 import { toon, glowMat } from './stylize.js';
-import { place, dirFrom, headingToward, BAR_DIR, RADIUS } from './planet.js';
+import { place, dirFrom, headingToward, surfacePoint, BAR_DIR, RADIUS } from './planet.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
-  spawn: dirFrom(0.44, 1.5),      // in front of the counter (the bar faces longitude π/2)
-  rocket: dirFrom(0.62, 1.1),
-  sign: dirFrom(0.33, 1.95),
-  telescope: dirFrom(0.44, 2.35),
-  campfire: dirFrom(2.55, -1.6),  // around the back
-  dish: dirFrom(1.2, -0.2),
-  boat: dirFrom(0.46, -0.6),
+  spawn: dirFrom(0.62, Math.PI / 2), // ~12 m out, straight in front of the bar (it faces longitude π/2)
+  rocket: dirFrom(0.72, 1.3),
+  telescope: dirFrom(0.5, 2.85),
+  campfire: dirFrom(2.55, -1.6),     // around the back
+  dish: dirFrom(1.1, -0.2),
+  boat: dirFrom(0.5, -0.6),
 };
 
 function mesh(geo, material, [x, y, z] = [0, 0, 0], parent) {
@@ -51,19 +50,38 @@ export function buildPlaces({ prop, quality }) {
     animated.push((t) => { flame.scale.y = 0.5 + Math.sin(t * 20) * 0.1; });
     put(rocket, SPOTS.rocket, { heading: 0.4, sink: 0.1 }, 2.2);
     colliders.push({ center: rocket.position.clone(), radius: 1.2 });
-    interactables.push({ id: 'rocket', point: rocket.position.clone().addScaledVector(SPOTS.rocket, 1.2), radius: 3.0, prompt: 'Fly home (classic site)' });
+    interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: rocket.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
   }
 
-  // Signpost near the landing spot pointing at the bar.
+  // A stepping-stone path from where you land to the bar, lined with little lanterns.
+  // Paths lead somewhere; nobody needs to be told to follow one.
   {
-    const sign = new THREE.Group();
-    mesh(new THREE.CylinderGeometry(0.06, 0.07, 1.8, 6), toon({ color: 0x8a5634 }), [0, 0.9, 0], sign);
-    const board = mesh(new THREE.BoxGeometry(1.5, 0.45, 0.06), toon({ color: 0xb27a46 }), [0.35, 1.5, 0], sign);
-    const label = mesh(new THREE.PlaneGeometry(1.4, 0.4), toon({ map: T.label("STEVE'S · OPEN", { bg: '#b27a46', fg: '#2a160a', w: 512, h: 144 }), rim: 0 }), [0.35, 1.5, 0.035], sign);
-    label.renderOrder = 1;
-    board.renderOrder = 0;
-    put(sign, SPOTS.sign, { heading: headingToward(SPOTS.sign, SPOTS.spawn) }, 1);
-    colliders.push({ center: sign.position.clone(), radius: 0.2 });
+    const from = SPOTS.spawn.clone(), to = BAR_DIR.clone();
+    const total = from.angleTo(to) * RADIUS - 3.9;           // stop at the deck's edge
+    const n = Math.floor(total / 0.85);
+    const stones = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.38, 0.12, 7), toon({ color: 0xd9cbb0, rim: 0.1 }), n);
+    const axis = new THREE.Vector3().crossVectors(from, to).normalize();
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(1, 1, 1);
+    const tmp = new THREE.Object3D();
+    for (let i = 0; i < n; i++) {
+      const a = (0.6 + i * 0.85) / RADIUS;
+      const d = from.clone().applyAxisAngle(axis, a);
+      const wobble = Math.sin(i * 2.3) * 0.18 / RADIUS;       // not perfectly straight
+      d.applyAxisAngle(d.clone().cross(axis).normalize(), wobble);
+      place(tmp, d, { heading: i * 0.9, sink: 0.03 });
+      stones.setMatrixAt(i, m.compose(tmp.position, tmp.quaternion, sc.set(0.9 + (i % 3) * 0.08, 1, 0.8 + (i % 2) * 0.12)));
+      occupied.push([d.clone(), 0.5]);
+      if (i % 4 === 3 && i > 4) { // lanterns start a few steps in, so none loom at your feet
+        for (const side of [-1, 1]) {
+          const lamp = new THREE.Group();
+          mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.55, 5), toon({ color: 0x8a5634 }), [0, 0.27, 0], lamp);
+          mesh(new THREE.SphereGeometry(0.09, 8, 6), glowMat(0xffb35c, 2.2), [0, 0.6, 0], lamp);
+          const side2 = d.clone().applyAxisAngle(d.clone().cross(axis).normalize(), side * 0.9 / RADIUS);
+          put(lamp, side2, {}, 0.3);
+        }
+      }
+    }
+    group.add(stones);
   }
 
   // Telescope: aimed at the next launch.
@@ -85,7 +103,7 @@ export function buildPlaces({ prop, quality }) {
     animated.push((t) => { tube.rotation.y = Math.sin(t * 0.2) * 0.3; });
     put(scope, SPOTS.telescope, { heading: 2.0 }, 1.5);
     colliders.push({ center: scope.position.clone(), radius: 0.45 });
-    interactables.push({ id: 'launch', point: scope.position.clone(), radius: 2.2, prompt: 'Look through the telescope' });
+    interactables.push({ id: 'launch', label: 'Telescope', verb: 'See the next rocket launch', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2 });
   }
 
   // Campfire on the far side, with log benches. An Outer Wilds nod.
@@ -122,7 +140,7 @@ export function buildPlaces({ prop, quality }) {
     });
     put(camp, SPOTS.campfire, { heading: 0.8 }, 3);
     colliders.push({ center: camp.position.clone(), radius: 0.6 });
-    interactables.push({ id: 'campfire', point: camp.position.clone(), radius: 2.8, prompt: 'Sit by the campfire' });
+    interactables.push({ id: 'campfire', label: 'Campfire', verb: 'Sit by the fire', object: camp, point: camp.position.clone(), approach: surfacePoint(dirFrom(2.47, -1.6)), radius: 2.8 });
   }
 
   // Satellite dish, pointed at the sky.

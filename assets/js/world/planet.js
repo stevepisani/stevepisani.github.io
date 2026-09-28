@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { toon } from './stylize.js';
 
-export const RADIUS = 16;
+export const RADIUS = 20;
 export const BAR_DIR = new THREE.Vector3(0, 1, 0); // the bar sits on the north pole
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -18,8 +18,11 @@ export function heightAt(dir) {
     0.28 * Math.sin(x * 3.1 + 1.3) * Math.cos(z * 2.7 - 0.4) +
     0.18 * Math.sin(y * 4.3 + z * 1.7 + 2.1) +
     0.1 * Math.sin(x * 7.3 - y * 5.1 + 0.7) * Math.sin(z * 6.2 + 1.9);
-  const nearBar = THREE.MathUtils.smoothstep(dir.dot(BAR_DIR), 0.94, 0.972);
-  return THREE.MathUtils.lerp(h, 0.05, nearBar);
+  // the bar sits on a gentle rise, so it reads as the landmark from anywhere nearby
+  const lat = dir.dot(BAR_DIR);
+  const rise = 0.9 * THREE.MathUtils.smoothstep(lat, 0.9, 0.975);
+  const nearBar = THREE.MathUtils.smoothstep(lat, 0.955, 0.98);
+  return THREE.MathUtils.lerp(h * (1 - THREE.MathUtils.smoothstep(lat, 0.85, 0.95)), 0.9, nearBar) + (1 - nearBar) * rise;
 }
 
 export function surfaceRadius(dir) {
@@ -75,7 +78,7 @@ export function buildPlanet({ quality }) {
     pos.setXYZ(i, d.x * (RADIUS + h), d.y * (RADIUS + h), d.z * (RADIUS + h));
     const lat = d.dot(BAR_DIR);
     // sandy beach ring around the bar, grass elsewhere, purple rock in the low southern basins
-    const beach = THREE.MathUtils.smoothstep(lat, 0.87, 0.93);
+    const beach = THREE.MathUtils.smoothstep(lat, 0.9, 0.95);
     const low = THREE.MathUtils.smoothstep(-h, 0.05, 0.3) * THREE.MathUtils.smoothstep(-lat, -0.2, 0.6);
     c.copy(grass).lerp(grassDeep, THREE.MathUtils.clamp(0.5 + h * 1.6, 0, 1)).lerp(sand, beach).lerp(rock, low);
     colors.set([c.r, c.g, c.b], i * 3);
@@ -110,7 +113,7 @@ export function buildPlanet({ quality }) {
   const blade = new THREE.ConeGeometry(0.05, 0.42, 3, 1);
   blade.translate(0, 0.21, 0);
   const cluster = mergeBlades(blade);
-  const count = quality.high ? 7000 : 2500;
+  const count = quality.high ? 9000 : 3000;
   const grassMat = toon({ color: 0x8fd67c, rim: 0.15 });
   const wind = { value: 0 };
   grassMat.onBeforeCompile = ((prev) => (shader) => {
@@ -134,7 +137,7 @@ export function buildPlanet({ quality }) {
   for (let tries = 0; placed < count && tries < count * 4; tries++) {
     const dir = new THREE.Vector3(rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1).normalize();
     const lat = dir.dot(BAR_DIR);
-    if (lat > 0.86) continue;                    // keep the beach around the bar clear
+    if (lat > 0.9) continue;                    // keep the beach around the bar clear
     if (heightAt(dir) < -0.12 && lat < 0.2) continue; // and the rocky basins
     surfacePoint(dir, -0.02, p);
     q.setFromUnitVectors(UP, dir).multiply(new THREE.Quaternion().setFromAxisAngle(UP, rand() * 6.28));

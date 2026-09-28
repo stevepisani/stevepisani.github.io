@@ -4,17 +4,20 @@
 // planet's centre). Each step we move along the surface, then parallel-transport
 // the orientation to the new up vector. Never lookAt() with a fixed world up:
 // that flips at the poles. Yaw turns about local up; pitch lives on the camera only.
+//
+// Two ways to move, both with nothing to learn:
+//   - click or tap a spot (or a thing) and you walk there, turning to face your path
+//   - WASD / arrow keys, for people who expect them
 import * as THREE from 'three';
 import { surfaceRadius } from './planet.js';
 
 const EYE = 1.6;
-const SPEED = 3.4;        // m/s
+const SPEED = 3.6;        // m/s
 const RUN = 1.7;          // shift multiplier
-const ACCEL = 10;         // how quickly velocity catches up with input
+const ACCEL = 8;          // how quickly velocity catches up with input
 const BODY = 0.32;        // player radius for collisions
-const GRAVITY = 14;
-const JUMP = 5.2;
-const PITCH_LIMIT = 1.45;
+const PITCH_LIMIT = 1.3;
+const TURN = 3.5;         // how quickly auto-walk turns you toward your path
 
 const Y = new THREE.Vector3(0, 1, 0);
 const X = new THREE.Vector3(1, 0, 0);
@@ -27,53 +30,91 @@ export class Player {
     this.quat = new THREE.Quaternion(); // body orientation (local +Y = up, -Z = forward)
     this.pitch = 0;
     this.vel = new THREE.Vector3();     // tangent velocity, world space
-    this.hop = 0;                       // height above ground while jumping
-    this.hopVel = 0;
     this.enabled = false;
-    this.input = { x: 0, z: 0, run: false, jump: false };
+    this.keys = { x: 0, z: 0, run: false };
+    this.target = null;                 // { point, arrive, onArrive }
+    this.lookedAt = 0;                  // last time the person dragged to look
     this.eye = EYE;
     this._up = new THREE.Vector3();
     this._q = new THREE.Quaternion();
     this._v = new THREE.Vector3();
+    this._stuck = { t: 0, d: Infinity };
+    this.clock = 0;                     // simulation time, so slow frames don't look like being stuck
   }
 
   get up() { return this._up.copy(this.pos).normalize(); }
+  get moving() { return this.vel.lengthSq() > 0.05; }
 
   /** Stand at `dir` on the surface, facing toward the point `lookAt` (world). */
-  spawn(dir, lookAt) {
+  spawn(dir, lookAt, pitch = -0.04) {
     const up = dir.clone().normalize();
     this.pos.copy(up).multiplyScalar(surfaceRadius(up));
     this.quat.setFromUnitVectors(Y, up);
-    // yaw so that local -Z points at the target, projected onto the tangent plane
+    this.quat.multiply(this._q.setFromAxisAngle(Y, this.yawToward(lookAt)));
+    this.pitch = pitch;
+    this.vel.set(0, 0, 0);
+    this.target = null;
+  }
+
+  /** Yaw (about local up) that would face `point`. */
+  yawToward(point) {
+    const up = this.up;
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.quat);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.quat);
-    const to = lookAt.clone().sub(this.pos);
+    const to = point.clone().sub(this.pos);
     to.addScaledVector(up, -to.dot(up));
-    const yaw = Math.atan2(-to.dot(right), to.dot(fwd));
-    this.quat.multiply(this._q.setFromAxisAngle(Y, yaw));
-    this.pitch = -0.05;
-    this.vel.set(0, 0, 0);
-    this.hop = this.hopVel = 0;
+    return Math.atan2(-to.dot(right), to.dot(fwd));
   }
 
   look(dx, dy) {
     this.quat.multiply(this._q.setFromAxisAngle(Y, -dx));
     this.pitch = THREE.MathUtils.clamp(this.pitch - dy, -PITCH_LIMIT, PITCH_LIMIT);
+    this.lookedAt = this.clock;
   }
 
+  /** Walk to a world point; stop within `arrive` metres and call onArrive. */
+  walkTo(point, { arrive = 0.35, onArrive } = {}) {
+    this.target = { point: point.clone(), arrive, onArrive };
+    this._stuck = { t: this.clock, d: Infinity };
+  }
+
+  stop() { this.target = null; }
+
   update(dt) {
+    this.clock += dt;
     const up = this.up.clone();
-    if (this.enabled) {
-      // desired velocity in world space from input in local space
-      const want = this._v.set(this.input.x, 0, -this.input.z);
+    const want = this._v.set(0, 0, 0);
+
+    if (this.enabled && (this.keys.x || this.keys.z)) {
+      this.target = null; // keys take over
+      want.set(this.keys.x, 0, -this.keys.z);
       if (want.lengthSq() > 1) want.normalize();
-      want.multiplyScalar(SPEED * (this.input.run ? RUN : 1)).applyQuaternion(this.quat);
-      this.vel.lerp(want, 1 - Math.exp(-ACCEL * dt));
-      if (this.input.jump && this.hop === 0) this.hopVel = JUMP;
-    } else {
-      this.vel.multiplyScalar(Math.exp(-ACCEL * dt));
+      want.multiplyScalar(SPEED * (this.keys.run ? RUN : 1)).applyQuaternion(this.quat);
+    } else if (this.enabled && this.target) {
+      const to = this.target.point.clone().sub(this.pos);
+      to.addScaledVector(up, -to.dot(up));
+      const dist = to.length();
+      if (dist < this.target.arrive) {
+        const done = this.target.onArrive;
+        this.target = null;
+        done && done();
+      } else {
+        want.copy(to).normalize().multiplyScalar(SPEED * Math.min(1, dist / 1.4 + 0.25));
+        // turn to face the path, unless they're looking around right now
+        if (this.clock - this.lookedAt > 0.9) {
+          const yaw = this.yawToward(this.target.point);
+          this.quat.multiply(this._q.setFromAxisAngle(Y, yaw * Math.min(1, TURN * dt)));
+          this.pitch += (-0.06 - this.pitch) * Math.min(1, 2 * dt);
+        }
+        // give up if we stop making progress (walked into something)
+        const now = this.clock;
+        if (now - this._stuck.t > 0.9) {
+          if (this._stuck.d - dist < 0.15) this.target = null;
+          this._stuck = { t: now, d: dist };
+        }
+      }
     }
-    this.input.jump = false;
+    this.vel.lerp(want, 1 - Math.exp(-ACCEL * dt));
 
     // keep velocity tangent to the surface, then move
     this.vel.addScaledVector(up, -this.vel.dot(up));
@@ -92,106 +133,75 @@ export class Player {
     const newUp = this._up.copy(this.pos).normalize();
     this.pos.copy(newUp).multiplyScalar(surfaceRadius(newUp));
     this.quat.premultiply(this._q.setFromUnitVectors(up, newUp)).normalize();
-
-    // jumping (little planet, floaty gravity)
-    if (this.hop > 0 || this.hopVel > 0) {
-      this.hopVel -= GRAVITY * dt;
-      this.hop = Math.max(0, this.hop + this.hopVel * dt);
-      if (this.hop === 0) this.hopVel = 0;
-    }
   }
 
-  /** Put the camera at the player's eyes. */
-  applyToCamera() {
-    this.camera.position.copy(this.pos).addScaledVector(this._up.copy(this.pos).normalize(), this.eye + this.hop);
+  /** Put the camera at the player's eyes, with a very small walking bob. */
+  applyToCamera(t = 0, bob = true) {
+    const speed = Math.min(1, this.vel.length() / SPEED);
+    const h = this.eye + (bob ? Math.sin(t * 9) * 0.025 * speed : 0);
+    this.camera.position.copy(this.pos).addScaledVector(this._up.copy(this.pos).normalize(), h);
     this.camera.quaternion.copy(this.quat).multiply(this._q.setFromAxisAngle(X, this.pitch));
   }
 
-  /** Forward direction (world) the player is looking, for interaction checks. */
   forward(target = new THREE.Vector3()) {
     return target.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
   }
 }
 
 /**
- * Keyboard, mouse (pointer lock or drag), and touch (left-half joystick, right-half look).
- * Calls onAction() for E / Enter / the on-screen action button.
+ * Pointer + keyboard. One gesture vocabulary for mouse, pen, and touch:
+ * a press that doesn't move is a tap (onTap), a press that moves is a look.
  */
-export function bindInput(player, canvas, { onAction, onMenu, onBar, joystickEl }) {
+export function bindInput(player, canvas, { onTap, onHover, onKeyAction }) {
   const keys = new Set();
-  const sens = 0.0024;
   const recompute = () => {
-    const i = player.input;
-    if (touch.active) return;
-    i.x = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
-    i.z = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
-    i.run = keys.has('ShiftLeft') || keys.has('ShiftRight');
+    const k = player.keys;
+    k.x = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+    k.z = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0);
+    k.run = keys.has('ShiftLeft') || keys.has('ShiftRight');
   };
-  const typing = (e) => e.target.closest && e.target.closest('input, textarea, select, [contenteditable]');
+  const inField = (e) => e.target.closest && e.target.closest('input, textarea, select, button, a, [contenteditable]');
   addEventListener('keydown', (e) => {
-    if (typing(e)) return;
-    if (e.code === 'KeyE' || (e.code === 'Enter' && document.activeElement === canvas)) { onAction(); e.preventDefault(); return; }
-    if (e.code === 'Tab' && document.pointerLockElement) { onMenu(); e.preventDefault(); return; }
-    if (e.code === 'KeyB' && player.enabled) { onBar(); e.preventDefault(); return; }
-    if (e.code === 'Space' && player.enabled) { player.input.jump = true; e.preventDefault(); }
-    keys.add(e.code);
-    recompute();
+    if (inField(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.code === 'KeyE' || e.code === 'Enter') { onKeyAction(); return; }
+    if (/^(Key[WASD]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(e.code) && player.enabled) {
+      keys.add(e.code);
+      recompute();
+      if (e.code.startsWith('Arrow')) e.preventDefault();
+    }
   });
   addEventListener('keyup', (e) => { keys.delete(e.code); recompute(); });
   addEventListener('blur', () => { keys.clear(); recompute(); });
 
-  // Mouse: pointer-locked movement, or click-drag to look when not locked.
-  let dragging = false;
-  canvas.addEventListener('mousedown', () => { if (!document.pointerLockElement) dragging = true; });
-  addEventListener('mouseup', () => { dragging = false; });
-  addEventListener('mousemove', (e) => {
-    if (!player.enabled) return;
-    if (document.pointerLockElement === canvas || dragging) player.look(e.movementX * sens, e.movementY * sens);
+  const press = { id: null, x: 0, y: 0, lx: 0, ly: 0, dragged: false };
+  const touchSens = 0.005, mouseSens = 0.004;
+  canvas.addEventListener('pointerdown', (e) => {
+    if (press.id !== null) return;
+    press.id = e.pointerId; press.x = press.lx = e.clientX; press.y = press.ly = e.clientY; press.dragged = false;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable; drags still work inside the canvas */ }
   });
-
-  // Touch: joystick on the left half, look by dragging on the right half.
-  const touch = { active: false, stickId: null, lookId: null, ox: 0, oy: 0, lx: 0, ly: 0 };
-  const knob = joystickEl && joystickEl.querySelector('span');
-  canvas.addEventListener('touchstart', (e) => {
-    if (!player.enabled) return;
-    for (const t of e.changedTouches) {
-      if (t.clientX < innerWidth * 0.45 && touch.stickId === null) {
-        touch.stickId = t.identifier; touch.ox = t.clientX; touch.oy = t.clientY; touch.active = true;
-        if (joystickEl) { joystickEl.hidden = false; joystickEl.style.left = t.clientX + 'px'; joystickEl.style.top = t.clientY + 'px'; }
-      } else if (touch.lookId === null) {
-        touch.lookId = t.identifier; touch.lx = t.clientX; touch.ly = t.clientY;
-      }
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== press.id) { if (e.pointerType === 'mouse' && press.id === null) onHover(e.clientX, e.clientY); return; }
+    if (!press.dragged && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) {
+      press.dragged = true;
+      canvas.classList.add('is-dragging');
     }
-    e.preventDefault();
-  }, { passive: false });
-  canvas.addEventListener('touchmove', (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier === touch.stickId) {
-        const dx = t.clientX - touch.ox, dy = t.clientY - touch.oy;
-        const len = Math.min(1, Math.hypot(dx, dy) / 50);
-        const a = Math.atan2(dy, dx);
-        player.input.x = Math.cos(a) * len;
-        player.input.z = -Math.sin(a) * len;
-        if (knob) knob.style.transform = `translate(${Math.cos(a) * len * 36}px, ${Math.sin(a) * len * 36}px)`;
-      } else if (t.identifier === touch.lookId) {
-        player.look((t.clientX - touch.lx) * sens * 1.6, (t.clientY - touch.ly) * sens * 1.6);
-        touch.lx = t.clientX; touch.ly = t.clientY;
-      }
+    if (press.dragged && player.enabled) {
+      const s = e.pointerType === 'mouse' ? mouseSens : touchSens;
+      // drag the world: moving the pointer right turns you left, like grabbing the scene
+      player.look(-(e.clientX - press.lx) * s, -(e.clientY - press.ly) * s);
     }
-    e.preventDefault();
-  }, { passive: false });
-  const end = (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier === touch.stickId) {
-        touch.stickId = null; touch.active = false; player.input.x = player.input.z = 0;
-        if (joystickEl) joystickEl.hidden = true;
-        if (knob) knob.style.transform = '';
-      }
-      if (t.identifier === touch.lookId) touch.lookId = null;
-    }
+    press.lx = e.clientX; press.ly = e.clientY;
+  });
+  const release = (e) => {
+    if (e.pointerId !== press.id) return;
+    if (!press.dragged && e.type === 'pointerup') onTap(e.clientX, e.clientY);
+    press.id = null;
+    canvas.classList.remove('is-dragging');
   };
-  canvas.addEventListener('touchend', end);
-  canvas.addEventListener('touchcancel', end);
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerleave', () => onHover(null, null));
 
-  return { clear() { keys.clear(); recompute(); player.input.x = player.input.z = 0; } };
+  return { clear() { keys.clear(); recompute(); } };
 }

@@ -76,20 +76,21 @@ export function buildBar({ prop, quality, posts }) {
 
   // Neon sign mounted out front of the roof
   {
+    // Upright on a bamboo frame above the roof, facing the path, so it reads over the horizon.
     const sign = new THREE.Group();
-    sign.position.set(0, 3.95, 1.95);
-    sign.rotation.x = -0.3;
+    sign.position.set(0, 5.35, 0.9);
     bar.add(sign);
-    mesh(new THREE.BoxGeometry(3.3, 1.05, 0.08), toon({ color: 0x1c1530 }), [0, 0, 0], sign);
-    const face = mesh(new THREE.PlaneGeometry(3.2, 1.0), new THREE.MeshBasicMaterial({ map: T.neonSign(), transparent: true, toneMapped: false }), [0, 0, 0.05], sign);
+    mesh(new THREE.BoxGeometry(4.3, 1.4, 0.1), toon({ color: 0x1c1530 }), [0, 0, 0], sign);
+    [-1.9, 1.9].forEach((x) => mesh(new THREE.CylinderGeometry(0.07, 0.08, 2.3, 6), C.bamboo, [x, -1.15, -0.05], sign));
+    const face = mesh(new THREE.PlaneGeometry(4.2, 1.31), new THREE.MeshBasicMaterial({ map: T.neonSign(), transparent: true, toneMapped: false }), [0, 0, 0.06], sign);
     face.material.userData.keep = true;
-    const light = new THREE.PointLight(0xff4fa3, 2.5, 5, 1.8);
-    light.position.set(0, 3.4, 2.6);
+    const light = new THREE.PointLight(0xff4fa3, 3, 7, 1.6);
+    light.position.set(0, 5.2, 2.2);
     bar.add(light);
     animated.push((t) => {
       const on = Math.sin(t * 0.7) > 0.985 ? 0.25 : 1;
       face.material.opacity = on;
-      light.intensity = 2.5 * on;
+      light.intensity = 3 * on;
     });
   }
 
@@ -154,8 +155,9 @@ export function buildBar({ prop, quality, posts }) {
   });
 
   // Chalkboard easel by the entrance: the menu, which is also the writing list.
+  const boardGroup = new THREE.Group();
   {
-    const board = new THREE.Group();
+    const board = boardGroup;
     board.position.set(-2.9, 0.2, 2.3);
     board.rotation.y = 0.55;
     bar.add(board);
@@ -264,8 +266,9 @@ export function buildBar({ prop, quality, posts }) {
   ];
 
   const interactables = [
-    { id: 'seat', point: toWorld(0, 1, 1.8), radius: 2.6, prompt: 'Take a seat at the bar' },
-    { id: 'writing', point: toWorld(-2.9, 1.2, 2.3), radius: 1.9, prompt: 'Read the chalkboard' },
+    // object: what you click. approach: where you walk to (feet, world). radius: close enough to use it.
+    { id: 'seat', label: "Steve's", verb: 'Sit at the bar', object: bar, point: toWorld(0, 1, 1.8), approach: toWorld(0, 0, 2.35), radius: 2.6 },
+    { id: 'writing', label: 'Chalkboard', verb: 'Read my writing', object: boardGroup, point: toWorld(-2.9, 1.2, 2.3), approach: toWorld(-2.4, 0, 3.2), radius: 2.0 },
   ];
 
   // Serving: drop a drink in front of the seat. Keeps the last few.
