@@ -12,6 +12,7 @@ import { place, BAR_DIR, surfaceRadius } from './planet.js';
 import { heroOr } from './hero.js';
 import { createFire } from './fire.js';
 import { tinRobot } from './robot.js';
+import * as D from './decor.js';
 
 const TAU = Math.PI * 2;
 
@@ -200,6 +201,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     mesh(new THREE.BoxGeometry(4.15, 0.09, 0.92), M.top, [0, 0.9, 0.08], counter);
     // a warm strip of light under the bar-top lip
     mesh(new THREE.BoxGeometry(3.9, 0.02, 0.02), glow(PALETTE.amber, 2.2), [0, 0.84, 0.52], counter, { cast: false });
+    // manila rope along the front edge of the bar top
+    counter.add(D.rope([[-2.07, 0.9, 0.555], [2.07, 0.9, 0.555]], 0.022));
   }
 
   const boardGroup = new THREE.Group(); // the favorite-drinks chalkboard, hung on the back bar below
@@ -220,15 +223,28 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
       mesh(new THREE.BoxGeometry(3.6, 0.06, 0.34), M.beam, [0, y, 0], back);
       mesh(new THREE.BoxGeometry(3.5, 0.015, 0.015), glow(PALETTE.amber, 2.4), [0, y - 0.04, 0.16], back, { cast: false });
     }
-    // bottles: dark glass catching the amber light
-    const glassColors = [0x5a2a10, 0x1f3a24, 0x3a1a0a, 0x6a4a18, 0x20304a];
-    for (let i = 0; i < 11; i++) {
-      const b = prop(i % 3 ? 'pirate-kit_bottle' : 'pirate-kit_bottle-large', 0.3 + (i % 2) * 0.04);
-      b.traverse((o) => { if (o.isMesh) { o.material = pbr({ color: glassColors[i % 5], roughness: 0.12, metalness: 0.1, emissive: PALETTE.amber, emissiveIntensity: 0.08 }); o.castShadow = true; } });
-      b.position.set(-1.6 + i * 0.32, 0.98, (i % 2) * 0.06);
-      b.rotation.y = i;
-      back.add(b);
-    }
+    // A rum wall, backlit amber so the bottles glow in silhouette (Smuggler's Cove, Three
+    // Dots): two rows on the lower shelf, a row behind the mugs, and a short top shelf over
+    // the robot's station. The chalkboard keeps its wall clear.
+    D.backlight(back, { y: 0.98, z: -0.2, width: 3.5, height: 0.36 });
+    const upperGlow = D.backlight(back, { y: 1.53, z: -0.2, width: 2.1, height: 0.3 });
+    upperGlow.position.x = 0.7;
+    mesh(new THREE.BoxGeometry(1.0, 0.05, 0.24), M.beam, [0.6, 2.0, -0.05], back);
+    mesh(new THREE.BoxGeometry(0.95, 0.012, 0.012), glow(PALETTE.amber, 2.4), [0.6, 1.965, 0.07], back, { cast: false });
+    D.rumWall(back, [
+      { y: 0.98, z: -0.09, x0: -1.72, x1: 1.72 },
+      { y: 0.98, z: 0.07, x0: -1.66, x1: 1.7, gapsAt: [-0.55, 0.6] },
+      { y: 1.53, z: -0.1, x0: -0.35, x1: 1.72 },
+      { y: 2.025, z: -0.05, x0: 0.16, x1: 1.05 },
+    ]);
+    // crossed outrigger paddles on the tapa, and a small carved mask left of the chalkboard
+    const paddles = D.crossedPaddles();
+    paddles.position.set(1.5, 2.25, -0.2);
+    back.add(paddles);
+    const mask = carvedTiki({ height: 0.5, radius: 0.13, style: 'ku' });
+    mask.position.set(-1.66, 1.93, -0.24);
+    mask.scale.z = 0.45; // a flat plaque, not a post
+    back.add(mask);
     for (let i = 0; i < 9; i++) {
       const mug = anyMug(i, { garnish: false });
       mug.position.set(-1.55 + i * 0.39, 1.53, 0.02);
@@ -270,8 +286,21 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     }
   }
 
+  /* ---------- Overhead: a net full of floats, grass over the front beam, festoon bulbs ---------- */
+  {
+    const net = D.ceilingNet({ width: 3.5, depth: 3.1, y: EAVE + 0.95, sag: 0.35, floats: quality.high ? 18 : 12 });
+    net.position.z = 0.3;
+    bar.add(net);
+    bar.add(D.grassFringe({ x0: -2.3, x1: 2.3, y: EAVE - 0.08, z: 1.66, count: 240, length: 0.4 }));
+    bar.add(D.festoon([[-2.45, EAVE - 0.02, 1.74], [-0.82, EAVE - 0.02, 1.74], [0.82, EAVE - 0.02, 1.74], [2.45, EAVE - 0.02, 1.74]], { perSpan: 6, sag: 0.26 }));
+  }
+
   /* ---------- On the bar ---------- */
   {
+    // the robot's station: citrus, tins, jigger, bitters, swizzles and umbrellas, a towel
+    const station = D.barStation();
+    station.position.set(1.58, BAR_TOP, 0.42);
+    bar.add(station);
     const bowl = heroes && heroes.has('volcano-bowl') ? firedHero('volcano-bowl') : volcanoBowl();
     bowl.position.set(0.85, BAR_TOP, 0.7);
     bowl.scale.setScalar(1.3);
@@ -368,6 +397,12 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     const crown = p.userData.crown;
     animated.push((t) => { crown.rotation.z = Math.sin(t * 0.8 + i) * 0.035; crown.rotation.x = Math.cos(t * 0.6 + i) * 0.03; });
   });
+
+  /* ---------- Planting: monstera, red ti and ferns around the plinth, the entrance left open ---------- */
+  {
+    const BEDS = [[-3.7, 3.35], [-4.4, -2.3], [4.5, -1.5], [-4.75, 1.6], [4.05, 3.4], [0.1, -4.25], [-2.6, -3.85], [2.75, -3.75]];
+    bar.add(D.planting(BEDS.map(([x, z]) => [x, z, groundY(x, z) - 0.03])));
+  }
 
   place(bar, BAR_DIR);
   bar.updateMatrixWorld(true);
