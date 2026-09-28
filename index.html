@@ -1,78 +1,135 @@
 ---
-layout: default
+layout: bar
 title: Steve Pisani
-description: Steve Pisani is a data architect in Philadelphia and founder of Tabby Stack. This is his corner of the internet — writing, experiments, books, and more.
-body_class: home
+description: Steve Pisani is a data architect in Philadelphia and founder of Tabby Stack. Pull up a stool at his space tiki bar for writing, experiments, books, and more.
 ---
-<section class="wrap hero">
-  <div class="hero__text">
-    <p class="kicker">Hi, I'm</p>
-    <h1 class="hero__name">Steve Pisani<span class="wave" aria-hidden="true">.</span></h1>
-    <p class="hero__lede">
-      I'm a data architect in the always sunny city of Philadelphia. By day I design the systems that turn raw data into
-      something a business can actually use. This site is where I keep everything else: writing, experiments, books,
-      and whatever I'm tinkering with this week.
-    </p>
-    <p class="hero__cta">
-      <a class="btn" href="{{ '/about' | relative_url }}">More about me</a>
-      <a class="btn btn--ghost" href="mailto:{{ site.email }}">Say hello</a>
-    </p>
-  </div>
-  <div class="hero__photo">
-    <img src="{{ '/assets/images/me-p-500.png' | relative_url }}"
-         srcset="{{ '/assets/images/me-p-500.png' | relative_url }} 500w, {{ '/assets/images/me-p-800.png' | relative_url }} 800w"
-         sizes="(max-width: 720px) 60vw, 320px" alt="Steve Pisani" width="320" height="320">
-  </div>
-</section>
+{%- comment -%}
+  The homepage is a Three.js tiki bar floating in space (assets/js/bar/).
+  Everything the 3D scene shows is also plain HTML here: the spot buttons double as an
+  accessible menu, and each <template> holds a panel's content. Without WebGL the page
+  falls back to the menu plus a link to the classic view.
+{%- endcomment -%}
+<div class="bar" id="bar" data-state="loading">
+  <canvas class="bar__canvas" id="bar-canvas" aria-hidden="true"></canvas>
 
-<section class="wrap grid-2">
-  <div class="card card--work">
-    <p class="kicker">Day job</p>
-    <h2>Founder &amp; lead data architect, Tabby Stack</h2>
-    <p>
-      Tabby Stack is my data consulting firm. I lead engineering teams and architect data platforms, from ingestion
-      pipelines to ML models running in production.
-    </p>
-    <ul class="chips" aria-label="Current focus">
-      <li>Snowflake</li><li>dbt</li><li>Airflow</li><li>Python</li><li>ML in the warehouse</li><li>Healthcare analytics</li>
+  <div class="bar__loader" id="bar-loader" role="status">
+    <span class="bar__loader-mug" aria-hidden="true">🍹</span>
+    <span>Mixing drinks…</span>
+  </div>
+
+  <header class="bar__intro">
+    <p class="kicker">Steve Pisani · data architect · Philadelphia</p>
+    <h1>Welcome to <span>Steve's</span>, the only tiki bar in orbit.</h1>
+    <p class="bar__tip">Drag to look around. Tap anything that glows.</p>
+  </header>
+
+  <p class="bar__bubble" id="bar-bubble" aria-live="polite" hidden></p>
+
+  <nav class="bar__menu" id="bar-menu" aria-label="Bar menu">
+    <p class="bar__menu-title">On the menu</p>
+    <ul>
+      {% for spot in site.data.bar.spots %}
+      <li>
+        <button type="button" class="spot" data-spot="{{ spot.id }}" aria-controls="bar-panel">
+          <span class="spot__dot" aria-hidden="true"></span>
+          <span class="spot__label">{{ spot.label }}</span>
+          <span class="spot__hint">{{ spot.hint }}</span>
+        </button>
+      </li>
+      {% endfor %}
     </ul>
-    <p class="card__links">
-      <a href="{{ site.links.resume }}" target="_blank" rel="noopener">Resume ↗</a>
-      <a href="{{ site.links.linkedin }}" target="_blank" rel="noopener">LinkedIn ↗</a>
-      <a href="{{ site.links.github }}" target="_blank" rel="noopener">GitHub ↗</a>
-    </p>
-  </div>
-  {% include launch.html %}
-</section>
+    <a class="bar__classic" href="{{ '/classic' | relative_url }}">Prefer a normal website? Classic view →</a>
+  </nav>
 
-<section class="wrap section">
-  <div class="section__head">
-    <h2>Recent writing</h2>
-    <a href="{{ '/blog' | relative_url }}">All posts →</a>
-  </div>
-  <ul class="post-list">
-    {% for post in site.posts limit: 3 %}
-      {% include post-row.html post=post %}
+  <aside class="bar__panel" id="bar-panel" aria-labelledby="bar-panel-title" hidden>
+    <button type="button" class="bar__close" id="bar-close" aria-label="Close">×</button>
+    <div class="bar__panel-body" id="bar-panel-body"></div>
+  </aside>
+</div>
+
+<script type="application/json" id="bar-data">
+{
+  "bartender": {{ site.data.bar.bartender | jsonify }},
+  "spots": {{ site.data.bar.spots | jsonify }},
+  "posts": [{% for p in site.posts limit: 6 %}{"title": {{ p.title | jsonify }}, "mins": {% assign w = p.content | number_of_words %}{% if w < 360 %}1{% else %}{{ w | divided_by: 180 }}{% endif %}}{% unless forloop.last %},{% endunless %}{% endfor %}],
+  "lab": {{ site.data.lab | map: "emoji" | jsonify }}
+}
+</script>
+
+{%- comment -%} Panel contents. id="panel-<spot id>" {%- endcomment -%}
+<template id="panel-about">
+  <p class="kicker">The bartender says</p>
+  <h2 id="bar-panel-title">Hi, I'm Steve.</h2>
+  <img class="panel__photo" src="{{ '/assets/images/me-p-500.png' | relative_url }}" alt="Steve Pisani" width="120" height="120">
+  <p>I'm a data architect born, raised, and based in Philadelphia. By day I design the systems that turn raw data into something a business can actually use.</p>
+  <p>I run <strong>Tabby Stack</strong>, a data consulting firm, where I architect data platforms and lead the teams that build them, from ingestion pipelines to ML models in production.</p>
+  <ul class="chips"><li>Snowflake</li><li>dbt</li><li>Airflow</li><li>Python</li><li>ML in the warehouse</li><li>AI</li></ul>
+  <h3>Recent stops</h3>
+  <ol class="panel__timeline">
+    {% for t in site.data.timeline limit: 4 %}<li><strong>{{ t.role }}</strong>, {{ t.org }} <span>{{ t.dates }}</span></li>{% endfor %}
+  </ol>
+  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume }}" target="_blank" rel="noopener">Resume ↗</a></p>
+</template>
+
+<template id="panel-writing">
+  <p class="kicker">Tonight's menu</p>
+  <h2 id="bar-panel-title">Writing</h2>
+  <ul class="panel__menu">
+    {% for post in site.posts %}
+    <li><a href="{{ post.url | relative_url }}"><span>{{ post.title }}</span><i></i><time datetime="{{ post.date | date_to_xmlschema }}">{{ post.date | date: "%b %Y" }}</time></a></li>
     {% endfor %}
   </ul>
-</section>
+  <p class="panel__links"><a class="btn" href="{{ '/blog' | relative_url }}">Everything I've written</a></p>
+</template>
 
-<section class="wrap section">
-  <div class="section__head">
-    <h2>From the lab</h2>
-    <a href="{{ '/lab' | relative_url }}">Everything →</a>
-  </div>
-  <div class="lab-grid">
-    {% for item in site.data.lab limit: 3 %}
-      {% include lab-card.html item=item %}
-    {% endfor %}
-  </div>
-</section>
+<template id="panel-shelf">
+  <p class="kicker">Top shelf</p>
+  <h2 id="bar-panel-title">The reading list</h2>
+  {% for shelf in site.data.books %}
+  <h3>{{ shelf.shelf }}</h3>
+  <p class="panel__books">{% for b in shelf.books limit: 6 %}<em>{{ b.title }}</em>{% unless forloop.last %} · {% endunless %}{% endfor %}{% if shelf.books.size > 6 %} · and {{ shelf.books.size | minus: 6 }} more{% endif %}</p>
+  {% endfor %}
+  <p class="panel__links"><a class="btn" href="{{ '/bookshelf' | relative_url }}">See the whole shelf</a></p>
+</template>
 
-<section class="wrap section likes">
-  <h2 class="visually-hidden">Things I like</h2>
-  <p>
-    Things I like, in no particular order: <mark>technology</mark>, <mark>my cat</mark>, <mark>all things energy</mark>,
-    <mark>rockets</mark>, <mark>well-formatted SQL</mark>, and arguing about <mark>where to get the best cheesesteak</mark>.
-  </p>
-</section>
+<template id="panel-lab">
+  <p class="kicker">House specials</p>
+  <h2 id="bar-panel-title">From the lab</h2>
+  <div class="panel__lab">
+    {% for item in site.data.lab %}{% include lab-card.html item=item %}{% endfor %}
+  </div>
+</template>
+
+<template id="panel-launch">
+  <p class="kicker">Through the telescope</p>
+  <h2 id="bar-panel-title">Next launch</h2>
+  <div class="card card--launch" data-launch style="--launch-img: url('{{ '/assets/images/saturnV-p-800.jpeg' | relative_url }}')">
+    <strong class="launch__name" data-launch-name>Checking the manifest…</strong>
+    <span class="launch__meta" data-launch-meta></span>
+    <span class="launch__clock" data-launch-clock></span>
+  </div>
+  <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs</a>.</p>
+</template>
+
+<template id="panel-contact">
+  <p class="kicker">Tip jar</p>
+  <h2 id="bar-panel-title">Say hello</h2>
+  <p>Want to collaborate, talk shop, or argue about cheesesteaks? Tips are not required, but emails are appreciated.</p>
+  <ul class="panel__contact">
+    <li><a href="mailto:{{ site.email }}">✉️ {{ site.email }}</a></li>
+    <li><a href="{{ site.links.linkedin }}" target="_blank" rel="me noopener">💼 LinkedIn</a></li>
+    <li><a href="{{ site.links.github }}" target="_blank" rel="me noopener">🐙 GitHub</a></li>
+    <li><a href="{{ site.links.twitter }}" target="_blank" rel="me noopener">🐦 Twitter</a></li>
+    <li><a href="{{ '/feed.xml' | relative_url }}">📡 RSS</a></li>
+  </ul>
+</template>
+
+<template id="panel-resume">
+  <p class="kicker">Your tab</p>
+  <h2 id="bar-panel-title">The résumé</h2>
+  <div class="panel__receipt">
+    {% for t in site.data.timeline %}{% unless t.kind == 'school' %}<p><span>{{ t.role }}, {{ t.org }}</span><span>{{ t.dates | split: ' – ' | first | split: ' ' | last }}</span></p>{% endunless %}{% endfor %}
+    <p class="panel__receipt-total"><span>Open since</span><span>2016</span></p>
+  </div>
+  <p class="panel__links"><a class="btn" href="{{ site.links.resume }}" target="_blank" rel="noopener">Open the full résumé ↗</a></p>
+</template>

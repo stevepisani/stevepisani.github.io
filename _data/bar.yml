@@ -1,0 +1,35 @@
+# The space tiki bar on the homepage.
+# Each spot is something in the bar you can click; it opens the panel with the same id.
+
+# Things the robot bartender says, in rotation.
+bartender:
+  - "Welcome to Steve's. Best view in the solar system. Terrible parking."
+  - "The chalkboard is the drinks menu. It's also where Steve keeps his writing."
+  - "Top shelf is the reading list. Tap a bottle."
+  - "The tiki mugs are lab experiments. Most of them are safe to drink."
+  - "The telescope is pointed at the next rocket launch. Have a look."
+  - "Steve likes technology, his cat, all things energy, rockets, well-formatted SQL, and arguing about cheesesteaks."
+  - "I'm an AI. The pineapple shirt was his idea."
+
+spots:
+  - id: about
+    label: The bartender
+    hint: About Steve
+  - id: writing
+    label: The menu
+    hint: Writing
+  - id: shelf
+    label: Top shelf
+    hint: Bookshelf
+  - id: lab
+    label: Tiki mugs
+    hint: Lab experiments
+  - id: launch
+    label: The telescope
+    hint: Next rocket launch
+  - id: contact
+    label: Tip jar
+    hint: Say hello
+  - id: resume
+    label: Your tab
+    hint: Resume

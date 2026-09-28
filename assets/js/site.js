@@ -22,51 +22,63 @@
   }
 
   /* ---- Next rocket launch (Launch Library 2) ---- */
-  var launch = document.getElementById('launch');
-  if (launch && window.fetch) {
-    var CACHE_KEY = 'next-launch', HOUR = 60 * 60 * 1000;
-    var nameEl = document.getElementById('launch-name');
-    var metaEl = document.getElementById('launch-meta');
-    var clockEl = document.getElementById('launch-clock');
+  // Shared by the homepage card and the bar's telescope. Free API, 15 req/hr/IP,
+  // so the response is cached in localStorage for an hour.
+  var LAUNCH_API = 'https://ll.thespacedevs.com/2.3.0/launches/upcoming/?limit=5&mode=normal';
+  var HOUR = 60 * 60 * 1000;
+  var launchPromise;
 
-    function cached() {
-      try {
-        var c = JSON.parse(localStorage.getItem(CACHE_KEY));
-        if (c && Date.now() - c.at < HOUR) return Promise.resolve(c.data);
-      } catch (e) {}
-      return null;
-    }
-
-    function tminus(net) {
-      var ms = new Date(net) - Date.now();
-      var sign = ms < 0 ? 'T+ ' : 'T- ';
-      ms = Math.abs(ms);
-      var d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60;
-      var pad = function (n) { return String(n).padStart(2, '0'); };
-      return sign + (d ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
-    }
-
-    (cached() || fetch(launch.dataset.api).then(function (r) {
+  window.nextLaunch = function () {
+    if (launchPromise) return launchPromise;
+    var cached = null;
+    try {
+      var c = JSON.parse(localStorage.getItem('next-launch'));
+      if (c && Date.now() - c.at < HOUR) cached = c.data;
+    } catch (e) {}
+    launchPromise = (cached ? Promise.resolve(cached) : fetch(LAUNCH_API).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (data) {
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
+      try { localStorage.setItem('next-launch', JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
       return data;
     })).then(function (data) {
       var soon = Date.now() - HOUR;
       var next = (data.results || []).filter(function (l) { return new Date(l.net) > soon; })[0];
       if (!next) throw new Error('no upcoming launches');
-      var provider = next.launch_service_provider && next.launch_service_provider.name;
-      var pad = next.pad && next.pad.location && next.pad.location.name;
-      nameEl.textContent = next.name;
-      metaEl.textContent = [provider, pad].filter(Boolean).join(' · ');
-      var tick = function () { clockEl.textContent = tminus(next.net); };
+      return {
+        name: next.name,
+        net: next.net,
+        provider: next.launch_service_provider && next.launch_service_provider.name,
+        pad: next.pad && next.pad.location && next.pad.location.name
+      };
+    });
+    launchPromise.catch(function () { launchPromise = null; });
+    return launchPromise;
+  };
+
+  window.tMinus = function (net) {
+    var ms = new Date(net) - Date.now();
+    var sign = ms < 0 ? 'T+ ' : 'T- ';
+    ms = Math.abs(ms);
+    var d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1e3) % 60;
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return sign + (d ? d + 'd ' : '') + pad(h) + ':' + pad(m) + ':' + pad(s);
+  };
+
+  // Fill any [data-launch] block: children with data-launch-name / -meta / -clock.
+  document.querySelectorAll('[data-launch]').forEach(function (el) {
+    var q = function (k) { return el.querySelector('[data-launch-' + k + ']'); };
+    if (!window.fetch) return;
+    window.nextLaunch().then(function (l) {
+      q('name').textContent = l.name;
+      q('meta').textContent = [l.provider, l.pad].filter(Boolean).join(' · ');
+      var tick = function () { q('clock').textContent = window.tMinus(l.net); };
       tick();
       setInterval(tick, 1000);
     }).catch(function () {
-      nameEl.textContent = 'Ad astra.';
+      q('name').textContent = 'Ad astra.';
     });
-  }
+  });
 
   /* ---- Hello, fellow view-source enjoyer ---- */
   if (window.console) {
