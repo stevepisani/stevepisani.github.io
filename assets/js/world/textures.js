@@ -456,3 +456,89 @@ export function ropeTexture() {
   for (let x = -32; x < 160; x += 16) { g.beginPath(); g.moveTo(x + 5, 32); g.lineTo(x + 29, 0); g.stroke(); }
   return texture(c, { repeat: [40, 1] });
 }
+
+/* ---------- The ground and its trails ---------- */
+
+// Tileable value noise: a lattice that wraps every `period` cells, smoothly interpolated.
+function periodicNoise(seed) {
+  const hash = (x, y) => {
+    let h = (x * 374761393 + y * 668265263 + seed * 144269504) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  return (x, y, period) => {
+    const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const w = (i) => ((i % period) + period) % period;
+    const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+    const a = hash(w(xi), w(yi)), b = hash(w(xi + 1), w(yi)), c = hash(w(xi), w(yi + 1)), d = hash(w(xi + 1), w(yi + 1));
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  };
+}
+
+/** Grain for the planet's surface (grey, tiles): fine grit over soft clods. Sampled triplanar. */
+export function groundDetail() {
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  const img = g.createImageData(S, S);
+  const n = periodicNoise(5);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let v = 0, amp = 0.5;
+    for (let o = 0, f = 4; o < 5; o++, f *= 2, amp *= 0.5) v += amp * n((x / S) * f, (y / S) * f, f);
+    const grit = n(x * 0.75, y * 0.75, S * 0.75);
+    const k = Math.max(0, Math.min(255, (v * 0.8 + grit * 0.35) * 255 - 20)) | 0;
+    const i = (y * S + x) * 4;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = k; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.NoColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** A gravel trail: crushed shell and coral with darker grit, u across (soft, ragged edges in
+ *  alpha), v along (tiles). */
+export function trailTexture() {
+  const W = 256, H = 512;
+  const [c, g] = canvas(W, H);
+  const img = g.createImageData(W, H);
+  const n = periodicNoise(11);
+  // crushed shell and coral, as Hawaiian garden paths are: pale, so it reads by moonlight
+  const shell = new THREE.Color(PALETTE.cream), ash = new THREE.Color(PALETTE.ash), col = new THREE.Color();
+  for (let y = 0; y < H; y++) {
+    // a ragged edge that wanders along the trail (periodic in v, so the texture tiles)
+    const edgeL = 0.1 + 0.12 * n(0.5, (y / H) * 8, 8) + 0.05 * n(3.5, (y / H) * 32, 32);
+    const edgeR = 0.1 + 0.12 * n(7.5, (y / H) * 8, 8) + 0.05 * n(9.5, (y / H) * 32, 32);
+    for (let x = 0; x < W; x++) {
+      const u = x / W;
+      const grit = n(x * 0.5, y * 0.5, 256), clod = n((x / W) * 6, (y / H) * 12, 12);
+      col.copy(shell).lerp(ash, 0.35 + clod * 0.4).multiplyScalar(0.62 + grit * 0.45);
+      const a = Math.min(1, Math.min(u / edgeL, (1 - u) / edgeR));
+      const i = (y * W + x) * 4;
+      img.data[i] = col.r * 255; img.data[i + 1] = col.g * 255; img.data[i + 2] = col.b * 255;
+      img.data[i + 3] = Math.max(0, Math.min(1, a * a * (3 - 2 * a) * (0.85 + grit * 0.3))) * 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  // gravel: little stones, lit from the top left, drawn twice across the seam so v tiles
+  let seed = 3;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const tones = [PALETTE.cream, PALETTE.stone, PALETTE.ash, PALETTE.coral, PALETTE.cream, PALETTE.basalt].map((c) => new THREE.Color(c));
+  for (let i = 0; i < 1400; i++) {
+    const x = 44 + rand() * (W - 88), y = rand() * H, r = 1 + rand() * rand() * 5;
+    const t = tones[i % tones.length].clone().multiplyScalar(0.8 + rand() * 0.6);
+    for (const yy of [y, y - H, y + H]) {
+      g.fillStyle = `rgba(0,0,0,.35)`;
+      g.beginPath(); g.ellipse(x + r * 0.3, yy + r * 0.35, r, r * 0.8, 0, 0, 7); g.fill();
+      g.fillStyle = `#${t.getHexString()}`;
+      g.beginPath(); g.ellipse(x, yy, r, r * 0.8, rand() * 3, 0, 7); g.fill();
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  return t;
+}
