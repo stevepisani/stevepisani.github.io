@@ -356,13 +356,8 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     interactables.push({ id: 'shelf', label: 'Hammock', verb: 'Browse the reading list', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4 });
   }
 
-  // Messages in bottles, washed up at the waterline: the writing.
-  {
-    const phi = LAGOON.bottlesPhi;
-    const bottles = messageBottles(3);
-    put(bottles, SPOTS.bottles, { heading: phi }, 0.3);
-    interactables.push({ id: 'writing', label: 'Messages in bottles', verb: 'Read the writing', object: bottles, point: surfacePoint(SPOTS.bottles), approach: surfacePoint(pondDir(shoreAt(phi) + 1.0, phi)), radius: 2.2 });
-  }
+  // Messages in bottles, washed up at the waterline (scenery).
+  put(messageBottles(3), SPOTS.bottles, { heading: LAGOON.bottlesPhi }, 0.3);
 
   // Scatter: lava rock, palms, dark greenery, and a few softly glowing space crystals.
   {
