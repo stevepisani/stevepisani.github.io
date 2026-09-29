@@ -738,3 +738,26 @@ export function signpost(boards, { height = 1.9 } = {}) {
   });
   return g;
 }
+
+/**
+ * A stand-in Thinker in bronze, from simple forms, for when the hero model isn't there: a
+ * figure seated on a rock, bent forward, chin on the back of the right hand, the right elbow on
+ * the left knee. About 1.35 m tall; base at y = 0; faces +z.
+ */
+export function thinkerFallback() {
+  const g = new THREE.Group();
+  const bronze = pbr({ color: PALETTE.bronze, metalness: 0.6, roughness: 0.45 });
+  const add = (geo, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, bronze); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; g.add(m); return m; };
+  const limb = (r, len) => new THREE.CapsuleGeometry(r, len, 4, 10);
+  add(new THREE.DodecahedronGeometry(0.34, 1), 0, 0.3, -0.05).scale.set(1.1, 0.9, 1); // the rock
+  add(limb(0.14, 0.34), 0, 0.82, 0.02, 0.55, 0, 0);          // torso, bent forward
+  add(new THREE.SphereGeometry(0.1, 16, 12), 0, 1.2, 0.26);   // head, down
+  for (const s of [-1, 1]) {
+    add(limb(0.07, 0.34), s * 0.1, 0.62, 0.2, Math.PI / 2, 0, 0);   // thighs, forward
+    add(limb(0.055, 0.34), s * 0.12, 0.33, 0.4, 0.15, 0, 0);          // shins, down
+  }
+  add(limb(0.045, 0.28), 0.12, 0.88, 0.22, 0.2, 0, 0.45);        // right upper arm, down to the knee
+  add(limb(0.04, 0.26), 0.02, 1.02, 0.32, -0.3, 0, -0.25);       // right forearm, up to the chin
+  add(limb(0.045, 0.3), -0.18, 0.78, 0.2, 0.7, 0, -0.2);         // left arm over the left knee
+  return g;
+}

@@ -1,12 +1,12 @@
 // The campfire on the far side of the planet, Outer Wilds style: a ring of lava rock, a log
-// teepee over a bed of glowing coals, sparks going up, log benches, two moai keeping watch, and
+// teepee over a bed of glowing coals, sparks going up, log benches, the Thinker and a moai for company, and
 // a bag of marshmallows. Sit on a log, hold a marshmallow in the fire until it's golden (or
 // until it catches, if that's how you like them), and eat it.
 import * as THREE from 'three';
 import { PALETTE, pbr, surface, woodSet } from './materials.js';
 import * as T from './textures.js';
 import { createFire } from './fire.js';
-import { lavaRock, moai } from './props.js';
+import { lavaRock, moai, thinkerFallback } from './props.js';
 import { heroOr } from './hero.js';
 
 function mesh(geo, material, parent, [x, y, z] = [0, 0, 0]) {
@@ -111,17 +111,19 @@ export function buildCampfire({ quality, heroes }) {
     group.add(b);
     return b;
   };
-  // two moai keep watch over the fire
-  [[-2.6, -2.2, 0.9], [2.4, -2.6, -0.8]].forEach(([x, z, ry], i) => {
-    const m = heroOr(heroes, 'moai', () => moai({ height: 2.2 + i * 0.4 }));
-    m.position.set(x, -0.1, z);
-    m.rotation.y = ry;
-    group.add(m);
-  });
+  // company at the fire: the Thinker on his rock in one place round it, a moai behind the log
+  // in another (seatToward() puts them either side of yours; places.js sinks them into the
+  // ground, which curves away from the camp's flat plane)
+  const watcher = heroOr(heroes, 'moai', () => moai({ height: 2.4 }));
+  const thinker = heroOr(heroes, 'thinker', thinkerFallback);
+  group.add(watcher, thinker);
+  const faceFire = (o, a, r) => { o.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); o.rotation.y = Math.atan2(-o.position.x, -o.position.z); };
 
   return {
     group,
     fire,
+    moai: watcher,
+    thinker,
     /** Local point in the flame where a marshmallow toasts best. */
     hotSpot: new THREE.Vector3(0, 0.55, 0),
     update(t) {
@@ -140,8 +142,9 @@ export function buildCampfire({ quality, heroes }) {
       // no log leans straight at you (end on, it would stand in front of the fire like a post)
       teepee.rotation.y = -(a + Math.PI / 5);
       bench(a);
-      bench(a + 2.2);
+      faceFire(thinker, a + 2.45, 1.8); // his rock is his seat
       bench(a - 2.2);
+      faceFire(watcher, a - 2.5, 2.8); // behind the log
       // a bag of marshmallows and a couple of spare skewers at the end of your log
       const side = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a));
       const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
