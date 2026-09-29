@@ -53,9 +53,10 @@ varying vec3 vLampN;
 uniform vec4 uLamps[${MAX}];
 uniform vec3 uLampColor;
 `;
-const fragBody = (n) => `
+const fragBody = (n, specular) => `
   {
-    vec3 lampSum = vec3(0.0);
+    vec3 lampSum = vec3(0.0), lampSpec = vec3(0.0);
+    ${specular ? 'vec3 lampNs = normalize((vec4(normal, 0.0) * viewMatrix).xyz); vec3 lampV = normalize(cameraPosition - vLampPos);' : ''}
     vec3 lampN = normalize(vLampN);
     for (int i = 0; i < ${Math.max(1, n)}; i++) {
       vec3 d = uLamps[i].xyz - vLampPos;
@@ -64,13 +65,18 @@ const fragBody = (n) => `
       float edge = 1.0 - d2 / ${(RANGE * RANGE).toFixed(2)};
       float ndl = dot(lampN, d * inversesqrt(d2 + 1e-4)) * 0.75 + 0.25; // wrapped: grass and pebbles catch it too
       lampSum += uLamps[i].w * edge * edge * max(ndl, 0.0) / (1.0 + d2 * 0.9);
+      ${specular ? 'vec3 lampH = normalize(d * inversesqrt(d2 + 1e-4) + lampV); lampSpec += uLamps[i].w * edge * pow(max(dot(lampNs, lampH), 0.0), ' + specular + '.0) * 0.08;' : ''}
     }
     reflectedLight.directDiffuse += uLampColor * lampSum * BRDF_Lambert(material.diffuseColor);
+    reflectedLight.directSpecular += uLampColor * lampSpec;
   }
 `;
 
-/** Let `material` catch the lamps (keeps any onBeforeCompile it already has). */
-export function lampLit(material) {
+/**
+ * Let `material` catch the lamps (keeps any onBeforeCompile it already has). `specular` (a
+ * shininess, e.g. 160) adds their glints too, from the shaded normal: for water.
+ */
+export function lampLit(material, { specular = 0 } = {}) {
   if (!material || material.userData.lampLit || !material.isMeshStandardMaterial) return material;
   material.userData.lampLit = true;
   const before = material.onBeforeCompile;
@@ -79,10 +85,10 @@ export function lampLit(material) {
     shader.uniforms.uLamps = uniforms.uLamps;
     shader.uniforms.uLampColor = uniforms.uLampColor;
     shader.vertexShader = VERT_HEAD + shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>' + VERT_BODY);
-    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + fragBody(count));
+    shader.fragmentShader = FRAG_HEAD + shader.fragmentShader.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + fragBody(count, specular));
   };
   const key = material.customProgramCacheKey;
-  material.customProgramCacheKey = () => (key ? key.call(material) : '') + '|lamps' + count;
+  material.customProgramCacheKey = () => (key ? key.call(material) : '') + '|lamps' + count + '|' + specular;
   return material;
 }
 
