@@ -82,14 +82,6 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     return heroOr(heroes, slot, () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish }));
   };
 
-  /* ---------- A big carved tiki guards the entrance ---------- */
-  {
-    const statue = heroOr(heroes, 'tiki-statue', () => carvedTiki({ height: 2.7, radius: 0.36, style: 'marquesan' }));
-    statue.position.set(-1.55, groundY(-1.55, 4.35) - 0.05, 4.35);
-    statue.rotation.y = 0.35;
-    bar.add(statue);
-  }
-
   /* ---------- Plinth and deck ---------- */
   // deep enough that its edge sinks into the ground where the planet curves away
   mesh(new THREE.CylinderGeometry(3.7, 3.9, DECK + 0.7, 40), M.deck, [0, (DECK - 0.7) / 2, 0.2], bar);
@@ -447,7 +439,6 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     ...POSTS.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.3 })),
     ...PALMS.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.3 })),
     ...TORCHES.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.15 })),
-    { center: toWorld(-1.55, 0, 4.35), radius: 0.45 }, // entrance tiki
     { center: toWorld(-1.2, 0, -1.2), radius: 1.2 }, { center: toWorld(1.2, 0, -1.2), radius: 1.2 }, // staff only
   ];
 
