@@ -272,8 +272,8 @@ async function start() {
   const planet = buildPlanet({ quality, trailEdge, keepClear });
   await step(0.7, 'Stocking the bar…');
   const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, reducedMotion });
-  // the site's logo (the favicon) goes on the rocket
-  const badge = document.querySelector('link[rel="icon"]')?.href || null;
+  // the site's logo (the 180px touch icon) goes on the rocket
+  const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
@@ -300,6 +300,10 @@ async function start() {
     moon.shadow.radius = 4;
   }
   scene.add(moon, moon.target);
+  // Point lights with shadows (the campfire) redraw six shadow faces every frame; out of sight
+  // over the horizon nobody sees them, so they only update within reach.
+  const pointShadows = [];
+  scene.traverse((o) => { if (o.isPointLight && o.castShadow) pointShadows.push([o, o.getWorldPosition(new THREE.Vector3())]); });
 
   const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
   const interactables = [...bar.interactables, ...places.interactables];
@@ -975,6 +979,8 @@ async function start() {
     planet.update(t, camera);
     bar.update(t, dt);
     places.update(t);
+    // (the map must exist first: an unrendered shadow map is a sampler with no texture)
+    for (const [l, p] of pointShadows) l.shadow.autoUpdate = !l.shadow.map || camera.position.distanceToSquared(p) < 28 * 28;
     pipeline.render(dt);
     if (firstFrames && ++framesDrawn >= 3) { firstFrames(); firstFrames = null; }
   }

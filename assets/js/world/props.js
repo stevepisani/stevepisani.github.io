@@ -18,14 +18,16 @@ function rng(seed) {
 
 // A face drawn as a height map (white = raised, black = cut deep), mid-century pop style:
 // crown, heavy brow, big lozenge eyes, broad nose, a huge mouth with tongue, hands on the belly.
+// Drawn sharp and blurred once at the end: a canvas filter on every shape costs seconds.
+const faceCache = new Map();
 function faceHeightMap(style) {
+  if (faceCache.has(style)) return faceCache.get(style);
   const W = 256, H = 512;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#808080';
   g.fillRect(0, 0, W, H);
-  g.filter = 'blur(2px)';
   const shape = (fill, fn) => { g.fillStyle = fill; g.beginPath(); fn(); g.fill(); };
   const cx = W / 2;
   // crown ridges
@@ -49,7 +51,16 @@ function faceHeightMap(style) {
   shape('#d8d8d8', () => g.ellipse(cx - 70, 420, 34, 16, 0.3, 0, TAU));
   shape('#d8d8d8', () => g.ellipse(cx + 70, 420, 34, 16, -0.3, 0, TAU));
   shape('#b8b8b8', () => g.rect(0, 470, W, 8));
-  return g.getImageData(0, 0, W, H);
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const o = out.getContext('2d', { willReadFrequently: true });
+  o.fillStyle = '#808080';
+  o.fillRect(0, 0, W, H); // what the blur pulls in at the edges
+  o.filter = 'blur(2px)';
+  o.drawImage(c, 0, 0);
+  const img = o.getImageData(0, 0, W, H);
+  faceCache.set(style, img);
+  return img;
 }
 
 const carvedCache = new Map();
