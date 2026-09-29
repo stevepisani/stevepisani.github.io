@@ -1,8 +1,17 @@
 {%- comment -%}
   A post cover. Uses image_url if set, otherwise a gradient generated from the title,
-  so every post gets its own color without hotlinking random stock photos.
+  so every post gets its own color without hotlinking random stock photos. image_url can be
+  a site path: /assets/images/x.webp, with a 192px square x-thumb.webp beside it for the lists.
 {%- endcomment -%}
 {%- assign seed = include.item.title | size | times: 37 | modulo: 360 -%}
 {%- assign seed2 = seed | plus: 60 | modulo: 360 -%}
+{%- assign img = include.item.image_url -%}
+{%- if img contains 'images.unsplash.com' -%}{%- assign img = img | replace: 'fm=jpg', 'auto=format' -%}{%- endif -%}
+{%- if include.small and img -%}
+  {%- comment -%} thumbnails are 96px: ask the image CDNs for a 2x square crop, not the full-width photo {%- endcomment -%}
+  {%- if img contains 'images.pexels.com' -%}{%- assign img = img | replace: 'w=2000&h=400', 'w=192&h=192' -%}
+  {%- elsif img contains '/assets/images/' -%}{%- assign img = img | replace: '.webp', '-thumb.webp' -%}
+  {%- elsif img contains 'images.unsplash.com' -%}{%- assign img = img | replace: 'w=1200', 'w=192&h=192&fit=crop&auto=format' -%}{%- endif -%}
+{%- endif -%}
 <div class="cover{% if include.small %} cover--small{% endif %}"
-  style="--h1: {{ seed }}; --h2: {{ seed2 }};{% if include.item.image_url %} --img: url('{{ include.item.image_url }}');{% endif %}" aria-hidden="true"></div>
+  style="--h1: {{ seed }}; --h2: {{ seed2 }};{% if img %} --img: url('{% if img contains '://' %}{{ img }}{% else %}{{ img | relative_url }}{% endif %}');{% endif %}" aria-hidden="true"></div>
