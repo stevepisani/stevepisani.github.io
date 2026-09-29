@@ -608,6 +608,39 @@ export function ropeTexture() {
   return texture(c, { repeat: [40, 1] });
 }
 
+/** Hammock canvas: wide stripes in the bar's colours down its length, a woven grain, tasselled ends. */
+export function hammockCloth() {
+  const [c, g] = canvas(512, 256);
+  const bands = [PALETTE.cream, PALETTE.coral, PALETTE.cream, PALETTE.tinTeal, PALETTE.cream, PALETTE.amber, PALETTE.cream, PALETTE.coral, PALETTE.cream];
+  const h = 256 / bands.length;
+  bands.forEach((col, i) => { g.fillStyle = css(col); g.fillRect(0, i * h, 512, h + 1); });
+  g.fillStyle = 'rgba(0,0,0,.07)';
+  for (let x = 0; x < 512; x += 4) g.fillRect(x, 0, 1, 256); // the weave
+  for (let y = 0; y < 256; y += 4) g.fillRect(0, y, 512, 1);
+  const edge = g.createLinearGradient(0, 0, 0, 256); // a little grime along the edges
+  edge.addColorStop(0, 'rgba(60,40,20,.25)'); edge.addColorStop(0.15, 'rgba(60,40,20,0)'); edge.addColorStop(0.85, 'rgba(60,40,20,0)'); edge.addColorStop(1, 'rgba(60,40,20,.25)');
+  g.fillStyle = edge; g.fillRect(0, 0, 512, 256);
+  return texture(c);
+}
+
+/** A signpost board's lettering: hand-painted cream capitals on transparent (the plank is wood). */
+export function signLettering(text) {
+  const [c, g] = canvas(512, 96);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  if ('letterSpacing' in g) g.letterSpacing = '4px';
+  let size = 60;
+  do { g.font = `800 ${size}px ${FONT_DISPLAY}`; size -= 2; } while (g.measureText(text).width > 440 && size > 20);
+  g.lineJoin = 'round';
+  g.strokeStyle = 'rgba(30,18,10,.8)'; g.lineWidth = 6;
+  g.strokeText(text, 256, 52);
+  g.fillStyle = css(PALETTE.cream);
+  g.fillText(text, 256, 52);
+  const t = texture(c);
+  t.anisotropy = 8;
+  return t;
+}
+
 /* ---------- The ground and its trails ---------- */
 
 // Tileable value noise: a lattice that wraps every `period` cells, smoothly interpolated.

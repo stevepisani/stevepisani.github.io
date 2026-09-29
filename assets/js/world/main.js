@@ -353,7 +353,7 @@ async function start() {
   // and let more specific things overwrite their own meshes.
   const interactMeshes = new Map();
   const byGenerality = [...interactables].sort((a, b) => (a.id === 'seat' ? -1 : b.id === 'seat' ? 1 : 0));
-  for (const it of byGenerality) it.object && it.object.traverse((o) => { if (o.isMesh) interactMeshes.set(o, it); });
+  for (const it of byGenerality) for (const obj of [it.object, ...(it.extra || [])]) obj && obj.traverse((o) => { if (o.isMesh) interactMeshes.set(o, it); });
   const pickList = [...interactMeshes.keys(), ground];
 
   function pick(x, y) {
