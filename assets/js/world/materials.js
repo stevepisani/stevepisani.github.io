@@ -16,6 +16,8 @@ export const PALETTE = {
   hibiscus: 0xd6336c,  // neon pink
   teal: 0x0f5e63,
   aqua: 0x5fc7c4,      // glass floats, neon accents
+  lagoon: 0x050d13,     // still water at night
+  lagoonSky: 0x2a2752,  // the nebula, as the water reflects it
   cream: 0xeadcbc,     // enamel trim on the tin-toy robot
   leaf: 0x2f5a2c,      // tropical planting: monstera, fern
   lime: 0x8fb33a,      // citrus on the bar
