@@ -19,6 +19,7 @@ import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
 import { Player, bindInput } from './player.js';
 import { fontsReady, paintMenuCard } from './textures.js';
+import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
 
@@ -276,6 +277,10 @@ async function start() {
   await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
+  // the lanterns and torches without real lights light the ground through its shaders (lamps.js)
+  finishLamps();
+  lampLitTree(planet.group);
+  lampLitTree(places.group);
   scene.add(camera); // things you hold (the marshmallow stick) ride on it
 
   // Night: a faint sky/ground ambient, cool moonlight as the key (with soft shadows around the
@@ -965,6 +970,7 @@ async function start() {
     if (roaster.state.toast > 0.25 && hint.dataset.key === 'roast' && !hint.hidden) clearHint('roast');
 
     Fire.tick(t);
+    updateLamps(t);
     sky.update(t, camera);
     planet.update(t, camera);
     bar.update(t, dt);
