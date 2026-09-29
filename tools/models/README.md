@@ -32,7 +32,6 @@ credit Meshy on the site or keep using these files.
 
 | File | Meshy task (refine, or remesh) | Triangles | Size | Notes |
 | --- | --- | --- | --- | --- |
-| `tiki-statue.glb` | `01a0e669-b244-71f8-9fc0-be85564f9439` | 14,000 | 432 KB | first try |
 | `tiki-post.glb` | `01a0e669-b2ad-70d0-84e7-a33c6e087f8e` | 8,000 | 373 KB | first try, simplified from 10k |
 | `tiki-mug.glb` | remesh `01a0e67e-529a-721c-bbd7-a7ceda1bd114` of refine `01a0e679-c438-70f2-80af-914458579cd5` | 2,500 | 164 KB | 3rd try (the first was a black beer stein); remeshed by Meshy because UV seams stop gltf-transform simplifying it, and up to 14 are on screen; 512px textures; `tint: aqua` in the manifest brings the glaze back to teal under amber light |
 | `puffer-lamp.glb` | remesh `01a0e67e-54c9-76aa-8879-b84111b23809` of refine `01a0e679-9d73-7601-a00f-cf5fc43781e9` | 4,000 | 212 KB | 3rd try (the first came out as a spiked sea mine); 512px textures; `glow` makes it lit from inside |
