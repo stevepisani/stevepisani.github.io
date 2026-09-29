@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { PALETTE, pbr, surface, woodSet, bambooSet, lavaSet, glow } from './materials.js';
 import { createFire } from './fire.js';
+import * as T from './textures.js';
 
 const TAU = Math.PI * 2;
 
@@ -592,5 +593,148 @@ export function outriggerCanoe() {
   blade.position.z = 0.72;
   paddle.add(blade);
   g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  return g;
+}
+
+/*
+ * A striped canvas hammock slung between `a` and `b` (world points where it's tied to two trunks),
+ * with `up` the local up. The cloth sags in a curve and its edges curl up; fan lines gather each
+ * end to a rope round the trunk; an open book lies in it. Returns the group, already in place.
+ */
+export function hammock(a, b, up, { sag = 0.95, width = 0.9 } = {}) {
+  const g = new THREE.Group();
+  const x = b.clone().sub(a), L = x.length();
+  x.normalize();
+  const z = x.clone().cross(up).normalize(), y = z.clone().cross(x);
+  g.matrixAutoUpdate = true;
+  g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  g.position.copy(a);
+  const END = 0.5; // rope from each tie to the cloth
+  const cloth = L - 2 * END;
+  const sagAt = (u) => -sag * 4 * u * (1 - u);
+  const halfW = (u) => (width / 2) * (0.2 + 0.8 * Math.pow(Math.sin(Math.PI * u), 0.5));
+  const geo = new THREE.PlaneGeometry(1, 1, 32, 10);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const u = pos.getX(i) + 0.5, v = pos.getY(i) * 2; // u along, v across (-1..1)
+    const w = halfW(u);
+    pos.setXYZ(i, END + u * cloth, sagAt(u) + 0.2 * v * v * Math.sin(Math.PI * u) - 0.12, v * w);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, pbr({ map: T.hammockCloth(), roughness: 0.9, side: THREE.DoubleSide }));
+  mesh.castShadow = mesh.receiveShadow = true;
+  g.add(mesh);
+  // fan lines: from each tie to points across the cloth's gathered end
+  const rope = pbr({ color: PALETTE.bamboo, roughness: 0.9 });
+  const line = (p, q) => {
+    const d = q.clone().sub(p), m = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, d.length(), 4), rope);
+    m.position.copy(p).add(q).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+    g.add(m);
+  };
+  for (const [tie, u] of [[new THREE.Vector3(0, 0, 0), 0.02], [new THREE.Vector3(L, 0, 0), 0.98]]) {
+    for (const v of [-1, -0.5, 0, 0.5, 1]) line(tie, new THREE.Vector3(END + u * cloth, sagAt(u) - 0.12 + 0.2 * v * v * Math.sin(Math.PI * u), v * halfW(u)));
+    const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.012, 5, 16), rope); // round the trunk
+    wrap.position.copy(tie); wrap.rotation.x = Math.PI / 2;
+    g.add(wrap);
+  }
+  // an open book, face down where someone left off
+  const u = 0.42, bx = END + u * cloth, by = sagAt(u) - 0.12 + 0.03;
+  const book = new THREE.Group();
+  book.position.set(bx, by, 0.08);
+  book.rotation.set(0, 0.5, 0);
+  const cover = pbr({ color: PALETTE.coral, roughness: 0.7 }), pages = pbr({ color: PALETTE.cream, roughness: 0.9 });
+  for (const s of [-1, 1]) {
+    const half = new THREE.Group();
+    half.rotation.x = s * 0.35; // a tent, spine up
+    book.add(half);
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.006, 0.14), cover); c.position.set(0, 0.003, s * 0.07); half.add(c);
+    const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.012, 0.13), pages); p2.position.set(0, -0.006, s * 0.065); half.add(p2);
+  }
+  g.add(book);
+  return g;
+}
+
+/** A small stack of books to leave on the sand: a few colours, slightly askew. */
+export function bookStack(n = 3, seed = 9) {
+  const r = rng(seed);
+  const g = new THREE.Group();
+  const cols = [PALETTE.tinTeal, PALETTE.coral, PALETTE.amber, PALETTE.leaf, PALETTE.cream];
+  let y = 0;
+  for (let i = 0; i < n; i++) {
+    const h = 0.035 + r() * 0.03, w = 0.17 + r() * 0.06, d = 0.23 + r() * 0.06;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(d, h, w), pbr({ color: cols[i % cols.length], roughness: 0.75 }));
+    m.position.y = y + h / 2; m.rotation.y = (r() - 0.5) * 0.6;
+    m.castShadow = m.receiveShadow = true;
+    g.add(m);
+    y += h;
+  }
+  return g;
+}
+
+/**
+ * Messages in bottles washed up at the waterline: green glass, a cork, a rolled letter inside.
+ * `n` bottles in a loose group, one stuck upright in the sand.
+ */
+export function messageBottles(n = 3, seed = 17) {
+  const r = rng(seed);
+  const g = new THREE.Group();
+  const profile = [[0, 0], [0.045, 0], [0.05, 0.01], [0.05, 0.15], [0.042, 0.18], [0.02, 0.21], [0.016, 0.24], [0.018, 0.26], [0, 0.26]].map(([x, y]) => new THREE.Vector2(x, y));
+  const bottleGeo = new THREE.LatheGeometry(profile, 16);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x3f8f5a, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.5, depthWrite: false });
+  const cork = pbr({ color: PALETTE.thatch, roughness: 0.9 });
+  const letter = pbr({ color: PALETTE.cream, roughness: 0.9 });
+  for (let i = 0; i < n; i++) {
+    const b = new THREE.Group();
+    b.add(new THREE.Mesh(bottleGeo, glass));
+    const ck = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.03, 8), cork); ck.position.y = 0.265; b.add(ck);
+    const lt = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 10), letter); lt.position.y = 0.08; lt.rotation.z = 0.08; b.add(lt);
+    const upright = i === n - 1;
+    const a = (i / n) * TAU + r() * 0.8, rr = 0.15 + r() * 0.25;
+    b.position.set(Math.cos(a) * rr, upright ? -0.05 : 0.04, Math.sin(a) * rr);
+    b.rotation.set(upright ? 0.25 : Math.PI / 2 - 0.08, r() * TAU, upright ? 0.15 : 0);
+    if (!upright) b.rotation.order = 'YXZ';
+    g.add(b);
+  }
+  return g;
+}
+
+/**
+ * A tiki signpost: a wooden post with a small carved head on top and arrow boards, one per
+ * destination ([{ text, angle }], angle in radians about the post, 0 = local +x), stacked down
+ * the post, lettered on both faces.
+ */
+export function signpost(boards, { height = 1.9 } = {}) {
+  const g = new THREE.Group();
+  const wood = surface(woodSet(PALETTE.wood), { roughness: 0.8 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, height, 10), wood);
+  post.position.y = height / 2;
+  post.castShadow = true;
+  g.add(post);
+  const head = carvedTiki({ height: 0.42, radius: 0.1, style: 'ku' });
+  head.position.y = height;
+  g.add(head);
+  const W = 0.64, H = 0.13, TIP = 0.1, D = 0.03;
+  const shape = new THREE.Shape();
+  shape.moveTo(0, -H / 2); shape.lineTo(W - TIP, -H / 2); shape.lineTo(W, 0); shape.lineTo(W - TIP, H / 2); shape.lineTo(0, H / 2); shape.closePath();
+  const plankGeo = new THREE.ExtrudeGeometry(shape, { depth: D, bevelEnabled: false }).translate(0.05, 0, -D / 2);
+  const plank = surface(woodSet(PALETTE.stain), { roughness: 0.85 });
+  boards.forEach(({ text, angle }, i) => {
+    const board = new THREE.Group();
+    board.position.y = height - 0.2 - i * (H + 0.045);
+    board.rotation.y = angle + (i % 2 ? 0.04 : -0.04); // a little hand-hammered
+    const m = new THREE.Mesh(plankGeo, plank);
+    m.castShadow = true;
+    board.add(m);
+    const tex = T.signLettering(text);
+    const face = new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, depthWrite: false });
+    for (const s of [1, -1]) {
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(W - TIP - 0.04, H * 0.86), face);
+      f.position.set(0.05 + (W - TIP) / 2 + 0.01, 0, s * (D / 2 + 0.002));
+      if (s < 0) f.rotation.y = Math.PI;
+      board.add(f);
+    }
+    g.add(board);
+  });
   return g;
 }
