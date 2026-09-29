@@ -9,7 +9,7 @@ import * as T from './textures.js';
 import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe } from './props.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
-import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS } from './planet.js';
+import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -18,8 +18,9 @@ export const SPOTS = {
   telescope: dirFrom(0.5, 2.85),
   campfire: dirFrom(2.55, -1.6),     // around the back
   dish: dirFrom(1.1, -0.2),
-  boat: dirFrom(0.5, -0.6),
+  boat: null, // on the lagoon's shore (below)
 };
+SPOTS.boat = pondDir(shoreAt(POND.boatAzimuth) + 0.55, POND.boatAzimuth);
 
 // The trail network. The flagstone walk runs from where you land to the bar; gravel trails
 // branch off it to everything else, so every landmark is somewhere a path goes. Waypoints are
@@ -37,7 +38,7 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
 // the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True where nothing should grow: on a trail or under a landmark. */
 export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 
@@ -276,12 +277,20 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
   }
 
-  // An outrigger canoe, pulled up on the beach, for reasons nobody can explain.
+  // An outrigger canoe, pulled up out of the lagoon, for reasons nobody can explain: stern on
+  // the sand, bow in the shallows, pointing at the water. The lagoon itself (planet.js) is a
+  // collider, so you walk up to the waterline and stop.
   {
+    const phi = POND.boatAzimuth;
     // (not ground(): that would sink a 3 m hull by the fall of the ground over its whole length)
-    const boat = put(outriggerCanoe(), SPOTS.boat, { heading: 2.2, sink: 0.06 }, 2.2);
-    lantern(beside(SPOTS.boat, 2.1, 1.2), { height: 1.3 });
+    const hull = outriggerCanoe();
+    hull.rotation.x = 0.06; // nose down the beach
+    const boat = new THREE.Group();
+    boat.add(hull);
+    put(boat, SPOTS.boat, { heading: headingToward(SPOTS.boat, POND.center), sink: 0.1 }, 2.2);
+    lantern(pondDir(shoreAt(phi + 0.5) + 1.0, phi + 0.5), { height: 1.3 });
     colliders.push({ center: boat.position.clone(), radius: 1.4 });
+    colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35 }); // stop at the waterline (it wanders ±15%)
   }
 
   // Scatter: lava rock, palms, dark greenery, and a few softly glowing space crystals.
