@@ -282,7 +282,13 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const seat = { eye: toWorld(local.eye), look: toWorld(local.look), stand: toWorld(local.stand), dip: toWorld(local.dip), rise: toWorld(local.rise) };
     animated.push((t) => cf.update(t));
     colliders.push({ center: camp.position.clone(), radius: 0.8 });
-    for (const [x, z] of [[-2.6, -2.2], [2.4, -2.6]]) colliders.push({ center: camp.localToWorld(new THREE.Vector3(x, 0, z)), radius: 0.6 });
+    // the moai and the Thinker stand on the real ground: it falls away from the camp's plane
+    for (const [m, r] of [[cf.moai, 0.5], [cf.thinker, 0.35]]) {
+      const base = m.getWorldPosition(new THREE.Vector3()), dir = base.clone().normalize();
+      const above = base.length() - surfaceRadius(dir);
+      m.position.y -= above + footDrop(dir, r) + 0.06;
+      colliders.push({ center: surfacePoint(dir), radius: r + 0.15 });
+    }
     interactables.push({
       id: 'campfire', label: 'Campfire', verb: 'Sit and roast a marshmallow', object: camp, point: camp.position.clone(),
       approach: surfacePoint(toWorld(local.approach).normalize()), radius: 2.8, seat, hotSpot: toWorld(cf.hotSpot),
@@ -359,7 +365,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   // Messages in bottles, washed up at the waterline (scenery).
   put(messageBottles(3), SPOTS.bottles, { heading: LAGOON.bottlesPhi }, 0.3);
 
-  // Scatter: lava rock, palms, dark greenery, and a few softly glowing space crystals.
+  // Scatter: lava rock, palms and dark greenery.
   {
     let s = 42;
     const rand = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -390,14 +396,6 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       colliders.push({ center: surfacePoint(dir), radius: 0.3 });
       const crown = p.userData.crown;
       animated.push((t) => { crown.rotation.z = Math.sin(t * 0.8 + i) * 0.035; });
-    }
-    // crystals: a sci-fi accent, glowing faintly teal
-    for (let i = 0; i < 7; i++) {
-      const dir = spot(0.4, 0.9);
-      if (!dir) continue;
-      const c = prop(i % 2 ? 'space-kit_rock-crystalslargea' : 'space-kit_rock-crystals', 1.6 + rand() * 0.6);
-      c.traverse((o) => { if (o.isMesh) o.material = pbr({ color: 0x1c3440, emissive: PALETTE.aqua, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.3 }); });
-      ground(c, dir, { heading: rand() * 6.28, sink: 0.05 }, 0.4);
     }
     // tropical shrubs: ferns, monstera and red ti, the same leaves as round the bar
     for (let i = 0; i < Math.round(40 * scale); i++) {
