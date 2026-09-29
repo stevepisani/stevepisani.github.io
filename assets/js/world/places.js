@@ -6,8 +6,7 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, rodinGate, thinkerFallback } from './props.js';
-import { heroOr } from './hero.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost } from './props.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
@@ -33,16 +32,6 @@ const LAGOON = (() => {
 SPOTS.lagoonTrail = pondDir(shoreAt(LAGOON.trailPhi) + 1.6, LAGOON.trailPhi);
 SPOTS.bottles = pondDir(shoreAt(LAGOON.bottlesPhi) + 0.05, LAGOON.bottlesPhi);
 SPOTS.hammock = pondDir(shoreAt(LAGOON.hammockPhi) + 2.1, LAGOON.hammockPhi);
-// An ode to Philadelphia's Rodin Museum out past the telescope: its gateway, the Thinker in
-// front, facing the spur trail that comes to it off the telescope trail.
-SPOTS.rodin = dirFrom(0.85, 3.2);
-const RODIN_FROM = dirFrom(0.44, 2.48); // a waypoint on the telescope trail
-function toward(from, to, metres) {
-  const f = from.clone().normalize(), t = to.clone().normalize().sub(f.clone().multiplyScalar(to.clone().normalize().dot(f))).normalize();
-  const a = metres / RADIUS;
-  return f.multiplyScalar(Math.cos(a)).addScaledVector(t, Math.sin(a)).normalize();
-}
-SPOTS.rodinTrail = toward(SPOTS.rodin, RODIN_FROM, 5.0); // the terrace's front edge
 
 // The trail network. The flagstone walk runs from where you land to the bar; gravel trails
 // branch off it to everything else, so every landmark is somewhere a path goes. Waypoints are
@@ -53,7 +42,6 @@ export const TRAILS = [
   { id: 'rocket', points: [dirFrom(0.6, Math.PI / 2), dirFrom(0.625, 1.48), dirFrom(0.66, 1.4)], width: 1.0, flags: 'steps', seed: 2, openStart: true, openEnd: true },
   { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
-  { id: 'rodin', points: [RODIN_FROM, SPOTS.rodinTrail.clone().add(RODIN_FROM).normalize(), SPOTS.rodinTrail], width: 1.0, flags: 'steps', seed: 7, meander: 0.25, lanterns: 5, openStart: true },
   { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
   { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
 ];
@@ -62,7 +50,7 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
 // the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.rodin, 4.2], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True where nothing should grow: on a trail or under a landmark. */
 export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 
@@ -248,7 +236,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const toBar = tangent(f, bar), toScope = tangent(f, TRAILS[2].points[1]);
     const at = f.clone().multiplyScalar(RADIUS).addScaledVector(toBar.clone().add(toScope).normalize(), 1.6).normalize();
     const dests = [
-      ["Steve's", bar], ['Telescope', TRAILS[2].points[1]], ['Rodin Museum', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
+      ["Steve's", bar], ['Telescope', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
       ['Lagoon', TRAILS[3].points[1]], ['Campfire', TRAILS[3].points[1]], ['Rocket', TRAILS[0].points[0]],
     ];
     const sign = new THREE.Group();
@@ -260,18 +248,6 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     });
     sign.add(signpost(boards));
     colliders.push({ center: sign.position.clone(), radius: 0.3 });
-  }
-
-  // The Rodin Museum's gateway with the Thinker before it (props.js rodinGate): limestone,
-  // uplit at night the way the real one is, by lamps hidden at the foot of the walls.
-  {
-    const thinker = heroOr(heroes, 'thinker', thinkerFallback);
-    const { group: gate } = rodinGate(thinker);
-    put(gate, SPOTS.rodin, { heading: headingToward(SPOTS.rodin, RODIN_FROM), sink: footDrop(SPOTS.rodin, 1.5) * 0.5 }, 4);
-    gate.updateMatrixWorld(true);
-    const at = (x, y, z) => gate.localToWorld(new THREE.Vector3(x, y, z));
-    for (const [x, y, z, k] of [[-1.6, 0.35, 1.3, 9], [1.6, 0.35, 1.3, 9], [0, 0.35, 3.4, 12]]) addLamp(at(x, y, z), k);
-    colliders.push({ center: at(0, 0, 0), radius: 2.0 }, { center: at(-1.9, 0, 0), radius: 0.8 }, { center: at(1.9, 0, 0), radius: 0.8 }, { center: at(0, 0, 2.2), radius: 0.75 });
   }
 
   // Telescope: a brass refractor on a wooden surveyor's tripod, slowly tracking the sky
@@ -306,12 +282,12 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const seat = { eye: toWorld(local.eye), look: toWorld(local.look), stand: toWorld(local.stand), dip: toWorld(local.dip), rise: toWorld(local.rise) };
     animated.push((t) => cf.update(t));
     colliders.push({ center: camp.position.clone(), radius: 0.8 });
-    // the moai stands on the real ground: the planet falls away from the camp's plane out there
-    {
-      const m = cf.moai, base = m.getWorldPosition(new THREE.Vector3()), dir = base.clone().normalize();
+    // the moai and the Thinker stand on the real ground: it falls away from the camp's plane
+    for (const [m, r] of [[cf.moai, 0.5], [cf.thinker, 0.35]]) {
+      const base = m.getWorldPosition(new THREE.Vector3()), dir = base.clone().normalize();
       const above = base.length() - surfaceRadius(dir);
-      m.position.y -= above + footDrop(dir, 0.5) + 0.1;
-      colliders.push({ center: surfacePoint(dir), radius: 0.6 });
+      m.position.y -= above + footDrop(dir, r) + 0.06;
+      colliders.push({ center: surfacePoint(dir), radius: r + 0.15 });
     }
     interactables.push({
       id: 'campfire', label: 'Campfire', verb: 'Sit and roast a marshmallow', object: camp, point: camp.position.clone(),

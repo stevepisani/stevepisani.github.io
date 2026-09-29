@@ -37,7 +37,7 @@ credit Meshy on the site or keep using these files.
 | `puffer-lamp.glb` | remesh `01a0e67e-54c9-76aa-8879-b84111b23809` of refine `01a0e679-9d73-7601-a00f-cf5fc43781e9` | 4,000 | 212 KB | 3rd try (the first came out as a spiked sea mine); 512px textures; `glow` makes it lit from inside |
 | `volcano-bowl.glb` | `01a0e679-87f4-72a0-993e-53ef5d1f9fa5` | 3,000 | 83 KB | 3rd try (the first was a deep pot); 512px textures |
 | `moai.glb` | `01a0e679-809c-757a-8cf7-b8ac2fefee1e` | 8,000 | 294 KB | 3rd try (the first came out as painted wood) |
-| `thinker.glb` | `01a0edd3-1405-771a-8c62-2aa3797390b6` (refine of preview `01a0edd1-6c37-7157-9019-7d290e8cb504`) | 14,000 | 297 KB | Rodin's Thinker (a public-domain 1880 sculpture) for the Rodin Museum ode; first of two previews, generated 2026-09-29 |
+| `thinker.glb` | `01a0edd3-1405-771a-8c62-2aa3797390b6` (refine of preview `01a0edd1-6c37-7157-9019-7d290e8cb504`) | 14,000 | 297 KB | Rodin's Thinker (a public-domain 1880 sculpture) at the campfire (a nod to Philadelphia's Rodin Museum); first of two previews, generated 2026-09-29 |
 | `parrot-mug.glb` | remesh `01a0e8fe-7d83-7127-8dfb-bc9e7cf809d1` of refine `01a0e8fc-e2cd-70fa-9563-e6cd5613662d` | 2,500 | 171 KB | on the counter and the shelf; 512px textures |
 | `pineapple-mug.glb` | remesh `01a0e8fe-8075-77b1-aa97-06431fb4bb62` of refine `01a0e8fc-a283-736d-866a-52cd5d03e09d` | 2,500 | 208 KB | second of two tries (clearer mug shape); 512px textures |
 
