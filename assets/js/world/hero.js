@@ -1,7 +1,7 @@
 // Hero props: optional AI-generated (or hand-made) GLBs that replace procedural stand-ins.
 //
 // Drop a file in assets/models/hero/ and list it in assets/models/hero/manifest.json:
-//   { "tiki-statue": { "file": "tiki-statue.glb", "height": 2.8 } }
+//   { "tiki-post": { "file": "tiki-post.glb", "height": 2.7 } }
 // Each model is normalised on load: centred on its footprint, sitting on y = 0, scaled
 // to `height` metres. Slots with no file keep their procedural version.
 // Prompts and specs for generating each slot: tools/models/HERO_PROMPTS.md.
