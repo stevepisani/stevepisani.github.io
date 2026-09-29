@@ -18,7 +18,8 @@ import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
 import { Player, bindInput } from './player.js';
-import { fontsReady } from './textures.js';
+import { fontsReady, paintMenuCard } from './textures.js';
+import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
 
@@ -111,6 +112,7 @@ function showMenu(mode) {
 
 function hideMenu() {
   menu.hidden = true;
+  menu.classList.remove('is-landed');
   menuMode = null;
   menuBtn.setAttribute('aria-expanded', 'false');
 }
@@ -269,17 +271,16 @@ async function start() {
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality, trailEdge, keepClear });
   await step(0.7, 'Stocking the bar…');
-  // the card on the bar lists the same items as the HTML menu
-  const menuItems = [...menu.querySelectorAll('.menu__list a')].map((a) => ({
-    label: a.querySelector('.menu__label').textContent.trim(),
-    note: a.querySelector('.menu__note').textContent.trim(),
-  }));
-  const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, menuItems, reducedMotion });
+  const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, reducedMotion });
   // the site's logo (the favicon) goes on the rocket
   const badge = document.querySelector('link[rel="icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
+  // the lanterns and torches without real lights light the ground through its shaders (lamps.js)
+  finishLamps();
+  lampLitTree(planet.group);
+  lampLitTree(places.group);
   scene.add(camera); // things you hold (the marshmallow stick) ride on it
 
   // Night: a faint sky/ground ambient, cool moonlight as the key (with soft shadows around the
@@ -542,24 +543,47 @@ async function start() {
     const r = menu.querySelector('.menu__card').getBoundingClientRect();
     const c = canvas.getBoundingClientRect();
     const ndc = new THREE.Vector3(((r.left + r.width / 2 - c.left) / c.width) * 2 - 1, -((r.top + r.height / 2 - c.top) / c.height) * 2 + 1, 0.5);
-    const dist = (bar.menu.height * 1.08 * c.height) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * r.height);
+    const dist = (bar.menu.height * c.height) / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * r.height);
     const dir = ndc.unproject(camera).sub(camera.position).normalize();
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
     const quat = camera.quaternion.clone();
     // the card's origin is its bottom edge: drop it by half its height along the camera's up
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
-    const pos = camera.position.clone().addScaledVector(dir, dist / dir.dot(fwd)).addScaledVector(up, -bar.menu.height / 2);
+    // and the painted face is 4 mm in front of the card's origin, which matters at 20 cm
+    const pos = camera.position.clone().addScaledVector(dir, dist / dir.dot(fwd)).addScaledVector(up, -bar.menu.height / 2).addScaledVector(fwd, 0.004);
     return { pos, quat };
   }
-  function flyCard(from, to, ms, then) {
-    scene.attach(card);
+  function flyCard(from, to, ms, then, light) {
+    pipeline.overlay.attach(card); // drawn after the grade, so in your hands it's the page's own colours
     card.position.copy(from.pos);
     card.quaternion.copy(from.quat);
     card.visible = true;
-    cardFlight = { t0: performance.now(), ms, from, to, then };
+    cardFlight = { t0: performance.now(), ms, from, to, then, light };
   }
+  // Paint the card's face from the HTML menu as it would look in your hands (laid out out of
+  // sight if it's hidden), so the card and the page are one and the same.
+  function paintMenu() {
+    const hidden = menu.hidden, mode = menu.dataset.mode, title = $('menu-title').textContent;
+    if (hidden) {
+      menu.classList.add('is-arriving');
+      menu.dataset.mode = 'seat';
+      $('menu-title').textContent = "What'll it be?";
+      menu.hidden = false;
+    }
+    bar.menu.paint(paintMenuCard(menu.querySelector('.menu__card'), Math.min(2, Math.max(1.5, devicePixelRatio || 1))));
+    if (hidden) {
+      menu.hidden = true;
+      menu.classList.remove('is-arriving');
+      if (mode) menu.dataset.mode = mode; else delete menu.dataset.mode;
+      $('menu-title').textContent = title;
+    }
+  }
+  paintMenu();
+  let repaint = 0;
+  addEventListener('resize', () => { clearTimeout(repaint); repaint = setTimeout(() => { if (!held && !cardFlight && menu.hidden) paintMenu(); }, 250); });
   function cardBackOnBar() {
     cardFlight = null;
+    bar.menu.light(0);
     cardHome.parent.add(card);
     card.position.copy(cardHome.pos);
     card.quaternion.copy(cardHome.quat);
@@ -579,20 +603,29 @@ async function start() {
     if (reducedMotion) { card.visible = false; showMenu('seat'); return; }
     menu.classList.add('is-arriving'); // laid out (so it can be measured) but invisible
     showMenu('seat');
+    paintMenu();
     flyCard(cardWorldHome(), cardInHand(), 520, () => {
+      // the page fades in over the card it was painted from; the card goes only once the page
+      // is fully opaque, so there's never a frame with neither (or a half of each)
+      const sheet = menu.querySelector('.menu__card');
+      menu.classList.add('is-landed');
       menu.classList.remove('is-arriving');
-      setTimeout(() => { if (held) card.visible = false; }, 180);
-    });
+      let gone = false;
+      const hide = () => { if (gone) return; gone = true; sheet.removeEventListener('transitionend', hide); if (held && !menu.hidden) card.visible = false; };
+      sheet.addEventListener('transitionend', hide);
+      setTimeout(hide, 400);
+    }, [0, 1]);
   };
   putDownMenu = () => {
     if (!held) { hideMenu(); return; }
     const from = menu.hidden || reducedMotion ? null : cardInHand();
+    if (from) { paintMenu(); bar.menu.light(1); }
     held = false;
     hideMenu();
     menu.classList.remove('is-arriving');
     canvas.focus({ preventScroll: true });
     if (!from) return cardBackOnBar();
-    flyCard(from, cardWorldHome(), 420, cardBackOnBar);
+    flyCard(from, cardWorldHome(), 420, cardBackOnBar, [1, 0]);
   };
 
   /* ---------- Ordering: watch it made, then drink it in ---------- */
@@ -905,6 +938,7 @@ async function start() {
       card.position.lerpVectors(cardFlight.from.pos, cardFlight.to.pos, e);
       card.position.addScaledVector(card.position.clone().normalize(), Math.sin(e * Math.PI) * 0.06); // a little lift on the way
       card.quaternion.copy(cardFlight.from.quat).slerp(cardFlight.to.quat, e);
+      if (cardFlight.light) bar.menu.light(Math.max(1e-3, cardFlight.light[0] + (cardFlight.light[1] - cardFlight.light[0]) * e)); // never 0 in the overlay: no lights there
       if (k === 1) { const then = cardFlight.then; cardFlight = null; then && then(); }
     }
     // The bar needs no label: it's the lit, open thing at the end of the path, your stool sits in
@@ -936,6 +970,7 @@ async function start() {
     if (roaster.state.toast > 0.25 && hint.dataset.key === 'roast' && !hint.hidden) clearHint('roast');
 
     Fire.tick(t);
+    updateLamps(t);
     sky.update(t, camera);
     planet.update(t, camera);
     bar.update(t, dt);
@@ -964,7 +999,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast };
   window.__sceneReady = true;
 }
 

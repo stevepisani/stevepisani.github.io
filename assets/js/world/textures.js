@@ -14,6 +14,13 @@ function canvas(w, h) {
   return [c, c.getContext('2d')];
 }
 
+/** A canvas someone else painted, as a colour texture. */
+export function canvasTexture(c) {
+  const t = texture(c);
+  t.anisotropy = 8;
+  return t;
+}
+
 function texture(c, { repeat } = {}) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -28,7 +35,7 @@ function texture(c, { repeat } = {}) {
 // Wait (briefly) for web fonts so canvas text doesn't render in a fallback face.
 export async function fontsReady() {
   if (!document.fonts) return;
-  const loads = ['800 40px Fraunces', '600 20px "JetBrains Mono"', '40px Pacifico'].map((f) => document.fonts.load(f));
+  const loads = ['800 40px Fraunces', 'italic 400 16px Fraunces', 'italic 600 18px Fraunces', '600 16px Inter', '400 16px Inter', '600 20px "JetBrains Mono"', '40px Pacifico'].map((f) => document.fonts.load(f));
   await Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 1500))]);
 }
 
@@ -307,81 +314,179 @@ const TIKI_CUT = 'M8 16h24v5H8zM10 24q5-3 9 0q-4 4-9 0zM21 24q5-3 9 0q-4 4-9 0zM
 const TIKI_TEETH = 'M13 41h3v3h-3zM18.5 41.5h3v3h-3zM24 41h3v3h-3z';
 
 /**
- * The menu that stands on the bar: the same design as the HTML menu (world.css .menu),
- * lashed bamboo frame, parchment, "Steve's" in script, a tapa band, and the real items
- * (`items` = [{ label, note }], read from the page). 2:3, like the card it's drawn on.
+ * The menu that stands on the bar, painted from the HTML menu itself (`card` = the laid-out
+ * .menu__card element): every box, line of text and colour is read from the page, so when you
+ * pick it up and the HTML menu takes over, nothing moves or changes. `scale` = canvas px per CSS px.
+ * Returns the canvas and the card's aspect (width / height).
  */
-export function menuCard(items) {
-  const W = 512, H = 768, P = 26;
-  const [c, g] = canvas(W, H);
-  const paper = '#f7ecd4', soft = '#7a5a3c'; // --paper and --ink-soft in world.css
-  const lacquer = css(PALETTE.stain), coral = css(PALETTE.coral), lava = css(PALETTE.lava);
+export function paintMenuCard(card, scale = 2) {
+  const box = card.getBoundingClientRect();
+  const [c, g] = canvas(Math.round(box.width * scale), Math.round(box.height * scale));
+  g.scale(scale, scale);
+  const rel = (r) => ({ x: r.left - box.left, y: r.top - box.top, w: r.width, h: r.height });
+  const style = (el) => getComputedStyle(el);
+  const cs = style(card);
+  const v = (name) => cs.getPropertyValue(name).trim();
+  const lacquer = v('--lacquer'), bamboo = v('--bamboo'), node = v('--bamboo-node'), hi = v('--bamboo-hi');
+  const paper = v('--paper'), coral = v('--coral');
+  const W = box.width, H = box.height, P = parseFloat(v('--pole')) || 12;
+
+  // the card's rounded corners (the 3D card cuts them out with alphaTest)
+  const radius = parseFloat(cs.borderTopLeftRadius) || 0;
+  g.beginPath(); g.roundRect(0, 0, W, H, radius); g.clip();
+  // frame: lacquer, four bamboo poles (a node every 67px), round shading across each, lashings
   g.fillStyle = lacquer;
   g.fillRect(0, 0, W, H);
-  // bamboo poles
-  const pole = (x, y, w, h, across) => {
-    g.fillStyle = css(PALETTE.bamboo);
-    g.fillRect(x, y, w, h);
-    const len = across ? h : w;
-    for (let t = 70; t < len; t += 76) {
-      g.fillStyle = '#6b4a22';
-      across ? g.fillRect(x, y + t, w, 4) : g.fillRect(x + t, y, 4, h);
+  const pole = (x, y, w, h, down) => {
+    const len = down ? h : w;
+    for (let t = 0; t < len; t += 67) {
+      const seg = (a, b, col) => { g.fillStyle = col; down ? g.fillRect(x, y + t + a, w, Math.min(b - a, len - t - a)) : g.fillRect(x + t + a, y, Math.min(b - a, len - t - a), h); };
+      seg(0, 62, bamboo); if (t + 62 < len) seg(62, 65, node); if (t + 65 < len) seg(65, 67, hi);
     }
-    const sh = across ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y, 0, y + h);
-    sh.addColorStop(0, 'rgba(255,255,255,.3)'); sh.addColorStop(0.35, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(0,0,0,.35)');
+    const sh = down ? g.createLinearGradient(x, 0, x + w, 0) : g.createLinearGradient(0, y, 0, y + h);
+    sh.addColorStop(0, 'rgb(255 255 255 / .28)'); sh.addColorStop(0.35, 'rgb(255 255 255 / 0)'); sh.addColorStop(1, 'rgb(0 0 0 / .3)');
     g.fillStyle = sh;
     g.fillRect(x, y, w, h);
   };
-  pole(0, 0, W, P, false); pole(0, H - P, W, P, false); pole(0, 0, P, H, true); pole(W - P, 0, P, H, true);
+  // the same stacking as the CSS backgrounds: side poles under the top and bottom ones
+  pole(0, 0, P, H, true); pole(W - P, 0, P, H, true); pole(0, 0, W, P, false); pole(0, H - P, W, P, false);
   g.fillStyle = lacquer;
-  for (const [x, y] of [[P / 2, P / 2], [W - P / 2, P / 2], [P / 2, H - P / 2], [W - P / 2, H - P / 2]]) { g.beginPath(); g.arc(x, y, 11, 0, 7); g.fill(); }
-  // parchment with a darker rim and an inner rule
+  for (const [x, y] of [[12, 12], [W - 12, 12], [12, H - 12], [W - 12, H - 12]]) { g.beginPath(); g.arc(x, y, 5, 0, 7); g.fill(); }
+
+  // parchment: paper, a darker rim, faint fibres, the inset rule
+  const sheet = card.querySelector('.menu__sheet');
+  const S = rel(sheet.getBoundingClientRect());
+  g.save();
+  g.beginPath(); g.rect(S.x, S.y, S.w, S.h); g.clip();
   g.fillStyle = paper;
-  g.fillRect(P, P, W - 2 * P, H - 2 * P);
-  const rim = g.createRadialGradient(W / 2, H * 0.3, W * 0.3, W / 2, H * 0.45, H * 0.65);
-  rim.addColorStop(0, 'rgba(122,80,30,0)'); rim.addColorStop(1, 'rgba(122,80,30,.22)');
+  g.fillRect(S.x, S.y, S.w, S.h);
+  g.save(); // ellipse at 50% 30%, farthest-corner (√2 × the farthest sides), clear to 55%, then brown
+  const cx = S.x + S.w / 2, cy = S.y + S.h * 0.3;
+  const rx2 = Math.SQRT2 * S.w / 2, ry2 = Math.SQRT2 * S.h * 0.7;
+  g.translate(cx, cy); g.scale(1, ry2 / rx2);
+  const rim = g.createRadialGradient(0, 0, 0, 0, 0, rx2);
+  rim.addColorStop(0.55, 'rgb(122 80 30 / 0)'); rim.addColorStop(1, 'rgb(122 80 30 / .16)');
   g.fillStyle = rim;
-  g.fillRect(P, P, W - 2 * P, H - 2 * P);
-  g.strokeStyle = lacquer; g.lineWidth = 3;
-  g.strokeRect(P + 12, P + 12, W - 2 * P - 24, H - 2 * P - 24);
-  // header: tiki, "Steve's", tiki
-  g.textAlign = 'center';
-  g.textBaseline = 'alphabetic';
-  g.font = '64px ' + FONT_SCRIPT;
-  g.fillStyle = lava; g.fillText("Steve's", W / 2 + 4, 132);
-  g.fillStyle = coral; g.fillText("Steve's", W / 2, 128);
-  const mask = (x, flip) => {
-    g.save(); g.translate(x, 64); g.scale(flip ? -1.3 : 1.3, 1.3); if (flip) g.translate(-40, 0);
+  g.fillRect(-rx2 * 2, -rx2 * 2, rx2 * 4, rx2 * 4);
+  g.restore();
+  g.fillStyle = 'rgb(120 70 20 / .028)'; // a touch fainter than the CSS: resampled, it reads stronger
+  for (let x = S.x + 3; x < S.x + S.w; x += 4) g.fillRect(x, S.y, 1, S.h);
+  g.strokeStyle = lacquer; g.lineWidth = 2;
+  g.strokeRect(S.x + 9, S.y + 9, S.w - 18, S.h - 18);
+
+  // text: each line where the browser laid it out, in its own font, colour and spacing
+  const text = (el, { color, shadow } = {}) => {
+    const st = style(el);
+    g.font = `${st.fontStyle} ${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+    if ('letterSpacing' in g) g.letterSpacing = st.letterSpacing === 'normal' ? '0px' : st.letterSpacing;
+    g.textAlign = 'left';
+    g.textBaseline = 'alphabetic';
+    const asc = g.measureText('Hg').fontBoundingBoxAscent;
+    const upper = st.textTransform === 'uppercase';
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      if (n.parentElement.closest('[hidden]') || style(n.parentElement).display === 'none') continue;
+      // split the node into the lines it was wrapped into
+      const range = document.createRange();
+      let start = 0, top = null;
+      const flush = (end) => {
+        if (end <= start) return;
+        range.setStart(n, start); range.setEnd(n, end);
+        const r = range.getClientRects()[0];
+        const str = n.data.slice(start, end).replace(/\s+$/, '');
+        if (!r || !str.trim()) return;
+        const x = r.left - box.left, y = r.top - box.top + asc;
+        const s = upper ? str.toUpperCase() : str;
+        if (shadow) { g.fillStyle = shadow[2]; g.fillText(s, x + shadow[0], y + shadow[1]); }
+        g.fillStyle = color || st.color;
+        g.fillText(s, x, y);
+      };
+      for (let k = 0; k < n.data.length; k++) {
+        range.setStart(n, k); range.setEnd(n, k + 1);
+        const r = range.getClientRects()[0];
+        if (!r) continue;
+        if (top !== null && r.top > top + 2) { flush(k); start = k; }
+        top = r.top;
+      }
+      flush(n.data.length);
+    }
+    if ('letterSpacing' in g) g.letterSpacing = '0px';
+  };
+
+  // header: tiki, "Steve's" with its hard lava shadow, tiki
+  for (const svg of sheet.querySelectorAll('.menu__tiki')) {
+    const r = rel(svg.getBoundingClientRect());
+    g.save();
+    g.translate(r.x, r.y);
+    g.scale(r.w / 40, r.h / 56);
+    if (svg.classList.contains('menu__tiki--flip')) { g.translate(40, 0); g.scale(-1, 1); }
     g.fillStyle = lacquer; g.fill(new Path2D(TIKI_HEAD)); g.fill(new Path2D(TIKI_TEETH));
     g.fillStyle = paper; g.fill(new Path2D(TIKI_CUT));
     g.restore();
-  };
-  mask(58, false); mask(W - 58 - 52, true);
-  // tapa band
-  const by = 156;
-  g.fillStyle = lacquer; g.fillRect(P + 20, by, W - 2 * P - 40, 3); g.fillRect(P + 20, by + 17, W - 2 * P - 40, 3);
-  g.fillStyle = coral;
-  for (let x = P + 20; x < W - P - 30; x += 14) { g.beginPath(); g.moveTo(x, by + 16); g.lineTo(x + 7, by + 5); g.lineTo(x + 14, by + 16); g.fill(); }
+  }
+  const name = sheet.querySelector('.menu__bar');
+  const sh = style(name).textShadow.match(/(rgba?\([^)]*\)|#\w+)\s+(-?[\d.]+)px\s+(-?[\d.]+)px/);
+  text(name, { shadow: sh ? [parseFloat(sh[2]), parseFloat(sh[3]), sh[1]] : null });
+  // the tapa band over the title: two rules with coral teeth between
+  const title = sheet.querySelector('.menu__title');
+  const T = rel(title.getBoundingClientRect());
   g.fillStyle = lacquer;
-  g.font = 'italic 600 30px ' + FONT_DISPLAY;
-  g.fillText("What'll it be?", W / 2, 222);
-  // the items: plain labels, one line on what's there
-  const top = 262, step = Math.min(66, (H - P - 40 - top) / Math.max(1, items.length));
-  items.forEach((it, i) => {
-    const y = top + i * step;
-    if (i) { g.strokeStyle = 'rgba(74,44,26,.35)'; g.setLineDash([2, 4]); g.lineWidth = 1.5; g.beginPath(); g.moveTo(P + 40, y - 12); g.lineTo(W - P - 40, y - 12); g.stroke(); g.setLineDash([]); }
-    g.fillStyle = lacquer;
-    g.font = '800 25px ' + FONT_DISPLAY;
-    if ('letterSpacing' in g) g.letterSpacing = '2px';
-    g.fillText(it.label.toUpperCase(), W / 2, y + 16);
-    if ('letterSpacing' in g) g.letterSpacing = '0px';
-    g.fillStyle = soft;
-    g.font = 'italic 17px ' + FONT_DISPLAY;
-    g.fillText(it.note, W / 2, y + 40, W - 2 * P - 60);
+  g.fillRect(T.x, T.y, T.w, 2); g.fillRect(T.x, T.y + 10, T.w, 2);
+  g.fillStyle = coral;
+  for (let x = T.x; x < T.x + T.w; x += 8) { g.beginPath(); g.moveTo(x, T.y + 2); g.lineTo(x + 4, T.y + 6); g.lineTo(x + 8, T.y + 2); g.fill(); }
+  text(title);
+  // the close ×
+  const close = sheet.querySelector('.menu__close');
+  if (close) text(close);
+  // items, with the dotted rule between them
+  const lis = [...sheet.querySelectorAll('.menu__list li')];
+  lis.forEach((li, i) => {
+    // a focused or hovered item looks the same on the card as on the page
+    const a = li.querySelector('a');
+    if (a && a.matches(':focus-visible, :hover')) {
+      const st = style(a), r = rel(a.getBoundingClientRect());
+      const rr = parseFloat(st.borderTopLeftRadius) || 0;
+      g.fillStyle = st.backgroundColor;
+      g.beginPath(); g.roundRect(r.x, r.y, r.w, r.h, rr); g.fill();
+      const ow = parseFloat(st.outlineWidth) || 0;
+      if (st.outlineStyle !== 'none' && ow) {
+        const o = (parseFloat(st.outlineOffset) || 0) + ow / 2;
+        g.strokeStyle = st.outlineColor; g.lineWidth = ow;
+        g.beginPath(); g.roundRect(r.x - o, r.y - o, r.w + 2 * o, r.h + 2 * o, rr + o); g.stroke();
+      }
+    }
+    if (i) {
+      const r = rel(li.getBoundingClientRect());
+      g.fillStyle = 'rgb(74 44 26 / .3)';
+      for (let x = r.x; x < r.x + r.w; x += 2) g.fillRect(x, r.y, 1, 1);
+    }
+    for (const el of li.querySelectorAll('.menu__label, .menu__note')) text(el);
   });
-  const t = texture(c);
-  t.anisotropy = 8;
-  return t;
+  // foot: a rule, the "Leave the bar" pill, the plain link
+  const foot = sheet.querySelector('.menu__foot');
+  if (foot) {
+    const F = rel(foot.getBoundingClientRect());
+    g.fillStyle = lacquer;
+    g.fillRect(F.x, F.y, F.w, 2);
+    const leave = foot.querySelector('.menu__leave');
+    if (leave && style(leave).display !== 'none') {
+      const r = rel(leave.getBoundingClientRect());
+      g.fillStyle = style(leave).backgroundColor;
+      g.beginPath(); g.roundRect(r.x, r.y, r.w, r.h, r.h / 2); g.fill();
+      text(leave);
+    }
+    for (const a of foot.querySelectorAll('a')) {
+      text(a);
+      const r = rel(a.getBoundingClientRect());
+      const st = style(a);
+      g.fillStyle = st.color;
+      g.font = `${st.fontStyle} ${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+      const base = r.y + g.measureText('Hg').fontBoundingBoxAscent;
+      g.fillRect(r.x, base + Math.max(1, parseFloat(st.fontSize) * 0.1), r.w, Math.max(1, parseFloat(st.fontSize) / 14));
+    }
+  }
+  g.restore();
+  return { canvas: c, aspect: W / H };
 }
 
 /** The rocket's landing pad: scuffed concrete, a coral ring, a dashed aqua circle and chevrons. */

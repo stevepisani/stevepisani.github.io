@@ -35,7 +35,7 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent, { cast = true, recei
   return m;
 }
 
-export function buildBar({ prop, quality, favorites = [], heroes, menuItems = [], reducedMotion = false }) {
+export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion = false }) {
   const bar = new THREE.Group();
   bar.name = 'bar';
   const animated = [];
@@ -330,27 +330,26 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
   }
 
   /* ---------- The menu, propped up in front of your stool: click it to pick it up ---------- */
-  // The whole card (with its bamboo frame) flies up to you; nothing of it stays on the bar.
-  const MENU_W = 0.16, MENU_H = 0.24, MENU_LEAN = 1.1; // leans well back, so it never blocks the robot
+  // The whole card flies up to you; nothing of it stays on the bar. Its face is painted from the
+  // HTML menu itself (menu.paint(), from main.js), so it is the same card before and after the
+  // handoff: same layout, same proportions.
+  const MENU_H = 0.24, MENU_LEAN = 1.1; // leans well back, so it never blocks the robot
+  const MENU_ON_BAR = new THREE.Color(0.85, 0.68, 0.62), WHITE = new THREE.Color(1, 1, 1); // how the lamps tint it on the counter (measured)
   const menuCard = new THREE.Group();
   const menuStand = new THREE.Group();
+  const menuLit = pbr({ roughness: 0.8, alphaTest: 0.5 }), menuFlat = new THREE.MeshBasicMaterial({ alphaTest: 0.5 }); // alphaTest: the rounded corners
+  const menuFace = new THREE.Mesh(new THREE.PlaneGeometry(1, MENU_H), menuLit);
+  const menuBack = mesh(new THREE.BoxGeometry(1, MENU_H, 0.006), M.beam, [0, MENU_H / 2, 0], menuCard);
   {
     menuStand.position.set(0.05, BAR_TOP, 1.0);
     menuStand.rotation.y = -0.08; // turned a touch toward the middle stool
     bar.add(menuStand);
     menuCard.rotation.x = -MENU_LEAN;
     menuStand.add(menuCard);
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(MENU_W, MENU_H), pbr({ map: T.menuCard(menuItems), roughness: 0.8 }));
-    face.position.set(0, MENU_H / 2, 0.004);
-    face.castShadow = face.receiveShadow = true;
-    menuCard.add(face);
-    mesh(new THREE.BoxGeometry(MENU_W, MENU_H, 0.006), M.beam, [0, MENU_H / 2, 0], menuCard);
-    const rod = new THREE.CylinderGeometry(0.006, 0.006, 1, 8);
-    for (const [x, y, len, rz] of [[0, 0, MENU_W + 0.02, Math.PI / 2], [0, MENU_H, MENU_W + 0.02, Math.PI / 2], [-MENU_W / 2, MENU_H / 2, MENU_H + 0.02, 0], [MENU_W / 2, MENU_H / 2, MENU_H + 0.02, 0]]) {
-      const r = mesh(rod, M.bamboo, [x, y, 0.006], menuCard);
-      r.scale.y = len;
-      r.rotation.z = rz;
-    }
+    menuFace.position.set(0, MENU_H / 2, 0.004);
+    menuFace.castShadow = menuFace.receiveShadow = true;
+    menuCard.add(menuFace);
+    menuFace.scale.x = menuBack.scale.x = MENU_H * (2 / 3);
   }
 
   /* ---------- Rattan stools; the middle one is yours ---------- */
@@ -509,7 +508,28 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     serve,
     robot,
     /** The menu card on the bar (what gets picked up) and a point just above it for its label. */
-    menu: { card: menuCard, label: toWorld(0.05, BAR_TOP + 0.12, 0.9), height: MENU_H },
+    menu: {
+      card: menuCard,
+      label: toWorld(0.05, BAR_TOP + 0.12, 0.9),
+      height: MENU_H,
+      /** New face, painted from the HTML card: `canvas` and its `aspect` (width / height). */
+      paint({ canvas, aspect }) {
+        const old = menuLit.map;
+        menuLit.map = menuFlat.map = T.canvasTexture(canvas);
+        menuLit.needsUpdate = menuFlat.needsUpdate = true;
+        if (old) old.dispose();
+        menuFace.scale.x = menuBack.scale.x = MENU_H * aspect;
+      },
+      /**
+       * 0 = lit by the bar; above 0 it's drawn flat, the page's own colours, from roughly how it
+       * looks on the counter (k near 0) to exactly the page (1), for the overlay pass in main.js.
+       */
+      light(k) {
+        menuFace.material = k > 0 ? menuFlat : menuLit;
+        menuBack.visible = !(k > 0); // unlit in the overlay it would be a black edge; the card is thin
+        menuFlat.color.copy(MENU_ON_BAR).lerp(WHITE, k);
+      },
+    },
     /** The guest sat down: the robot rolls over to face them. */
     greet() { robot.greet(ROBOT_SERVE, new THREE.Vector3(stools[1].position.x, DECK, stools[1].position.z)); },
     /** The guest left: back to its spot. */

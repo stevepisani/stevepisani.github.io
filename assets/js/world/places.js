@@ -8,6 +8,7 @@ import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
 import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe } from './props.js';
 import { shrub } from './decor.js';
+import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS } from './planet.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
@@ -25,11 +26,11 @@ export const SPOTS = {
 // (polar, longitude) like SPOTS; they swing wide of the bar's palms and planting.
 const FORK = dirFrom(0.33, Math.PI / 2); // where the trails leave the walk
 export const TRAILS = [
-  { id: 'bar', points: [dirFrom(0.68, Math.PI / 2), dirFrom(0.5, Math.PI / 2 + 0.03), FORK, dirFrom(0.2, Math.PI / 2)], width: 1.5, flags: 'walk', seed: 1, openEnd: true },
+  { id: 'bar', points: [dirFrom(0.68, Math.PI / 2), dirFrom(0.5, Math.PI / 2 + 0.03), FORK, dirFrom(0.2, Math.PI / 2)], width: 1.5, flags: 'walk', seed: 1, lanterns: 4.4, lanternStart: 2.8, openEnd: true }, // not at your feet as you land
   { id: 'rocket', points: [dirFrom(0.6, Math.PI / 2), dirFrom(0.625, 1.48), dirFrom(0.66, 1.4)], width: 1.0, flags: 'steps', seed: 2, openStart: true, openEnd: true },
-  { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 7, openStart: true },
-  { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 7, openStart: true },
-  { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 8, openStart: true },
+  { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
+  { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
+  { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
@@ -80,10 +81,11 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     return obj;
   };
   // A bamboo post with a crook arm and a hooded glass lantern hanging from it: the practical
-  // light for a landmark out in the dark, and the way-markers along the trails. Phones (and the
-  // trail lanterns) get the glow only: every light costs every lit surface.
+  // light for a landmark out in the dark, and the way-markers along the trails. None of them is a
+  // real light (every light costs every lit surface): each throws its warm pool through the
+  // ground's shaders instead (lamps.js), on phones too.
   const lanternMats = { bamboo: surface(bambooSet(), { roughness: 0.7 }), cap: pbr({ color: PALETTE.lava, roughness: 0.5, metalness: 0.4 }), glass: glow(PALETTE.amber, 3), cord: pbr({ color: PALETTE.lava }) };
-  const lantern = (dir, { height = 1.5, light = quality.high ? 3.2 : 0 } = {}) => {
+  const lantern = (dir, { height = 1.5, light = 0, pool = 12 } = {}) => {
     const g = new THREE.Group();
     const M = lanternMats;
     mesh(new THREE.CylinderGeometry(0.035, 0.045, height, 8), M.bamboo, [0, height / 2, 0], g);
@@ -102,7 +104,10 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       l.position.set(0.25, height - 0.3, 0);
       g.add(l);
     }
-    return put(g, dir, { heading: (dir.x * 13.7 + dir.z * 7.1) % 6.28 }, 0.3);
+    put(g, dir, { heading: (dir.x * 13.7 + dir.z * 7.1) % 6.28 }, 0.3);
+    // no real light: it lights the ground through the shaders instead (lamps.js)
+    if (!light) { g.updateMatrixWorld(true); addLamp(g.localToWorld(new THREE.Vector3(0.25, height - 0.23, 0)), pool); }
+    return g;
   };
   const beside = (dir, metres, turn = 0) => {
     const up = dir.clone().normalize();
@@ -195,13 +200,16 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   {
     const trails = buildTrails(TRAILS, { quality });
     group.add(trails.group);
-    for (const dir of trails.lanterns) lantern(dir, { height: 1.1, light: 0 });
+    for (const dir of trails.lanterns) lantern(dir, { height: 1.1 });
     // a pair of tiki torches marks the walk a few steps in, so they don't loom at your feet
     const walk = TRAILS[0].sampled;
     const mark = walk.samples.find((x) => Math.acos(x.up.dot(BAR_DIR)) < 0.43);
     for (const side of [-1, 1]) {
       const torch = tikiTorch({ height: 1.7, light: quality.high ? 2.0 : 0 });
       put(torch, offset(mark.up, mark.side, side * 1.15), {}, 0.3);
+      // its real light (desktop) barely reaches the ground; the pool at its foot does
+      torch.updateMatrixWorld(true);
+      addLamp(torch.localToWorld(new THREE.Vector3(0, 1.75, 0)), quality.high ? 9 : 14);
       animated.push((t) => torch.userData.update(t));
     }
   }

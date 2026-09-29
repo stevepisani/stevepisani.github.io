@@ -2,6 +2,8 @@
 //
 //   scene → N8AO ambient occlusion → bloom (HDR only, mipmap blur) → AgX tone mapping
 //         → vignette + fine grain → SMAA
+//   then `overlay`, drawn untouched on top: things that must look exactly like the page (the menu
+//   card in your hands, which the HTML menu takes over from).
 //
 // Phones and weak GPUs get a lighter tier: no AO, cheaper bloom, no grain.
 import * as THREE from 'three';
@@ -50,12 +52,21 @@ export function createPipeline(renderer, scene, camera, { high }) {
   composer.addPass(new EffectPass(camera, ...effects));
   composer.addPass(new EffectPass(camera, new SMAAEffect()));
 
+  const overlay = new THREE.Scene();
   return {
     composer,
+    overlay,
     setSize(w, h) {
       composer.setSize(w, h);
       if (ao) ao.setSize(w, h);
     },
-    render(dt) { composer.render(dt); },
+    render(dt) {
+      composer.render(dt);
+      if (!overlay.children.length) return;
+      renderer.autoClear = false;
+      renderer.clearDepth();
+      renderer.render(overlay, camera);
+      renderer.autoClear = true;
+    },
   };
 }
