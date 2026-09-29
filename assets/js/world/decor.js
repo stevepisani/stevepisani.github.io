@@ -285,3 +285,55 @@ export function planting(spots, seed = 21) {
   }
   return g;
 }
+
+/* ---------- Shrubs out on the planet ---------- */
+
+// One merged geometry per kind (a clump of leaf cards, coloured per leaf), shared by every shrub
+// of that kind: each shrub is one mesh and one draw call.
+const shrubGeos = {};
+let shrubMats = null;
+function shrubGeometry(kind) {
+  if (shrubGeos[kind]) return shrubGeos[kind];
+  const rand = rng(kind.length * 31 + 7);
+  const spec = { monstera: [9, 0.9, 0.8], ti: [14, 0.8, 0.35], fern: [13, 0.7, 1.0] }[kind];
+  const [n, size, lean] = spec;
+  const tint = {
+    monstera: () => tone(PALETTE.leaf, 1.2 + rand() * 0.4),
+    ti: () => tone(PALETTE.hibiscus, 0.5 + rand() * 0.25).lerp(tone(PALETTE.stain, 1), 0.25),
+    fern: () => tone(PALETTE.lime, 0.7 + rand() * 0.3).lerp(tone(PALETTE.leaf, 1), 0.5),
+  }[kind];
+  const parts = [];
+  const q = new THREE.Quaternion(), m = new THREE.Matrix4();
+  for (let i = 0; i < n; i++) {
+    const card = new THREE.PlaneGeometry(0.5, 1).translate(0, 0.5, 0);
+    const s = size * (0.7 + rand() * 0.5);
+    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (i / n) * Math.PI * 2 + rand() * 0.5)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), lean * (0.6 + rand() * 0.6)));
+    card.applyMatrix4(m.compose(new THREE.Vector3((rand() - 0.5) * 0.2, 0, (rand() - 0.5) * 0.2), q, new THREE.Vector3(s, s, s)));
+    const c = tint();
+    const col = new Float32Array(card.attributes.position.count * 3);
+    for (let k = 0; k < card.attributes.position.count; k++) col.set([c.r, c.g, c.b], k * 3);
+    card.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    parts.push(card.toNonIndexed());
+  }
+  const geo = new THREE.BufferGeometry();
+  for (const [name, size2] of [['position', 3], ['normal', 3], ['uv', 2], ['color', 3]]) {
+    const arr = new Float32Array(parts.reduce((t, p) => t + p.attributes[name].array.length, 0));
+    let off = 0;
+    for (const p of parts) { arr.set(p.attributes[name].array, off); off += p.attributes[name].array.length; }
+    geo.setAttribute(name, new THREE.BufferAttribute(arr, size2));
+  }
+  geo.computeBoundingSphere();
+  return (shrubGeos[kind] = geo);
+}
+/** A tropical shrub (a clump of monstera, red ti or fern) standing at the origin. */
+export function shrub(i) {
+  if (!shrubMats) {
+    const mk = (kind) => pbr({ map: T.leafCard(kind), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.75, vertexColors: true });
+    shrubMats = { monstera: mk('monstera'), ti: mk('ti'), fern: mk('fern') };
+  }
+  const kind = ['fern', 'monstera', 'ti'][i % 3];
+  const m = new THREE.Mesh(shrubGeometry(kind), shrubMats[kind]);
+  m.castShadow = true;
+  return m;
+}

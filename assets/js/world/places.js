@@ -6,7 +6,8 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe } from './props.js';
+import { shrub } from './decor.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS } from './planet.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
@@ -244,9 +245,10 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     });
   }
 
-  // Satellite dish, pointed at the sky.
+  // A retro radio telescope, pointed at the sky.
   {
-    const dish = ground(prop('space-kit_satellitedish', 2.8), SPOTS.dish, { heading: 1.2 }, 2);
+    // facing the trail as you walk up, tipped back toward the sky
+    const dish = ground(radioDish(), SPOTS.dish, { heading: headingToward(SPOTS.dish, dirFrom(0.97, -0.24)) }, 2);
     colliders.push({ center: dish.position.clone(), radius: 0.8 });
     // a floodlight at its foot and a blinking beacon on top, like a real ground station
     dish.updateMatrixWorld(true);
@@ -266,12 +268,12 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
   }
 
-  // A rowboat, beached, for reasons nobody can explain.
+  // An outrigger canoe, pulled up on the beach, for reasons nobody can explain.
   {
-    const boat = prop('pirate-kit_boat-row-small', 0.85);
-    put(boat, SPOTS.boat, { heading: 2.2, sink: 0.12 }, 2);
-    lantern(beside(SPOTS.boat, 1.5, 1.2), { height: 1.3 });
-    colliders.push({ center: boat.position.clone(), radius: 1.0 });
+    // (not ground(): that would sink a 3 m hull by the fall of the ground over its whole length)
+    const boat = put(outriggerCanoe(), SPOTS.boat, { heading: 2.2, sink: 0.06 }, 2.2);
+    lantern(beside(SPOTS.boat, 2.1, 1.2), { height: 1.3 });
+    colliders.push({ center: boat.position.clone(), radius: 1.4 });
   }
 
   // Scatter: lava rock, palms, dark greenery, and a few softly glowing space crystals.
@@ -314,13 +316,13 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       c.traverse((o) => { if (o.isMesh) o.material = pbr({ color: 0x1c3440, emissive: PALETTE.aqua, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.3 }); });
       ground(c, dir, { heading: rand() * 6.28, sink: 0.05 }, 0.4);
     }
-    // dark greenery
+    // tropical shrubs: ferns, monstera and red ti, the same leaves as round the bar
     for (let i = 0; i < Math.round(40 * scale); i++) {
-      const dir = spot(0.2, 0.5);
+      const dir = spot(0.3, 0.5);
       if (!dir) continue;
-      const b = prop(i % 2 ? 'nature-kit_plant-bush' : 'nature-kit_plant-bushsmall', 2 + rand());
-      b.traverse((o) => { if (o.isMesh) o.material = pbr({ color: 0x24402a, roughness: 0.9 }); });
-      put(b, dir, { heading: rand() * 6.28, sink: 0.02 }, 0.2);
+      const b = shrub(i);
+      b.scale.setScalar(0.8 + rand() * 0.6);
+      put(b, dir, { heading: rand() * 6.28, sink: 0.03 }, 0.3);
     }
   }
 
