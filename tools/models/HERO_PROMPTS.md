@@ -90,7 +90,7 @@ Texture: Porous dark grey volcanic basalt, weathered and pitted, green moss and 
 
 Texture: Glossy teal #0F5E63 and cream enamel tin with rivets, chrome trim, aloha shirt with coral hibiscus flowers, amber glowing dial face, pink and white flower lei, black bow tie, black rubber wheel.
 
-**thinker**: the Rodin Museum ode (Rodin's 1880 original is in the public domain)
+**thinker**: sits with you at the campfire, a nod to Philadelphia's Rodin Museum (Rodin's 1880 original is in the public domain)
 > The Thinker by Auguste Rodin: a muscular nude man seated on a rough rock, leaning forward, his right elbow resting on his left thigh, his chin resting on the back of his right hand, deep in thought, left hand hanging over the left knee. Full figure, seated, facing forward. Cast bronze with a dark green-brown patina. Realistic proportions, museum sculpture, game-ready.
 
 Texture: Cast bronze sculpture with a dark brown-green patina, worn to warm golden bronze on the raised muscles and highlights, darker in the recesses; the rock base in the same bronze. Metallic, museum outdoor bronze, no paint.

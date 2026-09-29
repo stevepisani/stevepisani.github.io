@@ -739,58 +739,6 @@ export function signpost(boards, { height = 1.9 } = {}) {
   return g;
 }
 
-/*
- * An ode to Philadelphia's Rodin Museum: its limestone gateway (Paul Cret's copy of the gate at
- * Rodin's home in Meudon: a round arch between paired columns, under an entablature, a cornice
- * and an attic), a terrace in front, and the Thinker's pedestal before the arch. Faces local +z.
- * `thinker` (the figure, about 1.35 m tall, base at y = 0) goes on the pedestal's top.
- * Returns { group, top } (top: the pedestal's top, in local space).
- */
-export function rodinGate(thinker) {
-  const g = new THREE.Group();
-  const stone = pbr({ color: PALETTE.limestone, roughness: 0.92 });
-  const shade = pbr({ color: new THREE.Color(PALETTE.limestone).multiplyScalar(0.8), roughness: 0.95 });
-  const add = (geo, mat, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
-  const W = 4.6, D = 0.7, ARCH_W = 1.7, SPRING = 2.25, TOP = 3.15;
-  // terrace: a low stone platform, deep enough to meet the ground where the planet curves away
-  add(new THREE.CylinderGeometry(3.3, 3.5, 0.9, 40), shade, 0, -0.25, 1.4); // top at y 0.2, where everything stands
-  add(new THREE.BoxGeometry(W + 0.5, 0.2, D + 0.5), shade, 0, 0.1, 0);
-  // the wall, with the arch cut through it
-  const wall = new THREE.Shape();
-  wall.moveTo(-W / 2, 0); wall.lineTo(W / 2, 0); wall.lineTo(W / 2, TOP); wall.lineTo(-W / 2, TOP); wall.closePath();
-  const hole = new THREE.Path();
-  hole.moveTo(-ARCH_W / 2, 0.2); hole.lineTo(-ARCH_W / 2, SPRING); hole.absarc(0, SPRING, ARCH_W / 2, Math.PI, 0, true); hole.lineTo(ARCH_W / 2, 0.2); hole.closePath();
-  wall.holes.push(hole);
-  const wallGeo = new THREE.ExtrudeGeometry(wall, { depth: D, bevelEnabled: false, curveSegments: 20 }).translate(0, 0.2, -D / 2);
-  add(wallGeo, stone, 0, 0, 0);
-  // voussoirs: a keystone and a band round the arch
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(ARCH_W / 2 + 0.09, 0.08, 6, 24, Math.PI), stone);
-  ring.position.set(0, SPRING + 0.2, D / 2 + 0.02); ring.scale.z = 0.5; ring.castShadow = true; g.add(ring);
-  add(new THREE.BoxGeometry(0.22, 0.34, 0.2), stone, 0, SPRING + 0.2 + ARCH_W / 2 + 0.08, D / 2 + 0.04);
-  // paired columns each side, on pedestals, with simple capitals
-  for (const side of [-1, 1]) for (const x of [1.3, 1.85]) {
-    const cx = side * x, z = D / 2 + 0.16;
-    add(new THREE.BoxGeometry(0.42, 0.55, 0.42), stone, cx, 0.2 + 0.275, z);
-    const shaft = add(new THREE.CylinderGeometry(0.13, 0.15, 2.3, 16), stone, cx, 0.75 + 1.15, z);
-    shaft.geometry.computeVertexNormals();
-    add(new THREE.BoxGeometry(0.38, 0.12, 0.38), stone, cx, 3.11, z);
-    add(new THREE.CylinderGeometry(0.19, 0.14, 0.12, 16), stone, cx, 2.99, z);
-  }
-  // entablature, cornice, attic
-  add(new THREE.BoxGeometry(W + 0.3, 0.42, D + 0.5), stone, 0, TOP + 0.2 + 0.21, 0.12);
-  add(new THREE.BoxGeometry(W + 0.55, 0.12, D + 0.75), shade, 0, TOP + 0.2 + 0.48, 0.14);
-  add(new THREE.BoxGeometry(W - 0.8, 0.55, D - 0.1), stone, 0, TOP + 0.2 + 0.82, 0);
-  add(new THREE.BoxGeometry(W - 0.6, 0.08, D + 0.05), shade, 0, TOP + 0.2 + 1.12, 0);
-  // the Thinker's pedestal, before the arch
-  const PZ = 2.2, PH = 1.25;
-  add(new THREE.BoxGeometry(1.45, 0.22, 1.45), shade, 0, 0.2 + 0.11, PZ);
-  add(new THREE.BoxGeometry(1.2, PH - 0.4, 1.2), stone, 0, 0.42 + (PH - 0.4) / 2, PZ);
-  add(new THREE.BoxGeometry(1.4, 0.18, 1.4), shade, 0, 0.42 + PH - 0.4 + 0.09, PZ);
-  const top = new THREE.Vector3(0, 0.42 + PH - 0.4 + 0.18, PZ);
-  if (thinker) { thinker.position.copy(top); g.add(thinker); }
-  return { group: g, top };
-}
-
 /**
  * A stand-in Thinker in bronze, from simple forms, for when the hero model isn't there: a
  * figure seated on a rock, bent forward, chin on the back of the right hand, the right elbow on
