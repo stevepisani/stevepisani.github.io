@@ -21,6 +21,7 @@ export const PALETTE = {
   lime: 0x8fb33a,      // citrus on the bar
   chrome: 0xc9ced8,
   brass: 0xc9953a,     // the telescope
+  tinTeal: 0x1a74a6,   // the robot's enamel: bluer than teal on purpose, so it still reads teal under the amber lamps
   rocketWhite: 0xe8e6e0, // the Saturn V's paint
   rocketBlack: 0x19191b,
   towerRed: 0x9a3322,  // its umbilical tower
