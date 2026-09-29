@@ -155,7 +155,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     bar.add(strands);
   }
 
-  /* ---------- Neon script sign in the gable ---------- */
+  /* ---------- The sign in the gable: "Steve's" in neon script over a lit "World famous" box ---------- */
   {
     const sign = new THREE.Group();
     sign.position.set(0, EAVE + 1.25, Z1 - 0.05);
@@ -169,6 +169,26 @@ export function buildBar({ prop, quality, favorites = [], heroes, menuItems = []
     face.material.color.setScalar(1.35); // just into HDR: the bright tube cores bloom, the letters stay crisp
     face.position.set(0, -0.15, 0.03);
     sign.add(face);
+    // Under the script, a lit box: "World famous" in dark letters on a glowing face, framed in
+    // dark wood with a brass rim and a row of marquee bulbs top and bottom.
+    const box = new THREE.Group();
+    box.position.set(0, -0.64, 0.05);
+    sign.add(box);
+    const BW = 2.25, BH = 0.4; // as big as the gable allows, so it reads from where you land
+    mesh(new THREE.BoxGeometry(BW + 0.16, BH + 0.16, 0.1), M.beam, [0, 0, -0.03], box);
+    mesh(new THREE.BoxGeometry(BW + 0.06, BH + 0.06, 0.1), pbr({ color: PALETTE.brass, metalness: 0.55, roughness: 0.35 }), [0, 0, -0.02], box);
+    const lit = new THREE.Mesh(new THREE.PlaneGeometry(BW, BH), new THREE.MeshBasicMaterial({ map: T.signBox('WORLD FAMOUS'), toneMapped: false }));
+    lit.material.userData.keep = true;
+    lit.material.color.setScalar(0.95); // bright, but under the bloom threshold, so the letters stay sharp
+    lit.position.z = 0.031;
+    box.add(lit);
+    const bulbs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.022, 10, 8), glow(PALETTE.amber, 2.8), 26);
+    for (let i = 0; i < 13; i++) {
+      const x = -BW / 2 - 0.02 + (i / 12) * (BW + 0.04);
+      bulbs.setMatrixAt(i, new THREE.Matrix4().makeTranslation(x, BH / 2 + 0.08, 0.035));
+      bulbs.setMatrixAt(13 + i, new THREE.Matrix4().makeTranslation(x, -BH / 2 - 0.08, 0.035));
+    }
+    box.add(bulbs);
     const neonLight = new THREE.PointLight(PALETTE.hibiscus, 3, 7, 1.6);
     neonLight.position.set(0, EAVE + 0.9, Z1 + 1.3);
     bar.add(neonLight);
