@@ -6,7 +6,7 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost } from './props.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
@@ -21,6 +21,17 @@ export const SPOTS = {
   boat: null, // on the lagoon's shore (below)
 };
 SPOTS.boat = pondDir(shoreAt(POND.boatAzimuth) + 0.55, POND.boatAzimuth);
+// Round the lagoon (azimuths about its centre): the spur trail comes down beside the canoe's
+// stern, the bottles have washed up further along that side, and the hammock hangs between two
+// palms on the other side of the canoe.
+const LAGOON = (() => {
+  const b = POND.boatAzimuth, onTrail = dirFrom(0.5, -0.31);
+  const s = pondDir(4, b + 0.6).angleTo(onTrail) < pondDir(4, b - 0.6).angleTo(onTrail) ? 1 : -1;
+  return { s, trailPhi: b + s * 0.6, bottlesPhi: b + s * 1.05, hammockPhi: b - s * 1.15, lanternPhi: b - s * 0.5 };
+})();
+SPOTS.lagoonTrail = pondDir(shoreAt(LAGOON.trailPhi) + 1.6, LAGOON.trailPhi);
+SPOTS.bottles = pondDir(shoreAt(LAGOON.bottlesPhi) + 0.05, LAGOON.bottlesPhi);
+SPOTS.hammock = pondDir(shoreAt(LAGOON.hammockPhi) + 2.1, LAGOON.hammockPhi);
 
 // The trail network. The flagstone walk runs from where you land to the bar; gravel trails
 // branch off it to everything else, so every landmark is somewhere a path goes. Waypoints are
@@ -31,6 +42,7 @@ export const TRAILS = [
   { id: 'rocket', points: [dirFrom(0.6, Math.PI / 2), dirFrom(0.625, 1.48), dirFrom(0.66, 1.4)], width: 1.0, flags: 'steps', seed: 2, openStart: true, openEnd: true },
   { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
+  { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
   { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
@@ -38,7 +50,7 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
 // the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True where nothing should grow: on a trail or under a landmark. */
 export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 
@@ -215,6 +227,29 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
   }
 
+  // A tiki signpost in the corner of the fork, its arrows along the real trails: wayfinding at a
+  // glance, from where you land (nobody needs to be told what's out there).
+  {
+    const bar = BAR_DIR.clone();
+    const tangent = (from, to) => to.clone().normalize().sub(from.clone().multiplyScalar(to.clone().normalize().dot(from))).normalize();
+    const f = FORK.clone().normalize();
+    const toBar = tangent(f, bar), toScope = tangent(f, TRAILS[2].points[1]);
+    const at = f.clone().multiplyScalar(RADIUS).addScaledVector(toBar.clone().add(toScope).normalize(), 1.6).normalize();
+    const dests = [
+      ["Steve's", bar], ['Telescope', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
+      ['Lagoon', TRAILS[3].points[1]], ['Campfire', TRAILS[3].points[1]], ['Rocket', TRAILS[0].points[0]],
+    ];
+    const sign = new THREE.Group();
+    put(sign, at, { heading: 0 }, 0.4);
+    const inv = sign.quaternion.clone().invert();
+    const boards = dests.map(([text, to]) => {
+      const l = tangent(at, to).applyQuaternion(inv);
+      return { text, angle: Math.atan2(-l.z, l.x) };
+    });
+    sign.add(signpost(boards));
+    colliders.push({ center: sign.position.clone(), radius: 0.3 });
+  }
+
   // Telescope: a brass refractor on a wooden surveyor's tripod, slowly tracking the sky
   // (aimed at the next launch).
   {
@@ -275,6 +310,8 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
     animated.push((t) => { beacon.visible = ((t + 0.7) % 1.9) < 0.2; });
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
+    // a ground station: this is where you send Steve a signal
+    interactables.push({ id: 'contact', label: 'Radio dish', verb: 'Get in touch', object: dish, point: dish.position.clone(), approach: surfacePoint(dirFrom(1.01, -0.23)), radius: 2.4 });
   }
 
   // An outrigger canoe, pulled up out of the lagoon, for reasons nobody can explain: stern on
@@ -288,10 +325,39 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const boat = new THREE.Group();
     boat.add(hull);
     put(boat, SPOTS.boat, { heading: headingToward(SPOTS.boat, POND.center), sink: 0.1 }, 2.2);
-    lantern(pondDir(shoreAt(phi + 0.5) + 1.0, phi + 0.5), { height: 1.3 });
+    lantern(pondDir(shoreAt(LAGOON.lanternPhi) + 1.0, LAGOON.lanternPhi), { height: 1.3 });
     colliders.push({ center: boat.position.clone(), radius: 1.4 });
     colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35 }); // stop at the waterline (it wanders ±15%)
   }
+
+  // A hammock between two palms by the lagoon, a book left open in it: the reading list.
+  {
+    const phi = LAGOON.hammockPhi, r = shoreAt(phi) + 2.1;
+    const along = 1.75 / r; // half the span, as an angle round the lagoon
+    const ends = [phi - along, phi + along].map((p) => pondDir(r + 0.1, p));
+    const ties = ends.map((dir, i) => {
+      const other = ends[1 - i];
+      const h = 5 + i * 0.6, lean = 0.12;
+      const tree = palm({ height: h, lean, seed: 310 + i });
+      // it leans away from the other palm (a palm's lean is along its local +x)
+      const away = dir.clone().multiplyScalar(2).sub(other).normalize();
+      put(tree, dir, { heading: headingToward(dir, away) - Math.PI / 2 }, 0.4);
+      colliders.push({ center: tree.position.clone(), radius: 0.35 });
+      const y = 1.45, k = y / h;
+      tree.updateMatrixWorld(true);
+      return tree.localToWorld(new THREE.Vector3(Math.sin(k * 1.4) * lean * h * 0.35, y, 0));
+    });
+    const up = SPOTS.hammock.clone().normalize();
+    const hm = hammock(ties[0], ties[1], up);
+    group.add(hm);
+    const books = bookStack(3);
+    put(books, pondDir(r + 0.55, phi + 0.08), { heading: 0.6 }, 0.3);
+    colliders.push({ center: surfacePoint(SPOTS.hammock), radius: 0.7 });
+    interactables.push({ id: 'shelf', label: 'Hammock', verb: 'Browse the reading list', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4 });
+  }
+
+  // Messages in bottles, washed up at the waterline (scenery).
+  put(messageBottles(3), SPOTS.bottles, { heading: LAGOON.bottlesPhi }, 0.3);
 
   // Scatter: lava rock, palms, dark greenery, and a few softly glowing space crystals.
   {
