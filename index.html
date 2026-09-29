@@ -19,7 +19,36 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     a while, a way out appears on its own (CSS only, so it shows even if the script never loads).
   {%- endcomment -%}
   <div class="veil" id="veil">
-    <div class="veil__sign" aria-hidden="true"><span class="veil__neon">Steve's</span><span class="veil__box">World famous</span></div>
+    {%- comment -%}
+      The sign, drawn in the sign's own centimetres (y down) from the same numbers as bar.js and
+      textures.js neonSign()/signBox(), and set in 3D by world.css at the pose the camera sees it
+      from where you land, so the real one appears exactly on top of it.
+    {%- endcomment -%}
+    <div class="veil__sign" aria-hidden="true">
+      <svg viewBox="-270 -180 540 330">
+        <defs>
+          <filter id="veil-halo" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="3.5"/></filter>
+          <filter id="veil-soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>
+          <filter id="veil-bulb" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.8"/></filter>
+          <linearGradient id="veil-face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdc6b8"/><stop offset=".5" stop-color="#e6e2d9"/><stop offset="1" stop-color="#cdc6b8"/></linearGradient>
+        </defs>
+        <g class="veil__neon">
+          <text x="0" y="21.76" stroke="#ff4fa3" stroke-width="9" opacity=".55" filter="url(#veil-halo)">Steve's</text>
+          <text x="0" y="21.76" stroke="#ff4fa3" stroke-width="4.2" opacity=".85" filter="url(#veil-soft)">Steve's</text>
+          <text x="0" y="21.76" stroke="#ff8cc6" stroke-width="3.6">Steve's</text>
+          <text x="0" y="21.76" stroke="#ffd9ea" stroke-width="2.2">Steve's</text>
+        </g>
+        <g class="veil__box">
+          <rect x="-120.5" y="36" width="241" height="56" fill="#24150c"/>
+          <rect x="-115.5" y="41" width="231" height="46" fill="#9a6e2c"/>
+          <rect x="-112.5" y="44" width="225" height="40" fill="url(#veil-face)"/>
+          <rect x="-108.55" y="47.33" width="217.09" height="33.33" fill="none" stroke="#e8634a" stroke-width="1.3" opacity=".7"/>
+          <text x="0" y="70.82" transform="scale(1.0547 1)" fill="#2b2420">WORLD FAMOUS</text>
+          <g fill="#ffc774" filter="url(#veil-bulb)"><circle cx="-114.5" cy="36" r="2.2"/><circle cx="-95.42" cy="36" r="2.2"/><circle cx="-76.33" cy="36" r="2.2"/><circle cx="-57.25" cy="36" r="2.2"/><circle cx="-38.17" cy="36" r="2.2"/><circle cx="-19.08" cy="36" r="2.2"/><circle cx="0" cy="36" r="2.2"/><circle cx="19.08" cy="36" r="2.2"/><circle cx="38.17" cy="36" r="2.2"/><circle cx="57.25" cy="36" r="2.2"/><circle cx="76.33" cy="36" r="2.2"/><circle cx="95.42" cy="36" r="2.2"/><circle cx="114.5" cy="36" r="2.2"/><circle cx="-114.5" cy="92" r="2.2"/><circle cx="-95.42" cy="92" r="2.2"/><circle cx="-76.33" cy="92" r="2.2"/><circle cx="-57.25" cy="92" r="2.2"/><circle cx="-38.17" cy="92" r="2.2"/><circle cx="-19.08" cy="92" r="2.2"/><circle cx="0" cy="92" r="2.2"/><circle cx="19.08" cy="92" r="2.2"/><circle cx="38.17" cy="92" r="2.2"/><circle cx="57.25" cy="92" r="2.2"/><circle cx="76.33" cy="92" r="2.2"/><circle cx="95.42" cy="92" r="2.2"/><circle cx="114.5" cy="92" r="2.2"/></g>
+          <g fill="#fff1d6"><circle cx="-114.5" cy="36" r="2.2"/><circle cx="-95.42" cy="36" r="2.2"/><circle cx="-76.33" cy="36" r="2.2"/><circle cx="-57.25" cy="36" r="2.2"/><circle cx="-38.17" cy="36" r="2.2"/><circle cx="-19.08" cy="36" r="2.2"/><circle cx="0" cy="36" r="2.2"/><circle cx="19.08" cy="36" r="2.2"/><circle cx="38.17" cy="36" r="2.2"/><circle cx="57.25" cy="36" r="2.2"/><circle cx="76.33" cy="36" r="2.2"/><circle cx="95.42" cy="36" r="2.2"/><circle cx="114.5" cy="36" r="2.2"/><circle cx="-114.5" cy="92" r="2.2"/><circle cx="-95.42" cy="92" r="2.2"/><circle cx="-76.33" cy="92" r="2.2"/><circle cx="-57.25" cy="92" r="2.2"/><circle cx="-38.17" cy="92" r="2.2"/><circle cx="-19.08" cy="92" r="2.2"/><circle cx="0" cy="92" r="2.2"/><circle cx="19.08" cy="92" r="2.2"/><circle cx="38.17" cy="92" r="2.2"/><circle cx="57.25" cy="92" r="2.2"/><circle cx="76.33" cy="92" r="2.2"/><circle cx="95.42" cy="92" r="2.2"/><circle cx="114.5" cy="92" r="2.2"/></g>
+        </g>
+      </svg>
+    </div>
     <div class="veil__load">
       <span class="veil__bar" aria-hidden="true"><span id="veil-progress"></span></span>
       <p class="veil__status" id="veil-status" role="status">Opening the bar…</p>
