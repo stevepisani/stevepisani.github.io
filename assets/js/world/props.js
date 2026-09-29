@@ -232,15 +232,44 @@ export function volcanoBowl() {
 /** A bamboo tiki torch with a real flame. */
 export function tikiTorch({ height = 2.2, light = 2.2, shadow = false } = {}) {
   const group = new THREE.Group();
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, height, 8), surface(bambooSet(), { repeat: [1, height / 1.2] }));
+  const bamboo = surface(bambooSet(), { repeat: [1, height / 1.2] });
+  // a tapering bamboo pole with raised nodes
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.058, height, 10), bamboo);
   pole.position.y = height / 2;
   pole.castShadow = true;
   group.add(pole);
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.22, 10, 1, true), surface(bambooSet(), { color: 0x8a6a3c, side: THREE.DoubleSide }));
-  cup.position.y = height + 0.06;
-  group.add(cup);
+  const node = new THREE.TorusGeometry(1, 0.18, 6, 14).rotateX(Math.PI / 2);
+  for (let i = 1; i < 5; i++) {
+    const y = (i / 5) * height * 0.92, r = 0.058 - (y / height) * 0.016;
+    const n = new THREE.Mesh(node, bamboo);
+    n.scale.setScalar(r * 1.02);
+    n.position.y = y;
+    group.add(n);
+  }
+  // rope lashing below the cup: a tight helix
+  const lash = [];
+  for (let i = 0; i <= 90; i++) { const k = i / 90, a = k * TAU * 9; lash.push(new THREE.Vector3(Math.cos(a) * 0.05, height - 0.2 + k * 0.14, Math.sin(a) * 0.05)); }
+  const rope = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(lash), 180, 0.009, 5), pbr({ color: PALETTE.thatch, roughness: 1 }));
+  group.add(rope);
+  // a cup of split bamboo slats flaring out, round a dark metal fuel canister and its wick
+  const slat = new THREE.BoxGeometry(0.03, 0.3, 0.01).translate(0, 0.15, 0);
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * TAU;
+    const m = new THREE.Mesh(slat, bamboo);
+    m.position.set(Math.cos(a) * 0.075, height - 0.1, Math.sin(a) * 0.075);
+    m.rotation.set(0, -a + Math.PI / 2, 0);
+    m.rotateX(0.3); // flaring outward
+    m.castShadow = true;
+    group.add(m);
+  }
+  const can = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.14, 16), pbr({ color: PALETTE.lava, metalness: 0.6, roughness: 0.4 }));
+  can.position.y = height + 0.06;
+  group.add(can);
+  const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.05, 8), glow(PALETTE.coral, 1.5));
+  wick.position.y = height + 0.13;
+  group.add(wick);
   const fire = createFire({ width: 0.28, height: 0.62, light, distance: 7, shadow });
-  fire.group.position.y = height + 0.12;
+  fire.group.position.y = height + 0.13;
   group.add(fire.group);
   group.userData.update = fire.update;
   return group;
@@ -288,25 +317,28 @@ export function palm({ height = 5.5, lean = 0.35, seed = 1 } = {}) {
     pts.push(new THREE.Vector3(Math.sin(k * 1.4) * lean * height * 0.35, k * height, 0));
   }
   const curve = new THREE.CatmullRomCurve3(pts);
-  const trunkGeo = new THREE.TubeGeometry(curve, 24, 0.15, 8, false);
-  // taper toward the top
+  const trunkGeo = new THREE.TubeGeometry(curve, Math.round(height * 16), 0.15, 12, false);
+  // taper toward the top, and ring it: each old leaf scar is a ridge you can see in silhouette
   const p = trunkGeo.attributes.position, v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     const y = p.getY(i) / height;
     const c = curve.getPoint(Math.min(1, Math.max(0, y)));
-    v.fromBufferAttribute(p, i).sub(c).multiplyScalar(1.15 - y * 0.45);
+    const ring = 1 + 0.07 * Math.pow(Math.abs(Math.sin(p.getY(i) * 11)), 6) - 0.03;
+    v.fromBufferAttribute(p, i).sub(c).multiplyScalar((1.15 - y * 0.45) * ring);
     p.setXYZ(i, c.x + v.x, p.getY(i), c.z + v.z);
   }
   trunkGeo.computeVertexNormals();
   const ring = document.createElement('canvas');
   ring.width = 64; ring.height = 64;
   const rg = ring.getContext('2d');
-  rg.fillStyle = '#6a5238'; rg.fillRect(0, 0, 64, 64);
-  rg.fillStyle = '#3e2e1e'; rg.fillRect(0, 0, 64, 12);
+  const bark = new THREE.Color(PALETTE.wood).lerp(new THREE.Color(PALETTE.thatch), 0.35);
+  rg.fillStyle = '#' + bark.getHexString(); rg.fillRect(0, 0, 64, 64);
+  rg.fillStyle = '#' + new THREE.Color(PALETTE.stain).getHexString(); rg.fillRect(0, 0, 64, 12);
+  for (let i = 0; i < 40; i++) { rg.fillStyle = `rgba(0,0,0,${0.08 + r() * 0.1})`; rg.fillRect(r() * 64, 12 + r() * 50, 1 + r() * 2, 4 + r() * 10); } // fibres
   const ringTex = new THREE.CanvasTexture(ring);
   ringTex.colorSpace = THREE.SRGBColorSpace;
   ringTex.wrapS = ringTex.wrapT = THREE.RepeatWrapping;
-  ringTex.repeat.set(1, 18);
+  ringTex.repeat.set(2, height * 3.5);
   const trunk = new THREE.Mesh(trunkGeo, pbr({ map: ringTex, bumpMap: ringTex, bumpScale: 2, roughness: 0.9 }));
   trunk.castShadow = true;
   group.add(trunk);
@@ -332,8 +364,16 @@ export function palm({ height = 5.5, lean = 0.35, seed = 1 } = {}) {
     f.castShadow = true;
     crown.add(f);
   }
+  // two dead fronds hanging straight down under the crown, brown and ragged
+  const deadMat = pbr({ map: frondTexture(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: PALETTE.thatch });
+  for (let i = 0; i < 2; i++) {
+    const f = new THREE.Mesh(frondGeo, deadMat);
+    f.scale.setScalar(0.75);
+    f.rotation.set(-2.7 + r() * 0.2, i * 2.6 + r(), 0, 'YXZ');
+    crown.add(f);
+  }
   for (let i = 0; i < 3; i++) {
-    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pbr({ color: 0x4a3420, roughness: 0.8 }));
+    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), pbr({ color: PALETTE.stain, roughness: 0.8 }));
     nut.position.set(Math.cos(i * 2.1) * 0.14, -0.15, Math.sin(i * 2.1) * 0.14);
     crown.add(nut);
   }
@@ -392,4 +432,165 @@ export function moai({ height = 2.4 } = {}) {
   for (const s of [-1, 1]) part(h * 0.05, h * 0.3, h * 0.08, s * h * 0.23, h * 0.58, 0); // long ears
   group.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
   return group;
+}
+
+/* ---------- Out on the planet ---------- */
+
+/**
+ * A retro radio telescope: a concrete pedestal, a yoke you could imagine turning, a white
+ * parabolic dish with panel seams and ribs behind it, and a feed horn held out on three struts.
+ * About 2.8 m tall. Faces local +z, tipped back toward the sky.
+ */
+export function radioDish() {
+  const g = new THREE.Group();
+  const concrete = surface(lavaSet(), { color: PALETTE.ash, roughness: 0.95, bumpScale: 1 });
+  const white = pbr({ color: PALETTE.rocketWhite, roughness: 0.45, metalness: 0.1, side: THREE.DoubleSide });
+  const steel = pbr({ color: PALETTE.chrome, metalness: 0.6, roughness: 0.4 });
+  const dark = pbr({ color: PALETTE.lava, metalness: 0.4, roughness: 0.6 });
+  // an octagonal plinth and a round pedestal
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.78, 0.3, 8), concrete);
+  plinth.position.y = 0.15;
+  g.add(plinth);
+  const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.9, 16), concrete);
+  pedestal.position.y = 0.75;
+  g.add(pedestal);
+  // the turntable and yoke
+  const turn = new THREE.Group();
+  turn.position.y = 1.22;
+  g.add(turn);
+  const table = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.08, 20), dark);
+  turn.add(table);
+  for (const x of [-0.42, 0.42]) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.16), white);
+    arm.position.set(x, 0.3, 0);
+    turn.add(arm);
+  }
+  // the dish on its elevation axis, tipped back to look up
+  const tilt = new THREE.Group();
+  tilt.position.y = 0.56;
+  tilt.rotation.x = -0.75;
+  turn.add(tilt);
+  const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.92, 12), steel);
+  axle.rotation.z = Math.PI / 2;
+  tilt.add(axle);
+  const R = 1.1, DEPTH = 0.32;
+  const bowl = [];
+  for (let i = 0; i <= 12; i++) { const r = (i / 12) * R; bowl.push(new THREE.Vector2(r, (r * r) / (R * R) * DEPTH)); }
+  const dishGeo = new THREE.LatheGeometry(bowl, 48).rotateX(Math.PI / 2); // opening toward +z
+  const dish = new THREE.Mesh(dishGeo, white);
+  dish.position.z = 0.12;
+  dish.castShadow = true;
+  tilt.add(dish);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.025, 8, 48), white);
+  rim.position.z = 0.12 + DEPTH;
+  tilt.add(rim);
+  // panel seams on the face, and ribs across the back
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * TAU;
+    const seam = [];
+    for (let k = 1; k <= 8; k++) { const r = (k / 8) * R; seam.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0.12 + (r * r) / (R * R) * DEPTH + 0.006)); }
+    tilt.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(seam), 12, 0.005, 4), pbr({ color: PALETTE.stone })));
+  }
+  // behind it, a hub, eight ribs following the curve and a ring truss tying them together
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.14, 16), dark);
+  hub.rotation.x = Math.PI / 2;
+  hub.position.z = 0.05;
+  tilt.add(hub);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * TAU, pts = [];
+    for (let k = 0; k <= 6; k++) { const r = 0.15 + (k / 6) * (R - 0.17); pts.push(new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0.1 + (r * r) / (R * R) * DEPTH - 0.04)); }
+    tilt.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 12, 0.018, 5), dark));
+  }
+  const truss = new THREE.Mesh(new THREE.TorusGeometry(R * 0.62, 0.014, 6, 40), dark);
+  truss.position.z = 0.1 + 0.38 * DEPTH - 0.04;
+  tilt.add(truss);
+  // the feed horn out front on three struts, with its beacon mount
+  const feedZ = 0.12 + DEPTH + 0.75;
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * TAU + Math.PI / 2;
+    const from = new THREE.Vector3(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92, 0.12 + DEPTH * 0.85);
+    const to = new THREE.Vector3(0, 0, feedZ);
+    const d = to.clone().sub(from);
+    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, d.length(), 6), steel);
+    s.position.copy(from).addScaledVector(d, 0.5);
+    s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+    tilt.add(s);
+  }
+  const horn = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.1, 0.22, 16), white);
+  horn.rotation.x = Math.PI / 2;
+  horn.position.z = feedZ - 0.02;
+  tilt.add(horn);
+  // a little equipment hut at the foot, with a lit window
+  const hut = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.36, 0.3), white);
+  hut.position.set(0.52, 0.48, -0.36);
+  g.add(hut);
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.08), glow(PALETTE.amber, 1.4));
+  win.position.set(0.52, 0.52, -0.2);
+  win.rotation.y = 0;
+  g.add(win);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  return g;
+}
+
+/**
+ * A Polynesian outrigger canoe (va'a), pulled up on the beach: a carved hull with raised ends,
+ * a float (ama) off to one side on two curved booms (iako) lashed across, and a paddle.
+ * About 3 m long, along local z.
+ */
+export function outriggerCanoe() {
+  const g = new THREE.Group();
+  const wood = surface(woodSet(PALETTE.wood), { roughness: 0.75 });
+  const stain = surface(woodSet(PALETTE.stain), { roughness: 0.8 });
+  // hull: the lower half of a long, narrow spindle, open at the top
+  const hullGeo = new THREE.SphereGeometry(1, 28, 10, 0, TAU, Math.PI / 2, Math.PI / 2);
+  const hp = hullGeo.attributes.position;
+  for (let i = 0; i < hp.count; i++) {
+    const z = hp.getZ(i);
+    hp.setX(i, hp.getX(i) * (1 - Math.abs(z) * 0.25)); // finer at the ends
+  }
+  hullGeo.computeVertexNormals();
+  const hull = new THREE.Mesh(hullGeo, surface(woodSet(PALETTE.wood), { roughness: 0.75, side: THREE.DoubleSide }));
+  hull.scale.set(0.3, 0.28, 1.5);
+  hull.position.y = 0.26;
+  g.add(hull);
+  // gunwales and the raised, carved ends
+  for (const x of [-0.29, 0.29]) {
+    const gw = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 2.7), stain);
+    gw.position.set(x * 0.95, 0.27, 0);
+    g.add(gw);
+  }
+  for (const z of [-1, 1]) {
+    const end = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.45, 4), stain);
+    end.position.set(0, 0.42, z * 1.45);
+    end.rotation.x = z * 0.9;
+    g.add(end);
+  }
+  // the float and the two booms that carry it, lashed to the gunwales
+  const ama = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 1.4, 6, 12), wood);
+  ama.rotation.x = Math.PI / 2;
+  ama.position.set(1.15, 0.08, 0);
+  g.add(ama);
+  for (const z of [-0.55, 0.55]) {
+    const boom = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.3, 0.3, z), new THREE.Vector3(0.45, 0.36, z), new THREE.Vector3(1.0, 0.24, z), new THREE.Vector3(1.15, 0.12, z)]), 16, 0.025, 6), stain);
+    g.add(boom);
+    const knot = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.012, 6, 10), pbr({ color: PALETTE.thatch, roughness: 1 }));
+    knot.position.set(0.29, 0.29, z);
+    knot.rotation.y = Math.PI / 2;
+    g.add(knot);
+  }
+  // a paddle laid across the hull
+  const paddle = new THREE.Group();
+  paddle.position.set(-0.05, 0.31, 0.2);
+  paddle.rotation.set(0, 0.5, 0.05);
+  g.add(paddle);
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 1.1, 8), wood);
+  shaft.rotation.x = Math.PI / 2;
+  paddle.add(shaft);
+  const blade = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), stain);
+  blade.scale.set(0.09, 0.012, 0.24);
+  blade.position.z = 0.72;
+  paddle.add(blade);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  return g;
 }

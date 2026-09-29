@@ -225,8 +225,14 @@ function webgl2() {
 
 async function start() {
   if (!webgl2()) return fallback('no WebGL2');
-  const progress = $('veil-progress');
+  // Launch screen: say what's happening, and let it paint between the heavy steps.
+  const progress = $('veil-progress'), status = $('veil-status');
   const setProgress = (k) => progress.style.setProperty('--p', k);
+  const step = (k, text) => {
+    setProgress(k);
+    if (text) status.textContent = text;
+    return new Promise((r) => setTimeout(r, 30));
+  };
 
   // antialias off: SMAA in the post chain handles it (and AO dislikes MSAA)
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false });
@@ -241,9 +247,9 @@ async function start() {
   // Models: one GLB, plus fonts for the canvas textures.
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const modelsUrl = document.querySelector('script[data-models]').dataset.models;
-  setProgress(0.1);
+  await step(0.1, 'Loading the bar…');
   const [gltf] = await Promise.all([
-    new Promise((res, rej) => loader.load(modelsUrl, res, (e) => e.total && setProgress(0.1 + 0.8 * (e.loaded / e.total)), rej)),
+    new Promise((res, rej) => loader.load(modelsUrl, res, (e) => e.total && setProgress(0.1 + 0.4 * (e.loaded / e.total)), rej)),
     fontsReady(),
   ]);
   const library = new Map(gltf.scene.children.map((c) => [c.name, c]));
@@ -259,8 +265,10 @@ async function start() {
   };
 
   const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
+  await step(0.55, 'Shaping the planet…');
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality, trailEdge, keepClear });
+  await step(0.7, 'Stocking the bar…');
   // the card on the bar lists the same items as the HTML menu
   const menuItems = [...menu.querySelectorAll('.menu__list a')].map((a) => ({
     label: a.querySelector('.menu__label').textContent.trim(),
@@ -269,6 +277,7 @@ async function start() {
   const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, menuItems, reducedMotion });
   // the site's logo (the favicon) goes on the rocket
   const badge = document.querySelector('link[rel="icon"]')?.href || null;
+  await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
   scene.add(camera); // things you hold (the marshmallow stick) ride on it
@@ -833,6 +842,7 @@ async function start() {
   addEventListener('keydown', (e) => seatArrow(e, true));
   addEventListener('keyup', (e) => seatArrow(e, false));
   let beckoned = false;
+  let firstFrames = null, framesDrawn = 0; // the reveal waits for these
 
   function frame(now) {
     timer.update(now);
@@ -931,20 +941,26 @@ async function start() {
     bar.update(t, dt);
     places.update(t);
     pipeline.render(dt);
+    if (firstFrames && ++framesDrawn >= 3) { firstFrames(); firstFrames = null; }
   }
 
   player.applyToCamera();
+  await step(0.92, 'Almost there…');
+  // compile in parallel where the GPU driver can; elsewhere the first frames compile instead
+  if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera).catch(() => {});
   renderer.setAnimationLoop(frame);
   document.addEventListener('visibilitychange', () => {
     renderer.setAnimationLoop(document.hidden ? null : frame);
     timer.reset();
   });
 
-  // Reveal. The first thing you see is the bar.
+  // Reveal only once real frames are on screen: shaders compile on the first frames, and a
+  // launch screen fading over a frozen half-drawn scene looks broken.
+  await new Promise((r) => { firstFrames = r; });
   setProgress(1);
   setState('walk');
   $('veil').classList.add('is-gone');
-  setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 700);
+  setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 500);
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 

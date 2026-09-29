@@ -12,9 +12,19 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 <div class="world" id="world" data-state="loading">
   <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="Steve's asteroid: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu."></canvas>
 
-  <div class="veil" id="veil" aria-hidden="true">
-    <span class="veil__name">Steve Pisani</span>
-    <span class="veil__bar"><span id="veil-progress"></span></span>
+  {%- comment -%}
+    The launch screen looks like the first frame (the sign lit at the end of the path, HIG:
+    Launching) and always shows that something is happening: the neon warms up, the bar keeps
+    moving even while the planet is being built, and a line says what's being done. If it takes
+    a while, a way out appears on its own (CSS only, so it shows even if the script never loads).
+  {%- endcomment -%}
+  <div class="veil" id="veil">
+    <div class="veil__sign" aria-hidden="true"><span class="veil__neon">Steve's</span><span class="veil__box">World famous</span></div>
+    <div class="veil__load">
+      <span class="veil__bar" aria-hidden="true"><span id="veil-progress"></span></span>
+      <p class="veil__status" id="veil-status" role="status">Opening the bar…</p>
+      <p class="veil__slow">Taking a while? The sections up top already work, or <a href="{{ '/classic' | relative_url }}">see the site without 3D</a>.</p>
+    </div>
   </div>
 
   <header class="topbar" id="topbar" tabindex="-1">
