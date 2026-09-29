@@ -1,5 +1,5 @@
 // The campfire on the far side of the planet, Outer Wilds style: a ring of lava rock, a log
-// teepee over a bed of glowing coals, sparks going up, log benches, two moai keeping watch, and
+// teepee over a bed of glowing coals, sparks going up, log benches, a moai keeping watch, and
 // a bag of marshmallows. Sit on a log, hold a marshmallow in the fire until it's golden (or
 // until it catches, if that's how you like them), and eat it.
 import * as THREE from 'three';
@@ -111,17 +111,17 @@ export function buildCampfire({ quality, heroes }) {
     group.add(b);
     return b;
   };
-  // two moai keep watch over the fire
-  [[-2.6, -2.2, 0.9], [2.4, -2.6, -0.8]].forEach(([x, z, ry], i) => {
-    const m = heroOr(heroes, 'moai', () => moai({ height: 2.2 + i * 0.4 }));
-    m.position.set(x, -0.1, z);
-    m.rotation.y = ry;
-    group.add(m);
-  });
+  // a moai keeps watch over the fire (places.js sinks it into the ground, which curves away
+  // from the camp's flat plane)
+  const watcher = heroOr(heroes, 'moai', () => moai({ height: 2.4 }));
+  watcher.position.set(-2.6, 0, -2.2);
+  watcher.rotation.y = 0.9;
+  group.add(watcher);
 
   return {
     group,
     fire,
+    moai: watcher,
     /** Local point in the flame where a marshmallow toasts best. */
     hotSpot: new THREE.Vector3(0, 0.55, 0),
     update(t) {

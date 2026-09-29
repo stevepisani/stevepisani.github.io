@@ -13,7 +13,8 @@ procedural stand-in; drop a GLB in `assets/models/hero/`, list it in
   "moai":         { "file": "moai.glb",         "height": 2.4 },
   "parrot-mug":   { "file": "parrot-mug.glb",   "height": 0.2 },
   "pineapple-mug": { "file": "pineapple-mug.glb", "height": 0.17 },
-  "robot":        { "file": "robot.glb",        "height": 1.9 }
+  "robot":        { "file": "robot.glb",        "height": 1.9 },
+  "thinker":      { "file": "thinker.glb",      "height": 1.5 }
 }
 ```
 
@@ -88,6 +89,11 @@ Texture: Porous dark grey volcanic basalt, weathered and pitted, green moss and 
 > A legless 1950s tin-toy robot bartender: the body tapers at the bottom into a round skirt that sits on one single large rubber wheel, like a unicycle robot; no legs and no feet. Box-shaped head with a big round glowing dial gauge for a face, a clear glass dome on top of the head with a thin antenna. Riveted teal and cream enamel body wearing a short-sleeved Hawaiian aloha shirt, a bow tie and a flower lei. Jointed tube arms with two-finger pincer hands holding a chrome cocktail shaker. Retro-futurist Googie toy, 1.9 metres tall, facing forward. Realistic PBR, game-ready, low poly.
 
 Texture: Glossy teal #0F5E63 and cream enamel tin with rivets, chrome trim, aloha shirt with coral hibiscus flowers, amber glowing dial face, pink and white flower lei, black bow tie, black rubber wheel.
+
+**thinker**: the Rodin Museum ode (Rodin's 1880 original is in the public domain)
+> The Thinker by Auguste Rodin: a muscular nude man seated on a rough rock, leaning forward, his right elbow resting on his left thigh, his chin resting on the back of his right hand, deep in thought, left hand hanging over the left knee. Full figure, seated, facing forward. Cast bronze with a dark green-brown patina. Realistic proportions, museum sculpture, game-ready.
+
+Texture: Cast bronze sculpture with a dark brown-green patina, worn to warm golden bronze on the raised muscles and highlights, darker in the recesses; the rock base in the same bronze. Metallic, museum outdoor bronze, no paint.
 
 ## Licence check before committing a model
 Whatever you generate is published on a public website. Use a tier whose licence allows
