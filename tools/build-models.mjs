@@ -2,7 +2,8 @@
 // assets/models/props.glb: one download, shared palette textures deduplicated,
 // geometry meshopt-compressed. Each source file becomes a top-level node named
 // "<kit>_<model>" (e.g. "pirate-kit_palm-bend"; three.js strips "/" from names),
-// which world code clones by name.
+// which world code clones by name. Only models the world code actually clones
+// (a literal prop('<kit>_<model>') in assets/js/world/) go in; the rest stay here as sources.
 //
 //   cd tools && npm install && npm run models
 import fs from 'node:fs';
@@ -22,12 +23,19 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
 const SRC = path.resolve('models');
 const OUT = path.resolve('../assets/models/props.glb');
 
+const WORLD = path.resolve('../assets/js/world');
+const used = new Set();
+for (const f of fs.readdirSync(WORLD).filter((f) => f.endsWith('.js'))) {
+  for (const m of fs.readFileSync(path.join(WORLD, f), 'utf8').matchAll(/prop\('([\w-]+_[\w-]+)'/g)) used.add(m[1]);
+}
+
 const target = new Document();
 target.createBuffer();
 const scene = target.createScene('props');
 
 for (const kit of fs.readdirSync(SRC).filter((d) => d.endsWith('-kit')).sort()) {
   for (const file of fs.readdirSync(path.join(SRC, kit)).filter((f) => f.endsWith('.glb')).sort()) {
+    if (!used.has(`${kit}_${file.replace(/\.glb$/, '')}`)) continue;
     const src = await io.read(path.join(SRC, kit, file));
     const map = mergeDocuments(target, src);
     const srcScene = src.getRoot().listScenes()[0];

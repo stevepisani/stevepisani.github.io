@@ -4,6 +4,8 @@
    ========================================================================== */
 
 .world-page { background: #05060f; color: #eef0fa; overflow: hidden; }
+/* over site.css's space-mode Milky Way: the canvas covers it, so don't download it (the fallback brings its own) */
+:root[data-theme] body.world-page { background: #05060f; }
 .world { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden;
   --neon: #ff4fa3; --teal: #3ff5e8; --glass: rgb(14 16 36 / .78); --paper: #f7ecd4; --ink-dark: #2a160a;
   /* the tiki menu: the world's PALETTE (assets/js/world/materials.js) */
@@ -225,7 +227,7 @@
 .panel .card--launch { min-height: 220px; margin: 8px 0 16px; }
 
 /* ---------- Fallback: no WebGL, the menu is the page ---------- */
-.world[data-state="fallback"] { background: linear-gradient(rgb(5 6 15 / .55), rgb(5 6 15 / .85)), #05060f url("../images/outer_space-p-1600.jpeg") center / cover; }
+.world[data-state="fallback"] { background: linear-gradient(rgb(5 6 15 / .55), rgb(5 6 15 / .85)), #05060f url("../images/outer-space-1600.webp") center / cover; }
 .world[data-state="fallback"] .world__canvas { display: none; }
 .world[data-state="fallback"] .menu { position: absolute; inset: 84px 0 16px; justify-content: center; }
 .world[data-state="fallback"] .menu__close { display: none; }

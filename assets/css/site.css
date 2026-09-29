@@ -64,9 +64,9 @@
 :root[data-theme="terminal"] img { filter: grayscale(1) sepia(1) hue-rotate(60deg) saturate(3) brightness(.8); }
 
 /* Dark mode is space mode: the old site's Milky Way, fixed behind everything. */
-:root[data-theme="dark"] body { background: linear-gradient(rgb(12 14 30 / .82), rgb(12 14 30 / .92)), url("../images/outer_space-p-1600.jpeg") center / cover fixed, #0c0e1e; }
+:root[data-theme="dark"] body { background: linear-gradient(rgb(12 14 30 / .82), rgb(12 14 30 / .92)), url("../images/outer-space-1600.webp") center / cover fixed, #0c0e1e; }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme]) body { background: linear-gradient(rgb(12 14 30 / .82), rgb(12 14 30 / .92)), url("../images/outer_space-p-1600.jpeg") center / cover fixed, #0c0e1e; }
+  :root:not([data-theme]) body { background: linear-gradient(rgb(12 14 30 / .82), rgb(12 14 30 / .92)), url("../images/outer-space-1600.webp") center / cover fixed, #0c0e1e; }
 }
 
 /* ---------- Base ---------- */
