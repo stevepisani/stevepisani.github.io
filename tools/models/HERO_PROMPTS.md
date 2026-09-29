@@ -6,7 +6,6 @@ procedural stand-in; drop a GLB in `assets/models/hero/`, list it in
 
 ```json
 {
-  "tiki-statue":  { "file": "tiki-statue.glb",  "height": 2.7 },
   "tiki-post":    { "file": "tiki-post.glb",    "height": 2.7 },
   "tiki-mug":     { "file": "tiki-mug.glb",     "height": 0.17, "tint": "aqua", "brightness": 2.2 },
   "puffer-lamp":  { "file": "puffer-lamp.glb",  "height": 0.4, "glow": 1.2 },
@@ -49,11 +48,6 @@ Witco / Shag spirit. Moody, realistic materials, lit at night by warm lamps.
 Each slot has a shape prompt and a texture prompt (Meshy's refine `texture_prompt`). Keep the
 texture prompt about materials: listing the whole palette there makes Meshy paint teal and
 orange accents on everything.
-
-**tiki-statue**: the hero at the entrance
-> A 2.7 metre tall carved wooden tiki statue in mid-century American Polynesian Pop style, Marquesan-inspired: huge oval eyes, heavy brow, broad flat nose, very wide open mouth with a tongue, hands resting on the belly, squat proportions with a big head. Dark walnut-stained cedar, chainsaw and chisel marks, lighter wire-brushed high points, darker burnt recesses. Standing on a small base. Realistic PBR, game-ready, low poly with detailed normal map.
-
-Texture: Dark walnut-stained carved cedar, chisel marks, lighter wire-brushed high points, darker burnt recesses. Natural wood only, no paint.
 
 **tiki-post**: holds up the roof (four of them)
 > A tall cylindrical carved tiki pole, 2.7 metres, used as an architectural post in a 1950s tiki bar: a stylised invented tiki face in the upper half (bold brow, lozenge eyes, wide mouth with bared teeth), carved bands and zigzag patterns below. Dark stained wood, weathered, burnt accents. Even thickness top to bottom, flat top and bottom. Realistic PBR, game-ready.
