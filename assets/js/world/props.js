@@ -674,8 +674,7 @@ export function bookStack(n = 3, seed = 9) {
 
 /**
  * Messages in bottles washed up at the waterline: green glass, a cork, a rolled letter inside.
- * `n` bottles in a loose group, one stuck upright in the sand. Also an invisible, generous pick
- * target (`userData.pick`) so they're easy to click from a distance.
+ * `n` bottles in a loose group, one stuck upright in the sand.
  */
 export function messageBottles(n = 3, seed = 17) {
   const r = rng(seed);
@@ -697,10 +696,6 @@ export function messageBottles(n = 3, seed = 17) {
     if (!upright) b.rotation.order = 'YXZ';
     g.add(b);
   }
-  const pick = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
-  pick.position.y = 0.15;
-  g.add(pick);
-  g.userData.pick = pick;
   return g;
 }
 
