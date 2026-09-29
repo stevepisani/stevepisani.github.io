@@ -14,7 +14,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import * as T from './textures.js';
 import { PALETTE, pbr, enamel, chrome, glow } from './materials.js';
 
-const WHEEL_R = 0.19;
+const WHEEL_R = 0.21;
 const LIFT = 0.25; // a stalk between wheel and hips, so it stands tall enough to see over the counter
 
 function mesh(geo, material, [x, y, z] = [0, 0, 0], parent, { cast = true } = {}) {
@@ -37,8 +37,12 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const body = new THREE.Group();   // everything above the wheel; wobbles when shaking
   stand.add(body);
   const M = {
-    aqua: enamel(PALETTE.aqua),   // the main enamel: deep teal alone goes olive under amber light
-    teal: enamel(PALETTE.teal),
+    // printed tin (see textures.tinLitho): the colour is in the print, so the enamel is white
+    aqua: enamel(0xffffff, { map: T.tinLitho({ base: PALETTE.tinTeal }) }),
+    vents: enamel(0xffffff, { map: T.tinLitho({ base: PALETTE.tinTeal, vents: true }) }),
+    skirt: enamel(0xffffff, { map: T.tinLitho({ base: PALETTE.tinTeal, stripes: true }) }),
+    teal: enamel(PALETTE.tinTeal),
+    red: enamel(PALETTE.coral),
     cream: enamel(PALETTE.cream),
     chrome: chrome(),
     rubber: pbr({ color: PALETTE.lava, roughness: 0.9 }),
@@ -63,6 +67,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   }
   for (const x of [-0.07, 0.07]) mesh(new THREE.BoxGeometry(0.025, 0.34, 0.09), M.chrome, [x, 0.12, 0], axle);
   mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.17, 8), M.chrome, [0, 0, 0], axle).rotation.z = Math.PI / 2;
+  // chrome hubcaps, and a red tin mudguard over the top of the wheel
+  for (const x of [-0.045, 0.045]) mesh(new THREE.SphereGeometry(0.05, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.chrome, [x, 0, 0], wheel).rotation.z = x > 0 ? -Math.PI / 2 : Math.PI / 2;
+  const guard = mesh(new THREE.CylinderGeometry(WHEEL_R + 0.03, WHEEL_R + 0.03, 0.15, 24, 1, true, -Math.PI * 0.55, Math.PI * 1.1), M.red, [0, 0, 0], axle);
+  guard.rotation.z = Math.PI / 2;
+  guard.material = enamel(PALETTE.coral, { side: THREE.DoubleSide });
+  for (const x of [-0.076, 0.076]) {
+    const rim = mesh(new THREE.TorusGeometry(WHEEL_R + 0.03, 0.007, 6, 24, Math.PI * 1.1), M.chrome, [x, 0, 0], axle);
+    rim.rotation.set(0, Math.PI / 2, -Math.PI * 0.05);
+  }
 
   const rig = { wheel, body };
 
@@ -72,12 +85,30 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   } else {
     /* ---------- Riveted enamel body on a stalk ---------- */
     stand.position.y = LIFT;
-    mesh(new THREE.CylinderGeometry(0.035, 0.045, 0.2, 12), M.chrome, [0, WHEEL_R + 0.37 - LIFT, 0], stand);
-    mesh(new THREE.CylinderGeometry(0.22, 0.1, 0.16, 20), M.teal, [0, 0.35, 0], body);       // skirt over the stalk
-    mesh(new RoundedBoxGeometry(0.5, 0.2, 0.36, 3, 0.05), M.aqua, [0, 0.52, 0], body);          // hips
-    mesh(new RoundedBoxGeometry(0.54, 0.05, 0.4, 2, 0.02), M.cream, [0, 0.63, 0], body);        // cream band
+    // a chrome bellows spring between the wheel and the body (tin toys wobble on these)
+    for (let i = 0; i < 6; i++) mesh(new THREE.TorusGeometry(0.05 - (i % 2) * 0.008, 0.012, 6, 16), M.chrome, [0, WHEEL_R + 0.08 - LIFT + 0.19 + i * 0.035, 0], stand).rotation.x = Math.PI / 2;
+    mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.26, 10), M.chrome, [0, WHEEL_R + 0.37 - LIFT, 0], stand);
+    mesh(new THREE.CylinderGeometry(0.24, 0.12, 0.18, 24), M.skirt, [0, 0.35, 0], body);      // skirt over the stalk, chevrons round it
+    mesh(new THREE.TorusGeometry(0.235, 0.012, 6, 32), M.chrome, [0, 0.44, 0], body).rotation.x = Math.PI / 2;
+    mesh(new RoundedBoxGeometry(0.52, 0.22, 0.38, 3, 0.05), M.vents, [0, 0.53, 0], body);        // hips, with printed vents
+    mesh(new RoundedBoxGeometry(0.56, 0.05, 0.42, 2, 0.02), M.red, [0, 0.645, 0], body);         // red band
+    // three indicator lamps on the belly, as every good tin robot has
+    const lamps = [PALETTE.coral, PALETTE.amber, PALETTE.aqua].map((c, i) => {
+      mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.012, 14), M.chrome, [-0.09 + i * 0.09, 0.54, 0.19], body).rotation.x = Math.PI / 2;
+      return mesh(new THREE.SphereGeometry(0.02, 12, 8), glow(c, 2.2), [-0.09 + i * 0.09, 0.54, 0.197], body, { cast: false });
+    });
     mesh(new RoundedBoxGeometry(0.58, 0.46, 0.38, 3, 0.06), M.shirt, [0, 0.88, 0], body);       // shirt over the torso
-    mesh(new RoundedBoxGeometry(0.6, 0.06, 0.4, 2, 0.02), M.aqua, [0, 1.12, 0], body);          // shoulder plate
+    mesh(new RoundedBoxGeometry(0.62, 0.06, 0.42, 2, 0.02), M.red, [0, 1.12, 0], body);          // shoulder plate
+    // a breast pocket with a paper umbrella tucked in it
+    mesh(new THREE.BoxGeometry(0.1, 0.09, 0.012), M.shirt, [0.13, 0.95, 0.196], body);
+    {
+      const u = new THREE.Group();
+      u.position.set(0.14, 0.96, 0.2);
+      u.rotation.set(0.25, 0, -0.35);
+      body.add(u);
+      mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.16, 5), pbr({ color: PALETTE.bamboo }), [0, 0.08, 0], u, { cast: false });
+      mesh(new THREE.ConeGeometry(0.06, 0.035, 10, 1, true), pbr({ color: PALETTE.hibiscus, roughness: 0.8, side: THREE.DoubleSide }), [0, 0.16, 0], u, { cast: false });
+    }
     // shirt buttons and an open collar
     for (const y of [0.74, 0.86, 0.98]) mesh(new THREE.SphereGeometry(0.014, 8, 6), M.cream, [0, y, 0.192], body);
     for (const s of [-1, 1]) {
@@ -103,16 +134,21 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     // neck and lei
     mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.1, 16), M.chrome, [0, 1.19, 0], body);
     {
-      const n = 22;
-      const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.038, 0), pbr({ roughness: 0.7 }), n);
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-      const cols = [PALETTE.hibiscus, PALETTE.cream, PALETTE.amber, PALETTE.coral].map((c) => new THREE.Color(c));
+      // plumeria flowers on a loop that sits on the shoulders and droops lower at the front,
+      // each cupped a little and facing out, in cream, pink and gold
+      const n = 24;
+      const petal = new THREE.CircleGeometry(0.062, 20);
+      { const pos = petal.attributes.position; for (let i = 0; i < pos.count; i++) { const r = Math.hypot(pos.getX(i), pos.getY(i)); pos.setZ(i, r * r * 4.5); } petal.computeVertexNormals(); }
+      const flowers = new THREE.InstancedMesh(petal, pbr({ map: T.plumeria(), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.6 }), n);
+      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
+      const cols = [PALETTE.cream, PALETTE.hibiscus, PALETTE.cream, PALETTE.amber].map((c) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), 0.35));
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
-        // a loop that sits on the shoulders and droops lower at the front
         const d = Math.pow(Math.max(0, Math.sin(a)), 2) * 0.1;
-        q.setFromEuler(e.set(i, i * 2, 0));
-        flowers.setMatrixAt(i, m.compose(new THREE.Vector3(Math.cos(a) * (0.16 + d * 0.3), 1.19 - d, Math.sin(a) * 0.15 + d * 0.7), q, new THREE.Vector3(1, 0.7, 1)));
+        const p = new THREE.Vector3(Math.cos(a) * (0.17 + d * 0.3), 1.19 - d, Math.sin(a) * 0.16 + d * 0.7);
+        const out = new THREE.Vector3(Math.cos(a), 0.55, Math.sin(a) * 1.2 + 0.3).normalize();
+        q.setFromUnitVectors(Z, out).multiply(new THREE.Quaternion().setFromAxisAngle(Z, i * 1.3));
+        flowers.setMatrixAt(i, m.compose(p, q, new THREE.Vector3(1, 1, 1)));
         flowers.setColorAt(i, cols[i % cols.length]);
       }
       flowers.castShadow = true;
@@ -125,6 +161,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     body.add(head);
     mesh(new RoundedBoxGeometry(0.46, 0.38, 0.4, 3, 0.05), M.aqua, [0, 0.19, 0], head);
     mesh(new RoundedBoxGeometry(0.4, 0.34, 0.03, 2, 0.012), M.cream, [0, 0.19, 0.195], head);
+    // a red visor over the face plate
+    mesh(new RoundedBoxGeometry(0.44, 0.045, 0.07, 2, 0.015), M.red, [0, 0.385, 0.2], head);
     const dial = new THREE.Mesh(new THREE.CircleGeometry(0.135, 40), new THREE.MeshBasicMaterial({ map: T.dialFace(), toneMapped: false }));
     dial.material.color.setScalar(1.6); // just over the bloom threshold, so the face glows
     dial.material.userData.keep = true;
@@ -151,7 +189,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const valve = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.08, 10), glow(PALETTE.amber, 2.4), [0, 0.45, 0], head, { cast: false });
     const dome = mesh(new THREE.SphereGeometry(0.145, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.glass, [0, 0.41, 0], head, { cast: false });
     dome.renderOrder = 1;
-    mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.24, 6), M.chrome, [0, 0.66, 0], head);
+    // the antenna on a coil spring, so it wobbles like a toy's
+    {
+      const pts = [];
+      for (let i = 0; i <= 60; i++) { const k = i / 60; pts.push(new THREE.Vector3(Math.cos(k * 28) * 0.018, 0.56 + k * 0.1, Math.sin(k * 28) * 0.018)); }
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.004, 5), M.chrome, [0, 0, 0], head);
+    }
+    mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.14, 6), M.chrome, [0, 0.72, 0], head);
     const antenna = mesh(new THREE.SphereGeometry(0.028, 10, 8), glow(PALETTE.coral, 4), [0, 0.79, 0], head, { cast: false });
 
     /* ---------- Jointed arms with pincer hands ---------- */
@@ -184,6 +228,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     };
     // facing +z, its right hand is on the -x side
     const right = arm(-1), left = arm(1);
+    // a bar towel in the left pincer, hanging in folds
+    {
+      const cloth = new THREE.PlaneGeometry(0.1, 0.2, 4, 8).translate(0, -0.1, 0);
+      const pos = cloth.attributes.position;
+      for (let i = 0; i < pos.count; i++) { const y = pos.getY(i); pos.setZ(i, Math.sin(pos.getX(i) * 50) * 0.008 + y * y * 0.4); }
+      cloth.computeVertexNormals();
+      const towel = mesh(cloth, pbr({ color: PALETTE.cream, roughness: 1, side: THREE.DoubleSide }), [0, -0.1, 0], left.hand);
+      towel.rotation.y = Math.PI / 2;
+    }
     // a chrome cocktail shaker, held in the right pincer
     const shaker = new THREE.Group();
     shaker.position.y = -0.1;
@@ -192,7 +245,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     mesh(new THREE.CylinderGeometry(0.042, 0.034, 0.13, 16), M.chrome, [0, 0, 0], shaker);
     mesh(new THREE.CylinderGeometry(0.03, 0.042, 0.05, 16), M.chrome, [0, 0.09, 0], shaker);
     mesh(new THREE.SphereGeometry(0.016, 8, 6), M.chrome, [0, 0.12, 0], shaker);
-    Object.assign(rig, { head, needle, ears, valve, antenna, left, right });
+    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps });
   }
 
   /* ---------- Poses ---------- */
@@ -202,6 +255,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     greet: { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.2, 2.5, -0.35, 0.4] },   // left hand up: aloha
     shake: { r: [-2.7, -0.2, -0.5, 0.05], l: [-0.8, 0.25, -1.3, 0.1] },    // shaker up by the dome
     pour:  { r: [-1.45, 0.05, -0.15, 0.1], l: [-0.8, 0.25, -1.3, 0.1] },   // reaching across the counter
+    wipe:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-1.05, 0.15, -0.55, 0.3] },  // towel down on the bar top
   };
   const cur = { r: [...POSES.rest.r], l: [...POSES.rest.l] };
   let target = POSES.rest;
@@ -211,6 +265,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   let moveT = 1, moveDur = 0.9;
   let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest';
   let rolled = 0;
+  let idleFor = 0; // seconds at rest with nothing to do: now and then it wipes down the bar
 
   function moveTo(pos, heading, dur = 0.9) {
     from.pos.copy(root.position); from.heading = root.rotation.y;
@@ -283,6 +338,12 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         const k = 1 - Math.exp(-dt * 9);
         for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) cur[side][i] += (target[side][i] - cur[side][i]) * k;
       }
+      // Idle: every so often, wipe the counter in little circles. Only when motion is allowed, and
+      // only when it's standing at rest with nothing else to do.
+      const resting = target === POSES.rest && poseUntil < 0 && moveT >= 1;
+      idleFor = resting && !reducedMotion ? idleFor + dt : 0;
+      if (idleFor > 9) { idleFor = 0; pose('wipe', 2.6); }
+      if (target === POSES.wipe && !reducedMotion) { cur.l[0] += Math.sin(clock * 5.5) * 0.012; cur.l[1] += Math.cos(clock * 5.5) * 0.012; }
       const shaking = clock < shakeUntil;
       if (shaking && !reducedMotion) {
         const w = Math.sin(clock * 34);
@@ -303,6 +364,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         rig.antenna.visible = (t % 2) > 0.15 || reducedMotion;
         const pulse = 1 + (reducedMotion ? 0 : Math.sin(t * 3) * 0.15);
         rig.valve.scale.set(pulse, 1, pulse);
+        // belly lamps blink in turn (all on under reduced motion)
+        rig.lamps.forEach((l, i) => { l.visible = reducedMotion || Math.floor(t * 1.5) % 3 !== i; });
       }
     },
   };

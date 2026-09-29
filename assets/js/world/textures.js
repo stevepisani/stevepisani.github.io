@@ -588,3 +588,67 @@ export function trailTexture() {
   t.anisotropy = 8;
   return t;
 }
+
+/* ---------- The robot's lithographed tin ---------- */
+
+/**
+ * A printed tin panel, as on 1950s toy robots (they were lithographed, not plain): the base
+ * enamel colour, a printed cream line inset from the edge with a coral one inside it, seam
+ * lines, rows of printed rivets with a highlight, and (optionally) a few vent slots. Every face
+ * of a box maps to the whole texture, so each face gets its own bordered panel.
+ */
+export function tinLitho({ base = PALETTE.tinTeal, vents = false, stripes = false } = {}) {
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  const col = new THREE.Color(base);
+  g.fillStyle = css(base);
+  g.fillRect(0, 0, S, S);
+  // a faint sheen across the sheet, as printed tin has
+  const sheen = g.createLinearGradient(0, 0, S, S);
+  sheen.addColorStop(0, 'rgba(255,255,255,.10)'); sheen.addColorStop(0.5, 'rgba(255,255,255,0)'); sheen.addColorStop(1, 'rgba(0,0,0,.10)');
+  g.fillStyle = sheen; g.fillRect(0, 0, S, S);
+  if (stripes) {
+    // chevrons round the skirt
+    g.fillStyle = css(PALETTE.cream);
+    for (let x = -S; x < S * 2; x += 48) { g.beginPath(); g.moveTo(x, S * 0.3); g.lineTo(x + 24, S * 0.5); g.lineTo(x, S * 0.7); g.lineTo(x + 12, S * 0.7); g.lineTo(x + 36, S * 0.5); g.lineTo(x + 12, S * 0.3); g.fill(); }
+    g.fillStyle = css(PALETTE.coral); g.fillRect(0, S * 0.2, S, 8); g.fillRect(0, S * 0.78, S, 8);
+  } else {
+    g.strokeStyle = css(PALETTE.cream); g.lineWidth = 7; g.strokeRect(14, 14, S - 28, S - 28);
+    g.strokeStyle = css(PALETTE.coral); g.lineWidth = 3; g.strokeRect(24, 24, S - 48, S - 48);
+    // printed rivets along the cream line, each with a dark dot and a highlight
+    for (let i = 0; i <= 8; i++) {
+      const k = 14 + (i / 8) * (S - 28);
+      for (const [x, y] of [[k, 14], [k, S - 14], [14, k], [S - 14, k]]) {
+        g.fillStyle = 'rgba(40,30,20,.55)'; g.beginPath(); g.arc(x + 1, y + 1, 3.2, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.7)'; g.beginPath(); g.arc(x - 0.8, y - 0.8, 1.3, 0, 7); g.fill();
+      }
+    }
+    if (vents) {
+      g.fillStyle = css(col.clone().multiplyScalar(0.35).getHex());
+      for (let i = 0; i < 5; i++) { const y = S * 0.58 + i * 14; g.beginPath(); g.roundRect ? g.roundRect(S * 0.3, y, S * 0.4, 7, 3.5) : g.rect(S * 0.3, y, S * 0.4, 7); g.fill(); }
+    }
+  }
+  // a couple of fine seams
+  g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1.2;
+  g.beginPath(); g.moveTo(S * 0.5, 30); g.lineTo(S * 0.5, S * 0.42); g.stroke();
+  return texture(c);
+}
+
+/** A plumeria (frangipani) flower for the lei: five overlapping cupped petals, white to a warm
+ *  centre. Drawn once; each flower in the lei is tinted. */
+export function plumeria() {
+  const S = 128;
+  const [c, g] = canvas(S, S);
+  g.translate(S / 2, S / 2);
+  for (let i = 0; i < 5; i++) {
+    g.save();
+    g.rotate((i / 5) * Math.PI * 2);
+    const grd = g.createLinearGradient(0, 0, 0, -58);
+    grd.addColorStop(0, css(PALETTE.amber)); grd.addColorStop(0.35, '#ffffff'); grd.addColorStop(1, '#f4f0ea');
+    g.fillStyle = grd;
+    g.beginPath(); g.ellipse(9, -30, 17, 30, 0.35, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 1.5; g.stroke();
+    g.restore();
+  }
+  return texture(c);
+}
