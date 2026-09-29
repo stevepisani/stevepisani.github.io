@@ -29,13 +29,22 @@
     #05060f; }
 .veil.is-gone { opacity: 0; }
 .veil[hidden] { display: none; }
-.veil__sign { position: absolute; left: 50%; top: 32%; translate: -50% -50%; display: grid; justify-items: center; gap: 6px; }
-.veil__neon { font: 400 clamp(2.4rem, 7vw, 3.4rem)/1 var(--font-script); color: #ffd6ec;
-  text-shadow: 0 0 4px #fff, 0 0 12px var(--neon), 0 0 28px var(--neon), 0 0 60px rgb(255 79 163 / .6);
-  animation: neon-warm 2.4s steps(1, end) both; }
-.veil__box { padding: 3px 10px; border: 2px solid #b8893e; border-radius: 3px; background: #fbf1d8; color: #2a160a;
-  font: 700 .72rem var(--font-body); letter-spacing: .18em; text-transform: uppercase; box-shadow: 0 0 18px rgb(255 190 110 / .45);
-  animation: neon-warm 2.4s .5s steps(1, end) both; }
+/* The sign sits where the camera sees the real one: `perspective` is the camera's focal length
+   ((height / 2) / tan(fov / 2)), the sign stands at its camera-space pose (12.25 m out, 2.52 m up,
+   tilted back 24.69°), and --u (px per metre) puts it on the z = 0 plane, so it's drawn at 1:1.
+   Measured from player.spawn(SPOTS.spawn, signPoint) with fov 68 (72 on touch, see main.js):
+   move the spawn, the sign or the fov and these numbers change. The last 0.22% of the height is
+   measured, not derived: WebGL draws the scene that much above three.js's own projection. */
+.veil { --h: 1vh; perspective: calc(var(--h) * 74.1279); perspective-origin: 50% 50%; --u: calc(var(--h) * 6.0495); }
+@supports (height: 1dvh) { .veil { --h: 1dvh; } }
+@media (pointer: coarse) { .veil { perspective: calc(var(--h) * 68.8191); --u: calc(var(--h) * 5.6162); } }
+.veil__sign { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform: translate3d(0, calc(var(--u) * -2.519006 - var(--h) * .22), 0) rotateX(24.69deg); }
+.veil__sign svg { position: absolute; left: calc(var(--u) * -2.7); top: calc(var(--u) * -1.8); width: calc(var(--u) * 5.4); height: calc(var(--u) * 3.3); overflow: visible; }
+.veil__sign text { text-anchor: middle; } /* alphabetic baselines, measured from the canvas textures */
+.veil__neon text { font: 400 61.16px var(--font-script); fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.veil__box text { font: 800 20.42px var(--font-display); letter-spacing: .625px; }
+.veil__neon { animation: neon-warm 2.4s steps(1, end) both; }
+.veil__box { animation: neon-warm 2.4s .5s steps(1, end) both; }
 /* a neon tube striking: a few flickers, then steady */
 @keyframes neon-warm { 0% { opacity: .15; } 8% { opacity: .9; } 12% { opacity: .2; } 22% { opacity: 1; } 26% { opacity: .35; } 34%, 100% { opacity: 1; } }
 .veil__load { position: absolute; left: 50%; bottom: max(16%, 96px); translate: -50% 0; width: min(320px, calc(100vw - 32px)); display: grid; justify-items: center; gap: 12px; text-align: center; }
@@ -146,9 +155,11 @@
 /* only the no-WebGL menu links out (at the bar every item opens in place) */
 .menu__ext { display: none; font-weight: 600; }
 .world[data-state="fallback"] .menu__ext { display: inline; }
-/* while the 3D card flies up to your hands, the HTML menu fades in over it */
+/* while the 3D card flies up to your hands the HTML menu waits, invisible but laid out; then it
+   fades in over the card it was painted from (no second entrance animation) */
 .menu.is-arriving .menu__card { opacity: 0; animation: none; }
-.menu__card { transition: opacity .18s; }
+.menu.is-landed .menu__card { animation: none; }
+.menu__card { transition: opacity .2s; }
 @media (max-width: 760px) {
   .menu { left: 12px; right: 12px; top: auto; bottom: 12px; max-height: calc(100dvh - 96px); }
   /* the sheet's height isn't definite here, so cap the card itself (short landscape phones) */

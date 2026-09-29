@@ -145,7 +145,7 @@ function pebbles(list) {
 }
 
 /**
- * Build every trail. `trails` is [{ points, width, flags: 'walk' | 'steps', lanterns, seed,
+ * Build every trail. `trails` is [{ points, width, flags: 'walk' | 'steps', lanterns (spacing, m), lanternStart, seed,
  * meander, openStart, openEnd }]; returns { group, lanterns: [dirs], samples: [[trail, sampled]] }.
  * 'walk' lays a full flagstone walk (the way to the bar); 'steps' sets a stone every few paces.
  */
@@ -187,9 +187,9 @@ export function buildTrails(trails, { quality }) {
     // lanterns every so often, alternating sides
     if (trail.lanterns) {
       let side = 1;
-      for (let s = trail.lanterns * 0.6; s < length - 1.5; s += trail.lanterns) {
+      for (let s = trail.lanternStart ?? trail.lanterns * 0.6; s < length - 1.5; s += trail.lanterns) {
         const smp = at(s);
-        lanterns.push(offset(smp.up, smp.side, side * (widthAt(trail, s, length) * 0.5 + 0.45), d).clone());
+        lanterns.push(offset(smp.up, smp.side, side * (widthAt(trail, s, length) * 0.5 + 0.3), d).clone());
         side = -side;
       }
     }

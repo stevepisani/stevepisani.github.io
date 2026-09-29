@@ -99,15 +99,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     });
     mesh(new RoundedBoxGeometry(0.58, 0.46, 0.38, 3, 0.06), M.shirt, [0, 0.88, 0], body);       // shirt over the torso
     mesh(new RoundedBoxGeometry(0.62, 0.06, 0.42, 2, 0.02), M.red, [0, 1.12, 0], body);          // shoulder plate
-    // a breast pocket with a paper umbrella tucked in it
-    mesh(new THREE.BoxGeometry(0.1, 0.09, 0.012), M.shirt, [0.13, 0.95, 0.196], body);
+    // a pocket with a paper umbrella tucked in it, low enough to clear the lei
+    mesh(new THREE.BoxGeometry(0.1, 0.09, 0.012), M.shirt, [0.15, 0.79, 0.196], body);
     {
       const u = new THREE.Group();
-      u.position.set(0.14, 0.96, 0.2);
+      u.position.set(0.16, 0.8, 0.2);
       u.rotation.set(0.25, 0, -0.35);
       body.add(u);
-      mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.16, 5), pbr({ color: PALETTE.bamboo }), [0, 0.08, 0], u, { cast: false });
-      mesh(new THREE.ConeGeometry(0.06, 0.035, 10, 1, true), pbr({ color: PALETTE.hibiscus, roughness: 0.8, side: THREE.DoubleSide }), [0, 0.16, 0], u, { cast: false });
+      mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.13, 5), pbr({ color: PALETTE.bamboo }), [0, 0.065, 0], u, { cast: false });
+      mesh(new THREE.ConeGeometry(0.05, 0.03, 10, 1, true), pbr({ color: PALETTE.hibiscus, roughness: 0.8, side: THREE.DoubleSide }), [0, 0.13, 0], u, { cast: false });
     }
     // shirt buttons and an open collar
     for (const y of [0.74, 0.86, 0.98]) mesh(new THREE.SphereGeometry(0.014, 8, 6), M.cream, [0, y, 0.192], body);
@@ -125,32 +125,39 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       pts.forEach((p, i) => rivets.setMatrixAt(i, m.makeTranslation(...p)));
       body.add(rivets);
     }
-    // bow tie
+    // bow tie, on the front of the collar plate (under the head it would be hidden and clip it)
     for (const s of [-1, 1]) {
-      const wing = mesh(new THREE.ConeGeometry(0.04, 0.08, 4), M.tie, [s * 0.04, 1.215, 0.1], body);
+      const wing = mesh(new THREE.ConeGeometry(0.035, 0.07, 4), M.tie, [s * 0.036, 1.12, 0.228], body);
       wing.rotation.set(0, Math.PI / 4, s * Math.PI / 2);
     }
-    mesh(new THREE.BoxGeometry(0.028, 0.028, 0.028), M.tie, [0, 1.215, 0.105], body);
+    mesh(new THREE.BoxGeometry(0.026, 0.026, 0.026), M.tie, [0, 1.12, 0.232], body);
     // neck and lei
     mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.1, 16), M.chrome, [0, 1.19, 0], body);
     {
-      // plumeria flowers on a loop that sits on the shoulders and droops lower at the front,
-      // each cupped a little and facing out, in cream, pink and gold
-      const n = 24;
-      const petal = new THREE.CircleGeometry(0.062, 20);
-      { const pos = petal.attributes.position; for (let i = 0; i < pos.count; i++) { const r = Math.hypot(pos.getX(i), pos.getY(i)); pos.setZ(i, r * r * 4.5); } petal.computeVertexNormals(); }
+      // plumeria flowers strung on a loop that lies the way a real lei does: flat along the top of
+      // the shoulder plate (outside the head, which overhangs the neck, so nothing clips it), then
+      // down the front of the shirt in a U, each flower cupped and facing away from what it lies on.
+      // Top of the plate: y 1.15; front of the plate: z 0.21; front of the shirt: z 0.19.
+      const loop = new THREE.CatmullRomCurve3([
+        [0, 1.158, -0.19], [-0.2, 1.158, -0.16], [-0.27, 1.158, 0.0], [-0.235, 1.155, 0.17],
+        [-0.2, 1.08, 0.214], [-0.13, 0.99, 0.206], [0, 0.95, 0.206],
+        [0.13, 0.99, 0.206], [0.2, 1.08, 0.214], [0.235, 1.155, 0.17], [0.27, 1.158, 0.0], [0.2, 1.158, -0.16],
+      ].map((p) => new THREE.Vector3(...p)), true, 'centripetal');
+      const n = 30;
+      const petal = new THREE.CircleGeometry(0.05, 20);
+      { const pos = petal.attributes.position; for (let i = 0; i < pos.count; i++) { const r = Math.hypot(pos.getX(i), pos.getY(i)); pos.setZ(i, r * r * 5); } petal.computeVertexNormals(); }
       const flowers = new THREE.InstancedMesh(petal, pbr({ map: T.plumeria(), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.6 }), n);
       const m = new THREE.Matrix4(), q = new THREE.Quaternion(), Z = new THREE.Vector3(0, 0, 1);
       const cols = [PALETTE.cream, PALETTE.hibiscus, PALETTE.cream, PALETTE.amber].map((c) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), 0.35));
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2;
-        const d = Math.pow(Math.max(0, Math.sin(a)), 2) * 0.1;
-        const p = new THREE.Vector3(Math.cos(a) * (0.17 + d * 0.3), 1.19 - d, Math.sin(a) * 0.16 + d * 0.7);
-        const out = new THREE.Vector3(Math.cos(a), 0.55, Math.sin(a) * 1.2 + 0.3).normalize();
+      const up = new THREE.Vector3(0, 1, 0), front = new THREE.Vector3(0, 0.25, 1);
+      loop.getSpacedPoints(n).slice(0, n).forEach((p, i) => {
+        // on the plate they face up (and a little out); down the chest they face forward
+        const onChest = THREE.MathUtils.smoothstep(1.15 - p.y, 0.0, 0.06);
+        const out = up.clone().add(new THREE.Vector3(p.x, 0, p.z).multiplyScalar(0.8)).normalize().lerp(front, onChest).normalize();
         q.setFromUnitVectors(Z, out).multiply(new THREE.Quaternion().setFromAxisAngle(Z, i * 1.3));
         flowers.setMatrixAt(i, m.compose(p, q, new THREE.Vector3(1, 1, 1)));
         flowers.setColorAt(i, cols[i % cols.length]);
-      }
+      });
       flowers.castShadow = true;
       body.add(flowers);
     }
