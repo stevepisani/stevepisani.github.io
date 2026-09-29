@@ -59,7 +59,33 @@ export function neonSign() {
     g.strokeText(text, 512, y);
   };
   tube("Steve's", `190px ${FONT_SCRIPT}`, 135, '#ff4fa3', 10);
-  tube('SPACE  TIKI  BAR', `600 54px ${FONT_MONO}`, 272, '#3ff5e8', 4.5);
+  return texture(c);
+}
+
+/** The lit box under the neon: dark letters on a glowing cream face, as on Googie roadside signs. */
+export function signBox(text) {
+  const [c, g] = canvas(1024, 192);
+  const face = g.createLinearGradient(0, 0, 0, 192);
+  face.addColorStop(0, css(PALETTE.cream));
+  face.addColorStop(0.5, '#' + new THREE.Color(PALETTE.cream).lerp(new THREE.Color(0xffffff), 0.6).getHexString());
+  face.addColorStop(1, css(PALETTE.cream));
+  g.fillStyle = face;
+  g.fillRect(0, 0, 1024, 192);
+  // a coral rule inside the edge, then the words, spaced wide
+  g.strokeStyle = css(PALETTE.coral);
+  g.lineWidth = 6;
+  g.strokeRect(18, 16, 1024 - 36, 192 - 32);
+  g.fillStyle = css(PALETTE.lava);
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  if ('letterSpacing' in g) g.letterSpacing = '3px';
+  // as big as fits inside the rule, and a touch heavier than the font (it's read from far off)
+  let size = 130;
+  do { g.font = `800 ${size}px ${FONT_DISPLAY}`; size -= 4; } while (g.measureText(text).width > 1024 - 90 && size > 40);
+  g.strokeStyle = g.fillStyle;
+  g.lineWidth = 3;
+  g.strokeText(text, 512, 100);
+  g.fillText(text, 512, 100);
   return texture(c);
 }
 
