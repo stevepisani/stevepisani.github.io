@@ -29,5 +29,9 @@
   "pineapple-mug": {
     "file": "pineapple-mug.glb",
     "height": 0.17
+  },
+  "thinker": {
+    "file": "thinker.glb",
+    "height": 1.5
   }
 }
