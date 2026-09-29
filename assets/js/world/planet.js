@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { pbr, PALETTE } from './materials.js';
 import * as T from './textures.js';
+import { lampLit } from './lamps.js';
 
 export const RADIUS = 20;
 export const BAR_DIR = new THREE.Vector3(0, 1, 0); // the bar sits on the north pole
@@ -11,9 +12,19 @@ export const BAR_DIR = new THREE.Vector3(0, 1, 0); // the bar sits on the north 
 const UP = new THREE.Vector3(0, 1, 0);
 const _q = new THREE.Quaternion();
 const _v = new THREE.Vector3();
+const PF = { T1: new THREE.Vector3(), T2: new THREE.Vector3() }; // the lagoon's tangent frame (scratch)
 
 /** Gentle rolling hills; flattened around the bar so the deck sits level. */
-export function heightAt(dir) {
+// A small lagoon out past the telescope, where the canoe is pulled up: a bowl carved into the
+// ground (so feet, paths and props all agree with it) holding still water at `level`
+// (metres above RADIUS). The shore is where the bowl rises through the water, about `shore`
+// metres from the centre.
+export const POND = { center: dirFrom(0.55, -0.82), bowl: 3.2, depth: 0.55, shore: 2.4, level: 0 }; // shore: the nominal waterline (see shoreAt)
+POND.level = baseHeight(POND.center) - 0.1;
+// the canoe is pulled up on the side toward the trails; reeds grow on the far side
+POND.boatAzimuth = pondAzimuth(dirFrom(0.5, -0.6));
+
+function baseHeight(dir) {
   const { x, y, z } = dir;
   let h =
     0.28 * Math.sin(x * 3.1 + 1.3) * Math.cos(z * 2.7 - 0.4) +
@@ -24,6 +35,46 @@ export function heightAt(dir) {
   const rise = 0.9 * THREE.MathUtils.smoothstep(lat, 0.9, 0.975);
   const nearBar = THREE.MathUtils.smoothstep(lat, 0.955, 0.98);
   return THREE.MathUtils.lerp(h * (1 - THREE.MathUtils.smoothstep(lat, 0.85, 0.95)), 0.9, nearBar) + (1 - nearBar) * rise;
+}
+
+/** Direction `r` metres from the lagoon's centre, at azimuth `phi` round it (and the reverse). */
+export function pondDir(r, phi) {
+  const C = POND.center, a = r / RADIUS;
+  PF.T1.set(0, 1, 0).cross(C).normalize(); PF.T2.copy(C).cross(PF.T1);
+  return C.clone().multiplyScalar(Math.cos(a)).addScaledVector(PF.T1, Math.sin(a) * Math.cos(phi)).addScaledVector(PF.T2, Math.sin(a) * Math.sin(phi)).normalize();
+}
+export function pondAzimuth(dir) {
+  const C = POND.center;
+  PF.T1.set(0, 1, 0).cross(C).normalize(); PF.T2.copy(C).cross(PF.T1);
+  const d = dir.clone().normalize().sub(C);
+  return Math.atan2(d.dot(PF.T2), d.dot(PF.T1));
+}
+
+/** Metres along the surface from the lagoon's centre. */
+export function pondDist(dir) {
+  return POND.center.angleTo(dir) * RADIUS;
+}
+
+// The lagoon's outline isn't a circle: its bowl reaches further out in some directions.
+export function pondReach(phi) {
+  return 1 + 0.1 * Math.sin(3 * phi + 1.1) + 0.06 * Math.sin(5 * phi + 2.3);
+}
+/** Where `dir` sits in the bowl: 0 at the centre, 1 at its rim; the waterline is at SHORE_K. */
+export function pondK(dir) {
+  const r = pondDist(dir);
+  if (r > POND.bowl * 1.3) return r / POND.bowl;
+  return r / (POND.bowl * pondReach(pondAzimuth(dir)));
+}
+export const SHORE_K = 0.76;
+/** Metres from the centre to the waterline at azimuth `phi` (and `dk` further out in bowl units). */
+export function shoreAt(phi, dk = 0) {
+  return (SHORE_K + dk) * POND.bowl * pondReach(phi);
+}
+
+export function heightAt(dir) {
+  const h = baseHeight(dir);
+  const k = pondK(dir);
+  return k < 1 ? h - POND.depth * (1 - k * k) * (1 - k * k) : h;
 }
 
 export function surfaceRadius(dir) {
@@ -76,6 +127,7 @@ export function buildPlanet({ quality, trailEdge = () => Infinity, keepClear = (
   const positions = new Float32Array(verts * 3), normals = new Float32Array(verts * 3), colors = new Float32Array(verts * 3);
   const index = [];
   const moss = new THREE.Color(PALETTE.moss), mossDeep = new THREE.Color(PALETTE.mossDeep), ash = new THREE.Color(PALETTE.ash), basalt = new THREE.Color(PALETTE.basalt), soil = new THREE.Color(PALETTE.soil);
+  const wetSand = new THREE.Color(PALETTE.ash).multiplyScalar(0.55), silt = new THREE.Color(PALETTE.lava);
   const c = new THREE.Color();
   const d = new THREE.Vector3(), t1 = new THREE.Vector3(), t2 = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
   const at = (dir, target) => target.copy(dir).normalize().multiplyScalar(surfaceRadius(target.copy(dir).normalize()));
@@ -108,6 +160,12 @@ export function buildPlanet({ quality, trailEdge = () => Infinity, keepClear = (
       c.copy(moss).lerp(mossDeep, THREE.MathUtils.clamp(0.5 + h * 1.6, 0, 1)).lerp(ash, beach).lerp(basalt, low);
       const worn = 1 - THREE.MathUtils.smoothstep(trailEdge(d), -0.2, 1.1);
       if (worn > 0) c.lerp(soil, worn * 0.45);
+      // the lagoon: a ring of damp sand at the waterline, dark silt under the water
+      const pk = pondK(d);
+      if (pk < 1.4) {
+        c.lerp(wetSand, (1 - THREE.MathUtils.smoothstep(pk, SHORE_K + 0.05, SHORE_K + 0.33)) * 0.85);
+        c.lerp(silt, 1 - THREE.MathUtils.smoothstep(pk, SHORE_K - 0.28, SHORE_K - 0.06));
+      }
       const grain = Math.sin(d.x * 91.7 + d.y * 47.3) * Math.sin(d.z * 83.1 - d.y * 29.9);
       c.multiplyScalar(0.88 + grain * 0.12);
       colors.set([c.r, c.g, c.b], v * 3);
@@ -224,13 +282,120 @@ export function buildPlanet({ quality, trailEdge = () => Infinity, keepClear = (
     group.add(im);
   }
 
+  const pond = buildPond(quality);
+  group.add(pond.group);
+
   return {
     group,
+    pondWater: pond.water,
     update(t, camera) {
       wind.value = t;
+      pond.update(t);
       atmoMat.uniforms.camDist.value = camera.position.length();
     },
   };
+}
+
+/*
+ * The lagoon's water: a disc on the sphere at POND.level, so it follows the planet's curve, and
+ * the bowl's rim hides its edge. Dark, glassy water: a few slow ripples bend its normal, the
+ * nebula tints it at grazing angles, the moon glints off it, and the lamps' glints show in it
+ * (lamps.js). Reeds and cattails at the waterline, a few lily pads.
+ */
+function buildPond(quality) {
+  const group = new THREE.Group();
+  const C = POND.center.clone().normalize();
+  const T1 = new THREE.Vector3(0, 1, 0).cross(C).normalize(), T2 = C.clone().cross(T1);
+  const at = (r, phi, lift = 0) => {
+    const a = r / RADIUS;
+    const dir = C.clone().multiplyScalar(Math.cos(a)).addScaledVector(T1, Math.sin(a) * Math.cos(phi)).addScaledVector(T2, Math.sin(a) * Math.sin(phi)).normalize();
+    return dir.multiplyScalar(RADIUS + POND.level + lift);
+  };
+  // disc: rings out to just inside the bowl's rim (the terrain covers the rest)
+  const RINGS = quality.high ? 22 : 12, SEG = quality.high ? 64 : 36, R = POND.bowl * 1.05; // past the waterline everywhere; the ground hides the rest
+  const pos = [at(0, 0)], idx = [];
+  for (let i = 1; i <= RINGS; i++) for (let j = 0; j < SEG; j++) pos.push(at((i / RINGS) * R, (j / SEG) * Math.PI * 2));
+  for (let j = 0; j < SEG; j++) idx.push(0, 1 + ((j + 1) % SEG), 1 + j);
+  for (let i = 1; i < RINGS; i++) for (let j = 0; j < SEG; j++) {
+    const a = 1 + (i - 1) * SEG + j, b = 1 + (i - 1) * SEG + ((j + 1) % SEG), c2 = a + SEG, d2 = b + SEG;
+    idx.push(a, b, d2, a, d2, c2);
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pos);
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  // faces must point out of the planet
+  if (new THREE.Vector3().fromBufferAttribute(geo.attributes.normal, 0).dot(C) < 0) { idx.reverse(); geo.setIndex(idx); geo.computeVertexNormals(); }
+
+  const time = { value: 0 };
+  const water = new THREE.MeshStandardMaterial({ color: PALETTE.lagoon, roughness: 0.14, metalness: 0 });
+  water.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, { uTime: time, uC: { value: at(0, 0) }, uT: { value: T1 }, uB: { value: T2 }, uN: { value: C }, uSky: { value: new THREE.Color(PALETTE.lagoonSky) } });
+    sh.vertexShader = 'varying vec3 vWaterPos;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvWaterPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec3 vWaterPos;\nuniform float uTime;\nuniform vec3 uC, uT, uB, uN, uSky;\n' + sh.fragmentShader
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+        vec2 wq = vec2(dot(vWaterPos - uC, uT), dot(vWaterPos - uC, uB));
+        vec2 wg = vec2(0.0);
+        // a few slow wind ripples, each a direction, wavenumber, amplitude and speed
+        wg += vec2(0.8, 0.6) * 5.0 * 0.006 * cos(dot(wq, vec2(0.8, 0.6)) * 5.0 + uTime * 1.1);
+        wg += vec2(-0.5, 0.87) * 8.5 * 0.0035 * cos(dot(wq, vec2(-0.5, 0.87)) * 8.5 + uTime * 1.6);
+        wg += vec2(0.97, -0.26) * 13.0 * 0.002 * cos(dot(wq, vec2(0.97, -0.26)) * 13.0 + uTime * 2.3);
+        wg += vec2(-0.2, -0.98) * 21.0 * 0.0011 * cos(dot(wq, vec2(-0.2, -0.98)) * 21.0 + uTime * 3.1);
+        vec3 wN = normalize(uN - uT * wg.x - uB * wg.y);
+        normal = normalize((viewMatrix * vec4(wN, 0.0)).xyz);`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        float wFres = pow(1.0 - clamp(dot(wN, normalize(cameraPosition - vWaterPos)), 0.0, 1.0), 4.0);
+        totalEmissiveRadiance += uSky * (0.03 + 0.6 * wFres);`);
+  };
+  water.customProgramCacheKey = () => 'lagoon';
+  lampLit(water, { specular: 160 });
+  const mesh = new THREE.Mesh(geo, water);
+  mesh.receiveShadow = true;
+  mesh.name = 'lagoon';
+  group.add(mesh);
+
+  // reeds and cattails in clumps round the far shore (the canoe's side stays open)
+  let seed = 31;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const reedGeo = new THREE.ConeGeometry(0.012, 1, 4, 1, true).translate(0, 0.5, 0);
+  const headGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.13, 6);
+  const n = quality.high ? 90 : 50;
+  const reeds = new THREE.InstancedMesh(reedGeo, pbr({ color: PALETTE.moss, roughness: 0.8, side: THREE.DoubleSide }), n);
+  const heads = new THREE.InstancedMesh(headGeo, pbr({ color: PALETTE.stain, roughness: 0.9 }), n);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), tilt = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), tip = new THREE.Vector3();
+  const tint = new THREE.Color(), reedTones = [PALETTE.moss, PALETTE.mossDeep, PALETTE.leaf].map((x) => new THREE.Color(x));
+  let k = 0, kh = 0;
+  const far = POND.boatAzimuth + Math.PI;
+  const clumps = [far - 1.2, far - 0.45, far + 0.35, far + 1.15]; // round the far side, away from the canoe
+  for (const phi0 of clumps) for (let i = 0; i < n / clumps.length && k < n; i++) {
+    const phi = phi0 + (rand() - 0.5) * 0.5, r = shoreAt(phi, -0.05 + rand() * 0.12);
+    const a = r / RADIUS;
+    const dir = C.clone().multiplyScalar(Math.cos(a)).addScaledVector(T1, Math.sin(a) * Math.cos(phi)).addScaledVector(T2, Math.sin(a) * Math.sin(phi)).normalize();
+    surfacePoint(dir, -0.05, p);
+    const h = 0.55 + rand() * 0.6;
+    q.setFromUnitVectors(UP, dir).multiply(tilt.setFromEuler(new THREE.Euler((rand() - 0.5) * 0.35, rand() * 6.28, (rand() - 0.5) * 0.35)));
+    reeds.setMatrixAt(k, m.compose(p, q, s.set(1, h, 1)));
+    reeds.setColorAt(k, tint.copy(reedTones[k % 3]).multiplyScalar(0.8 + rand() * 0.4));
+    if (rand() < 0.35) { // a cattail near the top
+      tip.set(0, h * 0.86, 0).applyQuaternion(q).add(p);
+      heads.setMatrixAt(kh++, m.compose(tip, q, s.set(1, 1, 1)));
+    }
+    k++;
+  }
+  reeds.count = k; heads.count = kh;
+  group.add(reeds, heads);
+
+  // lily pads, flat on the water, each a disc with its notch
+  const padGeo = new THREE.CircleGeometry(0.17, 18, 0.3, Math.PI * 2 - 0.6).rotateX(-Math.PI / 2);
+  const pads = new THREE.InstancedMesh(padGeo, pbr({ color: PALETTE.leaf, roughness: 0.55, side: THREE.DoubleSide }), 7);
+  for (let i = 0; i < 7; i++) {
+    const phi = far + (rand() - 0.5) * 2.2, r = shoreAt(phi) * (0.35 + rand() * 0.4), sc = 0.6 + rand() * 0.7;
+    const pp = at(r, phi, 0.008);
+    q.setFromUnitVectors(UP, pp.clone().normalize()).multiply(tilt.setFromAxisAngle(UP, rand() * 6.28));
+    pads.setMatrixAt(i, m.compose(pp, q, s.set(sc, 1, sc)));
+  }
+  group.add(pads);
+
+  return { group, water: mesh, update(t) { time.value = t; } };
 }
 
 // A tuft of four tapered blades, curving outward, darker at the root. One merged geometry.
