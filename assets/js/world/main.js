@@ -1115,6 +1115,21 @@ async function start() {
 
   window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
   window.__sceneReady = true;
+
+  // The real bottles the robot pours from: nobody needs them until they order, so they load
+  // once the scene is up, and their shaders compile off to the side before they're shown.
+  loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
+    if (!bottles.size) return;
+    const staging = new THREE.Group();
+    for (const b of bottles.values()) staging.add(b);
+    try {
+      if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(staging, camera, scene);
+      else renderer.compile(staging, camera, scene);
+    } catch (e) {}
+    for (const b of [...staging.children]) staging.remove(b);
+    bar.setBottles(bottles);
+    window.__world.bottles = bottles.size;
+  });
 }
 
 start().catch((err) => {

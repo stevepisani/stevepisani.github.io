@@ -42,7 +42,7 @@ export const PALETTE = {
   giantRust: 0xb0623f,
   giantUmber: 0x5e3624,
   // what's in the glass (and the bottles it's poured from), for the drinks the robot makes
-  rum: 0x3a1a0c,       // blackstrap
+  rum: 0x6a3413,       // aged Barbados rum (Planteray)
   campari: 0xb3242a,
   jungleBird: 0x8a2a1a, // rum-darkened Campari: brick red
   vermouth: 0x5c1a12,  // sweet (rosso)

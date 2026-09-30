@@ -521,6 +521,22 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const BOTTLES = [['coffee liqueur', 'coffee'], ['kahl', 'coffee'], ['espresso', 'espresso'], ['campari', 'campari'], ['chartreuse', 'chartreuse'],
     ['falernum', 'falernum'], ['vermouth', 'vermouth'], ['pineapple', 'pineapple'], ['lime', 'lime'], ['rum', 'rum'], ['gin', 'gin'], ['syrup', 'syrup'], ['sugar', 'syrup']];
   const bottleColor = (line) => PALETTE[(BOTTLES.find(([k]) => line.toLowerCase().includes(k)) || [0, 'amber'])[1]];
+  // The real bottles (hero models, loaded once the scene is up: setBottles): they stand on the
+  // counter by the work, and the robot picks up the one a line calls for and pours from it.
+  const REAL = [['planteray', 'bottle-planteray'], ['campari', 'bottle-campari'], ['chartreuse', 'bottle-chartreuse'], ['meletti', 'bottle-meletti'], ['coffee liqueur', 'bottle-meletti']];
+  const shelf = new Map(); // slot -> { standing (on the counter), hand (the one it pours from), height }
+  const realFor = (line) => { const r = REAL.find(([k]) => line.toLowerCase().includes(k)); return r && shelf.get(r[1]); };
+  function setBottles(heroes) {
+    const slots = ['bottle-planteray', 'bottle-campari', 'bottle-chartreuse', 'bottle-meletti'].filter((k) => heroes.has(k));
+    slots.forEach((k, n) => {
+      const standing = heroes.get(k);
+      standing.position.set(-0.5 - n * 0.11, BAR_TOP, 0.26 + (n % 2) * 0.05); // a little row at the robot's end of the counter
+      standing.rotation.y = 0.3 - n * 0.25;
+      bar.add(standing);
+      const height = new THREE.Box3().setFromObject(standing).getSize(new THREE.Vector3()).y;
+      shelf.set(k, { standing, hand: standing.clone(true), height });
+    });
+  }
   const SET = { rockscubes: 'A rocks glass, full of ice.', collinscrushed: 'A collins glass, packed with crushed ice.', coupe: 'A chilled coupe.' };
   const DUR = { set: 1.5, pour: 1.8, shake: 2.8, strain: 2.0, stir: 2.6, swizzle: 2.8, garnish: 1.8, serve: 1.2 };
   const tinMesh = (() => {
@@ -593,7 +609,9 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
           const at = { at: W.clone().add(new THREE.Vector3(0, 0.03, 0)), pincer: true };
           robot.reach(near === 'r' ? at : null, near === 'l' ? at : null);
         } else if (st.do === 'pour') {
-          robot.hold('bottle', { color: st.color, shaker: !shaken });
+          const real = realFor(st.text);
+          if (real) { real.standing.visible = false; robot.hold('real', { object: real.hand, height: real.height, shaker: !shaken }); st.real = real; }
+          else robot.hold('bottle', { color: st.color, shaker: !shaken });
           const into = shaken ? vesselTop(tin, TIN_MOUTH) : W;
           robot.reach(null, { at: into.clone().add(new THREE.Vector3(0, 0.11, -0.01)) }); // poured from a height, so you see it fall
         } else if (st.do === 'shake') {
@@ -650,7 +668,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       finish(st) {
         stream.visible = false;
         if (st.do === 'set') { if (!glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
-        else if (st.do === 'pour' && !shaken) setLevel(st.level * END.pour);
+        else if (st.do === 'pour') { if (!shaken) setLevel(st.level * END.pour); if (st.real) st.real.standing.visible = true; } // and puts it back
         else if (st.do === 'shake') { bar.remove(tin); }
         else if (st.do === 'strain') { setLevel(END.strain); if (M.foam) glass.foam(PALETTE[M.foam]); }
         else if (st.do === 'stir') setLevel(END.stir);
@@ -693,6 +711,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         finished = true; job = null;
         stream.visible = false;
         bar.remove(glass.group, tin);
+        for (const r of shelf.values()) r.standing.visible = true;
         robot.reach(null, null);
         robot.hold('towel', { shaker: true });
       },
@@ -740,6 +759,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     interactables,
     serve,
     make,
+    setBottles,
     robot,
     /** The menu card on the bar (what gets picked up) and a point just above it for its label. */
     menu: {

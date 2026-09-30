@@ -287,7 +287,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const spoon = rod(left.hand, M.chrome, false);
     const swizzle = rod(left.hand, pbr({ color: PALETTE.bamboo, roughness: 0.7 }), true);
     const garnish = tool(left.hand, 0.03, 1.2), garnishR = tool(right.hand, 0.03, 1.2); // whatever bar.js hands it
-    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { bottle, spoon, swizzle, garnish, garnishR }, bottleGlass });
+    const real = tool(left.hand, 0.2, 1.05); // a real bottle (a hero model), held round the body, neck first
+    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { bottle, spoon, swizzle, garnish, garnishR, real }, bottleGlass });
   }
 
   /* ---------- Poses ---------- */
@@ -433,16 +434,25 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     roll(spot, heading, dur = 0.9) { moveTo(spot, heading, dur); },
     /**
      * What the left pincer holds: 'towel' (its usual), 'bottle' (tinted `color`), 'spoon',
-     * 'swizzle', 'garnish' (with `object` in it), or nothing. `shaker` shows or hides the one
-     * in the right.
+     * 'swizzle', 'garnish' (with `object` in it), 'real' (a real bottle, `object`, standing on
+     * y = 0 and `height` tall: held round the body, neck toward the pour), or nothing.
+     * `shaker` shows or hides the one in the right.
      */
-    hold(item, { color, object, shaker = true, side = 'l' } = {}) {
+    hold(item, { color, object, shaker = true, side = 'l', height = 0.25 } = {}) {
       if (!rig.tools) return;
       const name = item === 'garnish' && side === 'r' ? 'garnishR' : item;
       rig.towel.visible = item === 'towel';
       for (const [k, g] of Object.entries(rig.tools)) g.visible = k === name;
       if (item === 'bottle' && color !== undefined) { rig.bottleGlass.color.set(color); rig.bottleGlass.emissive.set(color); }
       if (item === 'garnish') { rig.tools[name].clear(); if (object) rig.tools[name].add(object); }
+      if (item === 'real') {
+        const g = rig.tools.real;
+        g.clear();
+        // held round the body, neck first: the base sticks out behind the pincer
+        const grip = height * 0.45;
+        if (object) { object.rotation.set(Math.PI, 0, 0); object.position.set(0, grip, 0); g.add(object); }
+        g.userData.tip = new THREE.Vector3(0, grip - height, 0).applyEuler(g.rotation).add(g.position);
+      }
       rig.shaker.visible = shaker && name !== 'garnishR';
     },
     /**

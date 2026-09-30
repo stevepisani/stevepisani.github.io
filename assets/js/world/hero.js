@@ -8,7 +8,12 @@
 import * as THREE from 'three';
 import { PALETTE } from './materials.js';
 
-export async function loadHeroes(loader, baseUrl) {
+/**
+ * Load the hero props. Slots marked `"lazy": true` (things nobody sees until they ask, like the
+ * bottles the robot pours from) are left out, and loaded instead by `{ lazy: true }` once the
+ * scene is up.
+ */
+export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
   const heroes = new Map();
   let manifest = {};
   try {
@@ -16,7 +21,7 @@ export async function loadHeroes(loader, baseUrl) {
     if (res.ok) manifest = await res.json();
   } catch (e) { return heroes; }
 
-  await Promise.all(Object.entries(manifest).map(async ([slot, spec]) => {
+  await Promise.all(Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy).map(async ([slot, spec]) => {
     try {
       const gltf = await loader.loadAsync(baseUrl + spec.file);
       const root = gltf.scene;

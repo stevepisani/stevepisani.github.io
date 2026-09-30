@@ -14,7 +14,8 @@ procedural stand-in; drop a GLB in `assets/models/hero/`, list it in
   "parrot-mug":   { "file": "parrot-mug.glb",   "height": 0.2 },
   "pineapple-mug": { "file": "pineapple-mug.glb", "height": 0.17 },
   "robot":        { "file": "robot.glb",        "height": 1.9 },
-  "thinker":      { "file": "thinker.glb",      "height": 1.5 }
+  "thinker":      { "file": "thinker.glb",      "height": 1.5 },
+  "bottle-campari": { "file": "bottle-campari.glb", "height": 0.3, "lazy": true }
 }
 ```
 
@@ -26,6 +27,8 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   a texture goes muddy under the bar's amber light, rather than regenerating.
 - `glow`: emissive strength for things lit from inside (pufferfish lamps). It emits the
   model's own texture, so it adds no new colours.
+- `lazy`: load it after the scene is up (things nobody sees until they ask for them, like the
+  bottles the robot pours from), not before the reveal.
 
 Lights, fire, and hanging cords are added by the world, so don't bake them in. The `robot`
 slot replaces only the bartender's body: it still turns, rolls and rattles, but the
@@ -94,6 +97,26 @@ Texture: Glossy teal #0F5E63 and cream enamel tin with rivets, chrome trim, aloh
 > The Thinker by Auguste Rodin: a muscular nude man seated on a rough rock, leaning forward, his right elbow resting on his left thigh, his chin resting on the back of his right hand, deep in thought, left hand hanging over the left knee. Full figure, seated, facing forward. Cast bronze with a dark green-brown patina. Realistic proportions, museum sculpture, game-ready.
 
 Texture: Cast bronze sculpture with a dark brown-green patina, worn to warm golden bronze on the raised muscles and highlights, darker in the recesses; the rock base in the same bronze. Metallic, museum outdoor bronze, no paint.
+
+**bottle-planteray**: the real bottle the robot pours Planteray from (8,000-triangle preview, optimised to about 4,000)
+> A single bottle of Planteray (Plantation) XO 20th Anniversary rum: a short, wide, round-shouldered clear glass bottle full of dark amber rum, the lower half wrapped in a woven natural raffia straw net, a cream and gold paper label with a small crest, a short neck with a wooden-topped cork stopper. Product photo, standing upright, nothing else.
+
+Texture: Clear glass bottle showing dark amber-brown aged rum inside, natural tan woven raffia straw net around the base, a cream paper label with gold trim and a small gold crest reading PLANTERAY XO, gold foil on the neck, a light wooden cork top. Realistic product materials.
+
+**bottle-campari**: the real bottle the robot pours Campari from (8,000-triangle preview, optimised to about 4,000)
+> A single bottle of Campari bitter aperitivo: a tall slim clear glass bottle with long sloping shoulders and a long neck, filled with bright translucent red liquid, a white label with the red CAMPARI wordmark, a red screw cap. Product photo, standing upright, nothing else.
+
+Texture: Clear glass bottle showing bright translucent ruby red liquid inside, a white label with the red CAMPARI wordmark and small MILANO text, a red cap. Realistic product materials.
+
+**bottle-chartreuse**: the real bottle the robot pours Chartreuse from (8,000-triangle preview, optimised to about 4,000)
+> A single bottle of Green Chartreuse liqueur: a clear glass bottle with a rounded, slightly bulbous body, embossed glass shoulders and a long neck, filled with vivid yellow-green liqueur, an ornate cream label with script lettering and a round seal on the shoulder, a green capsule top. Product photo, standing upright, nothing else.
+
+Texture: Clear glass bottle showing vivid chartreuse yellow-green liqueur inside, an ornate cream and tan label with elegant script lettering reading Chartreuse, a round cream seal medallion on the shoulder, a green foil capsule on the neck. Realistic product materials.
+
+**bottle-meletti**: the real bottle the robot pours Meletti from (8,000-triangle preview, optimised to about 4,000)
+> Exactly one single bottle, alone: a Meletti coffee liqueur bottle from Italy, a tall slim cylindrical glass bottle with a short neck, filled with nearly black coffee liqueur, a vintage cream label with red and black lettering, a dark cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing nearly black dark brown coffee liqueur inside, a vintage cream paper label with an ornate red and black border, the red word MELETTI and the words Caffè and Ascoli Piceno in black, a small gold crest, a black cap with a thin gold band. Realistic product materials.
 
 ## Licence check before committing a model
 Whatever you generate is published on a public website. Use a tier whose licence allows
