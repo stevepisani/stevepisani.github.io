@@ -61,12 +61,21 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <strong>Steve Pisani</strong>
       <span>Data Something in Philadelphia</span>
     </a>
-    <nav class="topbar__nav" aria-label="Sections">
-      {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
-      <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
-      {% endunless %}{% endfor %}
-    </nav>
-    <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+    <div class="topbar__end">
+      <nav class="topbar__nav" aria-label="Sections">
+        {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
+        <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
+        {% endunless %}{% endfor %}
+      </nav>
+      <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+      <button type="button" class="topbar__sound" id="sound-btn" aria-pressed="false" aria-label="Sound off" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/>
+          <path class="topbar__sound-on" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/>
+          <path class="topbar__sound-off" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <p class="hint" id="hint" role="status" aria-live="polite" hidden></p>

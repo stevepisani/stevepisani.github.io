@@ -13,7 +13,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint, surfaceRadius } from './planet.js';
+import { buildPlanet, surfacePoint, surfaceRadius, POND } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
@@ -22,6 +22,7 @@ import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
+import { createSound } from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -971,6 +972,7 @@ async function start() {
   const hmSpot = interactables.find((i) => i.id === 'hammock');
   const HM = hmSpot && hmSpot.hammock;
   const hmLeave = $('hammock-leave'), hmRead = $('hammock-read');
+  let sound = { play() {} }; // until the scene's up (createSound below)
   let lying = null, loadTo = 0, bookTween = null, hmTimer;
   // held open in front of you, spine up and down, pages toward you (its covers are its +y side, so +y points away)
   const READ = { pos: new THREE.Vector3(0, -0.05, -0.48), quat: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0))) };
@@ -1029,7 +1031,7 @@ async function start() {
     lying = P.lie;
     const step = Math.min(900, Math.max(300, camera.position.distanceTo(P.stand.pos) * 420));
     clearTimeout(hmTimer);
-    hmTimer = setTimeout(() => { loadTo = 1; }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
+    hmTimer = setTimeout(() => { loadTo = 1; sound.play('creak'); }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
     flyPath([
       { ...P.stand, ms: step },
       { ...P.sit, ms: 1600 },  // turn round and sit on the edge: an unhurried half turn
@@ -1054,7 +1056,7 @@ async function start() {
     const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
     const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
     clearTimeout(hmTimer);
-    hmTimer = setTimeout(() => { loadTo = 0; if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
+    hmTimer = setTimeout(() => { loadTo = 0; sound.play('creak'); if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
     const finish = () => { leaving = false; lying = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
     flyPath([
       { ...P.back, ms: 700 },  // sit up
@@ -1244,6 +1246,16 @@ async function start() {
 
   window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
   window.__sceneReady = true;
+
+  // Sound: off until asked for (the speaker in the top bar), then everything where it is.
+  sound = createSound({ scene, camera, spots: {
+    bar: bar.group.localToWorld(new THREE.Vector3(0, 1.5, -0.4)),
+    fire: campSpot.point.clone(),
+    lagoon: surfacePoint(POND.center),
+    hammock: hmSpot ? hmSpot.point.clone() : surfacePoint(SPOTS.spawn),
+  } });
+  bar.setSfx((name, ...args) => sound.play(name, ...args));
+  window.__world.sound = sound;
 
   // The real bottles the robot pours from: nobody needs them until they order, so they load
   // once the scene is up, and their shaders compile off to the side before they're shown.

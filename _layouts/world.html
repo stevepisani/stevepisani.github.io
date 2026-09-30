@@ -29,7 +29,7 @@
   <link rel="modulepreload" href="{{ pp }}">
   <link rel="modulepreload" href="{{ n8ao }}">
   {%- assign world = '/assets/js/world/' | relative_url %}
-  {%- assign mods = 'main,materials,textures,planet,lamps,paths,places,props,decor,fire,hero,camp,rocket,bar,robot,sky,player,render' | split: ',' %}
+  {%- assign mods = 'main,materials,textures,planet,lamps,paths,places,props,decor,fire,hero,camp,rocket,bar,robot,sky,player,render,sound' | split: ',' %}
   {%- for m in mods %}
   <link rel="modulepreload" href="{{ world }}{{ m }}.js">
   {%- endfor %}
