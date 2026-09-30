@@ -6,6 +6,8 @@
 #   glass:   what it's served in (optional)
 #   build:   ingredients, one per line. Amounts in oz (½ ¼ ¾ ⅓ work) set how far each pour
 #            fills the glass when the robot makes it
+#            (a line naming Planteray, Campari, Chartreuse or Meletti / coffee liqueur is poured
+#            from that real bottle, a hero model; the rest from a bottle tinted to match)
 #   method:  how to make it
 #   note:    anything else (optional)
 #   make:    how the robot makes it at the bar ("Make me one"), step by step:
@@ -22,7 +24,7 @@
   origin: Aviary Bar, Kuala Lumpur Hilton, 1978
   glass: Double old fashioned, over ice
   build:
-    - 1½ oz blackstrap or dark Jamaican rum
+    - 1½ oz Planteray 20th Anniversary rum
     - ¾ oz Campari
     - 1½ oz pineapple juice
     - ½ oz fresh lime juice
@@ -61,8 +63,9 @@
   glass: Chilled coupe
   build:
     - 2 oz fresh espresso (a double shot)
-    - ½ oz simple syrup
+    - ¾ oz Meletti coffee liqueur
   method: Shake hard with ice until it foams, and strain into a chilled coupe. The crema shakes up into a thick head.
+  note: A bar spoon of simple syrup if you like it sweeter.
   make:
     glass: coupe
     color: espresso
