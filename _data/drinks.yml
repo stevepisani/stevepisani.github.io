@@ -1,44 +1,91 @@
 # Favorite drinks and recipes: the chalkboard behind the bar, the "Favorite drinks" panel at
 # the bar, and /drinks. Add, reorder or replace freely; the board shows the first six names.
 #
-# STARTERS: these three are well-documented classics, put here as placeholders. Replace them
-# with your own favorites.
-#
 #   name:    what it's called
 #   origin:  where it comes from (optional)
 #   glass:   what it's served in (optional)
-#   build:   ingredients, one per line
+#   build:   ingredients, one per line. Amounts in oz (½ ¼ ¾ ⅓ work) set how far each pour
+#            fills the glass when the robot makes it
 #   method:  how to make it
 #   note:    anything else (optional)
-
-- name: Mai Tai
-  origin: Trader Vic's, Oakland, 1944
-  glass: Double old fashioned, crushed ice
-  build:
-    - 2 oz aged Jamaican rum
-    - 3/4 oz fresh lime juice
-    - 1/2 oz orange curaçao
-    - 1/4 oz orgeat
-    - 1/4 oz rich simple syrup
-  method: Shake with crushed ice and pour it all into the glass, unstrained. Garnish with the spent lime shell and a sprig of mint.
+#   make:    how the robot makes it at the bar ("Make me one"), step by step:
+#     glass:   rocks | collins | coupe
+#     ice:     cubes | crushed (none for a coupe)
+#     color:   what's in the glass, a PALETTE key from assets/js/world/materials.js
+#     foam:    a head on it, a PALETTE key (optional)
+#     garnish: pineapple | orange | mint | beans, or a list of them
+#     steps:   after it pours the build, one per line: shake | strain | stir | swizzle | garnish,
+#              each with what the robot says it's doing. Pours go into a tin if there's a
+#              shake, straight into the glass if not.
 
 - name: Jungle Bird
   origin: Aviary Bar, Kuala Lumpur Hilton, 1978
   glass: Double old fashioned, over ice
   build:
-    - 1 1/2 oz blackstrap or dark Jamaican rum
-    - 3/4 oz Campari
-    - 1 1/2 oz pineapple juice
-    - 1/2 oz fresh lime juice
-    - 1/2 oz demerara syrup
+    - 1½ oz blackstrap or dark Jamaican rum
+    - ¾ oz Campari
+    - 1½ oz pineapple juice
+    - ½ oz fresh lime juice
+    - ½ oz demerara syrup
   method: Shake with ice and strain over fresh ice. Garnish with a pineapple wedge.
+  make:
+    glass: rocks
+    ice: cubes
+    color: jungleBird
+    garnish: pineapple
+    steps:
+      - shake: Shake it hard with ice.
+      - strain: Strain it over fresh ice.
+      - garnish: A pineapple wedge on the rim.
 
-- name: Painkiller
-  origin: Soggy Dollar Bar, British Virgin Islands, 1970s
-  glass: Tiki mug or highball, crushed ice
+- name: Chartreuse Swizzle
+  origin: Marcovaldo Dionysos, San Francisco, early 2000s
+  glass: Collins glass, crushed ice
   build:
-    - 2 oz Pusser's rum
-    - 4 oz pineapple juice
-    - 1 oz orange juice
-    - 1 oz cream of coconut
-  method: Shake with ice and pour over crushed ice. Grate fresh nutmeg on top.
+    - 1¼ oz green Chartreuse
+    - 1 oz pineapple juice
+    - ¾ oz fresh lime juice
+    - ½ oz velvet falernum
+  method: Build over crushed ice and swizzle until the glass frosts. Top with more crushed ice, and garnish with a sprig of mint and a little grated nutmeg.
+  make:
+    glass: collins
+    ice: crushed
+    color: chartreuse
+    garnish: mint
+    steps:
+      - swizzle: Swizzle it until the glass frosts over.
+      - garnish: More crushed ice, a sprig of mint, a little nutmeg.
+
+- name: Shakerato
+  origin: Italy's espresso bars
+  glass: Chilled coupe
+  build:
+    - 2 oz fresh espresso (a double shot)
+    - ½ oz simple syrup
+  method: Shake hard with ice until it foams, and strain into a chilled coupe. The crema shakes up into a thick head.
+  make:
+    glass: coupe
+    color: espresso
+    foam: crema
+    steps:
+      - shake: Shake it hard, until it foams.
+      - strain: Strain it into the coupe.
+
+- name: Il Professore
+  origin: Antonio at the Grand Hotel Vesuvio, Naples
+  glass: Old fashioned, over ice
+  build:
+    - 1 oz gin
+    - 1 oz Campari
+    - 1 oz sweet vermouth
+    - ⅓ oz coffee liqueur (a small-batch Italian one if you can find it; Kahlúa is fine)
+  method: Combine in an old-fashioned glass filled with ice and stir. Garnish with an orange slice and a few coffee beans.
+  note: A Negroni with a touch of coffee liqueur, from Antonio, the barman in the hotel's lobby.
+  make:
+    glass: rocks
+    ice: cubes
+    color: vermouth
+    garnish: [orange, beans]
+    steps:
+      - stir: Stir it over the ice.
+      - garnish: An orange slice and a few coffee beans.
