@@ -813,7 +813,7 @@ export function barGlass(kind = 'rocks') {
   // The drink: straight glasses fill as a cylinder; the coupe's bowl as a cap that widens.
   const inner = G.r - G.wall;
   const depth = (G.stem ? G.h - G.base : G.h - G.base) * 0.9;
-  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.12, roughness: 0.1 });
+  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.05, roughness: 0.1 }); // just enough to read in the dark; more washes reds out to pink
   let liquid;
   if (G.stem) {
     const cap = [];

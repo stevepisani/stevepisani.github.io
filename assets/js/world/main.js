@@ -137,6 +137,7 @@ let drinkUp = () => false;
 let putDownDrink = () => {};
 // Once the world is up, each recipe in the Favorite drinks panel gets a "Make me one" button.
 let decorateDrinks = () => {};
+let skipMaking = () => false;
 
 $('panel-close').addEventListener('click', () => closePanel());
 $('panel-back').addEventListener('click', () => {
@@ -146,6 +147,7 @@ $('panel-back').addEventListener('click', () => {
 });
 $('menu-close').addEventListener('click', () => { if (state === 'seat') putDownMenu(); else hideMenu(); });
 menuBtn.addEventListener('click', () => {
+  if (state === 'seat' && skipMaking()) return; // making you a drink: finish it first
   if (state === 'seat') { if (menu.hidden) pickUpMenu(); else putDownMenu(); }
   else if (menu.hidden) showMenu('nav');
   else hideMenu();
@@ -403,6 +405,7 @@ async function start() {
 
   function onTap(x, y) {
     if (state === 'seat' && panel.hidden && menu.hidden) {
+      if (making) return; // it's making you a drink
       const p = pick(x, y);
       if (p && p.thing && p.thing.id === 'menu') { swallowNextClick(); pickUpMenu(); }
       else if (p && p.thing && p.thing.id === 'drinks') { swallowNextClick(); openPanel('drinks'); }
@@ -468,7 +471,7 @@ async function start() {
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
     if (state === 'seat' || state === 'camp') {
-      if (flight || leaving || drink) return;
+      if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
       seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
       seatLook.pitch = THREE.MathUtils.clamp(seatLook.pitch - dy, -0.95, 0.95);
@@ -486,7 +489,7 @@ async function start() {
     onRelease: () => { clearTimeout(roast.timer); roast.pointer = false; },
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
-      if (state === 'seat' && panel.hidden && menu.hidden) { pickUpMenu(); return; }
+      if (state === 'seat' && panel.hidden && menu.hidden) { if (!skipMaking()) pickUpMenu(); return; }
       if (state === 'camp' && panel.hidden && menu.hidden) { eatIt(); return; }
       if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
       const it = nearestInReach();
@@ -724,6 +727,25 @@ async function start() {
   // walks you to your stool first. Leaving the bar stops it.
   const makingCard = $('making'), makingCount = $('making-count'), makingText = $('making-text'), makingDots = $('making-dots'), makeSkip = $('make-skip');
   let making = null, makingDone;
+  // The view while it's made: you lean in over the counter and your eyes follow the work, one
+  // step at a time (bar.make's focus()), with the view narrowed like leaning in to watch closely.
+  // Something you asked for, so the camera moves; eased like a head turn, snapped under
+  // reduced motion. You sit back once the drink's in front of you.
+  const BASE_FOV = camera.fov, LEAN_FOV = BASE_FOV * (coarse ? 0.66 : 0.52);
+  const view = { k: 0, want: 0, eye: new THREE.Vector3(), look: new THREE.Vector3(), aim: new THREE.Vector3(), hold: 0, job: null };
+  function leanIn(job) {
+    view.job = job;
+    view.want = 1;
+    view.hold = 0;
+    // lean toward the work: a head's worth forward over the counter, a little lower
+    const S = bar.seat, toward = job.center.clone().sub(S.eye);
+    const up = S.eye.clone().normalize();
+    toward.addScaledVector(up, -toward.dot(up)).normalize();
+    view.eye.copy(S.eye).addScaledVector(toward, 0.32).addScaledVector(up, -0.06);
+    view.aim.copy(job.focus());
+    if (view.k === 0 || reducedMotion) view.look.copy(view.aim);
+    seatLook.yaw = seatLook.pitch = 0;
+  }
   function startMaking(idx) {
     const recipe = (data.drinks || [])[idx];
     if (!recipe) return;
@@ -735,7 +757,7 @@ async function start() {
     bubble.hidden = true;
     clearTimeout(makingDone);
     makingDots.replaceChildren();
-    making = bar.make(recipe, {
+    const job = (making = bar.make(recipe, {
       onStep(i, n, text) {
         if (makingDots.children.length !== n) makingDots.replaceChildren(...Array.from({ length: n }, () => document.createElement('li')));
         [...makingDots.children].forEach((li, k) => li.classList.toggle('is-done', k <= i));
@@ -749,15 +771,19 @@ async function start() {
         makingCount.textContent = recipe.name;
         makingText.textContent = 'There you go. Cheers!';
         makingDone = setTimeout(() => { if (!making) makingCard.hidden = true; }, 4000);
+        view.hold = 1.4; // watch it arrive, then sit back
       },
-    });
+    }));
+    leanIn(job);
   }
   function stopMaking() {
     if (making) making.cancel();
     making = null;
     makingCard.hidden = true;
+    view.want = 0; view.hold = 0;
+    if (view.k) { view.k = 0; camera.fov = BASE_FOV; camera.updateProjectionMatrix(); }
   }
-  const skipMaking = () => { if (making) making.skip(); };
+  skipMaking = () => { if (!making) return false; making.skip(); return true; };
   makeSkip.addEventListener('click', skipMaking);
   decorateDrinks = () => {
     if (state !== 'walk' && state !== 'seat') return;
@@ -979,6 +1005,21 @@ async function start() {
       camera.quaternion.copy(seatPose.quat)
         .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
         .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
+      // leaning in to watch a drink being made
+      if (!making && view.hold > 0 && (view.hold -= realDt) <= 0) view.want = 0;
+      if (view.k !== view.want) {
+        view.k = reducedMotion ? view.want : THREE.MathUtils.clamp(view.k + Math.sign(view.want - view.k) * realDt / 1.1, 0, 1);
+        const e = view.k * view.k * (3 - 2 * view.k);
+        camera.fov = BASE_FOV + (LEAN_FOV - BASE_FOV) * e;
+        camera.updateProjectionMatrix();
+      }
+      if (view.k > 0) {
+        if (view.job) view.aim.copy(view.job.focus());
+        if (reducedMotion) view.look.copy(view.aim); else view.look.lerp(view.aim, 1 - Math.exp(-realDt * 3));
+        const e = view.k * view.k * (3 - 2 * view.k);
+        camera.position.lerpVectors(seatPose.pos, view.eye, e);
+        camera.quaternion.slerp(poseLooking(camera.position, view.look).quat, e);
+      }
       // arrow keys look around too
       if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2); // → turns right, ↑ looks up
     }

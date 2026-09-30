@@ -534,24 +534,26 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
     return g;
   })();
-  function chromeTin() { return pbr({ color: PALETTE.chrome, metalness: 1, roughness: 0.25, side: THREE.DoubleSide }); }
+  function chromeTin() { return pbr({ color: PALETTE.chrome, metalness: 0.55, roughness: 0.3, side: THREE.DoubleSide }); } // brushed: full chrome only mirrors the dark
   const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.004, 1, 8, 1, true).translate(0, -0.5, 0), pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.7, roughness: 0.1 }));
   stream.visible = false;
   bar.add(stream);
-  const UP = new THREE.Vector3(0, 1, 0);
+  const UP = new THREE.Vector3(0, 1, 0), _amber = new THREE.Color(PALETTE.amber);
   function pourStream(fromWorld, to, color) {
     const from = bar.worldToLocal(fromWorld.clone());
     const d = to.clone().sub(from);
     // only while it's really over the glass: a pour never crosses the counter
     if (!fromWorld || Math.hypot(d.x, d.z) > 0.05 || d.y > -0.02) { stream.visible = false; return; }
     stream.visible = true;
-    stream.material.color.set(color); stream.material.emissive.set(color);
+    stream.material.color.set(color).lerp(_amber, 0.25); // backlit by the bar: even blackstrap glows amber in a thin stream
+    stream.material.emissive.copy(stream.material.color);
     stream.position.copy(from);
     stream.quaternion.setFromUnitVectors(UP, d.clone().normalize().negate());
     stream.scale.set(1, d.length(), 1);
   }
 
   let job = null;
+  const made = [];
   function make(recipe, { onStep, onDone } = {}) {
     if (job) job.cancel();
     const M = recipe.make || {};
@@ -575,7 +577,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     const tin = tinMesh.clone();
     tin.position.copy(TIN);
     const garnishes = [].concat(M.garnish || []);
-    const toStool = seat.served.clone().add(new THREE.Vector3([-0.2, 0.3, -0.46][drinks.length % 3], 0, (drinks.length % 2) * -0.08));
+    // in front of you, just left of the menu, where even a phone's narrow view shows it whole
+    const toStool = seat.served.clone().add(new THREE.Vector3(-0.14, 0, 0.1)); // clear of the mugs, which land further back
     let i = -1, t = 0, level = 0, finished = false;
     const setLevel = (k) => { level = k; glass.fill(k); };
     const END = { pour: 0.7, strain: 0.82, stir: 0.8, swizzle: 0.8 }; // fills are a share of the glass; the rest is dilution
@@ -592,7 +595,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         } else if (st.do === 'pour') {
           robot.hold('bottle', { color: st.color, shaker: !shaken });
           const into = shaken ? vesselTop(tin, TIN_MOUTH) : W;
-          robot.reach(null, { at: into.clone().add(new THREE.Vector3(0, 0.06, -0.01)) });
+          robot.reach(null, { at: into.clone().add(new THREE.Vector3(0, 0.11, -0.01)) }); // poured from a height, so you see it fall
         } else if (st.do === 'shake') {
           robot.hold('none', { shaker: false });
           robot.reach({ at: vesselTop(tin, TIN_MOUTH).add(new THREE.Vector3(0, 0.02, 0)), pincer: true }, null);
@@ -606,6 +609,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
           st.left = garnishes.slice();
           st.next = 0;
         } else if (st.do === 'serve') {
+          // the ones it made before move down the bar, to make room (the last three stay)
+          made.forEach((g, n) => g.position.copy(seat.served).add(new THREE.Vector3(-0.62 - (made.length - 1 - n) * 0.16, 0, 0.02)));
           robot.hold('towel', { shaker: true });
           robot.pour(0.8);
           st.from = glass.group.position.clone();
@@ -670,8 +675,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       },
       done() {
         finished = true; job = null;
-        drinks.push(glass.group);
-        if (drinks.length > 5) bar.remove(drinks.shift());
+        made.push(glass.group);
+        if (made.length > 3) bar.remove(made.shift());
         robot.reach(null, null);
         robot.roll(ROBOT_SERVE, Math.atan2(stools[1].position.x - ROBOT_SERVE.x, stools[1].position.z - ROBOT_SERVE.z));
         onDone && onDone(glass.group);
@@ -693,6 +698,21 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       },
     };
     const placeGarnish = (name) => glass.garnish(name);
+    // Where to look to see what it's doing now (world space): the vessel it's pouring into,
+    // the shaker while it shakes, the glass for the rest, then the drink as it comes to you.
+    const _f = new THREE.Vector3();
+    J.focus = () => {
+      const st = J.all[Math.max(0, Math.min(i, J.all.length - 1))];
+      if (st.do === 'shake' && !tin.parent) {
+        // up toward the shaker, but not so far you lose the counter: it's shaken up by its dome
+        const tip = robot.tip('r');
+        if (tip) { bar.worldToLocal(_f.copy(tip)); _f.y = Math.min(_f.y, BAR_TOP + 0.32); return bar.localToWorld(_f); }
+      }
+      if (st.do === 'pour' && shaken) return bar.localToWorld(_f.copy(tin.position).add(new THREE.Vector3(0, 0.1, 0)));
+      return bar.localToWorld(_f.copy(glass.group.position).add(new THREE.Vector3(0, st.do === 'serve' ? 0.06 : 0.1, 0)));
+    };
+    // the middle of the work: where you lean in toward
+    J.center = bar.localToWorld(glass.group.position.clone().lerp(TIN, 0.5).setY(BAR_TOP + 0.1));
     J.all = [...steps, { do: 'serve' }];
     job = J;
     return {
@@ -704,9 +724,12 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         for (let n = Math.max(0, i); n < k; n++) { if (n > i) J.enter(J.all[n]); J.finish(J.all[n]); }
         i = k; t = 0.6;
         J.enter(J.all[k]);
+        if (J.all[k].do !== 'serve') onStep && onStep(k, steps.length, J.all[k].text);
         J.during(J.all[k], t, DUR[J.all[k].do]);
       },
       get steps() { return J.all.map((x) => x.do); },
+      focus: () => J.focus(),
+      center: J.center,
     };
   }
 

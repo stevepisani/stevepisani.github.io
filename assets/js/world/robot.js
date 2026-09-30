@@ -348,7 +348,11 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       tip.copy(local).applyMatrix4(a.hand.matrixWorld);
       return tip.distanceToSquared(world) + 0.0004 * p[1] * p[1]; // keep elbows in when it can
     };
-    let p = init.slice(0, 3), best = cost(p);
+    // from where it is (fine), or the best of a few natural starts, so it doesn't settle in a
+    // poor fold of the arm
+    const starts = fine ? [init] : [init, POSES.rest.r, [-0.03, -0.65, -1.72], [-1.0, -0.4, -1.0], [-1.8, 0, -0.6]];
+    let p = null, best = Infinity;
+    for (const s0 of starts) { const c = cost(s0); if (c < best) { best = c; p = s0.slice(0, 3); } }
     for (let step = fine ? 0.08 : 0.5; step > 0.003; step *= 0.5) {
       for (let pass = 0, better = true; better && pass < 12; pass++) {
         better = false;
