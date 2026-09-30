@@ -7,6 +7,7 @@ import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
 import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost } from './props.js';
+import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
@@ -361,6 +362,19 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     colliders.push({ center: surfacePoint(SPOTS.hammock), radius: 0.7 });
     // you climb in, lie back and read (main.js lieInHammock); `hammock` is how (props.js)
     interactables.push({ id: 'hammock', label: 'Hammock', verb: 'Lie down and read', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4, hammock: hm.userData.hammock });
+  }
+
+  // Flat stones at the waterline where the lagoon trail comes down: crouch and skip one
+  // (main.js goToShore; stones.js). You crouch just back from the water, facing across it.
+  {
+    const phi = LAGOON.trailPhi, shore = shoreAt(phi);
+    const pile = stonePile();
+    put(pile, pondDir(shore + 0.3, phi), { heading: 0.4 }, 0.5);
+    const crouch = surfacePoint(pondDir(shore + 0.7, phi));
+    const far = pondDir(shoreAt(phi + Math.PI) * 0.8, phi + Math.PI); // across the water, toward the reeds
+    const up = crouch.clone().normalize();
+    interactables.push({ id: 'stones', label: 'Flat stones', verb: 'Skip a stone', object: pile, point: surfacePoint(pondDir(shore + 0.3, phi)), approach: surfacePoint(pondDir(shore + 1.4, phi)), radius: 2.2,
+      shore: { eye: crouch.clone().addScaledVector(up, 0.85), stand: crouch.clone().addScaledVector(up, 1.62), look: far.clone().multiplyScalar(RADIUS + POND.level + 0.25) } });
   }
 
   // Messages in bottles, washed up at the waterline (scenery).
