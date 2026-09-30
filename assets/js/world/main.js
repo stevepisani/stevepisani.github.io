@@ -815,6 +815,40 @@ async function start() {
   });
 
   let chatter;
+  // Ask the bartender: a real conversation (Claude, through supabase/functions/bartender, which
+  // knows the site from /bartender.json). Its answer shows above the question box, on phones
+  // too; the rotating chatter stops once you've said something.
+  const chat = $('chat'), chatInput = $('chat-input'), chatReply = $('chat-reply');
+  const talk = [];
+  let talking = false, talked = false;
+  chat.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = chatInput.value.trim();
+    if (!q || talking) return;
+    talked = true;
+    clearInterval(chatter);
+    bubble.hidden = true;
+    talking = true;
+    chatReply.classList.add('is-thinking');
+    chatReply.hidden = false;
+    chatReply.textContent = '…';
+    chatInput.value = '';
+    talk.push({ role: 'user', content: q });
+    let answer = null;
+    try {
+      const res = await fetch(`${data.supabase.url}/functions/v1/bartender`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', apikey: data.supabase.key, authorization: `Bearer ${data.supabase.key}` },
+        body: JSON.stringify({ messages: talk.slice(-12) }),
+      });
+      answer = (await res.json()).reply || null;
+    } catch (err) { /* offline, or the function isn't there: say so below */ }
+    if (answer) talk.push({ role: 'assistant', content: answer });
+    else talk.pop(); // keep the conversation taking turns
+    chatReply.textContent = answer || "The bar's closed for a moment. The menu's right in front of you.";
+    talking = false;
+    chatReply.classList.remove('is-thinking');
+  });
   let leaving = false;
   function sitDown({ pickUp = false, then = null } = {}) {
     leaving = false;
@@ -841,7 +875,7 @@ async function start() {
       say(data.bartender[0]);
       let i = 1;
       clearInterval(chatter);
-      chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making) say(data.bartender[i++ % data.bartender.length]); }, 12000);
+      if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making) say(data.bartender[i++ % data.bartender.length]); }, 12000);
     });
   }
 
@@ -890,6 +924,7 @@ async function start() {
 
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
+    if (e.target === chatInput) { chatInput.blur(); return; } // first Esc just leaves the question box
     if (!panel.hidden) closePanel();
     else if (making && menu.hidden) skipMaking(); // Esc while it's making one: straight to the drink
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
@@ -1171,6 +1206,7 @@ async function start() {
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
+    if (e.target.closest && e.target.closest('input, textarea')) return; // typing, not looking
     if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
@@ -1310,6 +1346,8 @@ async function start() {
     } else if (!beacon.hidden) beacon.hidden = true;
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
+    chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && panel.hidden && menu.hidden);
+    if (chat.hidden && !chatReply.hidden && !talking) chatReply.hidden = true; // the answer goes when the box does
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
     const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
     if (state === 'camp' && !leaving) roaster.update(realDt, atFire && (roast.pointer || roast.key), campSpot.hotSpot);

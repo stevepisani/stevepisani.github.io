@@ -1,6 +1,8 @@
 # The Supabase project, as code (supabase/, applied by tools/supabase.mjs).
-# - deploy: on a merge that touches supabase/, applies new migrations and the auth settings.
-#   Needs the SUPABASE_ACCESS_TOKEN repo secret; without it the job says so and passes.
+# - deploy: on a merge that touches supabase/, applies new migrations and the auth settings,
+#   copies ANTHROPIC_API_KEY into the project's function secrets, and deploys the functions
+#   (supabase/functions/*). Needs the SUPABASE_ACCESS_TOKEN and ANTHROPIC_API_KEY repo
+#   secrets; without the first the job says so and passes.
 # - keepalive: free projects pause after a week without requests, so once a week it asks the
 #   public API for something (the anon key from _config.yml; no secret needed).
 name: Supabase
@@ -23,18 +25,41 @@ jobs:
     timeout-minutes: 5
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Apply migrations and auth settings
+      - name: Token?
+        id: token
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
             echo "::warning::No SUPABASE_ACCESS_TOKEN secret, so nothing was applied."
-            exit 0
+          else
+            echo "ok=1" >> "$GITHUB_OUTPUT"
           fi
-          node tools/supabase.mjs
+      - uses: actions/checkout@v4
+        if: steps.token.outputs.ok
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.ok
+        with:
+          node-version: 22
+      - name: Apply migrations and auth settings
+        if: steps.token.outputs.ok
+        run: node tools/supabase.mjs
+      - uses: supabase/setup-cli@v1
+        if: steps.token.outputs.ok
+        with:
+          version: 2.118.0
+      - name: Function secrets and deploy
+        if: steps.token.outputs.ok
+        run: |
+          ref=$(sed -n 's|^  url: *https://\([a-z0-9]*\)\.supabase\.co.*|\1|p' _config.yml)
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            supabase secrets set --project-ref "$ref" ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+          else
+            echo "::warning::No ANTHROPIC_API_KEY secret; the bartender will answer that the bar's closed."
+          fi
+          for f in supabase/functions/*/index.ts; do
+            supabase functions deploy "$(basename "$(dirname "$f")")" --project-ref "$ref" --use-api
+          done
 
   keepalive:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
