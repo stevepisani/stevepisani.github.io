@@ -80,6 +80,54 @@
     });
   });
 
+  /* ---- The sky tonight: the real moon, and where the ISS is right now ---- */
+  // The moon's age from a known new moon (6 Jan 2000, 18:14 UTC) and the synodic month: good
+  // to half a day, no API. The homepage's moon is lit to match.
+  window.moonTonight = function (date) {
+    var SYNODIC = 29.530588853, ref = Date.UTC(2000, 0, 6, 18, 14);
+    var age = ((((date || new Date()) - ref) / 864e5) % SYNODIC + SYNODIC) % SYNODIC;
+    var k = age / SYNODIC; // 0 new, 0.5 full
+    var names = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
+    return { age: age, phase: k, lit: (1 - Math.cos(2 * Math.PI * k)) / 2, waxing: k < 0.5, name: names[Math.round(k * 8) % 8] };
+  };
+
+  // The ISS, live (wheretheiss.at: no key, about one request a second allowed; we ask every 5 s).
+  var PHILLY = [39.9526, -75.1652];
+  var kmBetween = function (a, b) { // haversine, over the ground
+    var r = Math.PI / 180, dLat = (b[0] - a[0]) * r, dLon = (b[1] - a[1]) * r;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return 2 * 6371 * Math.asin(Math.sqrt(h));
+  };
+  window.issNow = function () {
+    return fetch('https://api.wheretheiss.at/v1/satellites/25544').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      return { lat: d.latitude, lon: d.longitude, km: d.altitude, kmh: d.velocity, sunlit: d.visibility === 'daylight', fromPhilly: kmBetween(PHILLY, [d.latitude, d.longitude]) };
+    });
+  };
+
+  // Fill a [data-sky] block: children with data-sky-moon / -moon-meta / -iss / -iss-meta.
+  window.fillSky = function (el) {
+    var q = function (k) { return el.querySelector('[data-sky-' + k + ']'); };
+    var m = window.moonTonight();
+    q('moon').textContent = m.name;
+    q('moon-meta').textContent = Math.round(m.lit * 100) + '% lit · ' + Math.round(m.age) + ' days old';
+    if (!window.fetch) return;
+    var n = function (v) { return Math.round(v).toLocaleString('en-US'); };
+    var deg = function (v, pos, neg) { return Math.abs(v).toFixed(1) + '° ' + (v >= 0 ? pos : neg); };
+    var tick = function () {
+      if (!el.isConnected) return clearInterval(iv);
+      window.issNow().then(function (s) {
+        q('iss').textContent = deg(s.lat, 'N', 'S') + ', ' + deg(s.lon, 'E', 'W');
+        q('iss-meta').textContent = n(s.km) + ' km up · ' + n(s.kmh) + ' km/h · ' + n(s.fromPhilly) + ' km from Philadelphia' + (s.sunlit ? ' · in sunlight' : ' · in Earth\u2019s shadow');
+      }).catch(function () { q('iss').textContent = 'Out of sight for a moment'; });
+    };
+    var iv = setInterval(tick, 5000);
+    tick();
+  };
+  document.querySelectorAll('[data-sky]').forEach(window.fillSky);
+
   /* ---- Hello, fellow view-source enjoyer ---- */
   if (window.console) {
     console.log('%cHey, you opened devtools. 👋', 'font: 600 16px sans-serif; color: #e0531f');

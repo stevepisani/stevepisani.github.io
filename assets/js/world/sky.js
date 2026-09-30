@@ -177,13 +177,23 @@ export function buildSky({ quality }) {
     group.add(giant);
   }
 
-  // A small moon up on your right as you land (about 20° up). It's near the star in the sky, so
-  // it's a crescent: craters and dark seas, lit with a moon's flat, bright-to-the-edge look
+  // A small moon up on your right as you land (about 20° up), in tonight's real phase: craters
+  // and dark seas, lit with a moon's flat, bright-to-the-edge look
   // (Lommel-Seeliger), and the gas giant's shine faintly lighting its dark side.
   {
     const { map, height } = T.moonMaps();
+    // Lit the way the real moon is tonight (site.js moonTonight(): its phase from the date). The
+    // light comes from behind it at new moon, from over your shoulder at full, and from the
+    // right while it's waxing, the left while it wanes; it stays where it is in the sky.
+    const MOON_DIR = new THREE.Vector3(0.47, 0.757, -0.459).normalize();
+    const tonight = window.moonTonight ? window.moonTonight() : { phase: 0.18, waxing: true };
+    const e = tonight.phase * Math.PI * 2;                                   // elongation from the sun
+    const alpha = Math.PI - (tonight.waxing ? e : Math.PI * 2 - e);          // angle between the light and you, seen from the moon
+    const toYou = MOON_DIR.clone().negate();
+    const right = MOON_DIR.clone().cross(new THREE.Vector3(0, 1, 0)).normalize(); // your right, looking at it
+    const moonLight = toYou.multiplyScalar(Math.cos(alpha)).addScaledVector(right, (tonight.waxing ? 1 : -1) * Math.sin(alpha)).normalize();
     const moon = new THREE.Mesh(new THREE.SphereGeometry(14, 64, 48), new THREE.ShaderMaterial({
-      uniforms: { map: { value: map }, height: { value: height }, sun: { value: sunDir } },
+      uniforms: { map: { value: map }, height: { value: height }, sun: { value: moonLight } },
       fog: false,
       vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying vec3 vV;
         void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz;
@@ -205,7 +215,7 @@ export function buildSky({ quality }) {
           gl_FragColor = vec4(col, 1.);
         }`,
     }));
-    moon.position.set(0.47, 0.757, -0.459).normalize().multiplyScalar(300);
+    moon.position.copy(MOON_DIR).multiplyScalar(300);
     moon.rotation.y = 2.2;
     group.add(moon);
   }
