@@ -609,7 +609,7 @@
     </div>
   </template>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
   <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999"></canvas>
   <script>
     // Global error handlers
@@ -714,16 +714,15 @@
     
     const SUPABASE_URL = "{{ site.supabase.url }}";
     const SUPABASE_ANON_KEY = "{{ site.supabase.anon_key }}";
-    const ALLOWED_EMAILS = ["sjp543@gmail.com","lexipisani@gmail.com"];
 
     // Settings
     const BUCKET = 'photos';                 // Create this bucket, set it to PRIVATE
     const SIGNED_URL_TTL = 60*60*24*7;       // 7 days (in seconds)
 
     // Initialize Supabase client with error handling
-    let supabase;
+    let db;
     try {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     } catch (err) {
       console.error('Failed to initialize Supabase:', err);
       alert('Failed to initialize. Please refresh the page.');
@@ -735,7 +734,7 @@
 
     // Data helpers
     async function listRecipes(){
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('recipes')
         .select('*')
         .order('created_at',{ascending:true});
@@ -743,7 +742,7 @@
       return data;
     }
     async function insertRecipe(rec){
-      const { data, error } = await supabase.from('recipes').insert(rec).select().single();
+      const { data, error } = await db.from('recipes').insert(rec).select().single();
       if (error){ console.error(error); alert('Insert failed'); return null; }
       return data;
     }
@@ -757,7 +756,7 @@
       }
       
       try {
-        const { error } = await supabase.from('recipes').update(patch).eq('id', id);
+        const { error } = await db.from('recipes').update(patch).eq('id', id);
         if (error){ 
           console.error(error); 
           // Don't show alert for aborted requests
@@ -784,7 +783,7 @@
       }
     }
     async function deleteRecipe(id){
-      const { error } = await supabase.from('recipes').delete().eq('id', id);
+      const { error } = await db.from('recipes').delete().eq('id', id);
       if (error){ console.error(error); alert('Delete failed'); }
     }
 
@@ -804,7 +803,7 @@
       }
       
       const path = `${recipeId}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      const { error } = await db.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error){ 
         console.error(error); 
         alert('Photo upload failed: ' + error.message); 
@@ -814,7 +813,7 @@
     }
     async function getSignedUrl(path){
       if (!path) return null;
-      const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, SIGNED_URL_TTL);
       if (error){ console.error(error); return null; }
       return data?.signedUrl || null;
     }
@@ -1496,9 +1495,9 @@
       const email = $('#email').value.trim();
       if (!email) return alert('Enter your email');
       const redirectTo = `${window.location.origin}${window.location.pathname}`.replace(/\/?$/, '/');
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await db.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: redirectTo }
+        options: { emailRedirectTo: redirectTo, shouldCreateUser: false } // sign-ups are off: members only
       });
       if (error){ console.error(error); alert('Failed to send link'); return; }
       $('#authStatus').textContent = 'Check your email for a sign-in link.';
@@ -1507,7 +1506,7 @@
 
     async function handleSignOut() {
       try {
-        const { error } = await supabase.auth.signOut();
+        const { error } = await db.auth.signOut();
         if (error) {
           console.error('Signout error:', error);
           alert('Signout failed: ' + error.message);
@@ -1558,22 +1557,23 @@
       }
     }
 
-    // enforce allowed emails on client (RLS also protects on server)
-    function isAllowedEmail(email){
-      if (!email) return false;
-      return ALLOWED_EMAILS.map(s=>s.toLowerCase()).includes(email.toLowerCase());
+    // Who may use it lives in the database (public.members); row-level security enforces it,
+    // and is_member() tells the page, so no addresses are written here.
+    async function isMember(){
+      const { data, error } = await db.rpc('is_member');
+      return !error && data === true;
     }
 
-    supabase.auth.onAuthStateChange((event, session) => {
+    db.auth.onAuthStateChange((event, session) => {
       // Use setTimeout to avoid async issues with browser extensions
       setTimeout(async () => {
         try {
           sessionUser = session?.user || null;
           refreshUIForAuth();
           
-          if (sessionUser && !isAllowedEmail(sessionUser.email)) {
+          if (sessionUser && !(await isMember())) {
             alert('This app is restricted. Please use an allowed email.');
-            await supabase.auth.signOut();
+            await db.auth.signOut();
             return;
           }
           
@@ -1606,7 +1606,7 @@
     // init (handles redirect after magic link)
     async function init() {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session }, error } = await db.auth.getSession();
         if (error) {
           console.error('Init session error:', error);
         }
