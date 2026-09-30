@@ -1,0 +1,28 @@
+---
+# What the AI bartender knows, built from the site's own data so there's one source: the
+# Supabase function (supabase/functions/bartender) reads this and puts it in its prompt.
+layout: null
+---
+{%- assign p = site.data.profile -%}
+{
+  "site": {{ site.url | jsonify }},
+  "steve": {
+    "headline": {{ p.headline | jsonify }},
+    "business": {{ p.business | strip | jsonify }},
+    "what": {{ p.what | strip | jsonify }},
+    "focus": {{ p.focus | jsonify }},
+    "skills": {{ p.skills | jsonify }},
+    "email": {{ site.email | jsonify }},
+    "links": {{ site.links | jsonify }},
+    "likes": {{ site.data.bar.likes | jsonify }},
+    "career": [{% for t in site.data.timeline %}{{ t.role | append: ", " | append: t.org | append: " (" | append: t.dates | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}]
+  },
+  "menu": [{% for m in site.data.bar.menu %}{{ m.label | append: ": " | append: m.note | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "drinks": [{% for d in site.data.drinks %}
+    { "name": {{ d.name | jsonify }}, "origin": {{ d.origin | jsonify }}, "glass": {{ d.glass | jsonify }}, "build": {{ d.build | jsonify }}, "method": {{ d.method | jsonify }}, "note": {{ d.note | jsonify }} }{% unless forloop.last %},{% endunless %}{% endfor %}
+  ],
+  "writing": [{% for post in site.posts %}{{ post.title | append: " (" | append: post.url | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "lab": [{% for item in site.data.lab %}{{ item.title | append: ": " | append: item.blurb | strip | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "books": [{% for shelf in site.data.books %}{% for b in shelf.books %}{{ b.title | append: " (" | append: shelf.shelf | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "planet": {{ site.data.bar.bartender | jsonify }}
+}
