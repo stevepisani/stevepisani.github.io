@@ -1,0 +1,37 @@
+# Who Steve is, in one place: /about's "What I bring", and /profile.json, which the GitHub
+# profile README (github.com/stevepisani) is rebuilt from. Edit here, not there.
+headline: Principal Data Architect building scalable data infrastructure for companies who care about data.
+business: >-
+  Founder of [Tabby Stack](https://stevenpisani.com), a data consulting firm where I lead engineering
+  teams and architect enterprise data platforms.
+what: >-
+  I design and build the systems that turn raw data into business intelligence, from ingestion
+  pipelines to ML models in production. Currently deep in Snowflake architecture, dbt
+  transformations, and deploying ML directly in the warehouse.
+focus:
+  - Architecting data platforms
+  - Building HIPAA-compliant healthcare analytics systems
+  - Deploying causal inference models in Snowflake
+# What I bring (chips on /about)
+skills: [Data architecture, Data engineering, Analytics, Data visualization, Programming,
+  Business strategy, Electrical engineering, Storytelling, Communication]
+# Badges: shields.io "name, colour, simple-icons logo"
+stack:
+  - group: Data Engineering
+    tools:
+      - [Snowflake, 29B5E8, snowflake]
+      - [dbt, FF694B, dbt]
+      - [Airflow, 017CEE, apache-airflow]
+      - [Fivetran, 0073FF, fivetran]
+  - group: Languages & ML
+    tools:
+      - [Python, 3776AB, python]
+      - [SQL, 4479A1, postgresql]
+      - [scikit-learn, F7931E, scikit-learn]
+      - [CatBoost, FFCC00, ""]
+  - group: Infrastructure
+    tools:
+      - [AWS, 232F3E, amazon-aws]
+      - [Docker, 2496ED, docker]
+      - [GitHub Actions, 2088FF, github-actions]
+signoff: Philadelphia, PA • dbt since the Fishtown Analytics days

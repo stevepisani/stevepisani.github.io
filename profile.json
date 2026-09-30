@@ -1,0 +1,27 @@
+---
+# Everything the GitHub profile README (github.com/stevepisani) says, rebuilt from here by
+# that repo's workflow. Sources: _config.yml, _data/profile.yml, the latest posts, the lab.
+layout: null
+---
+{%- assign p = site.data.profile -%}
+{
+  "name": {{ site.author.name | jsonify }},
+  "url": {{ site.url | jsonify }},
+  "headline": {{ p.headline | jsonify }},
+  "business": {{ p.business | strip | jsonify }},
+  "what": {{ p.what | strip | jsonify }},
+  "focus": {{ p.focus | jsonify }},
+  "stack": {{ p.stack | jsonify }},
+  "signoff": {{ p.signoff | jsonify }},
+  "links": {
+    "linkedin": {{ site.links.linkedin | jsonify }},
+    "twitter": {{ site.links.twitter | jsonify }},
+    "website": {{ site.url | jsonify }}
+  },
+  "posts": [{% for post in site.posts limit: 3 %}
+    { "title": {{ post.title | jsonify }}, "url": {{ post.url | absolute_url | jsonify }}, "date": {{ post.date | date: "%Y-%m-%d" | jsonify }} }{% unless forloop.last %},{% endunless %}{% endfor %}
+  ],
+  "lab": [{% assign live = site.data.lab | where: "status", "live" | where_exp: "i", "i.url contains '/'" %}{% for item in live %}
+    { "title": {{ item.title | jsonify }}, "url": {{ item.url | absolute_url | jsonify }}, "emoji": {{ item.emoji | jsonify }} }{% unless forloop.last %},{% endunless %}{% endfor %}
+  ]
+}
