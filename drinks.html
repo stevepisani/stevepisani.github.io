@@ -6,3 +6,20 @@ heading: Favorite drinks
 lede: The recipes I keep coming back to.
 ---
 {% include drinks.html %}
+
+<h2 id="menus">Party menus</h2>
+<p>What I pour when people come over: three drinks and something without booze.</p>
+<div class="recipes">
+  {% for m in site.data.menus %}
+  <section class="recipe">
+    <h3 class="recipe__name">{{ m.name }}</h3>
+    <p class="recipe__meta">{{ m.about }}</p>
+    <ol class="recipe__build">
+      {% for d in m.drinks %}
+      <li><strong>{{ d.name }}</strong>{% if d.line %}. {{ d.line }}{% endif %}{% if d.build %} ({{ d.build | join: ', ' }}){% endif %}{% if d.serve %} <em>{{ d.serve }}.</em>{% endif %}</li>
+      {% endfor %}
+    </ol>
+    {% if m.na %}<p class="recipe__note">Without booze: <strong>{{ m.na.name }}</strong>{% if m.na.build %} ({{ m.na.build | join: ', ' }}){% endif %}{% if m.na.serve %}. {{ m.na.serve }}.{% endif %}</p>{% endif %}
+  </section>
+  {% endfor %}
+</div>
