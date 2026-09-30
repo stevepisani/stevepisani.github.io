@@ -46,6 +46,7 @@ export const PALETTE = {
   campari: 0xb3242a,
   jungleBird: 0x8a2a1a, // rum-darkened Campari: brick red
   vermouth: 0x5c1a12,  // sweet (rosso)
+  negroni: 0x9c2616,   // gin, Campari, vermouth: deep red-orange
   gin: 0xdfe8e4,
   chartreuse: 0x9fbf3a,
   falernum: 0xe6d6a2,

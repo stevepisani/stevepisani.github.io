@@ -84,7 +84,7 @@
   make:
     glass: rocks
     ice: cubes
-    color: vermouth
+    color: negroni
     garnish: [orange, beans]
     steps:
       - stir: Stir it over the ice.
