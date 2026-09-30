@@ -1,6 +1,6 @@
 /* ==========================================================================
    The asteroid homepage. Loaded only by _layouts/world.html.
-   #world[data-state] = loading | walk | seat | camp | hammock | fallback; #world[data-panel] = the open panel
+   #world[data-state] = loading | walk | seat | camp | hammock | shore | fallback; #world[data-panel] = the open panel
    ========================================================================== */
 
 .world-page { background: #05060f; color: #eef0fa; overflow: hidden; }
@@ -105,6 +105,9 @@
 .world__bubble { position: absolute; z-index: 3; left: 50%; top: 88px; transform: translateX(-50%); max-width: min(420px, 86vw); margin: 0; padding: 12px 16px; border-radius: 16px; background: #fff; color: #1a1b2e; font: 500 .95rem/1.4 var(--font-body); box-shadow: 0 10px 30px rgb(0 0 0 / .4); pointer-events: none; animation: rise-c .35s ease-out; }
 .world__bubble::before { content: "🤖 "; }
 .world[data-state="camp"] .world__bubble::before { content: "🔥 "; } /* at the fire it's you talking, not the robot */
+.world[data-state="shore"] .world__bubble::before { content: none; } /* how your throw went */
+#shore-throw { touch-action: none; user-select: none; -webkit-user-select: none; }
+#shore-throw.is-winding { border-color: var(--accent); background: rgb(14 16 36 / .85); }
 .world__bubble[hidden] { display: none; }
 @keyframes rise-c { from { opacity: 0; } }
 @media (max-width: 760px) { .world[data-state="seat"] .world__bubble { display: none; } }
@@ -191,7 +194,7 @@
 .making__dots li { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .25); transition: background .3s; }
 .making__dots li.is-done { background: var(--accent); }
 .camp-eat.is-burning { border-color: var(--coral); }
-.world[data-state="camp"] .hint, .world[data-state="hammock"] .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); } /* above the fire's buttons */
+.world[data-state="camp"] .hint, .world[data-state="hammock"] .hint, .world[data-state="shore"] .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); } /* above the fire's buttons */
 
 /* ---------- Content panel ---------- */
 .panel { position: absolute; z-index: 5; top: 76px; right: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain;

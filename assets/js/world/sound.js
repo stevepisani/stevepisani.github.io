@@ -202,6 +202,28 @@ export function createSound({ scene, camera, spots }) {
         pourNode = null;
       }
     },
+    whoosh() { // a stone leaving your hand
+      burst(inputs.lagoon, ctx.currentTime, { type: 'bandpass', hz: 900, q: 0.8, dur: 0.18, v: 0.12 });
+    },
+    skip(n = 1) { // a stone touching the water: a light, bright tick, softer each time
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(1400, t); o.frequency.exponentialRampToValueAtTime(650, t + 0.06);
+      env(g, t, 0.16 / Math.sqrt(n), 0.002, 0.08);
+      o.connect(g).connect(inputs.lagoon); o.start(t); o.stop(t + 0.12);
+      burst(inputs.lagoon, t, { hz: 3000, dur: 0.05, v: 0.12 / Math.sqrt(n) });
+    },
+    plop() { // sinking
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(420, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.18);
+      env(g, t, 0.3, 0.004, 0.2);
+      o.connect(g).connect(inputs.lagoon); o.start(t); o.stop(t + 0.25);
+      burst(inputs.lagoon, t, { type: 'lowpass', hz: 900, dur: 0.25, v: 0.2 });
+    },
+    clack() { // on the sand and pebbles of the far shore
+      const t = ctx.currentTime;
+      burst(inputs.lagoon, t, { type: 'bandpass', hz: 2200, q: 3, dur: 0.03, v: 0.3 });
+      burst(inputs.lagoon, t + 0.07, { type: 'bandpass', hz: 2600, q: 3, dur: 0.025, v: 0.15 });
+    },
     creak() { // rope taking weight round a palm
       const t = ctx.currentTime;
       for (let k = 0; k < 2; k++) {
