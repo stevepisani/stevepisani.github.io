@@ -5,7 +5,7 @@
 #   drinks: what's served, in order
 #     name:  the drink
 #     line:  how it's pitched (optional)
-#     build: ingredients, when the recipe isn't on this page (optional)
+#     build: ingredients, unless the drink is in Favorite drinks above (optional)
 #     serve: what it's served in, and how (optional)
 #   na:     the non-alcoholic option (name, build, serve)
 
@@ -21,6 +21,7 @@
       serve: Shake hard, strain over crushed ice, in a tiki mug
     - name: Dark 'n' Stormy
       line: Easy build, refreshing, a crowd-pleaser.
+      build: [2 oz dark rum, ½ oz lime juice, 4 to 5 oz ginger beer]
       serve: Built over ice in a highball
   na:
     name: Ginger beer, lime and bitters
@@ -38,6 +39,7 @@
       serve: Rocks glass or tiki mug
     - name: French 75
       line: Bubbly, elegant, citrus-forward.
+      build: [1½ oz gin, ¾ oz lemon juice, ½ oz rich simple syrup, 2 to 3 oz dry sparkling wine]
       serve: Shake the base, top with champagne or prosecco, in a flute
   na:
     name: Virgin Hurricane
@@ -49,6 +51,7 @@
   drinks:
     - name: Negroni
       line: The classic Italian aperitivo, before sitting down to eat.
+      build: [1 oz gin, 1 oz Campari, 1 oz sweet vermouth]
       serve: Rocks glass, large cube
     - name: Negroni Sbagliato
       line: Lighter, for those who want bubbles.
@@ -67,6 +70,7 @@
   drinks:
     - name: Batch Margarita
       line: A crowd-pleaser that scales.
+      build: [2 oz blanco tequila, 1 oz lime juice, ¾ oz orange liqueur, ¼ oz rich simple syrup (per drink)]
       serve: Rocks glass, salt on half the rim
     - name: Aperol Spritz
       line: Light, bubbly, afternoon-appropriate.
@@ -74,6 +78,7 @@
       serve: Built over ice in a wine glass
     - name: Daiquiri
       line: Simple, refreshing, fast to make.
+      build: [2 oz white rum, 1 oz lime juice, ¾ oz rich simple syrup]
       serve: Shake, double-strain, serve up in a coupe
   na:
     name: Sparkling water and citrus
@@ -85,9 +90,11 @@
   drinks:
     - name: Spiced Old Fashioned
       line: An Old Fashioned with cinnamon syrup instead of simple. Warming, familiar.
+      build: [2 oz bourbon, 1 barspoon cinnamon syrup, 2 to 3 dashes Angostura]
       serve: Stirred, over a large cube in a rocks glass
     - name: French 75
       line: Celebratory, bubbly, elegant. Perfect for toasts.
+      build: [1½ oz gin, ¾ oz lemon juice, ½ oz rich simple syrup, 2 to 3 oz dry sparkling wine]
       serve: Champagne flute
     - name: Hot Toddy
       line: For late night or cold guests.
