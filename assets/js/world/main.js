@@ -97,7 +97,8 @@ function closePanel({ fromHistory } = {}) {
 // Where you land after closing a panel: at the bar, the mug goes back down and the menu comes
 // back up for the next order; otherwise back to the menu if you were holding it.
 function afterPanel() {
-  if (state === 'seat' && drinkUp()) putDownDrink();
+  if (state === 'hammock') afterHammockPanel();
+  else if (state === 'seat' && drinkUp()) putDownDrink();
   else if (state === 'seat' && seatMenuHeld()) showMenu('seat');
   else canvas.focus({ preventScroll: true });
 }
@@ -138,6 +139,7 @@ let putDownDrink = () => {};
 // Once the world is up, each recipe in the Favorite drinks panel gets a "Make me one" button.
 let decorateDrinks = () => {};
 let skipMaking = () => false;
+let afterHammockPanel = () => {};
 
 $('panel-close').addEventListener('click', () => closePanel());
 $('panel-back').addEventListener('click', () => {
@@ -384,6 +386,7 @@ async function start() {
     if (it.id === 'make') return sitDown({ then: () => startMaking(it.make) });
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     if (it.id === 'campfire') return sitAtFire();
+    if (it.id === 'hammock') return lieInHammock();
     openPanel(it.id);
   }
   let destT = -1;
@@ -470,7 +473,7 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
-    if (state === 'seat' || state === 'camp') {
+    if (state === 'seat' || state === 'camp' || state === 'hammock') {
       if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
       seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
@@ -491,6 +494,7 @@ async function start() {
     onKeyAction: () => {
       if (state === 'seat' && panel.hidden && menu.hidden) { if (!skipMaking()) pickUpMenu(); return; }
       if (state === 'camp' && panel.hidden && menu.hidden) { eatIt(); return; }
+      if (state === 'hammock' && panel.hidden && menu.hidden) { readBook(); return; }
       if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
       const it = nearestInReach();
       it ? use(it) : goUse(barSpot);
@@ -885,6 +889,7 @@ async function start() {
     else if (state === 'seat' && held) putDownMenu(); // first Esc puts the menu down, the next one leaves
     else if (state === 'seat') leaveBar();
     else if (state === 'camp') leaveFire();
+    else if (state === 'hammock') getOutOfHammock();
   });
   addEventListener('keydown', (e) => { if (e.code === 'Space' && state === 'camp' && !e.target.closest('button, a, input, textarea')) { roast.key = true; e.preventDefault(); } });
   addEventListener('keyup', (e) => { if (e.code === 'Space') roast.key = false; });
@@ -955,11 +960,118 @@ async function start() {
   const _v = new THREE.Vector3();
   const beacon = $('beacon');
   let movedFrom = null;
+  /* ---------- The hammock: climb in, lie back, read ---------- */
+  // One continuous body motion, like the bar and the fire: step up to the middle of it, turn
+  // round and sit on its edge (it takes your weight), swing your legs up and lie back looking up
+  // through the palms. It swings from you getting in, and you swing with it until it settles
+  // (not under reduced motion). You pick up the book left open in it and the reading list opens
+  // out of the book. Getting up is the reverse: you end standing where you walked in, facing it,
+  // the book back where it was.
+  const hmSpot = interactables.find((i) => i.id === 'hammock');
+  const HM = hmSpot && hmSpot.hammock;
+  const hmLeave = $('hammock-leave'), hmRead = $('hammock-read');
+  let lying = null, loadTo = 0, bookTween = null, hmTimer;
+  // held open in front of you, spine up and down, pages toward you (its covers are its +y side, so +y points away)
+  const READ = { pos: new THREE.Vector3(0, -0.05, -0.48), quat: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0))) };
+  const CHEST = { pos: new THREE.Vector3(0.02, -0.3, -0.34), quat: new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.9).multiply(READ.quat) };
+  // Where your eyes go, in the hammock's frame (the lying ones in its swing, so you swing with it).
+  // Worked out with your weight in it, since that's how it hangs when you're there.
+  function hammockPoses() {
+    const was = HM.load;
+    HM.setLoad(1);
+    HM.group.updateMatrixWorld(true);
+    const side = Math.sign(HM.group.worldToLocal(hmSpot.approach.clone()).z) || 1;
+    const L = HM.length, P = (u, lift, across = 0) => HM.point(u, lift, across);
+    const ground = HM.group.worldToLocal(hmSpot.point.clone()).y;
+    const mid = P(0.5, 0);
+    const g = (v) => HM.group.localToWorld(v.clone()), w = (v) => HM.swing.localToWorld(v.clone());
+    const poses = {
+      stand: poseLooking(g(new THREE.Vector3(L / 2, ground + 1.62, side * 0.85)), g(mid.clone().setY(mid.y + 0.45).setZ(-side * 0.6))), // at its side, looking at it and past it
+      sit: poseLooking(w(P(0.5, 0.6, side * 0.2)), w(new THREE.Vector3(L / 2, mid.y + 0.45, side * 3.5))),       // on the edge, back to it
+      back: poseLooking(w(P(0.42, 0.42, side * 0.06)), w(new THREE.Vector3(L * 0.72, 0.4, -side * 0.6))),       // legs up, leaning back
+      lie: { eye: P(0.3, 0.19, 0), look: new THREE.Vector3(L * 0.9, 1.15, 0) },                                  // lying back, looking up over your feet
+    };
+    poses.lie = { ...poses.lie, ...poseLooking(w(poses.lie.eye), w(poses.lie.look)) };
+    HM.setLoad(was);
+    return poses;
+  }
+  function tweenBook(to, open, ms, then) {
+    bookTween = { from: { pos: HM.book.position.clone(), quat: HM.book.quaternion.clone(), open: HM.halves[1].rotation.x }, to, open, t0: performance.now(), ms: reducedMotion ? 0 : ms, then };
+  }
+  function bookStep(now) {
+    const b = bookTween, k = b.ms ? Math.min(1, (now - b.t0) / b.ms) : 1, e = k * k * (3 - 2 * k);
+    HM.book.position.lerpVectors(b.from.pos, b.to.pos, e);
+    HM.book.quaternion.copy(b.from.quat).slerp(b.to.quat, e);
+    for (const h of HM.halves) h.rotation.x = h.userData.side * THREE.MathUtils.lerp(b.from.open, b.open, e); // halves[1] is side +1, so its angle is the opening
+    if (k === 1) { bookTween = null; b.then && b.then(); }
+  }
+  // the book, held open above you; the list pours out of it
+  function readBook() {
+    if (state !== 'hammock' || leaving) return;
+    if (HM.book.parent !== camera) camera.attach(HM.book);
+    tweenBook(READ, 0.45, 800, () => { // opened into a V, spine away from you
+      if (state !== 'hammock' || leaving) return;
+      const c = HM.book.getWorldPosition(new THREE.Vector3()).project(camera), r = canvas.getBoundingClientRect();
+      openPanel('shelf', { from: { x: r.left + ((c.x + 1) / 2) * r.width, y: r.top + ((1 - c.y) / 2) * r.height } });
+    });
+  }
+  function lieInHammock() {
+    if (!HM || state !== 'walk') return;
+    leaving = false;
+    seatLook.yaw = seatLook.pitch = 0;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('hammock');
+    const P = hammockPoses();
+    lying = P.lie;
+    const step = Math.min(900, Math.max(300, camera.position.distanceTo(P.stand.pos) * 420));
+    clearTimeout(hmTimer);
+    hmTimer = setTimeout(() => { loadTo = 1; }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
+    flyPath([
+      { ...P.stand, ms: step },
+      { ...P.sit, ms: 1600 },  // turn round and sit on the edge: an unhurried half turn
+      { ...P.back, ms: 850 },  // swing your legs up, lean back
+      { ...P.lie, ms: 750 },
+    ], () => {
+      if (state !== 'hammock') return;
+      loadTo = 1;
+      if (!reducedMotion) HM.kick(0.32); // and you set it swinging
+      readBook();
+    });
+  }
+  function getOutOfHammock() {
+    if (state !== 'hammock' || leaving) return;
+    leaving = true;
+    closePanel();
+    // the book goes back where it was, as you sit up
+    HM.swing.attach(HM.book);
+    tweenBook(HM.bookHome, 0.35, 700);
+    const P = hammockPoses();
+    player.spawn(hmSpot.approach.clone().normalize(), hmSpot.point, -0.12);
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    clearTimeout(hmTimer);
+    hmTimer = setTimeout(() => { loadTo = 0; if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
+    const finish = () => { leaving = false; lying = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
+    flyPath([
+      { ...P.back, ms: 700 },  // sit up
+      { ...P.sit, ms: 800 },   // legs over the side
+      { ...P.stand, ms: 1600 }, // stand, turning back round to it
+      { pos: endPos, quat: endQuat, ms: 700 },
+    ], finish);
+  }
+  hmLeave.addEventListener('click', getOutOfHammock);
+  hmRead.addEventListener('click', readBook);
+  // closing the list: the book comes down to your chest, and you're lying looking at the sky
+  afterHammockPanel = () => { if (state === 'hammock' && !leaving && HM.book.parent === camera) tweenBook(CHEST, 0.1, 600); };
+
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
-    if ((state !== 'seat' && state !== 'camp') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
+    if ((state !== 'seat' && state !== 'camp' && state !== 'hammock') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
     else if (e.key === 'ArrowRight') seatKeys.x = v;
@@ -993,8 +1105,22 @@ async function start() {
       if (!movedFrom) movedFrom = player.pos.clone();
       else if (!hint.hidden && hint.dataset.key === 'walk' && player.pos.distanceTo(movedFrom) > 3) clearHint('walk');
     }
+    if (HM) {
+      HM.update(realDt, reducedMotion);
+      if (HM.load !== loadTo) HM.setLoad(reducedMotion ? loadTo : THREE.MathUtils.clamp(HM.load + Math.sign(loadTo - HM.load) * realDt * 2.2, 0, 1));
+      if (bookTween) bookStep(performance.now());
+    }
     if (flight) flightStep(performance.now());
-    else if (state === 'camp' && campPose) {
+    else if (state === 'hammock' && lying) {
+      // lying in it: you swing with it
+      HM.swing.updateWorldMatrix(true, false);
+      const p = poseLooking(HM.swing.localToWorld(lying.eye.clone()), HM.swing.localToWorld(lying.look.clone()));
+      camera.position.copy(p.pos);
+      camera.quaternion.copy(p.quat)
+        .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
+        .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
+      if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2);
+    } else if (state === 'camp' && campPose) {
       camera.position.copy(campPose.pos);
       camera.quaternion.copy(campPose.quat)
         .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
@@ -1073,6 +1199,8 @@ async function start() {
     const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
     if (state === 'camp' && !leaving) roaster.update(realDt, atFire && (roast.pointer || roast.key), campSpot.hotSpot);
     campLeave.hidden = !atFire;
+    const inHammock = state === 'hammock' && !flight && !leaving && panel.hidden && menu.hidden;
+    hmLeave.hidden = hmRead.hidden = !inHammock;
     campEat.hidden = !(atFire && roaster.state.on && !roaster.state.eating);
     if (!campEat.hidden) {
       const label = roaster.state.burning ? 'Blow it out' : 'Eat it';
@@ -1113,7 +1241,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
   window.__sceneReady = true;
 
   // The real bottles the robot pours from: nobody needs them until they order, so they load

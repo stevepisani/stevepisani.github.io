@@ -14,6 +14,24 @@ function canvas(w, h) {
   return [c, c.getContext('2d')];
 }
 
+/** A printed page: cream, with lines of text (too small to read) in a column. */
+export function bookPage() {
+  const [c, g] = canvas(128, 128);
+  g.fillStyle = '#eadcbc';
+  g.fillRect(0, 0, 128, 128);
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  g.fillStyle = 'rgba(60, 44, 30, 0.55)';
+  for (let y = 14; y < 118; y += 7) {
+    const para = rand() < 0.12;
+    g.fillRect(para ? 20 : 12, y, (para ? 96 : 104) * (y > 110 || rand() < 0.1 ? 0.6 : 1), 2.2);
+  }
+  const t = texture(c);
+  t.center.set(0.5, 0.5);
+  t.rotation = Math.PI / 2; // the pages' u runs along the spine: turned, the lines run across the page
+  return t;
+}
+
 /** A canvas someone else painted, as a colour texture. */
 export function canvasTexture(c) {
   const t = texture(c);

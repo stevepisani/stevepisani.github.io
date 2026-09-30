@@ -612,6 +612,14 @@ export function outriggerCanoe() {
  * with `up` the local up. The cloth sags in a curve and its edges curl up; fan lines gather each
  * end to a rope round the trunk; an open book lies in it. Returns the group, already in place.
  */
+/**
+ * A striped hammock slung between two points (`a`, `b`: the ties, world space) with an open book
+ * left in it. Its frame: x runs from tie to tie, y is up, z across. `userData.hammock` lets you
+ * get in: the cloth and its fan lines hang in `swing`, which swings about the line between the
+ * ties (a damped pendulum: `kick()` it, `update(dt)` it), `setLoad(k)` sags it under your weight,
+ * and `point(u, lift, across)` gives a spot on the cloth's centre line (u 0..1 along it) in
+ * `swing`'s frame, so a body lying in it swings with it.
+ */
 export function hammock(a, b, up, { sag = 0.95, width = 0.9 } = {}) {
   const g = new THREE.Group();
   const x = b.clone().sub(a), L = x.length();
@@ -620,28 +628,37 @@ export function hammock(a, b, up, { sag = 0.95, width = 0.9 } = {}) {
   g.matrixAutoUpdate = true;
   g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
   g.position.copy(a);
+  const swing = new THREE.Group(); // pivots on the tie line (local x through the origin)
+  g.add(swing);
   const END = 0.5; // rope from each tie to the cloth
   const cloth = L - 2 * END;
-  const sagAt = (u) => -sag * 4 * u * (1 - u);
+  let load = 0; // 0..1: someone's weight in it
+  const WEIGHT = 0.16; // how much deeper it hangs with you in it (m)
+  const sagAt = (u) => -sag * 4 * u * (1 - u) - WEIGHT * load * Math.sin(Math.PI * u);
   const halfW = (u) => (width / 2) * (0.2 + 0.8 * Math.pow(Math.sin(Math.PI * u), 0.5));
   const geo = new THREE.PlaneGeometry(1, 1, 32, 10);
   const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const u = pos.getX(i) + 0.5, v = pos.getY(i) * 2; // u along, v across (-1..1)
-    const w = halfW(u);
-    pos.setXYZ(i, END + u * cloth, sagAt(u) + 0.2 * v * v * Math.sin(Math.PI * u) - 0.12, v * w);
-  }
-  geo.computeVertexNormals();
+  const uv0 = Array.from({ length: pos.count }, (_, i) => [pos.getX(i) + 0.5, pos.getY(i) * 2]); // u along, v across (-1..1)
+  const shape = () => {
+    for (let i = 0; i < pos.count; i++) {
+      const [u, v] = uv0[i], w = halfW(u);
+      pos.setXYZ(i, END + u * cloth, sagAt(u) + 0.2 * v * v * Math.sin(Math.PI * u) - 0.12, v * w);
+    }
+    pos.needsUpdate = true;
+    geo.computeVertexNormals();
+    geo.computeBoundingSphere();
+  };
+  shape();
   const mesh = new THREE.Mesh(geo, pbr({ map: T.hammockCloth(), roughness: 0.9, side: THREE.DoubleSide }));
   mesh.castShadow = mesh.receiveShadow = true;
-  g.add(mesh);
-  // fan lines: from each tie to points across the cloth's gathered end
+  swing.add(mesh);
+  // fan lines: from each tie to points across the cloth's gathered end (they swing with it)
   const rope = pbr({ color: PALETTE.bamboo, roughness: 0.9 });
   const line = (p, q) => {
     const d = q.clone().sub(p), m = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, d.length(), 4), rope);
     m.position.copy(p).add(q).multiplyScalar(0.5);
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
-    g.add(m);
+    swing.add(m);
   };
   for (const [tie, u] of [[new THREE.Vector3(0, 0, 0), 0.02], [new THREE.Vector3(L, 0, 0), 0.98]]) {
     for (const v of [-1, -0.5, 0, 0.5, 1]) line(tie, new THREE.Vector3(END + u * cloth, sagAt(u) - 0.12 + 0.2 * v * v * Math.sin(Math.PI * u), v * halfW(u)));
@@ -650,19 +667,45 @@ export function hammock(a, b, up, { sag = 0.95, width = 0.9 } = {}) {
     g.add(wrap);
   }
   // an open book, face down where someone left off
-  const u = 0.42, bx = END + u * cloth, by = sagAt(u) - 0.12 + 0.03;
+  const bu = 0.42;
   const book = new THREE.Group();
-  book.position.set(bx, by, 0.08);
+  book.position.set(END + bu * cloth, sagAt(bu) - 0.12 + 0.03, 0.08);
   book.rotation.set(0, 0.5, 0);
-  const cover = pbr({ color: PALETTE.coral, roughness: 0.7 }), pages = pbr({ color: PALETTE.cream, roughness: 0.9 });
-  for (const s of [-1, 1]) {
+  // the pages catch a little starlight, so an open book reads as one in the dark
+  const cover = pbr({ color: PALETTE.coral, roughness: 0.7 }), pageMap = T.bookPage(), pages = pbr({ color: 0xffffff, map: pageMap, roughness: 0.9, emissive: 0xffffff, emissiveMap: pageMap, emissiveIntensity: 0.12 });
+  const halves = [-1, 1].map((s) => {
     const half = new THREE.Group();
     half.rotation.x = s * 0.35; // a tent, spine up
+    half.userData.side = s;
     book.add(half);
     const c = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.006, 0.14), cover); c.position.set(0, 0.003, s * 0.07); half.add(c);
     const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.012, 0.13), pages); p2.position.set(0, -0.006, s * 0.065); half.add(p2);
-  }
-  g.add(book);
+    return half;
+  });
+  swing.add(book);
+  const bookHome = { pos: book.position.clone(), quat: book.quaternion.clone() };
+
+  // the swing: a damped pendulum about the tie line
+  let angle = 0, vel = 0;
+  const OMEGA = 2.9, DAMP = 0.55; // about a 2 s period; it settles in a few swings
+  g.userData.hammock = {
+    group: g, swing, book, halves, bookHome, length: L,
+    /** A spot on the cloth's centre line (u 0..1 along the cloth), `lift` above it and `across` to the side, in `swing`'s frame. */
+    point(u, lift = 0, across = 0) { return new THREE.Vector3(END + u * cloth, sagAt(u) - 0.12 + lift, across); },
+    setLoad(k) { if (Math.abs(k - load) < 1e-3) return; load = k; shape(); book.position.y = bookHome.pos.y - WEIGHT * load * Math.sin(Math.PI * bu); },
+    get load() { return load; },
+    kick(v) { vel += v; },
+    get angle() { return angle; },
+    update(dt, still = false) {
+      if (still) { angle = vel = 0; swing.rotation.x = 0; return; }
+      if (!angle && !vel) return;
+      const h = Math.min(dt, 1 / 30);
+      vel += (-OMEGA * OMEGA * angle - 2 * DAMP * OMEGA * vel) * h;
+      angle += vel * h;
+      if (Math.abs(angle) < 1e-4 && Math.abs(vel) < 1e-3) angle = vel = 0;
+      swing.rotation.x = angle;
+    },
+  };
   return g;
 }
 
