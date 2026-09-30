@@ -1,3 +1,6 @@
+---
+# Liquid fills in the Supabase settings from _config.yml
+---
 <!doctype html>
 <html lang="en">
 <head>
@@ -709,11 +712,9 @@
       }
     });
     
-    // ---- EDIT THESE 3 LINES ----
-    const SUPABASE_URL = "https://dkaiavlnmtetqigxnkwb.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrYWlhdmxubXRldHFpZ3hua3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYwOTA3NjIsImV4cCI6MjA3MTY2Njc2Mn0.d-YKOURWHLJ5erK0GsECFMwelsrX3N2wxtns5e1TwZQ";
-    const ALLOWED_EMAILS = ["sjp543@gmail.com","lexipisani@gmail.com"]; // put both of your emails here
-    // ----------------------------
+    const SUPABASE_URL = "{{ site.supabase.url }}";
+    const SUPABASE_ANON_KEY = "{{ site.supabase.anon_key }}";
+    const ALLOWED_EMAILS = ["sjp543@gmail.com","lexipisani@gmail.com"];
 
     // Settings
     const BUCKET = 'photos';                 // Create this bucket, set it to PRIVATE
