@@ -359,7 +359,8 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const books = bookStack(3);
     put(books, pondDir(r + 0.55, phi + 0.08), { heading: 0.6 }, 0.3);
     colliders.push({ center: surfacePoint(SPOTS.hammock), radius: 0.7 });
-    interactables.push({ id: 'shelf', label: 'Hammock', verb: 'Browse the reading list', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4 });
+    // you climb in, lie back and read (main.js lieInHammock); `hammock` is how (props.js)
+    interactables.push({ id: 'hammock', label: 'Hammock', verb: 'Lie down and read', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4, hammock: hm.userData.hammock });
   }
 
   // Messages in bottles, washed up at the waterline (scenery).
