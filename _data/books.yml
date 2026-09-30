@@ -22,6 +22,26 @@
     - { title: Neverwhere, author: Neil Gaiman }
     - { title: The Count of Monte Cristo, author: Alexandre Dumas }
     - { title: Annihilation, author: Jeff VanderMeer }
+    - { title: Damned, author: Chuck Palahniuk }
+    - { title: Fight Club, author: Chuck Palahniuk }
+    - { title: Pride and Prejudice, author: Jane Austen }
+    - { title: The Brothers Karamazov, author: Fyodor Dostoevsky }
+    - { title: Ulysses, author: James Joyce }
+    - { title: The Wonderful Wizard of Oz, author: L. Frank Baum }
+    - { title: Harry Potter y la piedra filosofal, author: J. K. Rowling }
+    - { title: The Complete Sherlock Holmes, author: Arthur Conan Doyle }
+    - { title: The Complete Works of H. P. Lovecraft, author: H. P. Lovecraft }
+    - { title: The Book Thief, author: Markus Zusak }
+    - { title: The Alchemist, author: Paulo Coelho }
+    - { title: The Graveyard Book, author: Neil Gaiman }
+    - { title: For We Are Many, author: Dennis E. Taylor }
+    - { title: All These Worlds, author: Dennis E. Taylor }
+    - { title: The Singularity Trap, author: Dennis E. Taylor }
+    - { title: Lock In, author: John Scalzi }
+    - { title: Dark Matter, author: Blake Crouch }
+    - { title: Ready Player One, author: Ernest Cline }
+    - { title: Artemis, author: Andy Weir }
+    - { title: Uncommon Type, author: Tom Hanks }
 - shelf: History & Science
   books:
     - { title: A Short History of Nearly Everything, author: Bill Bryson }
@@ -33,6 +53,20 @@
     - { title: "Surely You're Joking, Mr. Feynman!", author: Richard Feynman }
     - { title: "Taming the Sun", author: Varun Sivaram }
     - { title: Life 3.0, author: Max Tegmark }
+    - { title: Collapse, author: Jared Diamond }
+    - { title: Upheaval, author: Jared Diamond }
+    - { title: "A People's History of the United States", author: Howard Zinn }
+    - { title: Homo Deus, author: Yuval Noah Harari }
+    - { title: "21 Lessons for the 21st Century", author: Yuval Noah Harari }
+    - { title: "Washington: A Life", author: Ron Chernow }
+    - { title: Perfectly Reasonable Deviations from the Beaten Track, author: Richard Feynman }
+    - { title: Elon Musk, author: Ashlee Vance }
+    - { title: "Thinking, Fast and Slow", author: Daniel Kahneman }
+    - { title: How to Create a Mind, author: Ray Kurzweil }
+    - { title: The Inevitable, author: Kevin Kelly }
+    - { title: Know This, author: John Brockman (ed.) }
+    - { title: Abundance, author: Peter H. Diamandis and Steven Kotler }
+    - { title: Winners Take All, author: Anand Giridharadas }
 - shelf: Data & Craft
   books:
     - { title: Designing Data-Intensive Applications, author: Martin Kleppmann }
@@ -43,6 +77,9 @@
     - { title: The Goal, author: Eliyahu M. Goldratt }
     - { title: Zero to One, author: Peter Thiel }
     - { title: Draft No. 4, author: John McPhee }
+    - { title: The Phoenix Project, author: "Gene Kim, Kevin Behr and George Spafford" }
+    - { title: Prediction Machines, author: "Ajay Agrawal, Joshua Gans and Avi Goldfarb" }
+    - { title: Quantitative Trading, author: Ernest P. Chan }
 - shelf: Mind & Kitchen
   books:
     - { title: Meditations, author: Marcus Aurelius }
@@ -51,3 +88,55 @@
     - { title: A Mind for Numbers, author: Barbara Oakley }
     - { title: The Art of Learning, author: Josh Waitzkin }
     - { title: "Salt, Fat, Acid, Heat", author: Samin Nosrat }
+    - { title: The Daily Stoic, author: Ryan Holiday and Stephen Hanselman }
+    - { title: Tao Te Ching, author: Lao Tzu }
+    - { title: The Prince, author: Niccolò Machiavelli }
+    - { title: Waking Up, author: Sam Harris }
+    - { title: Lying, author: Sam Harris }
+    - { title: The Laws of Human Nature, author: Robert Greene }
+    - { title: Talking to Strangers, author: Malcolm Gladwell }
+    - { title: Outliers, author: Malcolm Gladwell }
+- shelf: Business & Money
+  books:
+    - { title: The 48 Laws of Power, author: Robert Greene }
+    - { title: Extreme Ownership, author: Jocko Willink and Leif Babin }
+    - { title: Barking Up the Wrong Tree, author: Eric Barker }
+    - { title: Never Split the Difference, author: Chris Voss }
+    - { title: Getting Past No, author: William Ury }
+    - { title: Exactly What to Say, author: Phil M. Jones }
+    - { title: Influence, author: Robert B. Cialdini }
+    - { title: Crossing the Chasm, author: Geoffrey A. Moore }
+    - { title: The Effective Executive, author: Peter F. Drucker }
+    - { title: "How to Lead When You're Not in Charge", author: Clay Scroggins }
+    - { title: The Personal MBA, author: Josh Kaufman }
+    - { title: Principles, author: Ray Dalio }
+    - { title: The Everything Store, author: Brad Stone }
+    - { title: Bold, author: Peter H. Diamandis and Steven Kotler }
+    - { title: Stealing Fire, author: Steven Kotler and Jamie Wheal }
+    - { title: Venture Deals, author: Brad Feld and Jason Mendelson }
+    - { title: Do More Faster, author: David Cohen and Brad Feld }
+    - { title: Angel, author: Jason Calacanis }
+    - { title: Skin in the Game, author: Nassim Nicholas Taleb }
+    - { title: The Gospel of Wealth, author: Andrew Carnegie }
+    - { title: "Poor Charlie's Almanack", author: Charles T. Munger }
+    - { title: Rich Dad Poor Dad, author: Robert T. Kiyosaki }
+    - { title: The Simple Path to Wealth, author: JL Collins }
+    - { title: The Millionaire Real Estate Investor, author: Gary Keller }
+- shelf: Habits & Growth
+  books:
+    - { title: Atomic Habits, author: James Clear }
+    - { title: The Power of Habit, author: Charles Duhigg }
+    - { title: Smarter Faster Better, author: Charles Duhigg }
+    - { title: The One Thing, author: Gary Keller }
+    - { title: "So Good They Can't Ignore You", author: Cal Newport }
+    - { title: Ultralearning, author: Scott H. Young }
+    - { title: The First 20 Hours, author: Josh Kaufman }
+    - { title: The 4-Hour Chef, author: Tim Ferriss }
+    - { title: The 4-Hour Workweek, author: Tim Ferriss }
+    - { title: Make Time, author: Jake Knapp and John Zeratsky }
+    - { title: How to Stop Worrying and Start Living, author: Dale Carnegie }
+    - { title: The Magic of Thinking Big, author: David J. Schwartz }
+    - { title: The 15 Invaluable Laws of Growth, author: John C. Maxwell }
+    - { title: Influencer, author: Joseph Grenny et al. }
+    - { title: How to Be Idle, author: Tom Hodgkinson }
+    - { title: The Book of Questions, author: Gregory Stock }
