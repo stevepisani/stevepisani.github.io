@@ -158,18 +158,3 @@
     steps:
       - stir: Stir it over the ice until it's well chilled.
       - garnish: An orange peel, expressed.
-
-- name: Clarified Jungle Bird
-  origin: My favorite party batch, milk-clarified
-  glass: Coupe, served up (or a rocks glass with a large cube)
-  build:
-    - 1½ oz dark Jamaican rum
-    - ¾ oz Campari
-    - 1½ oz pineapple juice
-    - ½ oz fresh lime juice
-    - ½ oz rich simple syrup
-  method: "Batch eight servings (12 oz rum, 6 oz Campari, 12 oz pineapple juice, 4 oz lime juice, 4 oz rich simple syrup), taste, and adjust; it should be slightly concentrated. Pour the mix into 8 oz of room-temperature whole milk (not the reverse) and let it curdle in the fridge for 1 to 2 hours. Strain through cheesecloth or a nut milk bag, re-strain the first runoff for clarity, then bottle and refrigerate. Add 15 to 20% water if serving up, and pour 4 oz per glass; no shaking needed."
-  note: All the Jungle Bird flavor, crystal clear with a silky texture; the milk takes the harshness out. Keeps 2 to 3 weeks in the fridge. Garnish with dehydrated pineapple, or nothing; the clarity is the visual.
-  make:
-    glass: coupe
-    color: falernum
