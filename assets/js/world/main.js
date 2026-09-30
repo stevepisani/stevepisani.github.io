@@ -13,7 +13,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint, surfaceRadius } from './planet.js';
+import { buildPlanet, surfacePoint, surfaceRadius, POND } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
@@ -22,6 +22,8 @@ import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
+import { createSound } from './sound.js';
+import { createSkipper } from './stones.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -75,6 +77,7 @@ function openPanel(id, { push = true, from = null } = {}) {
   menu.hidden = true;
   markCurrent(id);
   panelBody.querySelectorAll('[data-launch]').forEach(fillLaunch);
+  if (window.fillSky) panelBody.querySelectorAll('[data-sky]').forEach(window.fillSky);
   if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
@@ -387,6 +390,7 @@ async function start() {
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     if (it.id === 'campfire') return sitAtFire();
     if (it.id === 'hammock') return lieInHammock();
+    if (it.id === 'stones') return goToShore();
     openPanel(it.id);
   }
   let destT = -1;
@@ -473,7 +477,7 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
-    if (state === 'seat' || state === 'camp' || state === 'hammock') {
+    if (state === 'seat' || state === 'camp' || state === 'hammock' || state === 'shore') {
       if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
       seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
@@ -487,9 +491,12 @@ async function start() {
     onTap,
     onHover,
     onDrag: look,
-    onPress: () => { if (state === 'camp') { clearTimeout(roast.timer); roast.timer = setTimeout(() => { roast.pointer = true; }, 120); } },
-    onDragStart: () => { clearTimeout(roast.timer); roast.pointer = false; },
-    onRelease: () => { clearTimeout(roast.timer); roast.pointer = false; },
+    onPress: () => {
+      if (state === 'camp') { clearTimeout(roast.timer); roast.timer = setTimeout(() => { roast.pointer = true; }, 120); }
+      if (state === 'shore') { clearTimeout(roast.timer); roast.timer = setTimeout(startWind, 120); } // held, not dragged
+    },
+    onDragStart: () => { clearTimeout(roast.timer); roast.pointer = false; if (state === 'shore') windUp = -1; },
+    onRelease: () => { clearTimeout(roast.timer); roast.pointer = false; if (state === 'shore' && windUp >= 0) releaseThrow(); },
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
       if (state === 'seat' && panel.hidden && menu.hidden) { if (!skipMaking()) pickUpMenu(); return; }
@@ -890,9 +897,14 @@ async function start() {
     else if (state === 'seat') leaveBar();
     else if (state === 'camp') leaveFire();
     else if (state === 'hammock') getOutOfHammock();
+    else if (state === 'shore') leaveShore();
   });
-  addEventListener('keydown', (e) => { if (e.code === 'Space' && state === 'camp' && !e.target.closest('button, a, input, textarea')) { roast.key = true; e.preventDefault(); } });
-  addEventListener('keyup', (e) => { if (e.code === 'Space') roast.key = false; });
+  addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' || e.target.closest('button, a, input, textarea')) return;
+    if (state === 'camp') { roast.key = true; e.preventDefault(); }
+    if (state === 'shore') { if (!e.repeat) startWind(); e.preventDefault(); }
+  });
+  addEventListener('keyup', (e) => { if (e.code !== 'Space') return; roast.key = false; if (state === 'shore' && windUp >= 0) releaseThrow(); });
 
   /* ---------- The campfire: sit on a log, roast marshmallows ---------- */
   // The same continuous body motion as the bar: step up behind the log, sit, face the fire.
@@ -970,6 +982,7 @@ async function start() {
   const hmSpot = interactables.find((i) => i.id === 'hammock');
   const HM = hmSpot && hmSpot.hammock;
   const hmLeave = $('hammock-leave'), hmRead = $('hammock-read');
+  let sound = { play() {} }; // until the scene's up (createSound below)
   let lying = null, loadTo = 0, bookTween = null, hmTimer;
   // held open in front of you, spine up and down, pages toward you (its covers are its +y side, so +y points away)
   const READ = { pos: new THREE.Vector3(0, -0.05, -0.48), quat: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0))) };
@@ -1028,7 +1041,7 @@ async function start() {
     lying = P.lie;
     const step = Math.min(900, Math.max(300, camera.position.distanceTo(P.stand.pos) * 420));
     clearTimeout(hmTimer);
-    hmTimer = setTimeout(() => { loadTo = 1; }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
+    hmTimer = setTimeout(() => { loadTo = 1; sound.play('creak'); }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
     flyPath([
       { ...P.stand, ms: step },
       { ...P.sit, ms: 1600 },  // turn round and sit on the edge: an unhurried half turn
@@ -1053,7 +1066,7 @@ async function start() {
     const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
     const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
     clearTimeout(hmTimer);
-    hmTimer = setTimeout(() => { loadTo = 0; if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
+    hmTimer = setTimeout(() => { loadTo = 0; sound.play('creak'); if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
     const finish = () => { leaving = false; lying = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
     flyPath([
       { ...P.back, ms: 700 },  // sit up
@@ -1067,11 +1080,98 @@ async function start() {
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
   afterHammockPanel = () => { if (state === 'hammock' && !leaving && HM.book.parent === camera) tweenBook(CHEST, 0.1, 600); };
 
+  /* ---------- Skipping stones at the lagoon ---------- */
+  // Walk down to the pile at the waterline and crouch there, facing across the water, a flat
+  // stone in your hand. Press and hold (the canvas, Space, or "Hold to throw") to wind up, let
+  // go to throw: how long you held it is how hard, where you're looking is where it goes. It
+  // skips or it doesn't (stones.js), and you hear how it went. Your best is remembered.
+  const stoneSpot = interactables.find((i) => i.id === 'stones');
+  const skipper = createSkipper(scene);
+  const shoreLeave = $('shore-leave'), shoreThrow = $('shore-throw');
+  let shorePose = null, inHand = null, windUp = -1, reload = 0;
+  const HAND = new THREE.Vector3(0.21, -0.2, -0.46);
+  const bestSkips = { get() { try { return +localStorage.getItem('world-best-skips') || 0; } catch (e) { return 0; } }, set(n) { try { localStorage.setItem('world-best-skips', String(n)); } catch (e) {} } };
+  function holdStone(v) {
+    if (v && !inHand) { inHand = skipper.stone(); inHand.scale.setScalar(1.15); inHand.position.copy(HAND); inHand.rotation.set(0.3, 0.4, -0.2); camera.add(inHand); }
+    else if (!v && inHand) { camera.remove(inHand); inHand = null; }
+  }
+  function goToShore() {
+    if (!stoneSpot || state !== 'walk') return;
+    leaving = false;
+    seatLook.yaw = seatLook.pitch = 0;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('shore');
+    const S = stoneSpot.shore;
+    shorePose = poseLooking(S.eye, S.look);
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: Math.min(900, Math.max(300, camera.position.distanceTo(S.stand) * 420)) },
+      { ...shorePose, ms: 700 }, // crouch down at the water
+    ], () => {
+      if (state !== 'shore') return;
+      holdStone(true);
+      showHint(coarse ? 'Press and hold, then let go to skip a stone.' : 'Press and hold (or Space), then let go to skip a stone.', 'skip');
+    });
+  }
+  function leaveShore() {
+    if (state !== 'shore' || leaving) return;
+    leaving = true;
+    holdStone(false);
+    windUp = -1;
+    if (hint.dataset.key === 'skip') hint.hidden = true;
+    bubble.hidden = true;
+    const S = stoneSpot.shore;
+    player.spawn(stoneSpot.approach.clone().normalize(), stoneSpot.point, -0.1);
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: 600 },
+      { pos: endPos, quat: endQuat, ms: 700 },
+    ], () => { leaving = false; shorePose = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
+  }
+  function startWind() { if (state === 'shore' && !flight && !leaving && inHand && windUp < 0) windUp = 0; }
+  function releaseThrow() {
+    if (windUp < 0 || !inHand) { windUp = -1; return; }
+    const power = Math.min(1, windUp / 1.1);
+    windUp = -1;
+    // sidearm and low: from beside you, just above the water, level to a touch upward
+    const up = camera.position.clone().normalize();
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    fwd.addScaledVector(up, -fwd.dot(up)).normalize();
+    const right = fwd.clone().cross(up);
+    // released a hand's height over the water, beside you and a little ahead, level and a touch down
+    const from = camera.position.clone().addScaledVector(right, 0.12).addScaledVector(fwd, 0.75); // you reach out over the water's edge
+    from.setLength(skipper.water + 0.3);
+    const vel = fwd.multiplyScalar(3 + 5.5 * power).addScaledVector(up, -0.3 + (Math.random() - 0.5) * 0.3);
+    holdStone(false);
+    reload = 0.7;
+    sound.play('whoosh');
+    skipper.throw(from, vel, (what, at, info) => {
+      if (what === 'skip') { sound.play('skip', info.n); return; }
+      sound.play(what === 'plop' ? 'plop' : 'clack');
+      window.__lastThrow = { what, power, ...info }; // for tests
+      if (state !== 'shore') return;
+      const n = info.skips, best = bestSkips.get();
+      if (n > 0) clearHint('skip');
+      let line = n === 0 ? 'Plop. Throw it flatter and harder.' : n === 1 ? 'One skip.' : `${n} skips.`;
+      if (what === 'shore' && !info.across && !n) line = 'Into the sand. Aim across the water.';
+      if (what === 'shore' && info.across) line = n ? `${n} skips, all the way across!` : 'All the way across, without touching the water.';
+      if (n > best) { bestSkips.set(n); if (best) line += ` A new best (it was ${best}).`; }
+      else if (best && n) line += ` Your best is ${best}.`;
+      say(line, 3600);
+    }, camera.position);
+  }
+  shoreLeave.addEventListener('click', leaveShore);
+  shoreThrow.addEventListener('pointerdown', (e) => { e.preventDefault(); startWind(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) shoreThrow.addEventListener(ev, () => { if (windUp >= 0) releaseThrow(); });
+
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
-    if ((state !== 'seat' && state !== 'camp' && state !== 'hammock') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
+    if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
     else if (e.key === 'ArrowRight') seatKeys.x = v;
@@ -1110,8 +1210,23 @@ async function start() {
       if (HM.load !== loadTo) HM.setLoad(reducedMotion ? loadTo : THREE.MathUtils.clamp(HM.load + Math.sign(loadTo - HM.load) * realDt * 2.2, 0, 1));
       if (bookTween) bookStep(performance.now());
     }
+    skipper.update(realDt);
+    if (state === 'shore') {
+      if (windUp >= 0) windUp += realDt;
+      if (!inHand && !flight && !leaving && (reload -= realDt) <= 0) holdStone(true);
+      if (inHand) { // drawn back as you wind up
+        const k = windUp >= 0 ? Math.min(1, windUp / 1.1) : 0;
+        inHand.position.set(HAND.x + 0.1 * k, HAND.y - 0.02 * k, HAND.z + 0.12 * k);
+      }
+    }
     if (flight) flightStep(performance.now());
-    else if (state === 'hammock' && lying) {
+    else if (state === 'shore' && shorePose) {
+      camera.position.copy(shorePose.pos);
+      camera.quaternion.copy(shorePose.quat)
+        .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
+        .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
+      if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2);
+    } else if (state === 'hammock' && lying) {
       // lying in it: you swing with it
       HM.swing.updateWorldMatrix(true, false);
       const p = poseLooking(HM.swing.localToWorld(lying.eye.clone()), HM.swing.localToWorld(lying.look.clone()));
@@ -1201,6 +1316,9 @@ async function start() {
     campLeave.hidden = !atFire;
     const inHammock = state === 'hammock' && !flight && !leaving && panel.hidden && menu.hidden;
     hmLeave.hidden = hmRead.hidden = !inHammock;
+    const atShore = state === 'shore' && !flight && !leaving && panel.hidden && menu.hidden;
+    shoreLeave.hidden = shoreThrow.hidden = !atShore;
+    shoreThrow.classList.toggle('is-winding', windUp >= 0);
     campEat.hidden = !(atFire && roaster.state.on && !roaster.state.eating);
     if (!campEat.hidden) {
       const label = roaster.state.burning ? 'Blow it out' : 'Eat it';
@@ -1241,8 +1359,18 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
   window.__sceneReady = true;
+
+  // Sound: off until asked for (the speaker in the top bar), then everything where it is.
+  sound = createSound({ scene, camera, spots: {
+    bar: bar.group.localToWorld(new THREE.Vector3(0, 1.5, -0.4)),
+    fire: campSpot.point.clone(),
+    lagoon: surfacePoint(POND.center),
+    hammock: hmSpot ? hmSpot.point.clone() : surfacePoint(SPOTS.spawn),
+  } });
+  bar.setSfx((name, ...args) => sound.play(name, ...args));
+  window.__world.sound = sound;
 
   // The real bottles the robot pours from: nobody needs them until they order, so they load
   // once the scene is up, and their shaders compile off to the side before they're shown.

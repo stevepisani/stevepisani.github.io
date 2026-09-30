@@ -457,8 +457,10 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const ORDER = ['about', 'writing', 'lab', 'shelf', 'contact', 'resume', 'launch', 'campfire'];
   const LIQUID = [PALETTE.amber, PALETTE.coral, PALETTE.aqua];
   const SLIDE = 0.4;
+  let sfx = () => {}; // sound effects (sound.js), once someone turns sound on
   function serve(id, onServed) {
     robot.shake(0.85);
+    sfx('shake', 0.85);
     setTimeout(() => {
       const i = Math.max(0, ORDER.indexOf(id));
       // always the open-topped tiki mug, so you can look into it; the drink's colour changes
@@ -555,12 +557,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   stream.visible = false;
   bar.add(stream);
   const UP = new THREE.Vector3(0, 1, 0), _amber = new THREE.Color(PALETTE.amber);
+  const flowing = (v) => { if (stream.visible !== v) { stream.visible = v; sfx('pour', v); } };
   function pourStream(fromWorld, to, color) {
     const from = bar.worldToLocal(fromWorld.clone());
     const d = to.clone().sub(from);
     // only while it's really over the glass: a pour never crosses the counter
-    if (!fromWorld || Math.hypot(d.x, d.z) > 0.05 || d.y > -0.02) { stream.visible = false; return; }
-    stream.visible = true;
+    if (!fromWorld || Math.hypot(d.x, d.z) > 0.05 || d.y > -0.02) { flowing(false); return; }
+    flowing(true);
     stream.material.color.set(color).lerp(_amber, 0.25); // backlit by the bar: even blackstrap glows amber in a thin stream
     stream.material.emissive.copy(stream.material.color);
     stream.position.copy(from);
@@ -636,14 +639,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       },
       during(st, t, dur) {
         const pouring = t > 0.45 && t < dur - 0.3;
-        if (st.do === 'set') { if (t > 0.45 && !glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
+        if (st.do === 'set') { if (t > 0.45 && !glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (M.ice) sfx('clink'); if (shaken) bar.add(tin); } }
         else if (st.do === 'pour') {
-          if (pouring) pourStream(robot.tip('l') || new THREE.Vector3(), shaken ? vesselTop(tin, TIN_MOUTH) : vesselTop(glass.group, glass.mouth), st.color); else stream.visible = false;
+          if (pouring) pourStream(robot.tip('l') || new THREE.Vector3(), shaken ? vesselTop(tin, TIN_MOUTH) : vesselTop(glass.group, glass.mouth), st.color); else flowing(false);
           if (!shaken && stream.visible) setLevel(Math.min(st.level * END.pour, level + (st.level * END.pour - level) * Math.min(1, J.dt * 3.5)));
         } else if (st.do === 'shake') {
-          if (t > 0.45 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.6); }
+          if (t > 0.45 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.6); sfx('shake', dur - 0.6); }
         } else if (st.do === 'strain') {
-          if (pouring) pourStream(robot.tip('r') || new THREE.Vector3(), vesselTop(glass.group, glass.mouth), PALETTE[M.color] ?? PALETTE.amber); else stream.visible = false;
+          if (pouring) pourStream(robot.tip('r') || new THREE.Vector3(), vesselTop(glass.group, glass.mouth), PALETTE[M.color] ?? PALETTE.amber); else flowing(false);
           if (stream.visible) setLevel(level + (END.strain - level) * Math.min(1, J.dt * 2.5));
         } else if (st.do === 'stir' || st.do === 'swizzle') {
           setLevel(level + (END[st.do] - level) * Math.min(1, J.dt));
@@ -666,7 +669,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         }
       },
       finish(st) {
-        stream.visible = false;
+        flowing(false);
         if (st.do === 'set') { if (!glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
         else if (st.do === 'pour') { if (!shaken) setLevel(st.level * END.pour); if (st.real) st.real.standing.visible = true; } // and puts it back
         else if (st.do === 'shake') { bar.remove(tin); }
@@ -709,7 +712,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       cancel() {
         if (finished) return;
         finished = true; job = null;
-        stream.visible = false;
+        flowing(false);
         bar.remove(glass.group, tin);
         for (const r of shelf.values()) r.standing.visible = true;
         robot.reach(null, null);
@@ -760,6 +763,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     serve,
     make,
     setBottles,
+    /** Where sound effects go (sound.js `play`). */
+    setSfx(fn) { sfx = fn; },
     robot,
     /** The menu card on the bar (what gets picked up) and a point just above it for its label. */
     menu: {

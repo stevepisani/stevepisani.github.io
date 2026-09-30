@@ -61,12 +61,21 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <strong>Steve Pisani</strong>
       <span>Data Something in Philadelphia</span>
     </a>
-    <nav class="topbar__nav" aria-label="Sections">
-      {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
-      <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
-      {% endunless %}{% endfor %}
-    </nav>
-    <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+    <div class="topbar__end">
+      <nav class="topbar__nav" aria-label="Sections">
+        {% for item in site.data.bar.menu %}{% unless item.id == 'launch' %}
+        <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
+        {% endunless %}{% endfor %}
+      </nav>
+      <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+      <button type="button" class="topbar__sound" id="sound-btn" aria-pressed="false" aria-label="Sound off" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/>
+          <path class="topbar__sound-on" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/>
+          <path class="topbar__sound-off" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>
+        </svg>
+      </button>
+    </div>
   </header>
 
   <p class="hint" id="hint" role="status" aria-live="polite" hidden></p>
@@ -108,6 +117,8 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <button type="button" class="camp-eat" id="camp-eat" hidden>Eat it</button>
   <button type="button" class="seat-leave" id="hammock-leave" hidden>Get up</button>
   <button type="button" class="camp-eat" id="hammock-read" hidden>Reading list</button>
+  <button type="button" class="seat-leave" id="shore-leave" hidden>Leave the shore</button>
+  <button type="button" class="camp-eat" id="shore-throw" hidden>Hold to throw</button>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
   <div class="making" id="making" role="status" hidden>
     <p class="making__count" id="making-count"></p>
@@ -192,6 +203,12 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     <span class="launch__clock" data-launch-clock></span>
   </div>
   <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>.</p>
+  <h3>Up there tonight</h3>
+  <div class="sky-now" data-sky>
+    <div class="sky-now__item"><span class="sky-now__label">The moon</span><strong data-sky-moon>…</strong><span class="sky-now__meta" data-sky-moon-meta></span></div>
+    <div class="sky-now__item"><span class="sky-now__label">The ISS, right now</span><strong data-sky-iss>Finding it…</strong><span class="sky-now__meta" data-sky-iss-meta></span></div>
+  </div>
+  <p class="sky-now__note">The moon over the bar is lit the way the real one is tonight. The ISS position is live from <a href="https://wheretheiss.at" target="_blank" rel="noopener">Where the ISS at? ↗</a>.</p>
 </template>
 
 <template id="panel-contact">
