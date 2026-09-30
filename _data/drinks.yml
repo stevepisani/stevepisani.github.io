@@ -92,3 +92,84 @@
     steps:
       - stir: Stir it over the ice.
       - garnish: An orange slice and a few coffee beans.
+
+# From my old homebar notes (stevepisani/homebar, recipes/signatures/).
+# Short names first: the bar's chalkboard shows the first six drinks.
+
+- name: OG Hurricane
+  origin: The original New Orleans Hurricane, not the neon syrup version
+  glass: Hurricane glass or tiki mug, crushed ice
+  build:
+    - 2 oz dark rum
+    - 2 oz light rum
+    - 1 oz passion fruit syrup
+    - 1 oz fresh orange juice
+    - ½ oz fresh lime juice
+    - ½ oz rich simple syrup
+  method: Shake all the ingredients hard with ice. Strain into a Hurricane glass (or tiki mug) over crushed ice. Garnish with an orange wheel, a cherry, or dehydrated citrus.
+  note: A serious rum drink, not a Bourbon Street sugar bomb. Passion fruit is the key, so quality matters (Funkin or Liber & Co), and adjust the syrup to its sweetness. Use two rums, not one; I like Appleton or Smith & Cross with Plantation 3 Stars. Batches well for parties without ice; pour over crushed ice to serve.
+  make:
+    glass: collins
+    ice: crushed
+    color: orange
+    garnish: orange
+    steps:
+      - shake: Shake it hard with ice.
+      - strain: Strain it over crushed ice.
+      - garnish: An orange wheel.
+
+- name: House Tiki
+  origin: My tiki template, a Mai Tai skeleton that flexes with whatever rums are open
+  glass: Tiki mug, crushed ice
+  build:
+    - 1½ oz aged or Jamaican rum
+    - ¾ oz light rum or rhum agricole
+    - ¾ oz fresh lime juice
+    - ½ oz orgeat
+    - ½ oz orange liqueur
+    - ¼ oz rich simple syrup (adjust to taste)
+    - ¼ oz allspice dram or falernum (optional)
+  method: Shake with ice. Strain into a tiki mug over crushed ice. Garnish with a mint sprig, dehydrated lime, or whatever's appropriate.
+  note: "For when I want tiki but don't want to follow a recipe, or I'm trying new rums or clearing bottles. Pairings I like: Smith & Cross with Plantation 3 Stars (funky, bold), Appleton Estate with rhum agricole (balanced, grassy), El Dorado 8 with Probitas (rich, smooth), Plantation OFTD with Denizen White (heavy, complex)."
+  make:
+    glass: collins
+    ice: crushed
+    color: rum
+    garnish: mint
+    steps:
+      - shake: Shake it with ice.
+      - strain: Strain it over crushed ice.
+      - garnish: A sprig of mint.
+
+- name: Coffee-Pineapple Boulevardier
+  origin: My signature riff on the Boulevardier, with house-infused Camparis
+  glass: Rocks glass, large cube
+  build:
+    - 1½ oz bourbon
+    - ¾ oz coffee-infused Campari
+    - ¾ oz sweet vermouth
+  method: Stir with ice until well-chilled. Strain into a rocks glass over a large cube. Garnish with an orange peel, expressed.
+  note: For the coffee Campari, steep coffee beans in Campari for 24 to 48 hours. The coffee adds a roasty depth that suits bourbon, and a barspoon of pineapple Campari bridges bitter and tropical. My defaults are Buffalo Trace or Wild Turkey 101, and Carpano Antica Formula.
+  make:
+    glass: rocks
+    ice: cubes
+    color: negroni
+    garnish: orange
+    steps:
+      - stir: Stir it over the ice until it's well chilled.
+      - garnish: An orange peel, expressed.
+
+- name: Clarified Jungle Bird
+  origin: My favorite party batch, milk-clarified
+  glass: Coupe, served up (or a rocks glass with a large cube)
+  build:
+    - 1½ oz dark Jamaican rum
+    - ¾ oz Campari
+    - 1½ oz pineapple juice
+    - ½ oz fresh lime juice
+    - ½ oz rich simple syrup
+  method: "Batch eight servings (12 oz rum, 6 oz Campari, 12 oz pineapple juice, 4 oz lime juice, 4 oz rich simple syrup), taste, and adjust; it should be slightly concentrated. Pour the mix into 8 oz of room-temperature whole milk (not the reverse) and let it curdle in the fridge for 1 to 2 hours. Strain through cheesecloth or a nut milk bag, re-strain the first runoff for clarity, then bottle and refrigerate. Add 15 to 20% water if serving up, and pour 4 oz per glass; no shaking needed."
+  note: All the Jungle Bird flavor, crystal clear with a silky texture; the milk takes the harshness out. Keeps 2 to 3 weeks in the fridge. Garnish with dehydrated pineapple, or nothing; the clarity is the visual.
+  make:
+    glass: coupe
+    color: falernum

@@ -1,0 +1,106 @@
+# Party menus on /drinks, from my old homebar notes (stevepisani/homebar, hosting/menus/).
+#
+#   name:   the menu
+#   about:  one line on the occasion
+#   drinks: what's served, in order
+#     name:  the drink
+#     line:  how it's pitched (optional)
+#     build: ingredients, unless the drink is in Favorite drinks above (optional)
+#     serve: what it's served in, and how (optional)
+#   na:     the non-alcoholic option (name, build, serve)
+
+- name: Tiki Party
+  about: Full tiki experience. Break out the mugs.
+  drinks:
+    - name: Jungle Bird
+      line: The star of the show, tiki meets bitter. Clarified batch for volume.
+      serve: Tiki mug or rocks glass
+    - name: Mai Tai
+      line: The classic; no tiki party is complete without it.
+      build: [1 oz aged rum, 1 oz Jamaican rum, ¾ oz lime juice, ½ oz orange curaçao, ½ oz orgeat, ¼ oz rich simple syrup]
+      serve: Shake hard, strain over crushed ice, in a tiki mug
+    - name: Dark 'n' Stormy
+      line: Easy build, refreshing, a crowd-pleaser.
+      build: [2 oz dark rum, ½ oz lime juice, 4 to 5 oz ginger beer]
+      serve: Built over ice in a highball
+  na:
+    name: Ginger beer, lime and bitters
+    build: [Ginger beer, a fresh lime wedge, 2 dashes Angostura (or aromatic NA bitters)]
+    serve: Built over ice
+
+- name: Neon Miami
+  about: Tropical vibes with a retro edge. Think 80s, bright colors, fun.
+  drinks:
+    - name: OG Hurricane
+      line: Bright, boozy, party-ready.
+      serve: Hurricane glass or tiki mug, crushed ice
+    - name: Jungle Bird
+      line: The signature, tropical meets bitter. Or the clarified batch.
+      serve: Rocks glass or tiki mug
+    - name: French 75
+      line: Bubbly, elegant, citrus-forward.
+      build: [1½ oz gin, ¾ oz lemon juice, ½ oz rich simple syrup, 2 to 3 oz dry sparkling wine]
+      serve: Shake the base, top with champagne or prosecco, in a flute
+  na:
+    name: Virgin Hurricane
+    build: [2 oz passion fruit juice or syrup, 1 oz orange juice, ½ oz lime juice, ½ oz grenadine or simple syrup, soda water to lengthen]
+    serve: Shake the juices, pour over ice, top with soda
+
+- name: Sunday Gravy
+  about: Italian dinner pairings. Aperitivo into dinner, amaro after.
+  drinks:
+    - name: Negroni
+      line: The classic Italian aperitivo, before sitting down to eat.
+      build: [1 oz gin, 1 oz Campari, 1 oz sweet vermouth]
+      serve: Rocks glass, large cube
+    - name: Negroni Sbagliato
+      line: Lighter, for those who want bubbles.
+      build: [1 oz Campari, 1 oz sweet vermouth, 2 to 3 oz prosecco]
+      serve: Built over ice in a wine glass
+    - name: Amaro digestivo
+      line: After the meal. Montenegro (approachable), Meletti (chocolate notes), Nonino (elegant), Averna (cola-like), or Fernet-Branca (for fans).
+      serve: Neat or one cube, in a small rocks or cordial glass
+  na:
+    name: San Pellegrino and bitters
+    build: [San Pellegrino, 2 dashes Angostura, a lemon twist]
+    serve: Built over ice
+
+- name: Pool Party
+  about: Refreshing, light, and easy to drink in the sun.
+  drinks:
+    - name: Batch Margarita
+      line: A crowd-pleaser that scales.
+      build: [2 oz blanco tequila, 1 oz lime juice, ¾ oz orange liqueur, ¼ oz rich simple syrup (per drink)]
+      serve: Rocks glass, salt on half the rim
+    - name: Aperol Spritz
+      line: Light, bubbly, afternoon-appropriate.
+      build: [3 oz prosecco, 2 oz Aperol, 1 oz soda water, an orange slice]
+      serve: Built over ice in a wine glass
+    - name: Daiquiri
+      line: Simple, refreshing, fast to make.
+      build: [2 oz white rum, 1 oz lime juice, ¾ oz rich simple syrup]
+      serve: Shake, double-strain, serve up in a coupe
+  na:
+    name: Sparkling water and citrus
+    build: [Sparkling water, lime or lemon wedges, a splash of cranberry for color (optional)]
+    serve: Built over ice
+
+- name: Holiday
+  about: Winter celebration. Warm spices, bourbon, seasonal vibes.
+  drinks:
+    - name: Spiced Old Fashioned
+      line: An Old Fashioned with cinnamon syrup instead of simple. Warming, familiar.
+      build: [2 oz bourbon, 1 barspoon cinnamon syrup, 2 to 3 dashes Angostura]
+      serve: Stirred, over a large cube in a rocks glass
+    - name: French 75
+      line: Celebratory, bubbly, elegant. Perfect for toasts.
+      build: [1½ oz gin, ¾ oz lemon juice, ½ oz rich simple syrup, 2 to 3 oz dry sparkling wine]
+      serve: Champagne flute
+    - name: Hot Toddy
+      line: For late night or cold guests.
+      build: [1½ oz bourbon or brandy, 1 tbsp honey, ½ oz lemon juice, 4 oz hot water, a cinnamon stick and lemon wheel]
+      serve: Stirred in a mug
+  na:
+    name: Sparkling apple cider
+    build: [Sparkling apple cider, a cinnamon stick]
+    serve: Poured and served
