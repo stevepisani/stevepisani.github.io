@@ -124,7 +124,8 @@ Deno.serve(async (req) => {
     await db.rpc("bartender_spent", { input_tokens: response.usage.input_tokens, output_tokens: response.usage.output_tokens });
     // One plain line, whatever the model does: the page shows text, not markdown.
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join(" ")
-      .replace(/\*\*|__|`|^#+\s*/gm, "").replace(/\s*\n+\s*/g, " ").trim();
+      .replace(/\*\*|__|`|^#+\s*/gm, "").replace(/(^|[^\w*])[*_]([^*_\n]+)[*_](?![\w*])/g, "$1$2")
+      .replace(/\s*\n+\s*/g, " ").trim();
     return reply({ reply: text || "Hm. Ask me that another way?" }, 200, origin);
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return reply({ reply: "Busy night. Give me a minute and ask again." }, 200, origin);
