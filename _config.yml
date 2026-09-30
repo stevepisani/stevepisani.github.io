@@ -12,18 +12,20 @@ author:
   name: Steve Pisani
 twitter:
   username: StevenPisani
-social:
-  name: Steve Pisani
-  links:
-    - https://www.linkedin.com/in/steven-pisani/
-    - https://github.com/stevepisani
-    - https://twitter.com/StevenPisani
-
 links:
   resume: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
-  linkedin: https://www.linkedin.com/in/steven-pisani/
-  github: https://github.com/stevepisani
-  twitter: https://twitter.com/StevenPisani
+  linkedin: &linkedin https://www.linkedin.com/in/steven-pisani/
+  github: &github https://github.com/stevepisani
+  twitter: &twitter https://twitter.com/StevenPisani
+social:  # for jekyll-seo-tag
+  name: Steve Pisani
+  links: [*linkedin, *github, *twitter]
+
+# The one Supabase project behind everything that keeps data (the recipe tracker, and the
+# planet's shared bits). The anon key is public by design: row-level security guards the data.
+supabase:
+  url: https://dkaiavlnmtetqigxnkwb.supabase.co
+  anon_key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrYWlhdmxubXRldHFpZ3hua3diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYwOTA3NjIsImV4cCI6MjA3MTY2Njc2Mn0.d-YKOURWHLJ5erK0GsECFMwelsrX3N2wxtns5e1TwZQ
 
 markdown: kramdown
 highlighter: rouge

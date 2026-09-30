@@ -34,8 +34,7 @@ description: Steve Pisani is a Philadelphia data architect with a background in 
   <div>
     <h2>What I bring</h2>
     <ul class="chips">
-      <li>Data architecture</li><li>Data engineering</li><li>Analytics</li><li>Data visualization</li>
-      <li>Programming</li><li>Business strategy</li><li>Electrical engineering</li><li>Storytelling</li><li>Communication</li>
+      {% for s in site.data.profile.skills %}<li>{{ s }}</li>{% endfor %}
     </ul>
   </div>
   <div>
