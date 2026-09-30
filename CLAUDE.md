@@ -37,12 +37,13 @@ bundle exec jekyll build --strict_front_matter && node tools/check-site.mjs
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `books.yml`: shelves on /bookshelf
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
+  - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from
   - `bar.yml`: the homepage's menu (label, a one-line note on what's there, fallback href), the bartender's lines, and the campfire list
 - `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url` (a URL or a site path like `/assets/images/x.webp`, with a 192px square `x-thumb.webp` beside it for the post lists; `cover.html` asks Unsplash and Pexels for thumbnail-sized crops itself), `description`
 - Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html`, `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
 - `lab/`: lab experiments with their own pages, e.g. `lab/sql-formatter.html` (SQLFluff in the browser via Pyodide; its Python lives in `assets/py/fluff.py`)
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
-- `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab
+- `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab. Its Supabase URL and anon key come from `supabase:` in `_config.yml` (Liquid), the one place they're set; the anon key is public by design and row-level security guards the data
 
 ### The asteroid (homepage)
 Art direction: moody, realistic mid-century "Polynesian Pop" at night. The bar is the warm light source against deep space; cool moonlight is the key light; every warm tone comes from practicals (torches, pufferfish lamps, floats, neon, fire). Tiki signals, strongest first: carved tikis, a steep A-frame thatch roof, glass floats in nets, pufferfish lamps, bamboo, tiki mugs, tapa cloth, lava rock, torches, neon script. Tiki is an American pop fantasy: use invented pop-style tikis, never replicas of real sacred carvings, and no caricatured people.
@@ -95,6 +96,7 @@ Plain three.js ES modules in `assets/js/world/`, no bundler, no physics engine:
 - Fonts: Fraunces (display), Inter (body), JetBrains Mono (labels/code) from Google Fonts.
 
 ## Important Notes
+- `_config.yml` sets each link once (`links:`, with YAML anchors that `social.links` reuses for jekyll-seo-tag).
 - CNAME holds the custom domain; don't remove it.
 - Post permalinks use Jekyll's default (`/YYYY/MM/DD/Title.html`); don't change them, they're linked externally.
 - Use `relative_url` for internal links and assets.
