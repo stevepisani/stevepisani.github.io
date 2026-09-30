@@ -22,6 +22,10 @@ bundle exec jekyll serve
 
 # Build the site
 bundle exec jekyll build
+
+# Check the build: internal links and assets exist; the world's modules parse, resolve,
+# use minified addons and are preloaded. CI runs both (.github/workflows/check.yml).
+bundle exec jekyll build --strict_front_matter && node tools/check-site.mjs
 ```
 
 ## Architecture
@@ -95,4 +99,4 @@ Plain three.js ES modules in `assets/js/world/`, no bundler, no physics engine:
 - Post permalinks use Jekyll's default (`/YYYY/MM/DD/Title.html`); don't change them, they're linked externally.
 - Use `relative_url` for internal links and assets.
 - Non-site files (this file, README, Makefile, Gemfile, `tools/`) are in `exclude:` in `_config.yml` so they aren't published.
-- Front matter values containing `: ` must be quoted, or Jekyll silently drops the layout (it only logs a YAML Exception).
+- Front matter values containing `: ` must be quoted, or Jekyll silently drops the layout (it only logs a YAML Exception); CI builds with `--strict_front_matter` so it fails instead).
