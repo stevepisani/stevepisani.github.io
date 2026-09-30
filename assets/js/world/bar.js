@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import * as T from './textures.js';
 import { PALETTE, pbr, surface, woodSet, bambooSet, thatchSet, lavaSet, rattanSet, tapaTexture, glow } from './materials.js';
-import { carvedTiki, glassFloat, pufferLamp, tikiMug, volcanoBowl, tikiTorch, palm, lavaRock } from './props.js';
+import { carvedTiki, glassFloat, pufferLamp, tikiMug, volcanoBowl, tikiTorch, palm, lavaRock, barGlass, garnishFor } from './props.js';
 import { place, BAR_DIR, surfaceRadius } from './planet.js';
 import { heroOr } from './hero.js';
 import { createFire } from './fire.js';
@@ -500,12 +500,266 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     }, 900);
   }
 
+  /* ---------- Making a real drink, step by step ---------- */
+  // make(recipe) has the robot roll up to the counter and build it in front of you: set out the
+  // glass (with its ice), pour each ingredient from its own bottle (into a tin if it's shaken,
+  // straight into the glass if not; the level rises by the measure), then shake and strain,
+  // stir, or swizzle, garnish, and slide it over. `onStep(i, n, text)` narrates; `onDone()`
+  // once it's in front of you. Returns { skip(), cancel() }. Timed on real frame time (dt).
+  const MAKE_SPOT = new THREE.Vector3(0.05, DECK, -0.16); // up against the back of the counter
+  // Where things stand on the counter, so each is under the hand that works it: the tin in the
+  // middle (the left hand pours into it, the right picks it up to shake), and the glass by the
+  // right hand to strain into, or by the left if it's built in the glass.
+  const WORK = { shaken: new THREE.Vector3(-0.15, BAR_TOP, 0.34), built: new THREE.Vector3(0.24, BAR_TOP, 0.34) };
+  const TIN = new THREE.Vector3(0.06, BAR_TOP, 0.36);
+  const TIN_MOUTH = new THREE.Vector3(0, 0.13, 0);
+  const OZ = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3 };
+  const ozOf = (line) => {
+    const m = /(\d+)?\s*([½¼¾⅓⅔])?\s*oz/.exec(line);
+    return m && (m[1] || m[2]) ? (+(m[1] || 0) + (OZ[m[2]] || 0)) : 0;
+  };
+  const BOTTLES = [['coffee liqueur', 'coffee'], ['kahl', 'coffee'], ['espresso', 'espresso'], ['campari', 'campari'], ['chartreuse', 'chartreuse'],
+    ['falernum', 'falernum'], ['vermouth', 'vermouth'], ['pineapple', 'pineapple'], ['lime', 'lime'], ['rum', 'rum'], ['gin', 'gin'], ['syrup', 'syrup'], ['sugar', 'syrup']];
+  const bottleColor = (line) => PALETTE[(BOTTLES.find(([k]) => line.toLowerCase().includes(k)) || [0, 'amber'])[1]];
+  // The real bottles (hero models, loaded once the scene is up: setBottles): they stand on the
+  // counter by the work, and the robot picks up the one a line calls for and pours from it.
+  const REAL = [['planteray', 'bottle-planteray'], ['campari', 'bottle-campari'], ['chartreuse', 'bottle-chartreuse'], ['meletti', 'bottle-meletti'], ['coffee liqueur', 'bottle-meletti']];
+  const shelf = new Map(); // slot -> { standing (on the counter), hand (the one it pours from), height }
+  const realFor = (line) => { const r = REAL.find(([k]) => line.toLowerCase().includes(k)); return r && shelf.get(r[1]); };
+  function setBottles(heroes) {
+    const slots = ['bottle-planteray', 'bottle-campari', 'bottle-chartreuse', 'bottle-meletti'].filter((k) => heroes.has(k));
+    slots.forEach((k, n) => {
+      const standing = heroes.get(k);
+      standing.position.set(-0.5 - n * 0.11, BAR_TOP, 0.26 + (n % 2) * 0.05); // a little row at the robot's end of the counter
+      standing.rotation.y = 0.3 - n * 0.25;
+      bar.add(standing);
+      const height = new THREE.Box3().setFromObject(standing).getSize(new THREE.Vector3()).y;
+      shelf.set(k, { standing, hand: standing.clone(true), height });
+    });
+  }
+  const SET = { rockscubes: 'A rocks glass, full of ice.', collinscrushed: 'A collins glass, packed with crushed ice.', coupe: 'A chilled coupe.' };
+  const DUR = { set: 1.5, pour: 1.8, shake: 2.8, strain: 2.0, stir: 2.6, swizzle: 2.8, garnish: 1.8, serve: 1.2 };
+  const tinMesh = (() => {
+    const g = new THREE.Group();
+    const m = chromeTin();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.035, 0.13, 18, 1, true), m);
+    body.position.y = 0.065;
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(0.035, 18).rotateX(-Math.PI / 2), m);
+    floor.position.y = 0.002;
+    g.add(body, floor);
+    g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+    return g;
+  })();
+  function chromeTin() { return pbr({ color: PALETTE.chrome, metalness: 0.55, roughness: 0.3, side: THREE.DoubleSide }); } // brushed: full chrome only mirrors the dark
+  const stream = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.004, 1, 8, 1, true).translate(0, -0.5, 0), pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.7, roughness: 0.1 }));
+  stream.visible = false;
+  bar.add(stream);
+  const UP = new THREE.Vector3(0, 1, 0), _amber = new THREE.Color(PALETTE.amber);
+  function pourStream(fromWorld, to, color) {
+    const from = bar.worldToLocal(fromWorld.clone());
+    const d = to.clone().sub(from);
+    // only while it's really over the glass: a pour never crosses the counter
+    if (!fromWorld || Math.hypot(d.x, d.z) > 0.05 || d.y > -0.02) { stream.visible = false; return; }
+    stream.visible = true;
+    stream.material.color.set(color).lerp(_amber, 0.25); // backlit by the bar: even blackstrap glows amber in a thin stream
+    stream.material.emissive.copy(stream.material.color);
+    stream.position.copy(from);
+    stream.quaternion.setFromUnitVectors(UP, d.clone().normalize().negate());
+    stream.scale.set(1, d.length(), 1);
+  }
+
+  let job = null;
+  const made = [];
+  function make(recipe, { onStep, onDone } = {}) {
+    if (job) job.cancel();
+    const M = recipe.make || {};
+    const kind = M.glass || 'rocks';
+    const extra = (M.steps || []).map((o) => { const [verb, text] = Object.entries(o)[0]; return { do: verb, text }; });
+    const shaken = extra.some((x) => x.do === 'shake');
+    const amounts = recipe.build.map(ozOf);
+    const total = amounts.reduce((a, b) => a + b, 0) || recipe.build.length;
+    let acc = 0;
+    const steps = [
+      { do: 'set', text: M.set || SET[kind + (M.ice || '')] || 'A glass.' },
+      ...recipe.build.map((line, i) => { acc += amounts[i] || total / recipe.build.length; return { do: 'pour', text: line, color: bottleColor(line), level: acc / total }; }),
+      ...extra,
+    ];
+    const glass = barGlass(kind);
+    glass.color(PALETTE[M.color] ?? PALETTE.amber);
+    glass.group.scale.setScalar(1.25); // like the mugs: a touch big, so it reads from the stool
+    glass.group.position.copy(shaken ? WORK.shaken : WORK.built);
+    const near = shaken ? 'r' : 'l'; // the hand by the glass
+    const vesselTop = (o, mouth) => o.position.clone().add(mouth.clone().multiplyScalar(o.scale.x));
+    const tin = tinMesh.clone();
+    tin.position.copy(TIN);
+    const garnishes = [].concat(M.garnish || []);
+    // in front of you, just left of the menu, where even a phone's narrow view shows it whole
+    const toStool = seat.served.clone().add(new THREE.Vector3(-0.14, 0, 0.1)); // clear of the mugs, which land further back
+    let i = -1, t = 0, level = 0, finished = false;
+    const setLevel = (k) => { level = k; glass.fill(k); };
+    const END = { pour: 0.7, strain: 0.82, stir: 0.8, swizzle: 0.8 }; // fills are a share of the glass; the rest is dilution
+    const J = {
+      steps,
+      // each step: what it starts, what it's done by the end (so skipping, or a long frame, lands right)
+      enter(st) {
+        const W = vesselTop(glass.group, glass.mouth);
+        if (st.do === 'set') {
+          robot.roll(MAKE_SPOT, 0);
+          robot.hold('none', { shaker: !shaken });
+          const at = { at: W.clone().add(new THREE.Vector3(0, 0.03, 0)), pincer: true };
+          robot.reach(near === 'r' ? at : null, near === 'l' ? at : null);
+        } else if (st.do === 'pour') {
+          const real = realFor(st.text);
+          if (real) { real.standing.visible = false; robot.hold('real', { object: real.hand, height: real.height, shaker: !shaken }); st.real = real; }
+          else robot.hold('bottle', { color: st.color, shaker: !shaken });
+          const into = shaken ? vesselTop(tin, TIN_MOUTH) : W;
+          robot.reach(null, { at: into.clone().add(new THREE.Vector3(0, 0.11, -0.01)) }); // poured from a height, so you see it fall
+        } else if (st.do === 'shake') {
+          robot.hold('none', { shaker: false });
+          robot.reach({ at: vesselTop(tin, TIN_MOUTH).add(new THREE.Vector3(0, 0.02, 0)), pincer: true }, null);
+        } else if (st.do === 'strain') {
+          robot.hold('none', { shaker: true });
+          robot.reach({ at: W.clone().add(new THREE.Vector3(0, 0.09, -0.015)) }, null);
+        } else if (st.do === 'stir' || st.do === 'swizzle') {
+          robot.hold(st.do === 'stir' ? 'spoon' : 'swizzle', { shaker: !shaken });
+          robot.reach(null, { at: glass.group.position.clone().add(new THREE.Vector3(0, glass.height * 1.25 * 0.5, 0)), wiggle: st.do });
+        } else if (st.do === 'garnish') {
+          st.left = garnishes.slice();
+          st.next = 0;
+        } else if (st.do === 'serve') {
+          // the ones it made before move down the bar, to make room (the last three stay)
+          made.forEach((g, n) => g.position.copy(seat.served).add(new THREE.Vector3(-0.62 - (made.length - 1 - n) * 0.16, 0, 0.02)));
+          robot.hold('towel', { shaker: true });
+          robot.pour(0.8);
+          st.from = glass.group.position.clone();
+        }
+      },
+      during(st, t, dur) {
+        const pouring = t > 0.45 && t < dur - 0.3;
+        if (st.do === 'set') { if (t > 0.45 && !glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
+        else if (st.do === 'pour') {
+          if (pouring) pourStream(robot.tip('l') || new THREE.Vector3(), shaken ? vesselTop(tin, TIN_MOUTH) : vesselTop(glass.group, glass.mouth), st.color); else stream.visible = false;
+          if (!shaken && stream.visible) setLevel(Math.min(st.level * END.pour, level + (st.level * END.pour - level) * Math.min(1, J.dt * 3.5)));
+        } else if (st.do === 'shake') {
+          if (t > 0.45 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.6); }
+        } else if (st.do === 'strain') {
+          if (pouring) pourStream(robot.tip('r') || new THREE.Vector3(), vesselTop(glass.group, glass.mouth), PALETTE[M.color] ?? PALETTE.amber); else stream.visible = false;
+          if (stream.visible) setLevel(level + (END.strain - level) * Math.min(1, J.dt * 2.5));
+        } else if (st.do === 'stir' || st.do === 'swizzle') {
+          setLevel(level + (END[st.do] - level) * Math.min(1, J.dt));
+          if (st.do === 'swizzle') glass.frost(Math.min(1, t / dur));
+        } else if (st.do === 'garnish') {
+          // one garnish after another: picked up, then set on the glass
+          const each = dur / Math.max(1, st.left.length);
+          const k = Math.floor(t / each);
+          if (k !== st.shown && k < st.left.length) {
+            st.shown = k;
+            robot.hold('garnish', { object: garnishFor(st.left[k]), shaker: !shaken, side: near });
+            const at = { at: vesselTop(glass.group, glass.mouth).add(new THREE.Vector3(0, 0.05, -0.01)), pincer: true };
+            robot.reach(near === 'r' ? at : null, near === 'l' ? at : null);
+          }
+          while (st.next < st.left.length && t > (st.next + 0.65) * each) { placeGarnish(st.left[st.next++]); robot.hold('none', { shaker: true }); }
+        } else if (st.do === 'serve') {
+          const k = THREE.MathUtils.clamp((t - 0.3) / SLIDE, 0, 1);
+          const e = 1 - Math.pow(1 - k, 3);
+          glass.group.position.lerpVectors(st.from, toStool, reducedMotion ? (t > 0.3 ? 1 : 0) : e);
+        }
+      },
+      finish(st) {
+        stream.visible = false;
+        if (st.do === 'set') { if (!glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
+        else if (st.do === 'pour') { if (!shaken) setLevel(st.level * END.pour); if (st.real) st.real.standing.visible = true; } // and puts it back
+        else if (st.do === 'shake') { bar.remove(tin); }
+        else if (st.do === 'strain') { setLevel(END.strain); if (M.foam) glass.foam(PALETTE[M.foam]); }
+        else if (st.do === 'stir') setLevel(END.stir);
+        else if (st.do === 'swizzle') { setLevel(END.swizzle); glass.frost(1); }
+        else if (st.do === 'garnish') { while (st.next < st.left.length) placeGarnish(st.left[st.next++]); if (M.ice === 'crushed') glass.mound(); }
+        else if (st.do === 'serve') glass.group.position.copy(toStool);
+      },
+      advance(dtStep) {
+        if (finished) return;
+        J.dt = dtStep;
+        if (J.frozen) return J.during(J.all[i], t, DUR[J.all[i].do]); // held on one step (tests)
+        t += dtStep;
+        while (i < 0 || t >= DUR[J.all[i].do]) {
+          if (i >= 0) { t -= DUR[J.all[i].do]; J.finish(J.all[i]); }
+          i++;
+          if (i >= J.all.length) return J.done();
+          const st = J.all[i];
+          J.enter(st);
+          if (st.do !== 'serve') onStep && onStep(i, steps.length, st.text);
+        }
+        J.during(J.all[i], t, DUR[J.all[i].do]);
+      },
+      done() {
+        finished = true; job = null;
+        made.push(glass.group);
+        if (made.length > 3) bar.remove(made.shift());
+        robot.reach(null, null);
+        robot.roll(ROBOT_SERVE, Math.atan2(stools[1].position.x - ROBOT_SERVE.x, stools[1].position.z - ROBOT_SERVE.z));
+        onDone && onDone(glass.group);
+      },
+      skip() {
+        if (finished) return;
+        // everything it would have done, at once, then slide it over
+        for (let k = Math.max(0, i); k < J.all.length - 1; k++) { if (k > i) J.enter(J.all[k]); J.finish(J.all[k]); }
+        i = J.all.length - 1; t = 0;
+        J.enter(J.all[i]);
+      },
+      cancel() {
+        if (finished) return;
+        finished = true; job = null;
+        stream.visible = false;
+        bar.remove(glass.group, tin);
+        for (const r of shelf.values()) r.standing.visible = true;
+        robot.reach(null, null);
+        robot.hold('towel', { shaker: true });
+      },
+    };
+    const placeGarnish = (name) => glass.garnish(name);
+    // Where to look to see what it's doing now (world space): the vessel it's pouring into,
+    // the shaker while it shakes, the glass for the rest, then the drink as it comes to you.
+    const _f = new THREE.Vector3();
+    J.focus = () => {
+      const st = J.all[Math.max(0, Math.min(i, J.all.length - 1))];
+      if (st.do === 'shake' && !tin.parent) {
+        // up toward the shaker, but not so far you lose the counter: it's shaken up by its dome
+        const tip = robot.tip('r');
+        if (tip) { bar.worldToLocal(_f.copy(tip)); _f.y = Math.min(_f.y, BAR_TOP + 0.32); return bar.localToWorld(_f); }
+      }
+      if (st.do === 'pour' && shaken) return bar.localToWorld(_f.copy(tin.position).add(new THREE.Vector3(0, 0.1, 0)));
+      return bar.localToWorld(_f.copy(glass.group.position).add(new THREE.Vector3(0, st.do === 'serve' ? 0.06 : 0.1, 0)));
+    };
+    // the middle of the work: where you lean in toward
+    J.center = bar.localToWorld(glass.group.position.clone().lerp(TIN, 0.5).setY(BAR_TOP + 0.1));
+    J.all = [...steps, { do: 'serve' }];
+    job = J;
+    return {
+      skip: () => J.skip(),
+      cancel: () => J.cancel(),
+      /** For tests: jump to step `k`, as if the ones before it had been done, and hold it there. */
+      seek(k) {
+        J.frozen = true;
+        for (let n = Math.max(0, i); n < k; n++) { if (n > i) J.enter(J.all[n]); J.finish(J.all[n]); }
+        i = k; t = 0.6;
+        J.enter(J.all[k]);
+        if (J.all[k].do !== 'serve') onStep && onStep(k, steps.length, J.all[k].text);
+        J.during(J.all[k], t, DUR[J.all[k].do]);
+      },
+      get steps() { return J.all.map((x) => x.do); },
+      focus: () => J.focus(),
+      center: J.center,
+    };
+  }
+
   return {
     group: bar,
     seat,
     colliders,
     interactables,
     serve,
+    make,
+    setBottles,
     robot,
     /** The menu card on the bar (what gets picked up) and a point just above it for its label. */
     menu: {
@@ -539,6 +793,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     // t: ambient time (frozen under ?test); dt: real frame time, for things people cause
     update(t, dt = 0) {
       for (const f of animated) f(t);
+      if (job) job.advance(dt);
       robot.update(dt, t);
       for (let i = sliding.length - 1; i >= 0; i--) {
         const s = sliding[i];

@@ -40,6 +40,10 @@ credit Meshy on the site or keep using these files.
 | `thinker.glb` | `01a0edd3-1405-771a-8c62-2aa3797390b6` (refine of preview `01a0edd1-6c37-7157-9019-7d290e8cb504`) | 14,000 | 297 KB | Rodin's Thinker (a public-domain 1880 sculpture) at the campfire (a nod to Philadelphia's Rodin Museum); first of two previews, generated 2026-09-29 |
 | `parrot-mug.glb` | remesh `01a0e8fe-7d83-7127-8dfb-bc9e7cf809d1` of refine `01a0e8fc-e2cd-70fa-9563-e6cd5613662d` | 2,500 | 171 KB | on the counter and the shelf; 512px textures |
 | `pineapple-mug.glb` | remesh `01a0e8fe-8075-77b1-aa97-06431fb4bb62` of refine `01a0e8fc-a283-736d-866a-52cd5d03e09d` | 2,500 | 208 KB | second of two tries (clearer mug shape); 512px textures |
+| `bottle-planteray.glb` | `01a0f058-d4b3-72ea-a2a6-3e453ec42f6b` (refine of preview `01a0f056-f2e9-7519-981c-994cb78ffcf5`) | 6,600 | 249 KB | Planteray XO 20th Anniversary, for the Jungle Bird; raffia net kept; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
+| `bottle-campari.glb` | `01a0f058-dcb9-7799-8663-4009798e0658` (refine of preview `01a0f056-feb4-752a-a12c-d62e49f919ac`) | 4,000 | 116 KB | Campari, for the Jungle Bird and Il Professore; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
+| `bottle-chartreuse.glb` | `01a0f058-e617-72a4-b695-2c100bca4d8e` (refine of preview `01a0f057-080c-7654-b011-bc9afb937345`) | 4,000 | 143 KB | Green Chartreuse, for the swizzle; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
+| `bottle-meletti.glb` | `01a0f05a-27fc-7157-9ac4-3a898e3afc3b` (refine of preview `01a0f058-f8ac-720a-be3f-39decd145bbd`) | 4,000 | 124 KB | Meletti coffee liqueur, for the Shakerato and Il Professore; second preview (the first gave two bottles); 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
 
 All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second run on 2026-09-28, 4 generations and 2 remeshes, 130 credits). **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
 `01a0e679-8689…`, `01a0e67d-b488…`, `01a0e67d-ecaf…`) all gave the robot legs instead of

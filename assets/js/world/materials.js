@@ -41,6 +41,23 @@ export const PALETTE = {
   giantTan: 0xd9a06a,
   giantRust: 0xb0623f,
   giantUmber: 0x5e3624,
+  // what's in the glass (and the bottles it's poured from), for the drinks the robot makes
+  rum: 0x6a3413,       // aged Barbados rum (Planteray)
+  campari: 0xb3242a,
+  jungleBird: 0x8a2a1a, // rum-darkened Campari: brick red
+  vermouth: 0x5c1a12,  // sweet (rosso)
+  negroni: 0x9c2616,   // gin, Campari, vermouth: deep red-orange
+  gin: 0xdfe8e4,
+  chartreuse: 0x9fbf3a,
+  falernum: 0xe6d6a2,
+  pineapple: 0xe8c14a,
+  syrup: 0xa8621f,     // demerara, simple
+  espresso: 0x2b160c,
+  crema: 0xc49262,
+  coffee: 0x24120a,    // coffee liqueur
+  orange: 0xe8852a,
+  mint: 0x3f8a3a,
+  ice: 0xdfeaf2,
   night: 0x070913,     // sky / fog
 };
 
