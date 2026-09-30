@@ -75,6 +75,7 @@ function openPanel(id, { push = true, from = null } = {}) {
   menu.hidden = true;
   markCurrent(id);
   panelBody.querySelectorAll('[data-launch]').forEach(fillLaunch);
+  if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
   $('panel-close').focus({ preventScroll: true });
@@ -134,6 +135,8 @@ let seatMenuHeld = () => !menu.hidden;
 let order = (id) => openPanel(id);
 let drinkUp = () => false;
 let putDownDrink = () => {};
+// Once the world is up, each recipe in the Favorite drinks panel gets a "Make me one" button.
+let decorateDrinks = () => {};
 
 $('panel-close').addEventListener('click', () => closePanel());
 $('panel-back').addEventListener('click', () => {
@@ -271,7 +274,7 @@ async function start() {
   const sky = buildSky({ quality });
   const planet = buildPlanet({ quality, trailEdge, keepClear });
   await step(0.7, 'Stocking the bar…');
-  const bar = buildBar({ prop, quality, favorites: data.drinks || [], heroes, reducedMotion });
+  const bar = buildBar({ prop, quality, favorites: (data.drinks || []).map((d) => d.name), heroes, reducedMotion });
   // the site's logo (the 180px touch icon) goes on the rocket
   const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
@@ -376,6 +379,7 @@ async function start() {
     if (it.id === 'seat') return sitDown();
     if (it.id === 'menu') return sitDown({ pickUp: true });
     if (it.id === 'drinks') return sitDown({ then: () => openPanel('drinks') });
+    if (it.id === 'make') return sitDown({ then: () => startMaking(it.make) });
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     if (it.id === 'campfire') return sitAtFire();
     openPanel(it.id);
@@ -696,6 +700,7 @@ async function start() {
   order = (id) => {
     if (drink && !ordering) { openPanel(id); return; } // already holding one: just change what's in it
     if (ordering) return;
+    if (making) { making.skip(); return; } // one thing at a time: finish the drink first
     ordering = true;
     if (held) putDownMenu(); else hideMenu();
     bar.serve(id, (mug) => {
@@ -712,6 +717,65 @@ async function start() {
     for (let i = objFlights.length - 1; i >= 0; i--) if (objFlights[i].obj === d.mug) objFlights.splice(i, 1);
     flyObject(d.mug, worldPose(d.mug), drinkHome(d), 650, () => { if (drink === d) back(); });
   };
+
+  /* ---------- A real drink, made in front of you ---------- */
+  // "Make me one" on a recipe: the robot makes it step by step (bar.make), a caption says what
+  // it's doing, and Skip (or Esc) jumps to the finished drink. From anywhere on the planet it
+  // walks you to your stool first. Leaving the bar stops it.
+  const makingCard = $('making'), makingCount = $('making-count'), makingText = $('making-text'), makingDots = $('making-dots'), makeSkip = $('make-skip');
+  let making = null, makingDone;
+  function startMaking(idx) {
+    const recipe = (data.drinks || [])[idx];
+    if (!recipe) return;
+    if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
+    if (state !== 'seat' || ordering) return;
+    stopMaking();
+    drinkBackOnBar();
+    if (held) putDownMenu(); else hideMenu();
+    bubble.hidden = true;
+    clearTimeout(makingDone);
+    makingDots.replaceChildren();
+    making = bar.make(recipe, {
+      onStep(i, n, text) {
+        if (makingDots.children.length !== n) makingDots.replaceChildren(...Array.from({ length: n }, () => document.createElement('li')));
+        [...makingDots.children].forEach((li, k) => li.classList.toggle('is-done', k <= i));
+        makingCount.textContent = `${recipe.name} · ${i + 1} of ${n}`;
+        makingText.textContent = text;
+        makingCard.hidden = false;
+      },
+      onDone() {
+        making = null;
+        [...makingDots.children].forEach((li) => li.classList.add('is-done'));
+        makingCount.textContent = recipe.name;
+        makingText.textContent = 'There you go. Cheers!';
+        makingDone = setTimeout(() => { if (!making) makingCard.hidden = true; }, 4000);
+      },
+    });
+  }
+  function stopMaking() {
+    if (making) making.cancel();
+    making = null;
+    makingCard.hidden = true;
+  }
+  const skipMaking = () => { if (making) making.skip(); };
+  makeSkip.addEventListener('click', skipMaking);
+  decorateDrinks = () => {
+    if (state !== 'walk' && state !== 'seat') return;
+    panelBody.querySelectorAll('.recipe').forEach((sec, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'recipe__make';
+      b.dataset.make = i;
+      b.textContent = state === 'seat' ? 'Make me one' : 'Make me one at the bar';
+      sec.append(b);
+    });
+  };
+  panelBody.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-make]');
+    if (!b) return;
+    startMaking(+b.dataset.make); // first, so closing the panel doesn't bring the menu back up
+    closePanel();
+  });
 
   let chatter;
   let leaving = false;
@@ -740,11 +804,12 @@ async function start() {
       say(data.bartender[0]);
       let i = 1;
       clearInterval(chatter);
-      chatter = setInterval(() => { if (state === 'seat' && panel.hidden) say(data.bartender[i++ % data.bartender.length]); }, 12000);
+      chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making) say(data.bartender[i++ % data.bartender.length]); }, 12000);
     });
   }
 
   leaveBar = () => {
+    stopMaking();
     drinkBackOnBar();
     ordering = false;
     hideMenu();
@@ -789,6 +854,7 @@ async function start() {
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (!panel.hidden) closePanel();
+    else if (making && menu.hidden) skipMaking(); // Esc while it's making one: straight to the drink
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
     else if (state === 'seat' && held) putDownMenu(); // first Esc puts the menu down, the next one leaves
     else if (state === 'seat') leaveBar();
@@ -949,7 +1015,7 @@ async function start() {
     // a pool of light, and the bartender waves you over. The menu card gets one, until the first
     // time it's picked up.
     let label = null;
-    if (state === 'seat' && !held && !cardFlight && !flight && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
+    if (state === 'seat' && !held && !cardFlight && !flight && !making && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
@@ -961,6 +1027,7 @@ async function start() {
       }
     } else if (!beacon.hidden) beacon.hidden = true;
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
+    makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
     const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
     if (state === 'camp' && !leaving) roaster.update(realDt, atFire && (roast.pointer || roast.key), campSpot.hotSpot);
@@ -1005,7 +1072,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
   window.__sceneReady = true;
 }
 

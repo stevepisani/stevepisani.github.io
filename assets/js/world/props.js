@@ -772,3 +772,164 @@ export function thinkerFallback() {
   add(limb(0.045, 0.3), -0.18, 0.78, 0.2, 0.7, 0, -0.2);         // left arm over the left knee
   return g;
 }
+
+/* ---------------- Glassware, for the drinks the robot makes ---------------- */
+
+// Profiles (outer wall, bottom to rim) in metres, for LatheGeometry. `base` is the inside floor.
+const GLASSES = {
+  rocks:   { r: 0.043, h: 0.09, base: 0.014, wall: 0.004 },  // old fashioned
+  collins: { r: 0.031, h: 0.15, base: 0.014, wall: 0.0035 },
+  coupe:   { r: 0.056, h: 0.125, base: 0.085, wall: 0.003, stem: true }, // bowl from 0.085 up
+};
+
+/**
+ * A glass for a real drink: clear glass, the drink inside (fill it as it's poured), ice,
+ * foam, frost and garnish. Stands on y = 0; `mouth` is the top centre, in its own frame.
+ */
+export function barGlass(kind = 'rocks') {
+  const G = GLASSES[kind] || GLASSES.rocks;
+  const group = new THREE.Group();
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.15, clearcoat: 1, depthWrite: false, side: THREE.DoubleSide });
+  const pts = [];
+  if (G.stem) {
+    // foot, stem, and a wide shallow bowl
+    pts.push(new THREE.Vector2(0.001, 0), new THREE.Vector2(0.036, 0), new THREE.Vector2(0.036, 0.004), new THREE.Vector2(0.006, 0.01), new THREE.Vector2(0.004, 0.07), new THREE.Vector2(0.01, G.base - 0.006));
+    for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI * 0.5; pts.push(new THREE.Vector2(Math.sin(a) * G.r, G.base - 0.004 + (1 - Math.cos(a)) * (G.h - G.base))); }
+  } else {
+    pts.push(new THREE.Vector2(0.001, 0), new THREE.Vector2(G.r * 0.96, 0), new THREE.Vector2(G.r, 0.006), new THREE.Vector2(G.r, G.h));
+  }
+  const shell = new THREE.Mesh(new THREE.LatheGeometry(pts, 28), glassMat);
+  shell.renderOrder = 2; // after what's inside it
+  group.add(shell);
+  // a heavy clear base on the tumblers, which is what makes them read as glass in low light
+  if (!G.stem) {
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(G.r - G.wall, G.r * 0.96, G.base, 24), glassMat.clone());
+    foot.material.opacity = 0.35;
+    foot.position.y = G.base / 2;
+    foot.renderOrder = 2;
+    group.add(foot);
+  }
+
+  // The drink: straight glasses fill as a cylinder; the coupe's bowl as a cap that widens.
+  const inner = G.r - G.wall;
+  const depth = (G.stem ? G.h - G.base : G.h - G.base) * 0.9;
+  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.12, roughness: 0.1 });
+  let liquid;
+  if (G.stem) {
+    const cap = [];
+    for (let i = 0; i <= 10; i++) { const a = (i / 10) * Math.PI * 0.5; cap.push(new THREE.Vector2(Math.sin(a) * inner * 0.97, (1 - Math.cos(a)))); }
+    cap.push(new THREE.Vector2(0, 1));
+    liquid = new THREE.Mesh(new THREE.LatheGeometry(cap, 24), liquidMat);
+    liquid.position.y = G.base - 0.002;
+  } else {
+    liquid = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.98, inner * 0.98, 1, 24).translate(0, 0.5, 0), liquidMat);
+    liquid.position.y = G.base;
+  }
+  liquid.renderOrder = 1;
+  liquid.visible = false;
+  group.add(liquid);
+  let level = 0;
+  const fill = (k) => {
+    level = THREE.MathUtils.clamp(k, 0, 1);
+    liquid.visible = level > 0.01;
+    if (G.stem) { // the bowl is a quarter circle: scale it so its top sits at the fill height, as wide as the bowl is there
+      const hgt = Math.max(0.001, level * depth), a = Math.acos(1 - hgt / (G.h - G.base));
+      liquid.scale.set(Math.sin(a), hgt, Math.sin(a));
+    } else liquid.scale.y = Math.max(0.001, level * depth);
+    const top = liquid.position.y + level * depth;
+    for (const f of floaters) f.position.y = Math.max(f.userData.rest, top - f.userData.sink);
+  };
+
+  // Ice floats on what's poured; crushed ice fills the glass. Garnish and foam sit on top.
+  const floaters = [];
+  const iceMat = new THREE.MeshPhysicalMaterial({ color: PALETTE.ice, roughness: 0.25, transparent: true, opacity: 0.6, clearcoat: 1, depthWrite: false });
+  function ice(type) {
+    if (type === 'cubes') {
+      const cube = new THREE.BoxGeometry(0.026, 0.026, 0.026);
+      [[-0.01, 0.009, 0.3], [0.012, -0.006, 1.1], [-0.002, -0.013, 2.2]].forEach(([x, z, r], i) => {
+        const c = new THREE.Mesh(cube, iceMat);
+        c.position.set(x, G.base + 0.014 + i * 0.022, z);
+        c.rotation.set(r, r * 0.7, r * 0.3);
+        c.userData.rest = c.position.y; c.userData.sink = 0.012 - i * 0.004;
+        c.renderOrder = 1;
+        group.add(c); floaters.push(c);
+      });
+    } else if (type === 'crushed') {
+      // packed to the rim: a rough column, and a mound on top once it's topped up
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.95, inner * 0.95, G.h - G.base - 0.004, 16, 6), iceMat);
+      const pos = col.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) { const k = 1 + Math.sin(i * 12.9898) * 0.05; pos.setX(i, pos.getX(i) * k); pos.setZ(i, pos.getZ(i) * k); }
+      col.geometry.computeVertexNormals();
+      col.position.y = G.base + (G.h - G.base) / 2;
+      col.renderOrder = 1;
+      group.add(col);
+    }
+  }
+  function mound() {
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(inner * 1.05, 1).scale(1, 0.55, 1), iceMat);
+    m.position.y = G.h;
+    m.renderOrder = 1;
+    group.add(m);
+  }
+  function foam(color) {
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.99, inner * 0.97, 0.01, 24), pbr({ color, roughness: 0.9, emissive: color, emissiveIntensity: 0.08 }));
+    f.position.y = G.base + depth - 0.002;
+    group.add(f);
+  }
+  function frost(k) { // a swizzle frosts the glass over
+    glassMat.opacity = 0.15 + k * 0.5;
+    glassMat.roughness = 0.05 + k * 0.6;
+  }
+  function garnish(name) {
+    const g = garnishFor(name);
+    if (!g) return;
+    if (name === 'pineapple') { g.position.set(G.r * 0.9, G.h - 0.01, 0); g.rotation.y = 0.2; }
+    else if (name === 'orange') { g.position.set(G.r * 0.45, G.base + depth * 0.55, 0.004); g.rotation.set(0, Math.PI / 2, 0.15); } // slid down the inside
+    else if (name === 'mint') g.position.set(-0.004, G.h + 0.02, 0.004);
+    else if (name === 'beans') g.position.set(0.002, (kind === 'rocks' ? G.h - 0.012 : G.base + depth), -0.006);
+    group.add(g);
+  }
+  return {
+    group, liquid, fill, ice, mound, foam, frost, garnish,
+    color(c) { liquidMat.color.set(c); liquidMat.emissive.set(c); },
+    get level() { return level; },
+    mouth: new THREE.Vector3(0, G.h, 0),
+    height: G.h,
+  };
+}
+
+/** A garnish, full size (the robot holds one, then it goes on the glass). */
+export function garnishFor(name) {
+  const g = new THREE.Group();
+  if (name === 'pineapple') {
+    const wedge = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.012, 3, 1, false, 0, Math.PI / 3).rotateX(Math.PI / 2), pbr({ color: PALETTE.pineapple, roughness: 0.6, emissive: PALETTE.pineapple, emissiveIntensity: 0.1 }));
+    wedge.rotation.z = -Math.PI / 2 - Math.PI / 6;
+    g.add(wedge);
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.06, 4), pbr({ color: PALETTE.leaf, roughness: 0.7 }));
+    leaf.position.set(0, 0.04, 0);
+    g.add(leaf);
+  } else if (name === 'orange') {
+    const slice = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.005, 20, 1, false, 0, Math.PI), [pbr({ color: PALETTE.orange, roughness: 0.6 }), pbr({ color: PALETTE.pineapple, roughness: 0.5, emissive: PALETTE.orange, emissiveIntensity: 0.15 }), pbr({ color: PALETTE.cream })]);
+    slice.rotation.x = Math.PI / 2;
+    g.add(slice);
+  } else if (name === 'mint') {
+    const m = pbr({ color: PALETTE.mint, roughness: 0.6, side: THREE.DoubleSide });
+    for (let i = 0; i < 6; i++) {
+      const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6).scale(1, 0.25, 0.6), m);
+      const a = i * 2.3, y = i * 0.006;
+      leaf.position.set(Math.cos(a) * 0.008, y, Math.sin(a) * 0.008);
+      leaf.rotation.set(0.6, a, 0.4);
+      g.add(leaf);
+    }
+  } else if (name === 'beans') {
+    const m = pbr({ color: PALETTE.stain, roughness: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6).scale(1, 0.6, 0.8), m);
+      b.position.set(Math.cos(i * 2.1) * 0.009, 0, Math.sin(i * 2.1) * 0.009);
+      b.rotation.y = i;
+      g.add(b);
+    }
+  } else return null;
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
