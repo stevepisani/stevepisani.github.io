@@ -70,6 +70,12 @@
 .topbar__nav a:hover { background: rgb(255 255 255 / .1); color: #fff; }
 .topbar__nav a[aria-current="page"] { background: #fff; color: #11132a; }
 .topbar__menu { display: none; font: 600 .95rem var(--font-body); color: #fff; min-width: 44px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); cursor: pointer; }
+/* the sections, and on phones the Menu button, with the speaker beside them */
+.topbar__end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; } /* the buttons keep their size; the tagline wraps first */
+.topbar__sound { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #dfe2f5; cursor: pointer; }
+.topbar__sound:hover { color: #fff; background: rgb(14 16 36 / .85); }
+.topbar__sound[hidden] { display: none; }
+.topbar__sound[aria-pressed="true"] .topbar__sound-off, .topbar__sound[aria-pressed="false"] .topbar__sound-on { display: none; }
 /* seven sections: below this they'd wrap, so the Menu button takes over */
 @media (max-width: 1040px) {
   .topbar__nav { display: none; }
