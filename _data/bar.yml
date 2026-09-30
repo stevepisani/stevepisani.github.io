@@ -42,6 +42,7 @@ menu:
 # Things the robot bartender says while you're seated, in rotation.
 bartender:
   - "Welcome to Steve's. The menu's right in front of you. It's on the house."
+  - "See the chalkboard? Those are Steve's favorites. Pick one and I'll make it for you."
   - "I'm an AI. The aloha shirt was his idea."
   - "There's a campfire around the back of the planet. The marshmallows are on the house too."
   - "The telescope out front is pointed at the next rocket launch."

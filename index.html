@@ -106,6 +106,12 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <button type="button" class="seat-leave" id="seat-leave" hidden>Leave the bar</button>
   <button type="button" class="seat-leave" id="camp-leave" hidden>Leave the fire</button>
   <button type="button" class="camp-eat" id="camp-eat" hidden>Eat it</button>
+  <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
+  <div class="making" id="making" role="status" hidden>
+    <p class="making__count" id="making-count"></p>
+    <p class="making__text" id="making-text"></p>
+    <ol class="making__dots" id="making-dots" aria-hidden="true"></ol>
+  </div>
 
   <aside class="panel" id="panel" aria-labelledby="panel-title" hidden>
     <div class="panel__bar">
@@ -120,7 +126,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
-  "drinks": [{% for d in site.data.drinks limit: 6 %}{{ d.name | jsonify }}{% unless forloop.last %},{% endunless %}{% endfor %}]
+  "drinks": {{ site.data.drinks | jsonify }}
 }
 </script>
 

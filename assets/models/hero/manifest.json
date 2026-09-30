@@ -33,5 +33,25 @@
   "thinker": {
     "file": "thinker.glb",
     "height": 1.5
+  },
+  "bottle-planteray": {
+    "file": "bottle-planteray.glb",
+    "height": 0.26,
+    "lazy": true
+  },
+  "bottle-campari": {
+    "file": "bottle-campari.glb",
+    "height": 0.3,
+    "lazy": true
+  },
+  "bottle-chartreuse": {
+    "file": "bottle-chartreuse.glb",
+    "height": 0.28,
+    "lazy": true
+  },
+  "bottle-meletti": {
+    "file": "bottle-meletti.glb",
+    "height": 0.3,
+    "lazy": true
   }
 }
