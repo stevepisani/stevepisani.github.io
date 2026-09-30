@@ -75,6 +75,7 @@ function openPanel(id, { push = true, from = null } = {}) {
   menu.hidden = true;
   markCurrent(id);
   panelBody.querySelectorAll('[data-launch]').forEach(fillLaunch);
+  if (window.fillSky) panelBody.querySelectorAll('[data-sky]').forEach(window.fillSky);
   if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
