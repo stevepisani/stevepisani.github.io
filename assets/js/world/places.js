@@ -377,8 +377,19 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       shore: { eye: crouch.clone().addScaledVector(up, 0.85), stand: crouch.clone().addScaledVector(up, 1.62), look: far.clone().multiplyScalar(RADIUS + POND.level + 0.25) } });
   }
 
-  // Messages in bottles, washed up at the waterline (scenery).
-  put(messageBottles(3), SPOTS.bottles, { heading: LAGOON.bottlesPhi }, 0.3);
+  // Messages in bottles, washed up at the waterline: crouch behind them and write one, then
+  // throw it into space (main.js goToBottles; note.js). You face across the water and up a
+  // little, so there's sky to throw it into.
+  {
+    const phi = LAGOON.bottlesPhi, shore = shoreAt(phi);
+    const pile = messageBottles(3);
+    put(pile, SPOTS.bottles, { heading: phi }, 0.3);
+    const crouch = surfacePoint(pondDir(shore + 0.75, phi));
+    const up = crouch.clone().normalize();
+    const far = pondDir(shoreAt(phi + Math.PI) * 0.6, phi + Math.PI);
+    interactables.push({ id: 'bottles', label: 'Messages in bottles', verb: 'Write one', object: pile, point: surfacePoint(SPOTS.bottles), approach: surfacePoint(pondDir(shore + 1.5, phi)), radius: 2.2,
+      note: { eye: crouch.clone().addScaledVector(up, 0.85), stand: crouch.clone().addScaledVector(up, 1.62), look: far.clone().multiplyScalar(RADIUS + POND.level + 3), upright: pile.userData.upright } });
+  }
 
   // Scatter: lava rock, palms and dark greenery.
   {

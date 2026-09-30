@@ -21,6 +21,26 @@
     if (location.hash === '#theme') btn.classList.add('is-pulsing');
   }
 
+  /* ---- Page count ---- */
+  // One row per page view in Supabase (public.pageviews): the path, the referring site's host if
+  // it's another site, and the kind of screen. No cookies, no IP, nothing kept in the browser.
+  // Skipped for Do Not Track / Global Privacy Control, automated browsers and local previews.
+  function meta(name) { var m = document.querySelector('meta[name="' + name + '"]'); return m ? m.content : ''; }
+  window.siteDb = { url: meta('supabase-url'), key: meta('supabase-key') };
+  (function count() {
+    var db = window.siteDb, n = navigator;
+    if (!db.url || !db.key || n.webdriver || n.doNotTrack === '1' || n.globalPrivacyControl) return;
+    if (/^(localhost|127\.|0\.0\.0\.0|\[::1\])/.test(location.hostname)) return;
+    var ref = null;
+    try { var r = document.referrer && new URL(document.referrer); if (r && r.host !== location.host) ref = r.host.slice(0, 100); } catch (e) {}
+    var w = Math.min(screen.width, innerWidth || screen.width);
+    var body = JSON.stringify({ path: location.pathname.slice(0, 200), referrer: ref, screen: w < 700 ? 'phone' : w < 1100 ? 'tablet' : 'desktop' });
+    try {
+      fetch(db.url + '/rest/v1/pageviews', { method: 'POST', keepalive: true, body: body,
+        headers: { 'content-type': 'application/json', apikey: db.key, authorization: 'Bearer ' + db.key, prefer: 'return=minimal' } }).catch(function () {});
+    } catch (e) {}
+  })();
+
   /* ---- Next rocket launch (Launch Library 2) ---- */
   // Shared by the homepage card and the bar's telescope. Free API, 15 req/hr/IP,
   // so the response is cached in localStorage for an hour.
