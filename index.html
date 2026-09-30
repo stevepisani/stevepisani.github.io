@@ -120,6 +120,12 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <button type="button" class="seat-leave" id="shore-leave" hidden>Leave the shore</button>
   <button type="button" class="camp-eat" id="shore-throw" hidden>Hold to throw</button>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
+  <p class="chat-reply" id="chat-reply" aria-live="polite" hidden></p>
+  <form class="chat" id="chat" hidden>
+    <label class="visually-hidden" for="chat-input">Ask the bartender</label>
+    <input id="chat-input" type="text" maxlength="400" placeholder="Ask the bartender anything" autocomplete="off" enterkeyhint="send">
+    <button type="submit">Ask</button>
+  </form>
   <div class="making" id="making" role="status" hidden>
     <p class="making__count" id="making-count"></p>
     <p class="making__text" id="making-text"></p>
@@ -139,7 +145,8 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
-  "drinks": {{ site.data.drinks | jsonify }}
+  "drinks": {{ site.data.drinks | jsonify }},
+  "supabase": { "url": {{ site.supabase.url | jsonify }}, "key": {{ site.supabase.anon_key | jsonify }} }
 }
 </script>
 
