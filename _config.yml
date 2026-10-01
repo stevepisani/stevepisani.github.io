@@ -51,3 +51,9 @@ exclude:
   - .jekyll-cache
   - tools
   - supabase
+  - package.json
+  - package-lock.json
+  - node_modules
+  # the sources tools/build-js.mjs bundles into assets/js/dist/
+  - assets/js/site.js
+  - assets/js/world

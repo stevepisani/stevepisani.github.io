@@ -4,5 +4,6 @@ _site
 .jekyll-metadata
 vendor
 .env
-tools/node_modules
 .bundle
+node_modules
+assets/js/dist

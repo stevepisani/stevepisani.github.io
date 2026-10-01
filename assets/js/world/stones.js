@@ -116,5 +116,7 @@ export function createSkipper(scene) {
     get flying() { return stones.length > 0; },
     /** The water's surface: this far from the planet's centre. */
     water: WATER,
+    /** A ring spreading on the water at `at` (anything that lands in it: physics.js too). */
+    ripple,
   };
 }

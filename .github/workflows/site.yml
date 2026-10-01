@@ -1,0 +1,59 @@
+# Builds the site and publishes it to GitHub Pages: the scripts bundled and minified
+# (npm run build, tools/build-js.mjs), then Jekyll, then a check that every internal link and
+# asset is there (tools/check-site.mjs). Pull requests build and check; main also deploys.
+# (Settings → Pages → Source is "GitHub Actions": Pages no longer builds the branch itself.)
+name: Site
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }} # never cut a deploy off halfway
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Bundle the scripts
+        run: npm ci --no-audit --no-fund && npm run build
+      - name: Build
+        run: bundle exec jekyll build --strict_front_matter
+        env:
+          JEKYLL_ENV: production
+          # jekyll-github-metadata asks the API for repo details; the token keeps it under the limit
+          JEKYLL_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check links and assets
+        run: node tools/check-site.mjs _site
+      - if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
