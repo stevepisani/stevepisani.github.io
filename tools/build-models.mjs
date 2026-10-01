@@ -20,10 +20,11 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies(
   'meshopt.decoder': MeshoptDecoder,
 });
 
-const SRC = path.resolve('models');
-const OUT = path.resolve('../assets/models/props.glb');
+const HERE = path.dirname(new URL(import.meta.url).pathname);
+const SRC = path.resolve(HERE, 'models');
+const OUT = path.resolve(HERE, '../assets/models/props.glb');
 
-const WORLD = path.resolve('../assets/js/world');
+const WORLD = path.resolve(HERE, '../assets/js/world');
 const used = new Set();
 for (const f of fs.readdirSync(WORLD).filter((f) => f.endsWith('.js'))) {
   for (const m of fs.readFileSync(path.join(WORLD, f), 'utf8').matchAll(/prop\('([\w-]+_[\w-]+)'/g)) used.add(m[1]);

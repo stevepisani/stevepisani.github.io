@@ -26,6 +26,7 @@ import { createSound } from './sound.js';
 import { createSkipper } from './stones.js';
 import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
+import { createPhysics } from './physics.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -291,6 +292,7 @@ async function start() {
   await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
   scene.add(sky.group, planet.group, bar.group, places.group);
+  for (const l of bar.loose) scene.add(l.object); // the bar's fallen coconuts live in world space
   // the lanterns and torches without real lights light the ground through its shaders (lamps.js)
   finishLamps();
   lampLitTree(planet.group);
@@ -320,6 +322,17 @@ async function start() {
   scene.traverse((o) => { if (o.isPointLight && o.castShadow) pointShadows.push([o, o.getWorldPosition(new THREE.Vector3())]); });
 
   const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
+  // Loose things (coconuts, glass floats) for the physics engine, which loads once the planet is up
+  const physics = createPhysics({
+    scene,
+    loose: [...bar.loose, ...places.loose],
+    posts: [...bar.colliders, ...places.colliders],
+    solids: bar.solids,
+    on(kind, at, k) {
+      sound.play(kind, at, k);
+      if (kind === 'splash') skipper.ripple(at, 0.4 + k * 0.6, 1.6);
+    },
+  });
   const interactables = [...bar.interactables, ...places.interactables];
   const barSpot = interactables.find((i) => i.id === 'seat');
   const campSpot = interactables.find((i) => i.id === 'campfire');
@@ -372,15 +385,20 @@ async function start() {
   const interactMeshes = new Map();
   const byGenerality = [...interactables].sort((a, b) => (a.id === 'seat' ? -1 : b.id === 'seat' ? 1 : 0));
   for (const it of byGenerality) for (const obj of [it.object, ...(it.extra || [])]) obj && obj.traverse((o) => { if (o.isMesh) interactMeshes.set(o, it); });
-  const pickList = [...interactMeshes.keys(), ground];
+  // the loose things: picked up once the physics is there to throw them
+  const looseMeshes = new Map();
+  for (const it of physics.items) it.object.traverse((o) => { if (o.isMesh) looseMeshes.set(o, it); });
+  const pickList = [...interactMeshes.keys(), ...looseMeshes.keys(), ground];
 
   function pick(x, y) {
     const r = canvas.getBoundingClientRect();
     ndc.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
-    const hit = raycaster.intersectObjects(pickList, false)[0];
+    const hit = raycaster.intersectObjects(pickList, false).find((h) => !(looseMeshes.get(h.object) || {}).held);
     if (!hit) return null;
     if (hit.object === ground) return { ground: hit.point };
+    const loose = looseMeshes.get(hit.object);
+    if (loose) return physics.ready ? { loose, point: hit.point } : { ground: hit.point };
     return { thing: interactMeshes.get(hit.object), point: hit.point };
   }
 
@@ -427,6 +445,7 @@ async function start() {
     const p = pick(x, y);
     if (!p) return;
     if (p.thing) return goUse(p.thing);
+    if (p.loose) return goGrab(p.loose);
     clearHint('walk');
     player.walkTo(p.ground);
     showDest(p.ground);
@@ -454,7 +473,7 @@ async function start() {
       return;
     }
     const p = pick(x, y);
-    hovered = p && p.thing;
+    hovered = p && (p.thing || (p.loose && { label: p.loose.label, verb: 'Pick it up' }));
     if (hovered) {
       tip.hidden = false;
       tip.querySelector('strong').textContent = hovered.label;
@@ -940,13 +959,20 @@ async function start() {
     else if (state === 'hammock') getOutOfHammock();
     else if (state === 'shore') leaveShore();
     else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
+    else if (state === 'walk' && carry) putDown();
   });
   addEventListener('keydown', (e) => {
     if (e.code !== 'Space' || e.target.closest('button, a, input, textarea')) return;
     if (state === 'camp') { roast.key = true; e.preventDefault(); }
     if (state === 'shore') { if (!e.repeat) startWind(); e.preventDefault(); }
+    if (state === 'walk' && carry && panel.hidden && menu.hidden) { if (!e.repeat) windCarry(); e.preventDefault(); }
   });
-  addEventListener('keyup', (e) => { if (e.code !== 'Space') return; roast.key = false; if (state === 'shore' && windUp >= 0) releaseThrow(); });
+  addEventListener('keyup', (e) => {
+    if (e.code !== 'Space') return;
+    roast.key = false;
+    if (state === 'shore' && windUp >= 0) releaseThrow();
+    if (carryWind >= 0) throwCarried();
+  });
 
   /* ---------- The campfire: sit on a log, roast marshmallows ---------- */
   // The same continuous body motion as the bar: step up behind the log, sit, face the fire.
@@ -1333,6 +1359,59 @@ async function start() {
     if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') { e.preventDefault(); noteGo.click(); }
   });
 
+  /* ---------- Loose things: pick them up, throw them (physics.js) ---------- */
+  // Click a coconut or a glass float and you walk over and pick it up; it's in your hand while you
+  // walk about. Press and hold "Hold to throw" (or Space), let go: held longer is harder (full at
+  // 1 s), and it goes where you look. "Put it down" (or Esc) sets it at your feet; doing anything
+  // else (sitting down, the fire...) puts it down first. Walking into one knocks it along.
+  const CARRY = new THREE.Vector3(0.3, -0.3, -0.85); // at arm's length, low on the right
+  const carryDrop = $('carry-drop'), carryThrow = $('carry-throw');
+  let carry = null, carryWind = -1;
+  function grab(it) {
+    if (carry) putDown();
+    if (!physics.take(it)) return;
+    carry = it;
+    camera.add(it.object);
+    it.object.position.copy(CARRY);
+    it.object.quaternion.identity();
+    showHint(coarse ? 'Press and hold "Hold to throw", then let go.' : 'Hold Space (or "Hold to throw"), then let go to throw it.', 'throw');
+  }
+  function goGrab(it) {
+    clearHint('walk');
+    const at = it.object.position;
+    if (player.pos.distanceTo(at) < 1.6) return grab(it);
+    player.walkTo(at, { arrive: 0.85, onArrive: () => { if (!it.held && state === 'walk' && player.pos.distanceTo(it.object.position) < 1.8) grab(it); } });
+    showDest(at);
+  }
+  function putDown() {
+    if (!carry) return;
+    const it = carry;
+    carry = null; carryWind = -1;
+    const up = player.pos.clone().normalize();
+    const fwd = player.forward(new THREE.Vector3());
+    fwd.addScaledVector(up, -fwd.dot(up)).normalize();
+    physics.release(it, player.pos.clone().addScaledVector(fwd, 0.6).addScaledVector(up, it.radius + 0.15));
+  }
+  function windCarry() { if (carry && carryWind < 0) carryWind = 0; }
+  function throwCarried() {
+    if (!carry || carryWind < 0) { carryWind = -1; return; }
+    const power = Math.min(1, carryWind / 1);
+    const it = carry;
+    carry = null; carryWind = -1;
+    const up = camera.position.clone().normalize();
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+    const from = camera.localToWorld(CARRY.clone().setY(-0.1));
+    const vel = fwd.multiplyScalar(2.5 + 7.5 * power).addScaledVector(up, 1 + 1.5 * power);
+    const spin = new THREE.Vector3().randomDirection().multiplyScalar(4 + 6 * power);
+    physics.release(it, from, vel, spin);
+    sound.play('toss');
+    clearHint('throw');
+    window.__lastToss = { power, label: it.label }; // for tests
+  }
+  carryDrop.addEventListener('click', putDown);
+  carryThrow.addEventListener('pointerdown', (e) => { e.preventDefault(); windCarry(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) carryThrow.addEventListener(ev, () => { if (carryWind >= 0) throwCarried(); });
+
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
@@ -1379,6 +1458,15 @@ async function start() {
     }
     skipper.update(realDt);
     ritual.update(realDt);
+    physics.update(realDt, player.pos);
+    if (carry) {
+      if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
+      else { // drawn back as you wind up
+        if (carryWind >= 0) carryWind += realDt;
+        const k = carryWind >= 0 ? Math.min(1, carryWind) : 0;
+        carry.object.position.set(CARRY.x + 0.08 * k, CARRY.y - 0.03 * k, CARRY.z + 0.15 * k);
+      }
+    }
     if (fireflies) { fireflies.setSelf(camera.position); fireflies.update(clock += realDt, realDt, reducedMotion); }
     if (state === 'shore') {
       if (windUp >= 0) windUp += realDt;
@@ -1491,6 +1579,8 @@ async function start() {
     const atShore = state === 'shore' && !flight && !leaving && panel.hidden && menu.hidden;
     shoreLeave.hidden = shoreThrow.hidden = !atShore;
     shoreThrow.classList.toggle('is-winding', windUp >= 0);
+    carryDrop.hidden = carryThrow.hidden = !(state === 'walk' && carry && !flight && panel.hidden && menu.hidden);
+    carryThrow.classList.toggle('is-winding', carryWind >= 0);
     const atBottles = state === 'note' && !flight && !leaving && panel.hidden && menu.hidden;
     noteLeave.hidden = !atBottles || noteStep === 'writing';
     noteGo.hidden = !atBottles || !(noteStep === null || noteStep === 'ready' || noteStep === 'thrown');
@@ -1539,8 +1629,11 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
   window.__sceneReady = true;
+
+  // The physics engine: a megabyte of WebAssembly nobody needs for the first frame
+  physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e));
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
   fireflies = createFireflies(scene, DB);

@@ -6,7 +6,7 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat } from './props.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
@@ -86,6 +86,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   const animated = [];
   const colliders = [];
   const interactables = [];
+  const loose = []; // things physics.js moves: { object, radius, buoyancy (floats if > 1) }
   const occupied = []; // directions + radii kept clear of scatter
 
   const put = (obj, dir, opts = {}, clear = 1.5) => {
@@ -122,6 +123,17 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     // no real light: it lights the ground through the shaders instead (lamps.js)
     if (!light) { g.updateMatrixWorld(true); addLamp(g.localToWorld(new THREE.Vector3(0.25, height - 0.23, 0)), pool); }
     return g;
+  };
+  // Something loose lying on the ground, for physics.js to take over: until it loads, it just lies there.
+  const drop = (object, dir, buoyancy) => {
+    const radius = object.userData.radius;
+    object.position.copy(surfacePoint(dir, radius * 0.9));
+    group.add(object);
+    loose.push({ object, radius, buoyancy });
+  };
+  // a few fallen coconuts round the foot of a palm
+  const fallen = (dir, n, seed) => {
+    for (let i = 0; i < n; i++) drop(coconut(seed + i), beside(dir, 0.55 + 0.35 * ((seed * 7 + i * 3) % 5) / 5, seed + i * 2.3), 1.6);
   };
   const beside = (dir, metres, turn = 0) => {
     const up = dir.clone().normalize();
@@ -334,7 +346,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     put(boat, SPOTS.boat, { heading: headingToward(SPOTS.boat, POND.center), sink: 0.1 }, 2.2);
     lantern(pondDir(shoreAt(LAGOON.lanternPhi) + 1.0, LAGOON.lanternPhi), { height: 1.3 });
     colliders.push({ center: boat.position.clone(), radius: 1.4 });
-    colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35 }); // stop at the waterline (it wanders ±15%)
+    colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35, walkOnly: true }); // stop at the waterline (it wanders ±15%)
   }
 
   // A hammock between two palms by the lagoon, a book left open in it: the reading list.
@@ -382,6 +394,14 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   // little, so there's sky to throw it into.
   {
     const phi = LAGOON.bottlesPhi, shore = shoreAt(phi);
+    // two glass floats washed up along from them, loose in their nets (they float)
+    [[0.9, PALETTE.aqua], [-1.3, PALETTE.amber]].forEach(([m, color]) => {
+      const f = glassFloat({ radius: 0.15, color, lit: 0.5 });
+      f.userData.radius = 0.155;
+      f.userData.label = 'Glass float';
+      const at = phi + m / shore;
+      drop(f, pondDir(shoreAt(at) + 0.4, at), 4);
+    });
     const pile = messageBottles(3);
     put(pile, SPOTS.bottles, { heading: phi }, 0.3);
     const crouch = surfacePoint(pondDir(shore + 0.75, phi));
@@ -420,6 +440,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       const p = palm({ height: 4 + rand() * 2.5, lean: 0.2 + rand() * 0.35, seed: 200 + i });
       put(p, dir, { heading: rand() * 6.28 }, 0.6);
       colliders.push({ center: surfacePoint(dir), radius: 0.3 });
+      if (i < 6) fallen(dir, 2, 20 + i * 5);
       const crown = p.userData.crown;
       animated.push((t) => { crown.rotation.z = Math.sin(t * 0.8 + i) * 0.035; });
     }
@@ -437,6 +458,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     group,
     colliders,
     interactables,
+    loose,
     update(t) { for (const f of animated) f(t); },
   };
 }
