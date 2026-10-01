@@ -119,6 +119,18 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <button type="button" class="camp-eat" id="hammock-read" hidden>Reading list</button>
   <button type="button" class="seat-leave" id="shore-leave" hidden>Leave the shore</button>
   <button type="button" class="camp-eat" id="shore-throw" hidden>Hold to throw</button>
+  <button type="button" class="seat-leave" id="note-leave" hidden>Leave the shore</button>
+  <button type="button" class="camp-eat" id="note-go" hidden>Write one</button>
+  <form class="note" id="note" hidden>
+    <label class="visually-hidden" for="note-text">Your message</label>
+    <textarea id="note-text" maxlength="280" placeholder="Write a message to whoever finds it…"></textarea>
+    <label class="note__sign"><span>Signed</span><input id="note-sign" maxlength="40" placeholder="(optional)" autocomplete="off"></label>
+    <div class="note__foot">
+      <button type="button" id="note-cancel">Put it back</button>
+      <span class="note__left" id="note-left" aria-live="polite">280 left</span>
+      <button type="submit" class="note__roll">Roll it up</button>
+    </div>
+  </form>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
   <p class="chat-reply" id="chat-reply" aria-live="polite" hidden></p>
   <form class="chat" id="chat" hidden>
@@ -145,8 +157,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
-  "drinks": {{ site.data.drinks | jsonify }},
-  "supabase": { "url": {{ site.supabase.url | jsonify }}, "key": {{ site.supabase.anon_key | jsonify }} }
+  "drinks": {{ site.data.drinks | jsonify }}
 }
 </script>
 

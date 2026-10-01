@@ -730,24 +730,41 @@ export function bookStack(n = 3, seed = 9) {
  * Messages in bottles washed up at the waterline: green glass, a cork, a rolled letter inside.
  * `n` bottles in a loose group, one stuck upright in the sand.
  */
+/**
+ * One message in a bottle, standing on its base (y = 0): a green glass bottle, a cork, and the
+ * rolled letter inside. userData { cork, letter, neck } (neck: the mouth's height).
+ */
+const BOTTLE_PROFILE = [[0, 0], [0.045, 0], [0.05, 0.01], [0.05, 0.15], [0.042, 0.18], [0.02, 0.21], [0.016, 0.24], [0.018, 0.26], [0, 0.26]];
+let bottleParts = null;
+export function messageBottle() {
+  bottleParts ||= {
+    geo: new THREE.LatheGeometry(BOTTLE_PROFILE.map(([x, y]) => new THREE.Vector2(x, y)), 16),
+    glass: new THREE.MeshStandardMaterial({ color: 0x3f8f5a, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.5, depthWrite: false }),
+    cork: pbr({ color: PALETTE.thatch, roughness: 0.9 }),
+    letter: pbr({ color: PALETTE.cream, roughness: 0.9 }),
+  };
+  const b = new THREE.Group();
+  const glass = new THREE.Mesh(bottleParts.geo, bottleParts.glass);
+  glass.renderOrder = 1; // drawn after what's inside it
+  b.add(glass);
+  const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.03, 8), bottleParts.cork); cork.position.y = 0.265; b.add(cork);
+  const letter = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 10), bottleParts.letter); letter.position.y = 0.08; letter.rotation.z = 0.08; b.add(letter);
+  b.userData = { cork, letter, neck: 0.26 };
+  return b;
+}
+
+/** A few of them washed up at the waterline; the last stands upright (userData.upright). */
 export function messageBottles(n = 3, seed = 17) {
   const r = rng(seed);
   const g = new THREE.Group();
-  const profile = [[0, 0], [0.045, 0], [0.05, 0.01], [0.05, 0.15], [0.042, 0.18], [0.02, 0.21], [0.016, 0.24], [0.018, 0.26], [0, 0.26]].map(([x, y]) => new THREE.Vector2(x, y));
-  const bottleGeo = new THREE.LatheGeometry(profile, 16);
-  const glass = new THREE.MeshStandardMaterial({ color: 0x3f8f5a, roughness: 0.12, metalness: 0, transparent: true, opacity: 0.5, depthWrite: false });
-  const cork = pbr({ color: PALETTE.thatch, roughness: 0.9 });
-  const letter = pbr({ color: PALETTE.cream, roughness: 0.9 });
   for (let i = 0; i < n; i++) {
-    const b = new THREE.Group();
-    b.add(new THREE.Mesh(bottleGeo, glass));
-    const ck = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.03, 8), cork); ck.position.y = 0.265; b.add(ck);
-    const lt = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 10), letter); lt.position.y = 0.08; lt.rotation.z = 0.08; b.add(lt);
+    const b = messageBottle();
     const upright = i === n - 1;
     const a = (i / n) * TAU + r() * 0.8, rr = 0.15 + r() * 0.25;
     b.position.set(Math.cos(a) * rr, upright ? -0.05 : 0.04, Math.sin(a) * rr);
     b.rotation.set(upright ? 0.25 : Math.PI / 2 - 0.08, r() * TAU, upright ? 0.15 : 0);
     if (!upright) b.rotation.order = 'YXZ';
+    else g.userData.upright = b;
     g.add(b);
   }
   return g;
