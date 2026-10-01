@@ -393,6 +393,37 @@ export function palm({ height = 5.5, lean = 0.35, seed = 1 } = {}) {
   return group;
 }
 
+/** A fallen coconut, husk and all: a lumpy brown egg with fibres, about 22 cm long. Loose on the
+ *  ground for the physics (physics.js rolls it as a ball of `userData.radius`). */
+let nutGeo, nutMat;
+export function coconut(seed = 1) {
+  if (!nutGeo) {
+    nutGeo = new THREE.SphereGeometry(0.1, 24, 16);
+    const p = nutGeo.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const k = 1 + 0.05 * Math.sin(v.x * 60) * Math.sin(v.z * 55) + 0.04 * Math.sin(Math.atan2(v.z, v.x) * 3); // three ridges
+      p.setXYZ(i, v.x * k, v.y * k * 1.12, v.z * k);
+    }
+    nutGeo.computeVertexNormals();
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d'), r = rng(77);
+    const husk = new THREE.Color(PALETTE.stain).lerp(new THREE.Color(PALETTE.wood), 0.4);
+    g.fillStyle = '#' + husk.getHexString(); g.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 90; i++) { g.fillStyle = r() < 0.5 ? `rgba(0,0,0,${0.1 + r() * 0.15})` : `rgba(230,190,140,${0.06 + r() * 0.08})`; g.fillRect(r() * 64, r() * 64, 1, 5 + r() * 12); } // fibres
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    nutMat = pbr({ map: tex, bumpMap: tex, bumpScale: 1.5, roughness: 0.9 });
+  }
+  const m = new THREE.Mesh(nutGeo, nutMat);
+  m.rotation.set(seed * 1.3, seed * 2.1, seed * 0.7);
+  m.castShadow = true;
+  m.userData.radius = 0.105;
+  m.userData.label = 'Coconut';
+  return m;
+}
+
 /* ---------------- Lava rock ---------------- */
 
 export function lavaRock({ size = 0.8, seed = 1 } = {}) {

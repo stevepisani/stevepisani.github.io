@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import * as T from './textures.js';
 import { PALETTE, pbr, surface, woodSet, bambooSet, thatchSet, lavaSet, rattanSet, tapaTexture, glow } from './materials.js';
-import { carvedTiki, glassFloat, pufferLamp, tikiMug, volcanoBowl, tikiTorch, palm, lavaRock, barGlass, garnishFor } from './props.js';
+import { carvedTiki, glassFloat, pufferLamp, tikiMug, volcanoBowl, tikiTorch, palm, lavaRock, barGlass, garnishFor, coconut } from './props.js';
 import { place, BAR_DIR, surfaceRadius } from './planet.js';
 import { heroOr } from './hero.js';
 import { createFire } from './fire.js';
@@ -420,6 +420,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
 
   /* ---------- World-space helpers for the player ---------- */
   const toWorld = (x, y, z) => bar.localToWorld(new THREE.Vector3(x, y, z));
+  // Coconuts fallen from the front palms, loose for the physics (physics.js; main.js adds them to
+  // the scene, since they live in world space, not the bar's).
+  const loose = [[4.9, 4.4], [3.7, 4.6], [-5.6, 2.9]].map(([x, z], i) => {
+    const object = coconut(i + 3);
+    object.position.copy(toWorld(x, groundY(x, z) + object.userData.radius * 0.9, z));
+    return { object, radius: object.userData.radius, buoyancy: 1.6 };
+  });
   // Your body at the middle stool: where your eyes are (and look) as you step up, sit and get up.
   const sx = stools[1].position.x;
   const seat = {
@@ -433,12 +440,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   };
 
   const colliders = [
-    { center: toWorld(-1.3, 0, 0.5), radius: 0.85 }, { center: toWorld(0, 0, 0.5), radius: 0.85 }, { center: toWorld(1.3, 0, 0.5), radius: 0.85 },
-    ...stools.map((st) => ({ center: toWorld(st.position.x, 0, st.position.z), radius: 0.28 })),
+    // (height: how tall a thing thrown meets it, for physics.js; walkOnly: not a thing at all)
+    { center: toWorld(-1.3, 0, 0.5), radius: 0.85, height: BAR_TOP }, { center: toWorld(0, 0, 0.5), radius: 0.85, height: BAR_TOP }, { center: toWorld(1.3, 0, 0.5), radius: 0.85, height: BAR_TOP },
+    ...stools.map((st) => ({ center: toWorld(st.position.x, 0, st.position.z), radius: 0.28, height: DECK + 0.8 })),
     ...POSTS.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.3 })),
     ...PALMS.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.3 })),
     ...TORCHES.map(([x, z]) => ({ center: toWorld(x, 0, z), radius: 0.15 })),
-    { center: toWorld(-1.2, 0, -1.2), radius: 1.2 }, { center: toWorld(1.2, 0, -1.2), radius: 1.2 }, // staff only
+    { center: toWorld(-1.2, 0, -1.2), radius: 1.2, walkOnly: true }, { center: toWorld(1.2, 0, -1.2), radius: 1.2, walkOnly: true }, // staff only
   ];
 
   const interactables = [
@@ -759,7 +767,10 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     group: bar,
     seat,
     colliders,
+    // the plinth, for things that roll into it (physics.js)
+    solids: [{ center: toWorld(0, (DECK - 0.7) / 2, 0.2), up: BAR_DIR.clone(), radius: 3.8, half: (DECK + 0.7) / 2 }],
     interactables,
+    loose,
     serve,
     make,
     setBottles,

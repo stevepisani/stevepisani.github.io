@@ -5,41 +5,16 @@
   <script>document.documentElement.dataset.theme = 'dark';</script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Caveat:wght@500&display=swap">
   <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
-  {%- assign three = 'https://cdn.jsdelivr.net/npm/three@0.186.1' -%}
-  {%- assign pp = 'https://cdn.jsdelivr.net/npm/postprocessing@6.39.5/build/index.min.js' -%}
-  {%- assign n8ao = 'https://cdn.jsdelivr.net/npm/n8ao@2.0.1/dist/N8AO.min.js' %}
   <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
-  <!-- Minified builds throughout. three.module.min.js imports the unminified three.core.js
-       (1.4 MB), so the map sends that to three.core.min.js; the addons get jsDelivr's .min.js. -->
-  <script type="importmap">
-    { "imports": {
-        "three": "{{ three }}/build/three.module.min.js",
-        "{{ three }}/build/three.core.js": "{{ three }}/build/three.core.min.js",
-        "three/addons/loaders/GLTFLoader.js": "{{ three }}/examples/jsm/loaders/GLTFLoader.min.js",
-        "three/addons/libs/meshopt_decoder.module.js": "{{ three }}/examples/jsm/libs/meshopt_decoder.module.min.js",
-        "three/addons/geometries/RoundedBoxGeometry.js": "{{ three }}/examples/jsm/geometries/RoundedBoxGeometry.min.js",
-        "three/addons/": "{{ three }}/examples/jsm/",
-        "three/examples/jsm/": "{{ three }}/examples/jsm/",
-        "postprocessing": "{{ pp }}",
-        "n8ao": "{{ n8ao }}"
-    } }
-  </script>
-  <link rel="modulepreload" href="{{ three }}/build/three.module.min.js">
-  <link rel="modulepreload" href="{{ three }}/build/three.core.min.js">
-  <link rel="modulepreload" href="{{ pp }}">
-  <link rel="modulepreload" href="{{ n8ao }}">
-  {%- assign world = '/assets/js/world/' | relative_url %}
-  {%- assign mods = 'main,materials,textures,planet,lamps,paths,places,props,decor,fire,hero,camp,rocket,bar,robot,sky,player,render,sound,stones,note,fireflies' | split: ',' %}
-  {%- for m in mods %}
-  <link rel="modulepreload" href="{{ world }}{{ m }}.js">
-  {%- endfor %}
+  <!-- The whole world, three.js included, is one minified file (npm run build, tools/build-js.mjs) -->
+  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}">
 </head>
 <body class="world-page">
   <a class="skip-link" href="#topbar">Skip to the sections</a>
   <main id="main">
     {{ content }}
   </main>
-  <script src="{{ '/assets/js/site.js' | relative_url }}" defer></script>
-  <script type="module" src="{{ '/assets/js/world/main.js' | relative_url }}" data-models="{{ '/assets/models/props.glb' | relative_url }}"></script>
+  <script src="{{ '/assets/js/dist/site.js' | relative_url }}" defer></script>
+  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}" data-models="{{ '/assets/models/props.glb' | relative_url }}"></script>
 </body>
 </html>

@@ -27,8 +27,9 @@ help:
 
 # Install dependencies
 install:
-	@echo "📦 Installing Ruby dependencies..."
+	@echo "📦 Installing Ruby and Node dependencies..."
 	@bundle install
+	@npm install --no-audit --no-fund
 	@echo "✅ Dependencies installed successfully!"
 
 # Update dependencies
@@ -43,18 +44,19 @@ serve:
 	@echo "📍 Site will be available at: http://localhost:4000"
 	@echo "🔄 Auto-regeneration enabled"
 	@echo "⏹️  Press Ctrl+C to stop"
-	@bundle exec jekyll serve --host 0.0.0.0
+	@trap 'kill 0' EXIT; npm run watch & bundle exec jekyll serve --host 0.0.0.0
 
 # Build site
 build:
 	@echo "🏗️  Building Jekyll site..."
+	@npm run build
 	@bundle exec jekyll build
 	@echo "✅ Site built successfully in _site/ directory"
 
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	@rm -rf _site/
+	@rm -rf _site/ assets/js/dist/
 	@rm -rf .jekyll-cache/
 	@rm -rf .sass-cache/
 	@echo "✅ Build artifacts cleaned!"
@@ -62,6 +64,7 @@ clean:
 # Build for production
 production:
 	@echo "🚀 Building site for production..."
+	@npm run build
 	@JEKYLL_ENV=production bundle exec jekyll build
 	@echo "✅ Production build complete in _site/ directory"
 

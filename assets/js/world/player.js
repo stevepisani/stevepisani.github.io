@@ -20,6 +20,7 @@ const PITCH_LIMIT = 1.3;
 const TURN = 3.5;         // how quickly auto-walk turns you toward your path
 
 const Y = new THREE.Vector3(0, 1, 0);
+const _up = new THREE.Vector3(), _d = new THREE.Vector3();
 const X = new THREE.Vector3(1, 0, 0);
 
 export class Player {
@@ -137,6 +138,27 @@ export class Player {
     const newUp = this._up.copy(this.pos).normalize();
     this.pos.copy(newUp).multiplyScalar(surfaceRadius(newUp));
     this.quat.premultiply(this._q.setFromUnitVectors(up, newUp)).normalize();
+  }
+
+  /**
+   * Where you'd really stand if you walked to `point`: pushed out of anything solid by at least
+   * `clear` metres (the walk-to ring's radius, so it never sits in a rock), on the ground.
+   */
+  clearOf(point, clear = BODY, target = new THREE.Vector3()) {
+    target.copy(point);
+    for (let pass = 0; pass < 3; pass++) {
+      const up = _up.copy(target).normalize();
+      for (const c of this.colliders) {
+        const min = c.radius + clear;
+        const d = _d.copy(target).sub(c.center);
+        if (d.lengthSq() > (min + 1) * (min + 1)) continue;
+        d.addScaledVector(up, -d.dot(up));
+        const len = d.length();
+        if (len < min && len > 1e-5) target.addScaledVector(d, (min - len) / len);
+      }
+    }
+    const up = _up.copy(target).normalize();
+    return target.copy(up).multiplyScalar(surfaceRadius(up));
   }
 
   /** Put the camera at the player's eyes, with a very small walking bob. */

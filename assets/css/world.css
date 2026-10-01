@@ -106,8 +106,8 @@
 .world__bubble::before { content: "🤖 "; }
 .world[data-state="camp"] .world__bubble::before { content: "🔥 "; } /* at the fire it's you talking, not the robot */
 .world[data-state="shore"] .world__bubble::before, .world[data-state="note"] .world__bubble::before { content: none; } /* how your throw went; where your bottle went */
-#shore-throw { touch-action: none; user-select: none; -webkit-user-select: none; }
-#shore-throw.is-winding { border-color: var(--accent); background: rgb(14 16 36 / .85); }
+#shore-throw, #carry-throw { touch-action: none; user-select: none; -webkit-user-select: none; }
+#shore-throw.is-winding, #carry-throw.is-winding { border-color: var(--accent); background: rgb(14 16 36 / .85); }
 .world__bubble[hidden] { display: none; }
 @keyframes rise-c { from { opacity: 0; } }
 @media (max-width: 760px) { .world[data-state="seat"] .world__bubble { display: none; } }
