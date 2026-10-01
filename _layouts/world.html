@@ -3,7 +3,7 @@
 <head>
   {% include head.html %}
   <script>document.documentElement.dataset.theme = 'dark';</script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Caveat:wght@500&display=swap">
   <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
   {%- assign three = 'https://cdn.jsdelivr.net/npm/three@0.186.1' -%}
   {%- assign pp = 'https://cdn.jsdelivr.net/npm/postprocessing@6.39.5/build/index.min.js' -%}
@@ -29,7 +29,7 @@
   <link rel="modulepreload" href="{{ pp }}">
   <link rel="modulepreload" href="{{ n8ao }}">
   {%- assign world = '/assets/js/world/' | relative_url %}
-  {%- assign mods = 'main,materials,textures,planet,lamps,paths,places,props,decor,fire,hero,camp,rocket,bar,robot,sky,player,render,sound,stones' | split: ',' %}
+  {%- assign mods = 'main,materials,textures,planet,lamps,paths,places,props,decor,fire,hero,camp,rocket,bar,robot,sky,player,render,sound,stones,note,fireflies' | split: ',' %}
   {%- for m in mods %}
   <link rel="modulepreload" href="{{ world }}{{ m }}.js">
   {%- endfor %}

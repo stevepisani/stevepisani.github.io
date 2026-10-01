@@ -105,7 +105,7 @@
 .world__bubble { position: absolute; z-index: 3; left: 50%; top: 88px; transform: translateX(-50%); max-width: min(420px, 86vw); margin: 0; padding: 12px 16px; border-radius: 16px; background: #fff; color: #1a1b2e; font: 500 .95rem/1.4 var(--font-body); box-shadow: 0 10px 30px rgb(0 0 0 / .4); pointer-events: none; animation: rise-c .35s ease-out; }
 .world__bubble::before { content: "🤖 "; }
 .world[data-state="camp"] .world__bubble::before { content: "🔥 "; } /* at the fire it's you talking, not the robot */
-.world[data-state="shore"] .world__bubble::before { content: none; } /* how your throw went */
+.world[data-state="shore"] .world__bubble::before, .world[data-state="note"] .world__bubble::before { content: none; } /* how your throw went; where your bottle went */
 #shore-throw { touch-action: none; user-select: none; -webkit-user-select: none; }
 #shore-throw.is-winding { border-color: var(--accent); background: rgb(14 16 36 / .85); }
 .world__bubble[hidden] { display: none; }
@@ -186,6 +186,21 @@
 .camp-eat:hover { background: rgb(14 16 36 / .85); }
 .camp-eat[hidden] { display: none; }
 /* Making a drink: what the robot's doing, one step at a time, above the bottom buttons */
+/* A message in a bottle: the writing surface sits exactly over the unrolled 3D letter (main.js
+   placeNote sets left/top/width/height and --gap, the letter's line spacing), transparent, so
+   you write on the paper itself; the ink is the letter's ink colour. The controls sit below it. */
+.note { position: absolute; z-index: 4; margin: 0; --gap: 22px; }
+.note[hidden] { display: none; }
+.note textarea { position: absolute; left: 10%; right: 10%; top: calc(12% + var(--gap) * 0.12); height: calc(var(--gap) * 7); resize: none; overflow: hidden; border: 0; outline: 0; padding: 0; background: transparent; color: #2b1d12; font: 500 calc(var(--gap) * 0.78)/var(--gap) "Caveat", "Segoe Print", cursive; caret-color: #2b1d12; }
+.note textarea::placeholder { color: rgb(43 29 18 / .45); }
+.note__sign { position: absolute; left: 10%; right: 10%; bottom: 7%; display: flex; justify-content: flex-end; gap: 6px; align-items: baseline; color: rgb(43 29 18 / .7); font: 500 calc(var(--gap) * 0.62) "Caveat", cursive; }
+.note__sign input { width: min(9em, 65%); border: 0; border-bottom: 1px solid rgb(43 29 18 / .35); background: transparent; color: #2b1d12; font: inherit; font-size: calc(var(--gap) * 0.75); outline: 0; padding: 0 2px; }
+.note textarea:focus-visible, .note__sign input:focus-visible { box-shadow: 0 2px 0 rgb(232 99 74 / .6); }
+.note__foot { position: absolute; left: 50%; top: calc(100% + 12px); transform: translateX(-50%); width: max(100%, 300px); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.note__foot button { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
+.note__foot .note__roll { background: var(--coral); border-color: transparent; color: #1a1b2e; }
+.note__left { color: rgb(255 255 255 / .75); font: 500 .8rem var(--font-body); text-shadow: 0 1px 4px rgb(0 0 0 / .6); }
+
 /* Ask the bartender: the question box at the bottom (the Leave button's row on desktop, just above
    it on phones), the answer up where the robot's bubble is, on phones too; neither covers the menu card */
 .chat { position: absolute; z-index: 3; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(420px, calc(100vw - 360px)); display: flex; gap: 8px; margin: 0; }

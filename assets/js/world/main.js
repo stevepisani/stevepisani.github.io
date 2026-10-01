@@ -24,11 +24,15 @@ import { loadHeroes } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
 import { createSound } from './sound.js';
 import { createSkipper } from './stones.js';
+import { createNoteRitual } from './note.js';
+import { createFireflies } from './fireflies.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
 const canvas = $('world-canvas');
 const data = JSON.parse($('world-data').textContent);
+// The one Supabase project (url and public key from _config.yml, in the page head)
+const DB = { url: document.querySelector('meta[name="supabase-url"]').content, key: document.querySelector('meta[name="supabase-key"]').content };
 const TEST = new URLSearchParams(location.search).has('test');
 const reducedMotion = TEST || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
@@ -391,6 +395,7 @@ async function start() {
     if (it.id === 'campfire') return sitAtFire();
     if (it.id === 'hammock') return lieInHammock();
     if (it.id === 'stones') return goToShore();
+    if (it.id === 'bottles') return goToBottles();
     openPanel(it.id);
   }
   let destT = -1;
@@ -477,7 +482,7 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
-    if (state === 'seat' || state === 'camp' || state === 'hammock' || state === 'shore') {
+    if (state === 'seat' || state === 'camp' || state === 'hammock' || state === 'shore' || state === 'note') {
       if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
       seatLook.yaw = THREE.MathUtils.clamp(seatLook.yaw - dx, -1.9, 1.9);
@@ -499,6 +504,7 @@ async function start() {
     onRelease: () => { clearTimeout(roast.timer); roast.pointer = false; if (state === 'shore' && windUp >= 0) releaseThrow(); },
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
+      if (state === 'note') return; // the bottles have their own keys (below)
       if (state === 'seat' && panel.hidden && menu.hidden) { if (!skipMaking()) pickUpMenu(); return; }
       if (state === 'camp' && panel.hidden && menu.hidden) { eatIt(); return; }
       if (state === 'hammock' && panel.hidden && menu.hidden) { readBook(); return; }
@@ -836,9 +842,9 @@ async function start() {
     talk.push({ role: 'user', content: q });
     let answer = null;
     try {
-      const res = await fetch(`${data.supabase.url}/functions/v1/bartender`, {
+      const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', apikey: data.supabase.key, authorization: `Bearer ${data.supabase.key}` },
+        headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}` },
         body: JSON.stringify({ messages: talk.slice(-12) }),
       });
       answer = (await res.json()).reply || null;
@@ -933,6 +939,7 @@ async function start() {
     else if (state === 'camp') leaveFire();
     else if (state === 'hammock') getOutOfHammock();
     else if (state === 'shore') leaveShore();
+    else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
   });
   addEventListener('keydown', (e) => {
     if (e.code !== 'Space' || e.target.closest('button, a, input, textarea')) return;
@@ -1018,6 +1025,7 @@ async function start() {
   const HM = hmSpot && hmSpot.hammock;
   const hmLeave = $('hammock-leave'), hmRead = $('hammock-read');
   let sound = { play() {} }; // until the scene's up (createSound below)
+  let fireflies = null, clock = 0;
   let lying = null, loadTo = 0, bookTween = null, hmTimer;
   // held open in front of you, spine up and down, pages toward you (its covers are its +y side, so +y points away)
   const READ = { pos: new THREE.Vector3(0, -0.05, -0.48), quat: new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), new THREE.Vector3(-1, 0, 0))) };
@@ -1202,12 +1210,135 @@ async function start() {
   shoreThrow.addEventListener('pointerdown', (e) => { e.preventDefault(); startWind(); });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) shoreThrow.addEventListener(ev, () => { if (windUp >= 0) releaseThrow(); });
 
+  /* ---------- A message in a bottle ---------- */
+  // Crouch behind the bottles washed up at the waterline and write one (note.js does the hands):
+  // pick it up, uncork it, slide the letter out and it unrolls into the paper you write on (the
+  // #note form sits exactly over it). "Roll it up" puts your words on the paper, rolls it back
+  // in and corks it; it's sent to public.bottles (unapproved until Steve reads it) while that
+  // happens. Then "Throw it" and it drifts off into space. Esc while writing puts the letter
+  // back; Esc otherwise (or "Leave the shore") stands you up.
+  const bottleSpot = interactables.find((i) => i.id === 'bottles');
+  const ritual = createNoteRitual({ camera, scene, reducedMotion, sound: { play: (...a) => sound.play(...a) } });
+  const noteForm = $('note'), noteText = $('note-text'), noteSign = $('note-sign'), noteLeft = $('note-left');
+  const noteLeave = $('note-leave'), noteGo = $('note-go');
+  let notePose = null, noteStep = null; // null (crouched, nothing in hand) | opening | writing | closing | ready | thrown
+  const uprightBottle = bottleSpot && bottleSpot.note.upright;
+  function goToBottles() {
+    if (!bottleSpot || state !== 'walk') return;
+    if (document.fonts) document.fonts.load('500 24px Caveat'); // the letter's hand, ready by the time it's unrolled
+    leaving = false;
+    seatLook.yaw = seatLook.pitch = 0;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('note');
+    noteStep = null;
+    const S = bottleSpot.note;
+    notePose = poseLooking(S.eye, S.look);
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: Math.min(900, Math.max(300, camera.position.distanceTo(S.stand) * 420)) },
+      { ...notePose, ms: 700 }, // crouch down behind the bottles
+    ], () => { if (state === 'note') openBottle(); });
+  }
+  function openBottle() {
+    if (state !== 'note' || ritual.busy) return;
+    noteStep = 'opening';
+    seatLook.yaw = seatLook.pitch = 0;
+    if (uprightBottle) uprightBottle.visible = false; // that's the one you picked up
+    ritual.open(() => {
+      if (state !== 'note') return;
+      noteStep = 'writing';
+      noteText.value = noteSign.value = '';
+      countLeft();
+      placeNote();
+      noteForm.hidden = false;
+      noteText.focus({ preventScroll: true });
+    });
+  }
+  function placeNote() {
+    const r = ritual.rect();
+    if (!r) return;
+    const w = root.clientWidth, h = root.clientHeight, ht = (r.bottom - r.top) * h;
+    Object.assign(noteForm.style, { left: `${r.left * w}px`, top: `${r.top * h}px`, width: `${(r.right - r.left) * w}px`, height: `${ht}px` });
+    noteForm.style.setProperty('--gap', `${ht * 0.085}px`); // the letter's ruled lines (note.js paintPaper)
+  }
+  const countLeft = () => { noteLeft.textContent = `${280 - noteText.value.length} left`; };
+  noteText.addEventListener('input', countLeft);
+  noteText.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); noteForm.requestSubmit(); } });
+  // Sent to the shared table. Tests (?test, automated browsers) don't write to it.
+  async function sendBottle(message, signed) {
+    if (TEST || navigator.webdriver) { window.__lastBottle = { message, signed }; return { ok: true }; }
+    try {
+      const res = await fetch(`${DB.url}/rest/v1/bottles`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}`, prefer: 'return=minimal' },
+        body: JSON.stringify({ message, signed: signed || null }),
+      });
+      if (res.ok) return { ok: true };
+      const body = await res.json().catch(() => ({}));
+      return { ok: false, full: /full of bottles/.test(body.message || '') };
+    } catch (e) { return { ok: false }; }
+  }
+  noteForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = noteText.value.trim().slice(0, 280), signed = noteSign.value.trim().slice(0, 40);
+    if (!text) { noteText.focus(); return; }
+    noteForm.hidden = true;
+    noteStep = 'closing';
+    const sent = sendBottle(text, signed);
+    ritual.close(text, signed, async () => {
+      const r = await sent;
+      if (state !== 'note') return;
+      if (r.ok) { noteStep = 'ready'; showHint('Now throw it. It will drift off into space.', 'bottle'); return; }
+      say(r.full ? 'The sky is full of bottles right now. Try again another day.' : "It wouldn't send just now. Try again in a moment.", 5000);
+      putNoteBack();
+    });
+  });
+  function putNoteBack() {
+    noteForm.hidden = true;
+    ritual.putBack();
+    if (uprightBottle) uprightBottle.visible = true;
+    noteStep = null;
+  }
+  function throwBottle() {
+    if (noteStep !== 'ready') return;
+    ritual.throwIt();
+    clearHint('bottle');
+    noteStep = 'thrown';
+    say("It's drifting off among the stars. If Steve likes it, it will wash up here for others to find.", 6500);
+    setTimeout(() => { if (uprightBottle && noteStep !== 'opening' && noteStep !== 'writing' && noteStep !== 'closing' && noteStep !== 'ready') uprightBottle.visible = true; }, 2500);
+  }
+  function leaveBottles() {
+    if (state !== 'note' || leaving) return;
+    leaving = true;
+    if (noteStep && noteStep !== 'thrown') putNoteBack();
+    noteStep = null;
+    bubble.hidden = true;
+    if (hint.dataset.key === 'bottle') hint.hidden = true;
+    const S = bottleSpot.note;
+    player.spawn(bottleSpot.approach.clone().normalize(), bottleSpot.point, -0.1);
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    flyPath([
+      { ...poseLooking(S.stand, S.look), ms: 600 },
+      { pos: endPos, quat: endQuat, ms: 700 },
+    ], () => { leaving = false; notePose = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
+  }
+  $('note-cancel').addEventListener('click', putNoteBack);
+  noteLeave.addEventListener('click', leaveBottles);
+  noteGo.addEventListener('click', () => { if (noteStep === 'ready') throwBottle(); else if (!noteStep || noteStep === 'thrown') openBottle(); });
+  addEventListener('keydown', (e) => {
+    if (state !== 'note' || e.target.closest('button, a, input, textarea') || !panel.hidden || !menu.hidden) return;
+    if (e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') { e.preventDefault(); noteGo.click(); }
+  });
+
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion();
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
     if (e.target.closest && e.target.closest('input, textarea')) return; // typing, not looking
-    if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
+    if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore' && state !== 'note') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
     else if (e.key === 'ArrowRight') seatKeys.x = v;
@@ -1247,6 +1378,8 @@ async function start() {
       if (bookTween) bookStep(performance.now());
     }
     skipper.update(realDt);
+    ritual.update(realDt);
+    if (fireflies) { fireflies.setSelf(camera.position); fireflies.update(clock += realDt, realDt, reducedMotion); }
     if (state === 'shore') {
       if (windUp >= 0) windUp += realDt;
       if (!inHand && !flight && !leaving && (reload -= realDt) <= 0) holdStone(true);
@@ -1256,9 +1389,10 @@ async function start() {
       }
     }
     if (flight) flightStep(performance.now());
-    else if (state === 'shore' && shorePose) {
-      camera.position.copy(shorePose.pos);
-      camera.quaternion.copy(shorePose.quat)
+    else if ((state === 'shore' && shorePose) || (state === 'note' && notePose)) {
+      const pose = state === 'shore' ? shorePose : notePose;
+      camera.position.copy(pose.pos);
+      camera.quaternion.copy(pose.quat)
         .multiply(_q.setFromAxisAngle(Y_AXIS, seatLook.yaw))
         .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
       if (seatKeys.x || seatKeys.y) look(seatKeys.x * dt * 1.6, -seatKeys.y * dt * 1.2);
@@ -1357,6 +1491,14 @@ async function start() {
     const atShore = state === 'shore' && !flight && !leaving && panel.hidden && menu.hidden;
     shoreLeave.hidden = shoreThrow.hidden = !atShore;
     shoreThrow.classList.toggle('is-winding', windUp >= 0);
+    const atBottles = state === 'note' && !flight && !leaving && panel.hidden && menu.hidden;
+    noteLeave.hidden = !atBottles || noteStep === 'writing';
+    noteGo.hidden = !atBottles || !(noteStep === null || noteStep === 'ready' || noteStep === 'thrown');
+    if (!noteGo.hidden) {
+      const label = noteStep === 'ready' ? 'Throw it' : noteStep === 'thrown' ? 'Write another' : 'Write one';
+      if (noteGo.textContent !== label) noteGo.textContent = label;
+    }
+    if (noteStep === 'writing' && !noteForm.hidden) placeNote(); // it rides on the camera: keep the page on the paper
     campEat.hidden = !(atFire && roaster.state.on && !roaster.state.eating);
     if (!campEat.hidden) {
       const label = roaster.state.burning ? 'Blow it out' : 'Eat it';
@@ -1397,8 +1539,12 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() } };
   window.__sceneReady = true;
+
+  // Everyone else here right now, as fireflies (Supabase Realtime presence).
+  fireflies = createFireflies(scene, DB);
+  window.__world.fireflies = fireflies;
 
   // Sound: off until asked for (the speaker in the top bar), then everything where it is.
   sound = createSound({ scene, camera, spots: {
