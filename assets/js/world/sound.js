@@ -6,6 +6,7 @@
 //   the lagoon   water lapping
 //   the hammock  its ropes creaking when you get in or out
 //   everywhere   crickets
+//   anywhere     the loose things (physics.js): thuds and splashes where they happen
 // Off until the visitor turns it on (browsers only start audio from a click or key), then
 // remembered (localStorage `world-sound`); paused while the tab is hidden.
 import * as THREE from 'three';
@@ -15,6 +16,7 @@ const KEY = 'world-sound';
 export function createSound({ scene, camera, spots }) {
   let ctx = null, listener = null, on = false, timer = 0;
   const inputs = {};   // name -> GainNode that feeds a positional source
+  const sources = {};  // name -> its PositionalAudio
   let nextBeat = 0, beat = 0, nextBird = 0, nextCrackle = 0, nextCricket = 0;
   let noiseWhite, noiseBrown;
 
@@ -45,6 +47,7 @@ export function createSound({ scene, camera, spots }) {
     g.gain.value = gain;
     a.setNodeSource(g);
     inputs[name] = g;
+    sources[name] = a;
     return g;
   }
 
@@ -64,6 +67,7 @@ export function createSound({ scene, camera, spots }) {
     place('fire', spots.fire, { ref: 1.5, max: 30, rolloff: 1.6 });
     place('lagoon', spots.lagoon, { ref: 2, max: 30, rolloff: 1.5 });
     place('hammock', spots.hammock, { ref: 1.5, max: 20, rolloff: 1.5 });
+    place('loose', spots.bar, { ref: 1.5, max: 25, rolloff: 1.5 }); // moved to wherever it happens
 
     // the fire's low rumble
     { const s = noiseSource(noiseBrown), f = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -224,6 +228,25 @@ export function createSound({ scene, camera, spots }) {
       burst(inputs.lagoon, t, { type: 'bandpass', hz: 2200, q: 3, dur: 0.03, v: 0.3 });
       burst(inputs.lagoon, t + 0.07, { type: 'bandpass', hz: 2600, q: 3, dur: 0.025, v: 0.15 });
     },
+    toss() { // something leaving your hand, right beside you
+      burst(inputs.everywhere, ctx.currentTime, { type: 'bandpass', hz: 700, q: 0.7, dur: 0.2, v: 0.2 });
+    },
+    thud(at, k = 0.5) { // a coconut landing: a dull knock, harder the faster it came down
+      sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(150 + 60 * k, t); o.frequency.exponentialRampToValueAtTime(70, t + 0.1);
+      env(g, t, 0.25 + 0.45 * k, 0.003, 0.14);
+      o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.2);
+      burst(inputs.loose, t, { type: 'lowpass', hz: 700, dur: 0.05, v: 0.2 * k });
+    },
+    splash(at, k = 0.5) { // into the lagoon
+      sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(380, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.2);
+      env(g, t, 0.15 + 0.25 * k, 0.004, 0.22);
+      o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.3);
+      burst(inputs.loose, t, { type: 'lowpass', hz: 1400, dur: 0.3 + 0.2 * k, v: 0.15 + 0.25 * k });
+    },
     creak() { // rope taking weight round a palm
       const t = ctx.currentTime;
       for (let k = 0; k < 2; k++) {
@@ -261,7 +284,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak'. Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,
