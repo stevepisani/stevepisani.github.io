@@ -82,30 +82,99 @@ function ribbon(trail, { samples, length }, material) {
   return m;
 }
 
+/** A slab's outline: radii round it, a lumpy closed curve (two slow bulges plus chips), smoothed so there are no spikes. */
+function slabOutline(rand) {
+  const n = 18 + Math.floor(rand() * 6);
+  const ph1 = rand() * 6.28, ph2 = rand() * 6.28;
+  const radii = Array.from({ length: n }, (_, i) => { const a = (i / n) * 6.28; return 0.9 + 0.1 * Math.sin(2 * a + ph1) + 0.06 * Math.sin(3 * a + ph2) + (rand() - 0.5) * 0.12; });
+  return radii.map((r, i) => (radii[(i + n - 1) % n] + r * 2 + radii[(i + 1) % n]) / 4);
+}
+/** Where the point (lx, lz) of a slab, in units of its size, lies: turned and stretched in its plane, as a direction. */
+const _fwd = new THREE.Vector3();
+function slabDir(st, lx, lz, d) {
+  _fwd.crossVectors(st.up, st.side).normalize(); // along the trail
+  const ca = Math.cos(st.turn), sa = Math.sin(st.turn);
+  const x = (lx * ca - lz * sa) * st.r * st.stretch, z = (lx * sa + lz * ca) * st.r;
+  d.copy(st.up).multiplyScalar(RADIUS).addScaledVector(st.side, x).addScaledVector(_fwd, z).normalize();
+  return { x, z };
+}
+
+/**
+ * Lays slabs and pebbles so that none touches another: a slab is tried at its size, then
+ * smaller, and left out if it still won't fit, so there's always a gravel joint between them.
+ * Slabs are compared by their real outlines (convex hulls, in the new one's tangent plane, with
+ * the buried foot and a joint's width added); pebbles as circles.
+ */
+function layout() {
+  const cells = new Map(), CELL = 1;
+  const key = (p) => `${Math.floor(p.x / CELL)},${Math.floor(p.y / CELL)},${Math.floor(p.z / CELL)}`;
+  const near = (p) => {
+    const out = [], cx = Math.floor(p.x / CELL), cy = Math.floor(p.y / CELL), cz = Math.floor(p.z / CELL);
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) out.push(...(cells.get(`${cx + i},${cy + j},${cz + k}`) || []));
+    return out;
+  };
+  const add = (item) => { const k = key(item.at); if (!cells.has(k)) cells.set(k, []); cells.get(k).push(item); };
+  const d = new THREE.Vector3(), q = new THREE.Vector3();
+  const JOINT = 0.03;
+  // the slab's footprint (to its buried foot, plus half a joint) as 3D points on the sphere
+  const footprint = (st) => st.outline.map((r, i, all) => {
+    const a = (i / all.length) * Math.PI * 2, k = r * 1.04;
+    slabDir(st, Math.cos(a) * k, Math.sin(a) * k, d);
+    return d.clone().multiplyScalar(RADIUS);
+  });
+  const hull = (pts) => { // monotone chain, counter-clockwise
+    const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], hi = [];
+    for (const v of p) { while (lo.length > 1 && cross(lo[lo.length - 2], lo[lo.length - 1], v) <= 0) lo.pop(); lo.push(v); }
+    for (const v of p.reverse()) { while (hi.length > 1 && cross(hi[hi.length - 2], hi[hi.length - 1], v) <= 0) hi.pop(); hi.push(v); }
+    return lo.slice(0, -1).concat(hi.slice(0, -1));
+  };
+  const apart = (A, B, gap) => { // separating axis between convex polygons, with a gap
+    for (const P of [A, B]) for (let i = 0; i < P.length; i++) {
+      const a = P[i], b = P[(i + 1) % P.length], nx = b[1] - a[1], ny = a[0] - b[0], l = Math.hypot(nx, ny) || 1;
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (const v of A) { const t = (v[0] * nx + v[1] * ny) / l; a0 = Math.min(a0, t); a1 = Math.max(a1, t); }
+      for (const v of B) { const t = (v[0] * nx + v[1] * ny) / l; b0 = Math.min(b0, t); b1 = Math.max(b1, t); }
+      if (a1 + gap <= b0 || b1 + gap <= a0) return true;
+    }
+    return false;
+  };
+  return {
+    slab(st) {
+      const r0 = st.r;
+      for (const k of [1, 0.88, 0.76]) {
+        st.r = r0 * k;
+        const at = st.up.clone().multiplyScalar(RADIUS), e1 = st.side, e2 = q.crossVectors(st.up, st.side).normalize().clone();
+        const flat = (pts) => hull(pts.map((p) => { const v = p.clone().sub(at); return [v.dot(e1), v.dot(e2)]; }));
+        const mine = flat(footprint(st));
+        const reach = st.r * Math.max(1, st.stretch) * 1.2;
+        const hit = near(at).some((o) => o.at.distanceTo(at) < reach + o.reach + JOINT && (o.pebble || !apart(mine, flat(o.pts), JOINT)));
+        if (!hit) { add({ at, reach, pts: footprint(st) }); return true; }
+      }
+      return false;
+    },
+    pebble(dir, r) {
+      const at = dir.clone().multiplyScalar(RADIUS);
+      if (near(at).some((o) => o.at.distanceTo(at) < r + o.reach + 0.01)) return false;
+      add({ at, reach: r, pebble: true });
+      return true;
+    },
+  };
+}
+
 /**
  * Flagstones, each an irregular slab built in its own tangent frame and then draped on the
  * terrain: its top stands a couple of centimetres proud, its bevelled edge meets the ground,
- * and its sides run down into it. `stones` is [{ up, side, r, stretch, turn, tone }].
+ * and its sides run down into it. `stones` is [{ up, side, r, stretch, turn, tone, outline }].
  */
-function flagstones(stones, seed) {
-  const rand = rng(seed);
+function flagstones(stones) {
   const pos = [], col = [], uv = [];
   const base = new THREE.Color(PALETTE.basalt).lerp(new THREE.Color(PALETTE.stone), 0.55), c = new THREE.Color();
-  const d = new THREE.Vector3(), p = new THREE.Vector3(), fwd = new THREE.Vector3();
+  const d = new THREE.Vector3();
   for (const st of stones) {
-    const n = 18 + Math.floor(rand() * 6);
-    // a lumpy outline: two slow bulges plus chips, smoothed so there are no spikes
-    const ph1 = rand() * 6.28, ph2 = rand() * 6.28;
-    const radii = Array.from({ length: n }, (_, i) => { const a = (i / n) * 6.28; return 0.9 + 0.1 * Math.sin(2 * a + ph1) + 0.06 * Math.sin(3 * a + ph2) + (rand() - 0.5) * 0.12; });
-    const soft = radii.map((r, i) => (radii[(i + n - 1) % n] + r * 2 + radii[(i + 1) % n]) / 4);
-    fwd.crossVectors(st.up, st.side).normalize(); // along the trail
-    const vert = (lx, lz, y) => {
-      // turn and stretch the slab in its plane, then drape the point on the ground
-      const ca = Math.cos(st.turn), sa = Math.sin(st.turn);
-      const x = (lx * ca - lz * sa) * st.r * st.stretch, z = (lx * sa + lz * ca) * st.r;
-      d.copy(st.up).multiplyScalar(RADIUS).addScaledVector(st.side, x).addScaledVector(fwd, z).normalize();
-      return { p: onGround(d, y, new THREE.Vector3()), u: x * 1.1, v: z * 1.1 };
-    };
+    const soft = st.outline, n = soft.length;
+    const vert = (lx, lz, y) => { const { x, z } = slabDir(st, lx, lz, d); return { p: onGround(d, y, new THREE.Vector3()), u: x * 1.1, v: z * 1.1 }; };
     const ring = (k, y) => soft.map((r, i) => { const a = (i / n) * Math.PI * 2; return vert(Math.cos(a) * r * k, Math.sin(a) * r * k, y); });
     const centre = vert(0, 0, 0.045);
     const top = ring(0.86, 0.036), bevel = ring(1, 0.012), foot = ring(1.04, -0.09);
@@ -155,6 +224,9 @@ export function buildTrails(trails, { quality }) {
   gravel.bumpMap = gravel.map; gravel.bumpScale = 1.2;
   const stones = [], stonesAt = [], pebbleList = [], lanterns = [];
   const d = new THREE.Vector3();
+  const fit = layout(), shapes = rng(7);
+  const lay = (st) => { st.outline = slabOutline(shapes); if (fit.slab(st)) stones.push(st); };
+  const edges = []; // pebble candidates: placed once every slab is down
   for (const trail of trails) {
     const sampled = trail.sampled || sampleTrail(trail.points, trail);
     const { samples, length } = sampled;
@@ -168,13 +240,13 @@ export function buildTrails(trails, { quality }) {
         const pair = row % 2 ? [-0.32, 0.3] : [-0.12, 0.42];
         for (const x of pair) {
           if (Math.abs(x) > w - 0.18) continue;
-          stones.push({ up: offset(up, side, x * (w / 0.75)), side, r: 0.23 + rand() * 0.06, stretch: 1.1 + rand() * 0.3, turn: (rand() - 0.5) * 0.6, tone: 0.85 + rand() * 0.3 });
+          lay({ up: offset(up, side, x * (w / 0.75)), side, r: 0.23 + rand() * 0.06, stretch: 1.1 + rand() * 0.3, turn: (rand() - 0.5) * 0.6, tone: 0.85 + rand() * 0.3 });
         }
       }
     } else if (trail.flags === 'steps') {
       for (let s = 1.0; s < length - 0.8; s += 1.6 + rand() * 1.4) {
         const { up, side } = at(s);
-        stones.push({ up: offset(up, side, (rand() - 0.5) * trail.width * 0.3), side, r: 0.2 + rand() * 0.08, stretch: 1.15 + rand() * 0.35, turn: rand() * 3, tone: 0.8 + rand() * 0.3 });
+        lay({ up: offset(up, side, (rand() - 0.5) * trail.width * 0.3), side, r: 0.2 + rand() * 0.08, stretch: 1.15 + rand() * 0.35, turn: rand() * 3, tone: 0.8 + rand() * 0.3 });
       }
     }
     // pebbles spilling off both edges
@@ -182,7 +254,7 @@ export function buildTrails(trails, { quality }) {
     for (let s = 0.3; s < length - 0.3; s += every * (0.6 + rand() * 0.8)) {
       const { up, side } = at(s), w = widthAt(trail, s, length) * 0.5;
       const sign = rand() < 0.5 ? -1 : 1;
-      pebbleList.push({ dir: offset(up, side, sign * (w + (rand() - 0.25) * 0.3), new THREE.Vector3()), r: 0.035 + rand() * rand() * 0.11, turn: rand() * 6.28, k: pebbleList.length });
+      edges.push({ dir: offset(up, side, sign * (w + (rand() - 0.25) * 0.3), new THREE.Vector3()), r: 0.035 + rand() * rand() * 0.11, turn: rand() * 6.28 });
     }
     // lanterns every so often, alternating sides
     if (trail.lanterns) {
@@ -195,7 +267,8 @@ export function buildTrails(trails, { quality }) {
     }
     stonesAt.push([trail, sampled]);
   }
-  if (stones.length) group.add(flagstones(stones, 7));
+  for (const p of edges) if (fit.pebble(p.dir, p.r)) pebbleList.push({ ...p, k: pebbleList.length });
+  if (stones.length) group.add(flagstones(stones));
   if (pebbleList.length) group.add(pebbles(pebbleList));
   return { group, lanterns, samples: stonesAt };
 }

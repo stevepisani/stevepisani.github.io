@@ -13,7 +13,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint, surfaceRadius, POND } from './planet.js';
+import { buildPlanet, surfacePoint, surfaceRadius, POND, RADIUS } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
@@ -360,20 +360,47 @@ async function start() {
   resize();
 
   /* ---------- Markers: where you're going, and where you could go ---------- */
-  const ringGeo = new THREE.RingGeometry(0.28, 0.38, 32).rotateX(-Math.PI / 2);
+  // Each ring is draped on the ground vertex by vertex (the analytic surface, like the trails), so
+  // it follows the slope instead of cutting into it, and rides just over the flagstones' tops.
+  // Where it goes is pushed clear of anything solid (player.clearOf), so it's where you'll stand.
+  const RING = new THREE.RingGeometry(0.28, 0.38, 48, 1).rotateX(-Math.PI / 2);
+  const RING_R = 0.38, RING_LIFT = 0.05;
   const marker = (color) => {
-    const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
+    const m = new THREE.Mesh(RING.clone(), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }));
     m.renderOrder = 2;
+    m.frustumCulled = false; // its vertices are in world space
     scene.add(m);
     return m;
   };
   const hoverRing = marker(0xffffff);
   const destRing = marker(0x3ff5e8);
-  const standOn = (obj, point, lift = 0.04) => {
-    const up = point.clone().normalize();
-    obj.position.copy(surfacePoint(up, lift));
-    obj.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+  const _ru = new THREE.Vector3(), _r1 = new THREE.Vector3(), _r2 = new THREE.Vector3(), _rd = new THREE.Vector3();
+  const standOn = (obj, point, scale = 1) => {
+    const up = _ru.copy(point).normalize();
+    _r1.set(1, 0, 0).addScaledVector(up, -up.x);
+    if (_r1.lengthSq() < 1e-4) _r1.set(0, 0, 1).addScaledVector(up, -up.z);
+    _r1.normalize();
+    _r2.crossVectors(_r1, up); // (x, z) as RingGeometry lays them, so it stays wound to face up
+    const src = RING.attributes.position, dst = obj.geometry.attributes.position;
+    for (let i = 0; i < src.count; i++) {
+      const d = _rd.copy(up).multiplyScalar(RADIUS).addScaledVector(_r1, src.getX(i) * scale).addScaledVector(_r2, src.getZ(i) * scale).normalize();
+      d.multiplyScalar(groundRadius(d) + RING_LIFT);
+      dst.setXYZ(i, d.x, d.y, d.z);
+    }
+    dst.needsUpdate = true;
   };
+  const clearSpot = (point) => player.clearOf(point, RING_R + 0.04);
+  // The ground, or the top of a solid standing on it (the bar's deck): how far from the centre in `dir`
+  function groundRadius(dir) {
+    let r = surfaceRadius(dir);
+    for (const s of bar.solids) {
+      const top = s.center.dot(s.up) + s.half, k = dir.dot(s.up);
+      if (k <= 0) continue;
+      const t = top / k, axis = s.center.clone().addScaledVector(s.up, top - s.center.dot(s.up));
+      if (dir.clone().multiplyScalar(t).sub(axis).length() < s.radius && t > r) r = t;
+    }
+    return r;
+  }
 
   /* ---------- Picking ---------- */
   const raycaster = new THREE.Raycaster();
@@ -417,7 +444,8 @@ async function start() {
     openPanel(it.id);
   }
   let destT = -1;
-  function showDest(point) { standOn(destRing, point); destT = 0; }
+  const destAt = new THREE.Vector3();
+  function showDest(point) { destAt.copy(point); standOn(destRing, point, 0.6); destT = 0; }
   function goUse(it) {
     clearHint('walk');
     if (player.pos.distanceTo(it.approach) < 0.6 || player.pos.distanceTo(it.point) < it.radius * 0.7) return use(it);
@@ -447,8 +475,9 @@ async function start() {
     if (p.thing) return goUse(p.thing);
     if (p.loose) return goGrab(p.loose);
     clearHint('walk');
-    player.walkTo(p.ground);
-    showDest(p.ground);
+    const to = clearSpot(p.ground);
+    player.walkTo(to);
+    showDest(to);
   }
 
   const tip = $('tip');
@@ -484,7 +513,7 @@ async function start() {
     } else {
       tip.hidden = true;
       canvas.style.cursor = p ? 'pointer' : '';
-      if (p) { standOn(hoverRing, p.ground); hoverRing.material.opacity = 0.35; } else hoverRing.material.opacity = 0;
+      if (p) { standOn(hoverRing, clearSpot(p.ground)); hoverRing.material.opacity = 0.35; } else hoverRing.material.opacity = 0;
     }
   }
 
@@ -1527,7 +1556,7 @@ async function start() {
     if (destT >= 0) {
       destT += dt;
       const k = destT / 0.9;
-      destRing.scale.setScalar(0.6 + k * 0.8);
+      standOn(destRing, destAt, 0.6 + Math.min(1, k) * 0.5); // it spreads, but no further than the spot was cleared
       destRing.material.opacity = Math.max(0, 0.9 * (1 - k));
       if (k >= 1) destT = -1;
     }
