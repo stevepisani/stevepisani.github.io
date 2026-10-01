@@ -120,6 +120,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       g.add(l);
     }
     put(g, dir, { heading: (dir.x * 13.7 + dir.z * 7.1) % 6.28 }, 0.3);
+    colliders.push({ center: g.position.clone(), radius: 0.08, height: height });
     // no real light: it lights the ground through the shaders instead (lamps.js)
     if (!light) { g.updateMatrixWorld(true); addLamp(g.localToWorld(new THREE.Vector3(0.25, height - 0.23, 0)), pool); }
     return g;
@@ -233,6 +234,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     for (const side of [-1, 1]) {
       const torch = tikiTorch({ height: 1.7, light: quality.high ? 2.0 : 0 });
       put(torch, offset(mark.up, mark.side, side * 1.15), {}, 0.3);
+      colliders.push({ center: torch.position.clone(), radius: 0.12, height: 1.8 });
       // its real light (desktop) barely reaches the ground; the pool at its foot does
       torch.updateMatrixWorld(true);
       addLamp(torch.localToWorld(new THREE.Vector3(0, 1.75, 0)), quality.high ? 9 : 14);
