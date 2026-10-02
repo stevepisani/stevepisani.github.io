@@ -2,7 +2,7 @@
 // what he's listening to now is a comet crossing them. A series is a constellation, its books
 // joined in order and its name written faintly beside it. A star's colour is its kind of book,
 // its size how long it is. Lie in the hammock, look up, tap one (main.js picks with `pick()` and
-// shows the card). The data is /listening.json (tools/audible.py, daily); with none, no stars.
+// shows the card). The data is /listening.json (tools/audible-sync.py, daily); with none, no stars.
 //
 // Like the rest of the sky it's infinitely far away (the group rides on the camera), at fixed
 // directions in the world: a cone round where you look when lying in the hammock.

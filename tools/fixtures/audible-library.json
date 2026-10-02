@@ -1,5 +1,5 @@
 {
- "_note": "A made-up API response for testing tools/audible.py and the listening sky. Not Steve's library.",
+ "_note": "A made-up API response for testing tools/audible-sync.py and the listening sky. Not Steve's library.",
  "items": [
   {
    "asin": "FIXTURE000",
