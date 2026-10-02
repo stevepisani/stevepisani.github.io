@@ -22,6 +22,28 @@
   }
 
   /* ---- Page count ---- */
+  // A book's Audible sample: any [data-sample] button plays its clip, one at a time; again to stop.
+  // (window.playSample is the same thing for the planet's star cards.)
+  var sample = null, sampleBtn = null;
+  function playSample(url, btn) {
+    var same = sample && sample.src === url && !sample.paused;
+    if (sample) sample.pause();
+    if (sampleBtn) sampleBtn.setAttribute('aria-pressed', 'false');
+    if (same) { sample = sampleBtn = null; return false; }
+    sample = new Audio(url);
+    sampleBtn = btn || null;
+    if (sampleBtn) sampleBtn.setAttribute('aria-pressed', 'true');
+    sample.addEventListener('ended', function () { if (sampleBtn) sampleBtn.setAttribute('aria-pressed', 'false'); });
+    sample.play().catch(function () {});
+    return true;
+  }
+  window.playSample = playSample;
+  window.stopSample = function () { if (sample) sample.pause(); if (sampleBtn) sampleBtn.setAttribute('aria-pressed', 'false'); sample = sampleBtn = null; };
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-sample]');
+    if (b) playSample(b.getAttribute('data-sample'), b);
+  });
+
   // One row per page view in Supabase (public.pageviews): the path, the referring site's host if
   // it's another site, and the kind of screen. No cookies, no IP, nothing kept in the browser.
   // Skipped for Do Not Track / Global Privacy Control, automated browsers and local previews.
