@@ -1,0 +1,212 @@
+// Smoke test: drives the built site in a real browser and fails on anything broken. It serves
+// the build itself (`_site`, or the folder given), loads every page, then walks the homepage's
+// planet through each thing a visitor can do, on desktop and on a phone, and checks the
+// no-WebGL fallback. Nothing leaves the machine: every request outside the build is refused,
+// so it runs offline and never writes to Supabase. WebGL runs on SwiftShader (software), so
+// the planet is driven through `window.__world` with `?test=1` and reduced motion.
+//
+//   npm run build && bundle exec jekyll build && npm test            (CI does this)
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|nogl]
+//
+// --shots saves a screenshot at each step, for looking at what changed.
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
+import { join, extname, resolve, relative } from 'node:path';
+
+const args = process.argv.slice(2);
+const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
+const shotsDir = flag('--shots'), only = flag('--only');
+const root = resolve(args[0] || '_site');
+if (!existsSync(join(root, 'index.html'))) { console.error(`No built site at ${root}.`); process.exit(2); }
+if (shotsDir) mkdirSync(shotsDir, { recursive: true });
+
+// A static server for the build (what Pages does: /x serves x.html or x/index.html)
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml', '.map': 'application/json', '.py': 'text/plain' };
+const server = createServer((req, res) => {
+  let p = join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  if (existsSync(p) && statSync(p).isDirectory()) p = join(p, 'index.html');
+  else if (!existsSync(p) && existsSync(p + '.html')) p += '.html';
+  if (!existsSync(p)) { res.writeHead(404); res.end(); return; }
+  res.writeHead(200, { 'content-type': TYPES[extname(p)] || 'application/octet-stream' });
+  res.end(readFileSync(p));
+}).listen(0);
+const base = `http://localhost:${server.address().port}`;
+
+const browserArgs = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
+const failures = [];
+const step = (name) => console.log(`  · ${name}`);
+
+async function session(name, contextOptions, fn, launchArgs = browserArgs) {
+  console.log(`\n${name}`);
+  const browser = await chromium.launch({ args: launchArgs });
+  const context = await browser.newContext({ reducedMotion: 'reduce', ...contextOptions });
+  // only the build: fonts, APIs, Supabase (REST and the fireflies' websocket) are refused
+  await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
+  await context.routeWebSocket(/.*/, (ws) => ws.close());
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
+  page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|ERR_BLOCKED|WebSocket|Failed to load resource/.test(m.text())) errors.push(`console: ${m.text()}`); });
+  let n = 0;
+  const shot = async (label) => { if (shotsDir) await page.screenshot({ path: join(shotsDir, `${name.split(' ')[0]}-${String(++n).padStart(2, '0')}-${label}.png`), timeout: 180000 }); };
+  try {
+    await fn(page, shot);
+    if (errors.length) throw new Error(errors.join('\n'));
+    console.log('  ✓ fine');
+  } catch (e) {
+    failures.push(`${name}: ${e.message.split('\n').slice(0, 6).join('\n')}`);
+    console.log(`  ✗ ${e.message.split('\n')[0]}`);
+    await page.screenshot({ path: join(shotsDir || '.', `smoke-failed-${name.split(' ')[0]}.png`) }).catch(() => {});
+  }
+  await browser.close();
+}
+
+const until = (page, fn, arg, timeout = 120000) => page.waitForFunction(fn, arg, { timeout });
+const expectState = async (page, s, timeout) => { await until(page, (s) => window.__world.state === s && !window.__world.cameraFlying, s, timeout); };
+
+// Every page loads without a script error
+async function pages(page) {
+  const all = (function walk(d) { return readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; }); })(root)
+    .filter((f) => f.endsWith('.html') && !relative(root, f).startsWith('recipe_tracker/') && relative(root, f) !== 'index.html');
+  for (const f of all) {
+    const path = '/' + relative(root, f);
+    await page.goto(base + path, { waitUntil: 'load' });
+    await page.waitForTimeout(150);
+  }
+  step(`${all.length} pages load`);
+}
+
+// The planet, everything a visitor can do
+async function planet(page, shot, { phone = false } = {}) {
+  const t0 = Date.now();
+  await page.goto(base + '/?test=1');
+  await until(page, () => window.__sceneReady, null, 240000);
+  step(`scene up in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  await shot('arrive');
+
+  // a section from the top bar opens as a panel, and closes
+  if (phone) { await page.click('#menu-btn'); await page.click('#menu a[data-order="about"]'); }
+  else await page.click('#topbar a[data-order="about"]');
+  await until(page, () => !document.getElementById('panel').hidden);
+  await shot('panel');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('panel').hidden);
+  step('a section opens from the top bar and closes');
+
+  // tap the bar: walk over and sit
+  const tap = async (xy) => (phone ? page.touchscreen.tap(...xy) : page.mouse.click(...xy));
+  const onScreen = (id) => page.evaluate((id) => {
+    const W = window.__world, it = W.interactables.find((i) => i.id === id);
+    const p = it.point.clone().project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+    return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
+  }, id);
+  await tap(await onScreen('seat'));
+  await expectState(page, 'seat', 600000);
+  await shot('seated');
+  step('tap the bar: walked over and sat down');
+
+  // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
+  await tap(await onScreen('menu'));
+  await until(page, () => window.__world.menuHeld && !document.getElementById('menu').hidden);
+  await page.click('#menu a[data-order="lab"]');
+  await until(page, () => !document.getElementById('panel').hidden, null, 60000);
+  await shot('ordered');
+  await page.click('#panel-close');
+  await until(page, () => document.getElementById('panel').hidden && !document.getElementById('menu').hidden, null, 60000);
+  await page.click('#menu-close');
+  await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
+  step('menu: picked up, ordered, served, put down');
+
+  // the robot makes a drink, skipped to the end
+  await page.evaluate(() => window.__world.make(0));
+  await until(page, () => window.__world.making);
+  await page.keyboard.press('Escape');
+  await until(page, () => !window.__world.making, null, 60000);
+  step('the robot made a drink');
+
+  await page.click('#seat-leave');
+  await expectState(page, 'walk', 120000);
+  step('left the bar');
+
+  // the campfire: sit, roast, eat, leave
+  await page.evaluate(() => window.__world.sitAtFire());
+  await expectState(page, 'camp');
+  await page.evaluate(() => { window.__world.roaster.state.toast = 0.5; });
+  await page.evaluate(() => window.__world.eatIt());
+  await shot('fire');
+  await page.evaluate(() => window.__world.leaveFire());
+  await expectState(page, 'walk');
+  step('campfire: sat, ate one, left');
+
+  // the hammock: lie in it, the reading list, get up
+  await page.evaluate(() => window.__world.lieInHammock());
+  await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
+  await shot('hammock');
+  await page.evaluate(() => window.__world.getOutOfHammock());
+  await expectState(page, 'walk');
+  step('hammock: lay down, got up');
+
+  // skip a stone
+  await page.evaluate(() => window.__world.goToShore());
+  await until(page, () => window.__world.state === 'shore' && window.__world.stoneInHand, null, 120000);
+  await page.evaluate(() => { window.__lastThrow = null; window.__world.throwStone(0.7); });
+  await until(page, () => window.__lastThrow, null, 60000);
+  await page.evaluate(() => window.__world.leaveShore());
+  await expectState(page, 'walk');
+  step(`skipped a stone (${await page.evaluate(() => `${window.__lastThrow.skips} skips`)})`);
+
+  // a message in a bottle: written, rolled up, thrown (tests never write to the table)
+  await page.evaluate(() => { const it = window.__world.interactables.find((i) => i.id === 'bottles'); window.__world.player.spawn(it.approach.clone().normalize(), it.point, 0); });
+  await page.evaluate(() => window.__world.note.go());
+  await until(page, () => window.__world.note.step === 'writing');
+  await page.fill('#note-text', 'Smoke test: hello from the little planet.');
+  await shot('note');
+  await page.click('.note__roll');
+  await until(page, () => window.__world.note.step === 'ready');
+  if (!(await page.evaluate(() => window.__lastBottle && window.__lastBottle.message))) throw new Error('the bottle was not sent');
+  await page.evaluate(() => window.__world.note.throwIt());
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  step('wrote a message, threw the bottle');
+
+  // physics: the engine loads, a coconut is picked up and thrown and lands on the ground
+  await until(page, () => window.__world.physics, null, 120000);
+  await page.evaluate(() => window.__world.goGrab(0));
+  await until(page, () => window.__world.carrying, null, 300000);
+  await page.evaluate(() => window.__world.toss(0.6));
+  // software rendering is a few frames a second, and the physics never steps more than 0.1 s a
+  // frame: wait for it to come down and slow to a roll rather than a fixed time
+  await until(page, () => {
+    const W = window.__world, it = W.physics.items[0], p = it.object.position, v = it.body && it.body.linvel();
+    return v && p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius < 0.3 && Math.hypot(v.x, v.y, v.z) < 1;
+  }, null, 120000).catch(() => {});
+  const landed = await page.evaluate(() => {
+    const W = window.__world, it = W.physics.items[0], p = it.object.position;
+    return { moved: p.distanceTo(it.home), above: p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius };
+  });
+  if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
+  step(`threw a coconut ${landed.moved.toFixed(1)} m`);
+}
+
+// Without WebGL the menu is the page, and its links are real
+async function noWebGL(page, shot) {
+  await page.goto(base + '/');
+  await until(page, () => document.getElementById('world').dataset.state === 'fallback', null, 60000);
+  if (await page.isHidden('#menu')) throw new Error('the menu is hidden without WebGL');
+  await shot('fallback');
+  step('the menu is the page');
+}
+
+const want = (k) => !only || only === k;
+if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
+if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
+if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
+if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
+
+server.close();
+if (failures.length) {
+  console.error(`\n${failures.length} failed:\n${failures.map((f) => `✗ ${f}`).join('\n')}`);
+  process.exit(1);
+}
+console.log('\n✓ smoke test passed');
