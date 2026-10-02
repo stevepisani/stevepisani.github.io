@@ -604,7 +604,9 @@ async function start() {
   function flightStep(now) {
     const f = flight;
     const k = Math.min(1, (now - f.t0) / f.total);
-    const t = (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2) * f.total; // eased time along the path
+    // eased time along the path: speeding up over the first quarter, steady, slowing over the last
+    // (a steady middle peaks at 4/3 of the average speed; an ease-in-out curve would peak at twice it)
+    const A = 0.25, t = (k < A ? (k * k) / (2 * A * (1 - A)) : k < 1 - A ? (k - A / 2) / (1 - A) : 1 - ((1 - k) * (1 - k)) / (2 * A * (1 - A))) * f.total;
     let i = 0;
     while (i < f.ends.length - 1 && t > f.ends[i]) i++;
     const start = i ? f.ends[i - 1] : 0;
@@ -1118,8 +1120,8 @@ async function start() {
     const poses = {
       stand: poseLooking(g(new THREE.Vector3(L / 2, ground + 1.62, side * 0.85)), g(mid.clone().setY(mid.y + 0.45).setZ(-side * 0.6))), // at its side, looking at it and past it
       sit: poseLooking(w(P(0.5, 0.6, side * 0.2)), w(new THREE.Vector3(L / 2, mid.y + 0.45, side * 3.5))),       // on the edge, back to it
-      back: poseLooking(w(P(0.42, 0.42, side * 0.06)), w(new THREE.Vector3(L * 0.72, 0.4, -side * 0.6))),       // legs up, leaning back
-      lie: { eye: P(0.3, 0.19, 0), look: new THREE.Vector3(L * 0.9, 1.15, 0) },                                  // lying back, looking up over your feet
+      back: poseLooking(w(P(0.42, 0.42, side * 0.06)), w(new THREE.Vector3(L * 0.95, mid.y + 3.2, 0))),       // legs up and in, leaning back along it (you turn as you swing round)
+      lie: { eye: P(0.42, 0.19, 0), look: new THREE.Vector3(L * 0.5, mid.y + 2.7, -side * 3.4) },              // lying back across it, looking up and out over the water between two palms
     };
     poses.lie = { ...poses.lie, ...poseLooking(w(poses.lie.eye), w(poses.lie.look)) };
     HM.setLoad(was);
@@ -1161,9 +1163,9 @@ async function start() {
     hmTimer = setTimeout(() => { loadTo = 1; sound.play('creak'); }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
     flyPath([
       { ...P.stand, ms: step },
-      { ...P.sit, ms: 1600 },  // turn round and sit on the edge: an unhurried half turn
-      { ...P.back, ms: 850 },  // swing your legs up, lean back
-      { ...P.lie, ms: 750 },
+      { ...P.sit, ms: 1800 },  // turn round and sit on the edge: an unhurried half turn
+      { ...P.back, ms: 1150 }, // swing your legs up and in, leaning back
+      { ...P.lie, ms: 1100 },  // and settle across it, looking up and out over the water
     ], () => {
       if (state !== 'hammock') return;
       loadTo = 1;
@@ -1187,9 +1189,9 @@ async function start() {
     hmTimer = setTimeout(() => { loadTo = 0; sound.play('creak'); if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
     const finish = () => { leaving = false; lying = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
     flyPath([
-      { ...P.back, ms: 700 },  // sit up
-      { ...P.sit, ms: 800 },   // legs over the side
-      { ...P.stand, ms: 1600 }, // stand, turning back round to it
+      { ...P.back, ms: 900 },  // sit up
+      { ...P.sit, ms: 1100 },  // legs over the side
+      { ...P.stand, ms: 1800 }, // stand, turning back round to it
       { pos: endPos, quat: endQuat, ms: 700 },
     ], finish);
   }
@@ -1211,11 +1213,8 @@ async function start() {
     center: (() => {
       if (!HM) return new THREE.Vector3(0, 1, 0);
       const P = hammockPoses();
-      // up and to the left of where your eyes rest when you lie back, in the open sky clear of both
-      // palms: a share of the view's own width and height, so it's in view on a phone too
-      const q = P.lie.quat, at = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(q);
-      const half = THREE.MathUtils.degToRad(camera.fov / 2), wide = Math.atan(Math.tan(half) * camera.aspect);
-      return at(0, 0, -1).applyAxisAngle(at(0, 1, 0), wide * 0.5).applyAxisAngle(at(1, 0, 0), half * 0.35);
+      // right where your eyes rest when you lie back: up between the two palms, which frame it
+      return new THREE.Vector3(0, 0, -1).applyQuaternion(P.lie.quat);
     })(),
     reducedMotion,
   });
