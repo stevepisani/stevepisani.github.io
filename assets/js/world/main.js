@@ -27,6 +27,7 @@ import { createSkipper } from './stones.js';
 import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
+import { createListeningSky } from './listening.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -462,6 +463,11 @@ async function start() {
   }
 
   function onTap(x, y) {
+    if (state === 'hammock' && lying && !flight && !leaving && panel.hidden && menu.hidden) {
+      const b = listening.pick(x, y, camera, canvas.getBoundingClientRect(), coarse ? 34 : 26);
+      if (b) openStar(b); else closeStar();
+      return;
+    }
     if (state === 'seat' && panel.hidden && menu.hidden) {
       if (making) return; // it's making you a drink
       const p = pick(x, y);
@@ -483,6 +489,18 @@ async function start() {
   const tip = $('tip');
   let hovered = null;
   function onHover(x, y) {
+    // in the hammock: the stars are (the books)
+    if (x !== null && state === 'hammock' && lying && !flight && panel.hidden && menu.hidden) {
+      const b = listening.pick(x, y, camera, canvas.getBoundingClientRect());
+      canvas.style.cursor = b ? 'pointer' : '';
+      tip.hidden = !b;
+      if (b) {
+        tip.querySelector('strong').textContent = b.book.title;
+        tip.querySelector('span').textContent = starStatus(b.book);
+        tip.style.transform = `translate(${x + 16}px, ${y + 14}px)`;
+      }
+      return;
+    }
     // seated: only the menu card is clickable
     if (x !== null && state === 'seat' && panel.hidden && menu.hidden && !cardFlight) {
       const p = pick(x, y);
@@ -979,6 +997,7 @@ async function start() {
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (e.target === chatInput) { chatInput.blur(); return; } // first Esc just leaves the question box
+    if (!starCard.hidden) { closeStar(); return; } // first Esc puts the book's card away
     if (!panel.hidden) closePanel();
     else if (making && menu.hidden) skipMaking(); // Esc while it's making one: straight to the drink
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
@@ -1156,6 +1175,7 @@ async function start() {
     if (state !== 'hammock' || leaving) return;
     leaving = true;
     closePanel();
+    closeStar();
     // the book goes back where it was, as you sit up
     HM.swing.attach(HM.book);
     tweenBook(HM.bookHome, 0.35, 700);
@@ -1176,7 +1196,65 @@ async function start() {
   hmLeave.addEventListener('click', getOutOfHammock);
   hmRead.addEventListener('click', readBook);
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
-  afterHammockPanel = () => { if (state === 'hammock' && !leaving && HM.book.parent === camera) tweenBook(CHEST, 0.1, 600); };
+  afterHammockPanel = () => {
+    if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
+    tweenBook(CHEST, 0.1, 600);
+    if (listening.count) showHint(coarse ? 'Every star above you is a book Steve has listened to. Tap one.' : 'Every star above you is a book Steve has listened to. Click one.', 'stars');
+  };
+
+  /* ---------- The listening sky: Steve's Audible books as stars over the hammock ---------- */
+  // listening.js lays them out in a cone round where you look when you lie back; here, tapping
+  // one (only from the hammock) opens its card: cover, who wrote it, when he finished it (or how
+  // far through he is), and Audible's sample to play (site.js playSample). The data is
+  // /listening.json, fetched once the planet's up.
+  const listening = createListeningSky({
+    center: (() => {
+      if (!HM) return new THREE.Vector3(0, 1, 0);
+      const P = hammockPoses();
+      // up and to the left of where your eyes rest when you lie back, in the open sky clear of both
+      // palms: a share of the view's own width and height, so it's in view on a phone too
+      const q = P.lie.quat, at = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(q);
+      const half = THREE.MathUtils.degToRad(camera.fov / 2), wide = Math.atan(Math.tan(half) * camera.aspect);
+      return at(0, 0, -1).applyAxisAngle(at(0, 1, 0), wide * 0.5).applyAxisAngle(at(1, 0, 0), half * 0.35);
+    })(),
+    reducedMotion,
+  });
+  scene.add(listening.group);
+  const starCard = $('star-card'), starSample = $('star-sample');
+  let starOpen = null;
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function starStatus(b) {
+    if (!b.finished) return `Listening now, ${b.percent}% through`;
+    if (!b.finished_on) return 'Finished';
+    const [y, m] = b.finished_on.split('-');
+    return `Finished ${MONTHS[+m - 1]} ${y}`;
+  }
+  function openStar(s) {
+    const b = s.book;
+    clearHint('stars');
+    starOpen = s;
+    listening.select(s);
+    const cover = $('star-cover');
+    cover.textContent = '';
+    cover.style.setProperty('--hue', (b.title.length * 47) % 360);
+    if (b.cover) { const img = new Image(); img.src = b.cover; img.alt = ''; cover.append(img); } else cover.textContent = b.title;
+    $('star-kind').textContent = starStatus(b);
+    $('star-title').textContent = b.title;
+    const by = (b.authors || []).join(', ');
+    $('star-meta').textContent = [by && `by ${by}`, b.series && `${b.series}${b.seq ? `, book ${b.seq}` : ''}`, b.narrators && b.narrators.length && `read by ${b.narrators.join(', ')}`].filter(Boolean).join(' · ');
+    starSample.hidden = !b.sample;
+    starSample.setAttribute('aria-pressed', 'false');
+    starCard.hidden = false;
+  }
+  function closeStar() {
+    if (starCard.hidden) return;
+    starCard.hidden = true;
+    starOpen = null;
+    listening.select(null);
+    if (window.stopSample) window.stopSample();
+  }
+  starSample.addEventListener('click', () => { if (starOpen && window.playSample) window.playSample(starOpen.book.sample, starSample); });
+  $('star-close').addEventListener('click', closeStar);
 
   /* ---------- Skipping stones at the lagoon ---------- */
   // Walk down to the pile at the waterline and crouch there, facing across the water, a flat
@@ -1487,6 +1565,7 @@ async function start() {
     }
     skipper.update(realDt);
     ritual.update(realDt);
+    listening.update(t, camera, realDt, state === 'hammock' && !!lying && !flight && !leaving);
     physics.update(realDt, player.pos);
     if (carry) {
       if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
@@ -1658,8 +1737,11 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, listening, openStar: (i) => openStar(listening.books[i]), closeStar: () => closeStar(), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
   window.__sceneReady = true;
+
+  // Steve's Audible books, for the stars over the hammock (tools/audible.py, daily)
+  fetch('/listening.json').then((r) => (r.ok ? r.json() : null)).then((d) => { listening.setBooks(d); window.__world.stars = listening.count; }).catch(() => {});
 
   // The physics engine: a megabyte of WebAssembly nobody needs for the first frame
   physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e));

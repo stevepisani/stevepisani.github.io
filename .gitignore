@@ -8,3 +8,5 @@ vendor
 node_modules
 assets/js/dist
 smoke-failed-*.png
+__pycache__
+deno.lock

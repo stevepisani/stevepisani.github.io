@@ -17,7 +17,8 @@ design: row-level security guards every table.
   To change the schema, add a new migration; never edit one that has run.
 - `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off).
 - `functions/<name>/index.ts`: edge functions, Deno TypeScript. Type-check with
-  `deno check supabase/functions/<name>/index.ts`.
+  `deno check --node-modules-dir=none supabase/functions/<name>/index.ts` (the flag keeps Deno from
+  looking for the site's own `node_modules`).
 - `tools/supabase.mjs` applies the migrations and `auth.json` through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
@@ -49,12 +50,41 @@ database: 1,000 replies a month (about $5) and 20 questions an hour per visitor,
 daily-salted hash of the IP, never the IP. It declines to talk about clients and points people
 to email. When it can't answer, the page says the bar's closed for a moment.
 
+## Audible (`tools/audible.py`)
+
+Steve's Audible library, once a day (`.github/workflows/audible.yml`, 05:41 Philadelphia time, or
+run it by hand): the books he's finished and the ones he's partway through (never ones he hasn't
+started), minus `_data/audible_hide.yml`, written to `_data/audible.json`. If that changed, the
+workflow commits it to main and starts the site workflow to publish it (its own push wouldn't).
+From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) and the bartender.
+
+- **The API isn't public.** It's the one Audible's apps use, through the `audible` Python package
+  (pinned in the workflow). If Amazon changes it, the sync fails and the site keeps the last good
+  data; the job's log says why.
+- **Auth:** the `AUDIBLE_AUTH` repo secret, the JSON auth file `audible quickstart` makes. It's a
+  registered device (it shows in Amazon's device list as an Audible app), not a password: it
+  refreshes its own access token, and deregistering that device turns the sync off. To make it, on
+  Steve's own machine, once:
+
+  ```bash
+  pipx install audible-cli        # or: python3 -m pip install --user audible-cli
+  audible quickstart              # US marketplace; log in through the browser; don't encrypt the file
+  gh secret set AUDIBLE_AUTH --repo stevepisani/stevepisani.github.io < ~/.audible/audible.json
+  ```
+
+  (or paste the file into Settings → Secrets and variables → Actions → New repository secret).
+  Then run the Audible workflow once (Actions → Audible → Run workflow).
+- **Try the transform without an account:** `python tools/audible.py --from tools/fixtures/audible-library.json`
+  (a made-up API response; `tools/fixtures/listening.json` is its output, which the smoke test serves
+  as `/listening.json`).
+
 ## Deploys
 
 | What | How | When |
 |---|---|---|
 | The site | `.github/workflows/site.yml`: bundle (`npm run build`), Jekyll, link check, smoke test, then `actions/deploy-pages` | every push to main; PRs build and test only |
 | Supabase | `.github/workflows/supabase.yml` | merges touching `supabase/` |
+| Audible library | `.github/workflows/audible.yml` (`tools/audible.py`); commits `_data/audible.json` and starts the site workflow | daily |
 | GitHub profile README | the `stevepisani/stevepisani` repo rebuilds its README daily from `https://stevenpisani.com/profile.json` (built from `_data/profile.yml`) | daily |
 
 Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't remove it.
@@ -64,7 +94,8 @@ Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't r
 - `SUPABASE_ACCESS_TOKEN`: the Supabase Management API, for `supabase.yml`.
 - `ANTHROPIC_API_KEY`: copied into the bartender function's secrets on deploy. A monthly spend
   limit is also set in the Anthropic console, as a backstop to the cap in code.
-- `GITHUB_TOKEN` (automatic): the Jekyll build's GitHub metadata.
+- `AUDIBLE_AUTH`: the Audible device registration, for `audible.yml` (above).
+- `GITHUB_TOKEN` (automatic): the Jekyll build's GitHub metadata, and the Audible sync's commit.
 
 ## Money
 
@@ -75,5 +106,6 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | GitHub Pages and Actions | $0 |
 | Supabase (free plan: 500 MB database, 200 concurrent Realtime connections, which is the fireflies' cap) | $0 |
 | The bartender (capped at 1,000 replies a month) | up to about $5 |
+| Audible sync (a minute of Actions a day) | $0 |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.

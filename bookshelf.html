@@ -3,8 +3,30 @@ layout: page
 title: Bookshelf
 kicker: The bookshelf
 heading: Books I've read and liked
-lede: Rescued from an old reading list. Tilt your head.
+lede: Mostly in my ears these days. What I'm listening to on Audible, everything I've finished, and the old shelf from before. On the planet they're the stars over the hammock.
+wide: true
 ---
+{%- assign a = site.data.audible -%}
+{% if a.listening.size > 0 %}
+<section class="books">
+  <h2 class="shelf__name">Listening now</h2>
+  <ul class="books__grid">{% for b in a.listening %}{% include book-card.html b=b %}{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if a.finished.size > 0 %}
+{%- assign years = a.finished | group_by_exp: "b", "b.finished_on | slice: 0, 4" -%}
+{% for y in years %}
+<section class="books">
+  <h2 class="shelf__name">{% if y.name == "" %}Finished earlier{% else %}Finished in {{ y.name }}{% endif %} <span class="books__count">{{ y.items.size }}</span></h2>
+  <ul class="books__grid">{% for b in y.items %}{% include book-card.html b=b %}{% endfor %}</ul>
+</section>
+{% endfor %}
+<p class="books__note">From my Audible library, updated daily{% if a.updated %} (last {{ a.updated | date: "%-d %B %Y" }}){% endif %}.</p>
+{% endif %}
+
+<h2 class="books__old">The old shelf</h2>
+<p class="books__note">Rescued from a reading list from around 2020. Tilt your head.</p>
 {% for shelf in site.data.books %}
 <section class="shelf">
   <h2 class="shelf__name">{{ shelf.shelf }}</h2>
