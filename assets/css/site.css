@@ -289,6 +289,29 @@ pre { background: #1d1f24; color: #e7e3da; padding: 18px 20px; border-radius: 12
 .spine:hover, .spine:focus { transform: translateY(-10px) rotate(-2deg); }
 :root[data-theme="terminal"] .spine { background: var(--card); color: var(--ink); border: 1px solid var(--ink-3); }
 
+/* Audible: covers in a grid, newest first (bookshelf.html, _includes/book-card.html) */
+.books { margin-bottom: 40px; }
+.books__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 22px 18px; }
+.books__count { font-size: .8rem; color: var(--ink-3); margin-left: 6px; }
+.books__note { color: var(--ink-3); font-size: .9rem; }
+.books__old { margin-top: 56px; }
+.book { min-width: 0; }
+.book__cover {
+  position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: var(--shadow);
+  background: hsl(var(--hue) 40% 32%); color: #fff; display: grid; place-items: center; text-align: center;
+}
+.book__cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.book__cover > span:not(.book__progress) { font: 600 .9rem/1.2 var(--font-display); padding: 12px; }
+.book__progress { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgb(0 0 0 / .45); }
+.book__progress::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--accent); }
+.book__title { margin: 8px 0 2px; font: 600 .92rem/1.25 var(--font-display); }
+.book__meta { margin: 0; font-size: .8rem; line-height: 1.35; color: var(--ink-2); }
+.book__sample {
+  margin-top: 6px; min-height: 44px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font: .78rem var(--font-mono); cursor: pointer;
+}
+.book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+
 /* ---------- Error pages ---------- */
 .error-page { display: flex; gap: 40px; align-items: center; padding-top: 96px; flex-wrap: wrap; }
 .error-page img { animation: drift 8s ease-in-out infinite; }

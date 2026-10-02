@@ -27,6 +27,7 @@ import { createSkipper } from './stones.js';
 import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
+import { createListeningSky } from './listening.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -462,6 +463,11 @@ async function start() {
   }
 
   function onTap(x, y) {
+    if (state === 'hammock' && lying && !flight && !leaving && panel.hidden && menu.hidden) {
+      const b = listening.pick(x, y, camera, canvas.getBoundingClientRect(), coarse ? 34 : 26);
+      if (b) openStar(b); else closeStar();
+      return;
+    }
     if (state === 'seat' && panel.hidden && menu.hidden) {
       if (making) return; // it's making you a drink
       const p = pick(x, y);
@@ -483,6 +489,18 @@ async function start() {
   const tip = $('tip');
   let hovered = null;
   function onHover(x, y) {
+    // in the hammock: the stars are (the books)
+    if (x !== null && state === 'hammock' && lying && !flight && panel.hidden && menu.hidden) {
+      const b = listening.pick(x, y, camera, canvas.getBoundingClientRect());
+      canvas.style.cursor = b ? 'pointer' : '';
+      tip.hidden = !b;
+      if (b) {
+        tip.querySelector('strong').textContent = b.book.title;
+        tip.querySelector('span').textContent = starStatus(b.book);
+        tip.style.transform = `translate(${x + 16}px, ${y + 14}px)`;
+      }
+      return;
+    }
     // seated: only the menu card is clickable
     if (x !== null && state === 'seat' && panel.hidden && menu.hidden && !cardFlight) {
       const p = pick(x, y);
@@ -586,7 +604,9 @@ async function start() {
   function flightStep(now) {
     const f = flight;
     const k = Math.min(1, (now - f.t0) / f.total);
-    const t = (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2) * f.total; // eased time along the path
+    // eased time along the path: speeding up over the first quarter, steady, slowing over the last
+    // (a steady middle peaks at 4/3 of the average speed; an ease-in-out curve would peak at twice it)
+    const A = 0.25, t = (k < A ? (k * k) / (2 * A * (1 - A)) : k < 1 - A ? (k - A / 2) / (1 - A) : 1 - ((1 - k) * (1 - k)) / (2 * A * (1 - A))) * f.total;
     let i = 0;
     while (i < f.ends.length - 1 && t > f.ends[i]) i++;
     const start = i ? f.ends[i - 1] : 0;
@@ -979,6 +999,7 @@ async function start() {
   addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     if (e.target === chatInput) { chatInput.blur(); return; } // first Esc just leaves the question box
+    if (!starCard.hidden) { closeStar(); return; } // first Esc puts the book's card away
     if (!panel.hidden) closePanel();
     else if (making && menu.hidden) skipMaking(); // Esc while it's making one: straight to the drink
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
@@ -1099,8 +1120,8 @@ async function start() {
     const poses = {
       stand: poseLooking(g(new THREE.Vector3(L / 2, ground + 1.62, side * 0.85)), g(mid.clone().setY(mid.y + 0.45).setZ(-side * 0.6))), // at its side, looking at it and past it
       sit: poseLooking(w(P(0.5, 0.6, side * 0.2)), w(new THREE.Vector3(L / 2, mid.y + 0.45, side * 3.5))),       // on the edge, back to it
-      back: poseLooking(w(P(0.42, 0.42, side * 0.06)), w(new THREE.Vector3(L * 0.72, 0.4, -side * 0.6))),       // legs up, leaning back
-      lie: { eye: P(0.3, 0.19, 0), look: new THREE.Vector3(L * 0.9, 1.15, 0) },                                  // lying back, looking up over your feet
+      back: poseLooking(w(P(0.42, 0.42, side * 0.06)), w(new THREE.Vector3(L * 0.95, mid.y + 3.2, 0))),       // legs up and in, leaning back along it (you turn as you swing round)
+      lie: { eye: P(0.42, 0.19, 0), look: new THREE.Vector3(L * 0.5, mid.y + 2.7, -side * 3.4) },              // lying back across it, looking up and out over the water between two palms
     };
     poses.lie = { ...poses.lie, ...poseLooking(w(poses.lie.eye), w(poses.lie.look)) };
     HM.setLoad(was);
@@ -1142,9 +1163,9 @@ async function start() {
     hmTimer = setTimeout(() => { loadTo = 1; sound.play('creak'); }, reducedMotion ? 0 : step + 1300); // it takes your weight as you sit
     flyPath([
       { ...P.stand, ms: step },
-      { ...P.sit, ms: 1600 },  // turn round and sit on the edge: an unhurried half turn
-      { ...P.back, ms: 850 },  // swing your legs up, lean back
-      { ...P.lie, ms: 750 },
+      { ...P.sit, ms: 1800 },  // turn round and sit on the edge: an unhurried half turn
+      { ...P.back, ms: 1150 }, // swing your legs up and in, leaning back
+      { ...P.lie, ms: 1100 },  // and settle across it, looking up and out over the water
     ], () => {
       if (state !== 'hammock') return;
       loadTo = 1;
@@ -1156,6 +1177,7 @@ async function start() {
     if (state !== 'hammock' || leaving) return;
     leaving = true;
     closePanel();
+    closeStar();
     // the book goes back where it was, as you sit up
     HM.swing.attach(HM.book);
     tweenBook(HM.bookHome, 0.35, 700);
@@ -1167,16 +1189,71 @@ async function start() {
     hmTimer = setTimeout(() => { loadTo = 0; sound.play('creak'); if (!reducedMotion) HM.kick(-0.22); }, reducedMotion ? 0 : 1500); // you stand, it springs back
     const finish = () => { leaving = false; lying = null; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); };
     flyPath([
-      { ...P.back, ms: 700 },  // sit up
-      { ...P.sit, ms: 800 },   // legs over the side
-      { ...P.stand, ms: 1600 }, // stand, turning back round to it
+      { ...P.back, ms: 900 },  // sit up
+      { ...P.sit, ms: 1100 },  // legs over the side
+      { ...P.stand, ms: 1800 }, // stand, turning back round to it
       { pos: endPos, quat: endQuat, ms: 700 },
     ], finish);
   }
   hmLeave.addEventListener('click', getOutOfHammock);
   hmRead.addEventListener('click', readBook);
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
-  afterHammockPanel = () => { if (state === 'hammock' && !leaving && HM.book.parent === camera) tweenBook(CHEST, 0.1, 600); };
+  afterHammockPanel = () => {
+    if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
+    tweenBook(CHEST, 0.1, 600);
+    if (listening.count) showHint(coarse ? 'Every star above you is a book Steve has listened to. Tap one.' : 'Every star above you is a book Steve has listened to. Click one.', 'stars');
+  };
+
+  /* ---------- The listening sky: Steve's Audible books as stars over the hammock ---------- */
+  // listening.js lays them out in a cone round where you look when you lie back; here, tapping
+  // one (only from the hammock) opens its card: cover, who wrote it, when he finished it (or how
+  // far through he is), and Audible's sample to play (site.js playSample). The data is
+  // /listening.json, fetched once the planet's up.
+  const listening = createListeningSky({
+    center: (() => {
+      if (!HM) return new THREE.Vector3(0, 1, 0);
+      const P = hammockPoses();
+      // right where your eyes rest when you lie back: up between the two palms, which frame it
+      return new THREE.Vector3(0, 0, -1).applyQuaternion(P.lie.quat);
+    })(),
+    reducedMotion,
+  });
+  scene.add(listening.group);
+  const starCard = $('star-card'), starSample = $('star-sample');
+  let starOpen = null;
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function starStatus(b) {
+    if (!b.finished) return `Listening now, ${b.percent}% through`;
+    if (!b.finished_on) return 'Finished';
+    const [y, m] = b.finished_on.split('-');
+    return `Finished ${MONTHS[+m - 1]} ${y}`;
+  }
+  function openStar(s) {
+    const b = s.book;
+    clearHint('stars');
+    starOpen = s;
+    listening.select(s);
+    const cover = $('star-cover');
+    cover.textContent = '';
+    cover.style.setProperty('--hue', (b.title.length * 47) % 360);
+    if (b.cover) { const img = new Image(); img.src = b.cover; img.alt = ''; cover.append(img); } else cover.textContent = b.title;
+    $('star-kind').textContent = starStatus(b);
+    $('star-title').textContent = b.title;
+    const by = (b.authors || []).join(', ');
+    $('star-meta').textContent = [by && `by ${by}`, b.series && `${b.series}${b.seq ? `, book ${b.seq}` : ''}`, b.narrators && b.narrators.length && `read by ${b.narrators.join(', ')}`].filter(Boolean).join(' · ');
+    starSample.hidden = !b.sample;
+    starSample.setAttribute('aria-pressed', 'false');
+    starCard.hidden = false;
+  }
+  function closeStar() {
+    if (starCard.hidden) return;
+    starCard.hidden = true;
+    starOpen = null;
+    listening.select(null);
+    if (window.stopSample) window.stopSample();
+  }
+  starSample.addEventListener('click', () => { if (starOpen && window.playSample) window.playSample(starOpen.book.sample, starSample); });
+  $('star-close').addEventListener('click', closeStar);
 
   /* ---------- Skipping stones at the lagoon ---------- */
   // Walk down to the pile at the waterline and crouch there, facing across the water, a flat
@@ -1487,6 +1564,7 @@ async function start() {
     }
     skipper.update(realDt);
     ritual.update(realDt);
+    listening.update(t, camera, realDt, state === 'hammock' && !!lying && !flight && !leaving);
     physics.update(realDt, player.pos);
     if (carry) {
       if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
@@ -1658,8 +1736,11 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, listening, openStar: (i) => openStar(listening.books[i]), closeStar: () => closeStar(), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
   window.__sceneReady = true;
+
+  // Steve's Audible books, for the stars over the hammock (tools/audible.py, daily)
+  fetch('/listening.json').then((r) => (r.ok ? r.json() : null)).then((d) => { listening.setBooks(d); window.__world.stars = listening.count; }).catch(() => {});
 
   // The physics engine: a megabyte of WebAssembly nobody needs for the first frame
   physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e));

@@ -44,6 +44,8 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   // only the build: fonts, APIs, Supabase (REST and the fireflies' websocket) are refused
   await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
   await context.routeWebSocket(/.*/, (ws) => ws.close());
+  // a made-up Audible library for the stars over the hammock (the real one is synced daily)
+  await context.route(`${base}/listening.json`, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/listening.json', import.meta.url)) }));
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
@@ -143,9 +145,18 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.evaluate(() => window.__world.lieInHammock());
   await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
   await shot('hammock');
+  // the listening sky: a star's card opens, Esc puts it away and you're still lying there
+  await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('panel').hidden);
+  await page.evaluate(() => window.__world.openStar(0));
+  if (await page.isHidden('#star-card')) throw new Error("a star's card didn't open");
+  await shot('star');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('star-card').hidden && window.__world.state === 'hammock');
   await page.evaluate(() => window.__world.getOutOfHammock());
   await expectState(page, 'walk');
-  step('hammock: lay down, got up');
+  step(`hammock: lay down, opened a star (${await page.evaluate(() => window.__world.stars)} in the sky), got up`);
 
   // skip a stone
   await page.evaluate(() => window.__world.goToShore());

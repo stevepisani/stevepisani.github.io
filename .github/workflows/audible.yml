@@ -1,0 +1,61 @@
+# Steve's Audible library, once a day: tools/audible.py writes _data/audible.json (finished and
+# listening-now books, minus _data/audible_hide.yml). If it changed, it's committed to main and
+# the site workflow is started to publish it (a push by this workflow's token doesn't start other
+# workflows by itself; a dispatch does).
+#
+# Needs the AUDIBLE_AUTH repo secret: the JSON auth file from `audible quickstart` (audible-cli),
+# made once on Steve's machine (docs/backend.md). Without it the job says so and passes.
+name: Audible
+
+on:
+  schedule:
+    - cron: '41 9 * * *' # 05:41 in Philadelphia (EDT)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: audible
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      AUDIBLE_AUTH: ${{ secrets.AUDIBLE_AUTH }}
+    steps:
+      - name: Auth?
+        id: auth
+        run: |
+          if [ -z "$AUDIBLE_AUTH" ]; then
+            echo "::notice::No AUDIBLE_AUTH secret yet, so nothing to sync (docs/backend.md says how to make one)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.auth.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - if: steps.auth.outputs.ok == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - if: steps.auth.outputs.ok == 'true'
+        run: pip install --quiet audible==0.12.0
+      - if: steps.auth.outputs.ok == 'true'
+        name: Sync
+        run: python tools/audible.py
+      - if: steps.auth.outputs.ok == 'true'
+        name: Publish if it changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git diff --quiet -- _data/audible.json && { echo "No change."; exit 0; }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Audible: $(python3 -c "import json; d=json.load(open('_data/audible.json')); print(f\"{len(d['finished'])} finished, {len(d['listening'])} listening now\")")" -- _data/audible.json
+          git push origin HEAD:main
+          gh workflow run site.yml --ref main

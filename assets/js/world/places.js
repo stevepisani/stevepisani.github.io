@@ -362,7 +362,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       const tree = palm({ height: h, lean, seed: 310 + i });
       // it leans away from the other palm (a palm's lean is along its local +x)
       const away = dir.clone().multiplyScalar(2).sub(other).normalize();
-      put(tree, dir, { heading: headingToward(dir, away) - Math.PI / 2 }, 0.4);
+      put(tree, dir, { heading: headingToward(dir, away) + Math.PI / 2 }, 0.4);
       colliders.push({ center: tree.position.clone(), radius: 0.35 });
       const y = 1.45, k = y / h;
       tree.updateMatrixWorld(true);
@@ -371,6 +371,21 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const up = SPOTS.hammock.clone().normalize();
     const hm = hammock(ties[0], ties[1], up);
     group.add(hm);
+    // Two palms at the water's edge in front of you as you lie back (main.js looks up and out
+    // over the lagoon), one either side of the view, leaning out over the water and apart:
+    // their trunks rise up its edges and their crowns arch over the top, framing the listening
+    // sky between them.
+    {
+      // (along the shore from the middle, in metres: the shoreline curves, so they differ to look even)
+      [[-1, 2.1, 6.2, 330], [1, 1.6, 6.6, 331]].forEach(([s, along, h, seed]) => {
+        const p = phi + s * (along / r);
+        const dir = pondDir(shoreAt(p) + 0.35, p);
+        const over = pondDir(shoreAt(phi) - 2, phi + s * (8 / r)); // out over the water and away from the middle
+        const tree = palm({ height: h, lean: 0.75, seed });
+        put(tree, dir, { heading: headingToward(dir, over) + Math.PI / 2 }, 0.6);
+        colliders.push({ center: tree.position.clone(), radius: 0.35 });
+      });
+    }
     const books = bookStack(3);
     put(books, pondDir(r + 0.55, phi + 0.08), { heading: 0.6 }, 0.3);
     colliders.push({ center: surfacePoint(SPOTS.hammock), radius: 0.7 });

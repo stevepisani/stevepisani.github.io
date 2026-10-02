@@ -1,0 +1,556 @@
+{
+  "listening": [
+    {
+      "asin": "FIXTURE004",
+      "title": "Not Till We Are Lost",
+      "subtitle": null,
+      "authors": [
+        "Dennis E. Taylor"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Bobiverse",
+      "seq": "5",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 820,
+      "released": "2014-05-15",
+      "cover": null,
+      "sample": null,
+      "finished": false,
+      "finished_on": null,
+      "percent": 42,
+      "added": "2022-05-02"
+    },
+    {
+      "asin": "FIXTURE010",
+      "title": "Death's End",
+      "subtitle": null,
+      "authors": [
+        "Liu Cixin"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Remembrance of Earth's Past",
+      "seq": "3",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 1720,
+      "released": "2020-02-15",
+      "cover": null,
+      "sample": null,
+      "finished": false,
+      "finished_on": null,
+      "percent": 8,
+      "added": "2021-02-02"
+    }
+  ],
+  "finished": [
+    {
+      "asin": "FIXTURE020",
+      "title": "Designing Data-Intensive Applications",
+      "subtitle": null,
+      "authors": [
+        "Martin Kleppmann"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Computers & Technology",
+      "minutes": 1260,
+      "released": "2016-03-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2025-09-21",
+      "percent": 100,
+      "added": "2024-03-02"
+    },
+    {
+      "asin": "FIXTURE006",
+      "title": "The Player of Games",
+      "subtitle": null,
+      "authors": [
+        "Iain M. Banks"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Culture",
+      "seq": "2",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 720,
+      "released": "2016-07-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2025-07-07",
+      "percent": 100,
+      "added": "2024-07-02"
+    },
+    {
+      "asin": "FIXTURE013",
+      "title": "Dune",
+      "subtitle": null,
+      "authors": [
+        "Frank Herbert"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Dune",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 1260,
+      "released": "2023-05-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2025-02-14",
+      "percent": 100,
+      "added": "2024-05-02"
+    },
+    {
+      "asin": "FIXTURE019",
+      "title": "The Signal and the Noise",
+      "subtitle": null,
+      "authors": [
+        "Nate Silver"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Science & Engineering",
+      "minutes": 960,
+      "released": "2015-02-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2024-08-20",
+      "percent": 100,
+      "added": "2023-02-02"
+    },
+    {
+      "asin": "FIXTURE005",
+      "title": "Consider Phlebas",
+      "subtitle": null,
+      "authors": [
+        "Iain M. Banks"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Culture",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 930,
+      "released": "2015-06-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2024-06-06",
+      "percent": 100,
+      "added": "2023-06-02"
+    },
+    {
+      "asin": "FIXTURE012",
+      "title": "Echopraxia",
+      "subtitle": null,
+      "authors": [
+        "Peter Watts"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Firefall",
+      "seq": "2",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 650,
+      "released": "2022-04-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2024-01-13",
+      "percent": 100,
+      "added": "2023-04-02"
+    },
+    {
+      "asin": "FIXTURE011",
+      "title": "Blindsight",
+      "subtitle": null,
+      "authors": [
+        "Peter Watts"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Firefall",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 630,
+      "released": "2021-03-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2023-12-12",
+      "percent": 100,
+      "added": "2022-03-02"
+    },
+    {
+      "asin": "FIXTURE018",
+      "title": "Thinking, Fast and Slow",
+      "subtitle": null,
+      "authors": [
+        "Daniel Kahneman"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Science & Engineering",
+      "minutes": 1210,
+      "released": "2014-01-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2023-07-19",
+      "percent": 100,
+      "added": "2022-01-02"
+    },
+    {
+      "asin": "FIXTURE017",
+      "title": "Annihilation",
+      "subtitle": null,
+      "authors": [
+        "Jeff VanderMeer"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Southern Reach",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 360,
+      "released": "2013-09-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2022-06-18",
+      "percent": 100,
+      "added": "2021-09-02"
+    },
+    {
+      "asin": "FIXTURE003",
+      "title": "Heaven's River",
+      "subtitle": null,
+      "authors": [
+        "Dennis E. Taylor"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Bobiverse",
+      "seq": "4",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 1020,
+      "released": "2013-04-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2022-04-04",
+      "percent": 100,
+      "added": "2021-04-02"
+    },
+    {
+      "asin": "FIXTURE024",
+      "title": "Slaughterhouse-Five",
+      "subtitle": null,
+      "authors": [
+        "Kurt Vonnegut"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Literature & Fiction",
+      "minutes": 310,
+      "released": "2020-07-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2022-01-25",
+      "percent": 100,
+      "added": "2021-07-02"
+    },
+    {
+      "asin": "FIXTURE023",
+      "title": "The Count of Monte Cristo",
+      "subtitle": null,
+      "authors": [
+        "Alexandre Dumas"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Literature & Fiction",
+      "minutes": 2840,
+      "released": "2019-06-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2021-12-24",
+      "percent": 100,
+      "added": "2020-06-02"
+    },
+    {
+      "asin": "FIXTURE009",
+      "title": "The Dark Forest",
+      "subtitle": null,
+      "authors": [
+        "Liu Cixin"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Remembrance of Earth's Past",
+      "seq": "2",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 1290,
+      "released": "2019-01-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2021-10-10",
+      "percent": 100,
+      "added": "2020-01-02"
+    },
+    {
+      "asin": "FIXTURE016",
+      "title": "Seveneves",
+      "subtitle": null,
+      "authors": [
+        "Neal Stephenson"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 1910,
+      "released": "2012-08-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2021-05-17",
+      "percent": 100,
+      "added": "2020-08-02"
+    },
+    {
+      "asin": "FIXTURE002",
+      "title": "All These Worlds",
+      "subtitle": null,
+      "authors": [
+        "Dennis E. Taylor"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Bobiverse",
+      "seq": "3",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 500,
+      "released": "2012-03-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2021-03-03",
+      "percent": 100,
+      "added": "2020-03-02"
+    },
+    {
+      "asin": "FIXTURE022",
+      "title": "East of Eden",
+      "subtitle": null,
+      "authors": [
+        "John Steinbeck"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Literature & Fiction",
+      "minutes": 1500,
+      "released": "2018-05-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2020-11-23",
+      "percent": 100,
+      "added": "2019-05-02"
+    },
+    {
+      "asin": "FIXTURE008",
+      "title": "The Three-Body Problem",
+      "subtitle": null,
+      "authors": [
+        "Liu Cixin"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Remembrance of Earth's Past",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 810,
+      "released": "2018-09-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2020-09-09",
+      "percent": 100,
+      "added": "2019-09-02"
+    },
+    {
+      "asin": "FIXTURE015",
+      "title": "Project Hail Mary",
+      "subtitle": null,
+      "authors": [
+        "Andy Weir"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 970,
+      "released": "2011-07-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2020-04-16",
+      "percent": 100,
+      "added": "2019-07-02"
+    },
+    {
+      "asin": "FIXTURE001",
+      "title": "For We Are Many",
+      "subtitle": null,
+      "authors": [
+        "Dennis E. Taylor"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Bobiverse",
+      "seq": "2",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 560,
+      "released": "2011-02-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2020-02-02",
+      "percent": 100,
+      "added": "2019-02-02"
+    },
+    {
+      "asin": "FIXTURE021",
+      "title": "Shōgun",
+      "subtitle": null,
+      "authors": [
+        "James Clavell"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Asian Saga",
+      "seq": "1",
+      "genre": "Literature & Fiction",
+      "minutes": 3180,
+      "released": "2017-04-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2019-10-22",
+      "percent": 100,
+      "added": "2018-04-02"
+    },
+    {
+      "asin": "FIXTURE007",
+      "title": "Use of Weapons",
+      "subtitle": null,
+      "authors": [
+        "Iain M. Banks"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Culture",
+      "seq": "3",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 830,
+      "released": "2017-08-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2019-08-08",
+      "percent": 100,
+      "added": "2018-08-02"
+    },
+    {
+      "asin": "FIXTURE014",
+      "title": "Dune Messiah",
+      "subtitle": null,
+      "authors": [
+        "Frank Herbert"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Dune",
+      "seq": "2",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 530,
+      "released": "2010-06-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2019-03-15",
+      "percent": 100,
+      "added": "2018-06-02"
+    },
+    {
+      "asin": "FIXTURE000",
+      "title": "We Are Legion (We Are Bob)",
+      "subtitle": null,
+      "authors": [
+        "Dennis E. Taylor"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": "Bobiverse",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 580,
+      "released": "2010-01-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": "2019-01-01",
+      "percent": 100,
+      "added": "2018-01-02"
+    }
+  ]
+}

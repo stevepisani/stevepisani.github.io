@@ -1,0 +1,944 @@
+{
+ "_note": "A made-up API response for testing tools/audible.py and the listening sky. Not Steve's library.",
+ "items": [
+  {
+   "asin": "FIXTURE000",
+   "title": "We Are Legion (We Are Bob)",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Dennis E. Taylor"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 580,
+   "release_date": "2010-01-15",
+   "purchase_date": "2018-01-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Bobiverse",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE001",
+   "title": "For We Are Many",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Dennis E. Taylor"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 560,
+   "release_date": "2011-02-15",
+   "purchase_date": "2019-02-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Bobiverse",
+     "sequence": "2"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE002",
+   "title": "All These Worlds",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Dennis E. Taylor"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 500,
+   "release_date": "2012-03-15",
+   "purchase_date": "2020-03-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Bobiverse",
+     "sequence": "3"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE003",
+   "title": "Heaven's River",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Dennis E. Taylor"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1020,
+   "release_date": "2013-04-15",
+   "purchase_date": "2021-04-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Bobiverse",
+     "sequence": "4"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE004",
+   "title": "Not Till We Are Lost",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Dennis E. Taylor"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 820,
+   "release_date": "2014-05-15",
+   "purchase_date": "2022-05-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Bobiverse",
+     "sequence": "5"
+    }
+   ],
+   "is_finished": false,
+   "percent_complete": 42
+  },
+  {
+   "asin": "FIXTURE005",
+   "title": "Consider Phlebas",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Iain M. Banks"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 930,
+   "release_date": "2015-06-15",
+   "purchase_date": "2023-06-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Culture",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE006",
+   "title": "The Player of Games",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Iain M. Banks"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 720,
+   "release_date": "2016-07-15",
+   "purchase_date": "2024-07-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Culture",
+     "sequence": "2"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE007",
+   "title": "Use of Weapons",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Iain M. Banks"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 830,
+   "release_date": "2017-08-15",
+   "purchase_date": "2018-08-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Culture",
+     "sequence": "3"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE008",
+   "title": "The Three-Body Problem",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Liu Cixin"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 810,
+   "release_date": "2018-09-15",
+   "purchase_date": "2019-09-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Remembrance of Earth's Past",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE009",
+   "title": "The Dark Forest",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Liu Cixin"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1290,
+   "release_date": "2019-01-15",
+   "purchase_date": "2020-01-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Remembrance of Earth's Past",
+     "sequence": "2"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE010",
+   "title": "Death's End",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Liu Cixin"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1720,
+   "release_date": "2020-02-15",
+   "purchase_date": "2021-02-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Remembrance of Earth's Past",
+     "sequence": "3"
+    }
+   ],
+   "is_finished": false,
+   "percent_complete": 8
+  },
+  {
+   "asin": "FIXTURE011",
+   "title": "Blindsight",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Peter Watts"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 630,
+   "release_date": "2021-03-15",
+   "purchase_date": "2022-03-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Firefall",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE012",
+   "title": "Echopraxia",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Peter Watts"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 650,
+   "release_date": "2022-04-15",
+   "purchase_date": "2023-04-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Firefall",
+     "sequence": "2"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE013",
+   "title": "Dune",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Frank Herbert"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1260,
+   "release_date": "2023-05-15",
+   "purchase_date": "2024-05-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Dune",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE014",
+   "title": "Dune Messiah",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Frank Herbert"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 530,
+   "release_date": "2010-06-15",
+   "purchase_date": "2018-06-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Dune",
+     "sequence": "2"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE015",
+   "title": "Project Hail Mary",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Andy Weir"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 970,
+   "release_date": "2011-07-15",
+   "purchase_date": "2019-07-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE016",
+   "title": "Seveneves",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Neal Stephenson"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1910,
+   "release_date": "2012-08-15",
+   "purchase_date": "2020-08-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE017",
+   "title": "Annihilation",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Jeff VanderMeer"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 360,
+   "release_date": "2013-09-15",
+   "purchase_date": "2021-09-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Southern Reach",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE018",
+   "title": "Thinking, Fast and Slow",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Daniel Kahneman"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1210,
+   "release_date": "2014-01-15",
+   "purchase_date": "2022-01-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science & Engineering"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE019",
+   "title": "The Signal and the Noise",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Nate Silver"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 960,
+   "release_date": "2015-02-15",
+   "purchase_date": "2023-02-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science & Engineering"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE020",
+   "title": "Designing Data-Intensive Applications",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Martin Kleppmann"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1260,
+   "release_date": "2016-03-15",
+   "purchase_date": "2024-03-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Computers & Technology"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE021",
+   "title": "Shōgun",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "James Clavell"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 3180,
+   "release_date": "2017-04-15",
+   "purchase_date": "2018-04-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Literature & Fiction"
+      }
+     ]
+    }
+   ],
+   "series": [
+    {
+     "title": "Asian Saga",
+     "sequence": "1"
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE022",
+   "title": "East of Eden",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "John Steinbeck"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 1500,
+   "release_date": "2018-05-15",
+   "purchase_date": "2019-05-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Literature & Fiction"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE023",
+   "title": "The Count of Monte Cristo",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Alexandre Dumas"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 2840,
+   "release_date": "2019-06-15",
+   "purchase_date": "2020-06-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Literature & Fiction"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE024",
+   "title": "Slaughterhouse-Five",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Kurt Vonnegut"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 310,
+   "release_date": "2020-07-15",
+   "purchase_date": "2021-07-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Literature & Fiction"
+      }
+     ]
+    }
+   ],
+   "is_finished": true,
+   "percent_complete": 100
+  },
+  {
+   "asin": "FIXTURE025",
+   "title": "Sapiens",
+   "content_delivery_type": "MultiPartBook",
+   "authors": [
+    {
+     "name": "Yuval Noah Harari"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 920,
+   "release_date": "2021-08-15",
+   "purchase_date": "2022-08-02T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "History"
+      }
+     ]
+    }
+   ],
+   "is_finished": false,
+   "percent_complete": 0
+  },
+  {
+   "asin": "FIXTUREPOD",
+   "title": "A Podcast",
+   "content_delivery_type": "PodcastParent",
+   "percent_complete": 50
+  }
+ ],
+ "finished": {
+  "FIXTURE000": "2019-01-01T21:00:00Z",
+  "FIXTURE001": "2020-02-02T21:00:00Z",
+  "FIXTURE002": "2021-03-03T21:00:00Z",
+  "FIXTURE003": "2022-04-04T21:00:00Z",
+  "FIXTURE005": "2024-06-06T21:00:00Z",
+  "FIXTURE006": "2025-07-07T21:00:00Z",
+  "FIXTURE007": "2019-08-08T21:00:00Z",
+  "FIXTURE008": "2020-09-09T21:00:00Z",
+  "FIXTURE009": "2021-10-10T21:00:00Z",
+  "FIXTURE011": "2023-12-12T21:00:00Z",
+  "FIXTURE012": "2024-01-13T21:00:00Z",
+  "FIXTURE013": "2025-02-14T21:00:00Z",
+  "FIXTURE014": "2019-03-15T21:00:00Z",
+  "FIXTURE015": "2020-04-16T21:00:00Z",
+  "FIXTURE016": "2021-05-17T21:00:00Z",
+  "FIXTURE017": "2022-06-18T21:00:00Z",
+  "FIXTURE018": "2023-07-19T21:00:00Z",
+  "FIXTURE019": "2024-08-20T21:00:00Z",
+  "FIXTURE020": "2025-09-21T21:00:00Z",
+  "FIXTURE021": "2019-10-22T21:00:00Z",
+  "FIXTURE022": "2020-11-23T21:00:00Z",
+  "FIXTURE023": "2021-12-24T21:00:00Z",
+  "FIXTURE024": "2022-01-25T21:00:00Z"
+ }
+}

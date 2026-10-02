@@ -75,9 +75,10 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - `_data/`: content lives here, edit these rather than HTML
   - `timeline.yml`: career timeline on /about
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
-  - `books.yml`: shelves on /bookshelf
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
   - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from
+  - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show. Feeds /bookshelf, `/listening.json` (the stars over the hammock) and the bartender.
+  - `books.yml`: the old shelf, before Audible (the spines at the bottom of /bookshelf)
   - `bar.yml`: the homepage's menu (label, a one-line note on what's there, fallback href), the bartender's lines, and the campfire list
 - `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url` (a URL or a site path like `/assets/images/x.webp`, with a 192px square `x-thumb.webp` beside it for the post lists; `cover.html` asks Unsplash and Pexels for thumbnail-sized crops itself), `description`
 - Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html`, `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
@@ -85,7 +86,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
 - `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab; members only (`public.members`), sign-ups off. Its Supabase URL and key come from `_config.yml` via Liquid.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
-- `tools/`: `build-js.mjs` (the esbuild bundle), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
+- `tools/`: `build-js.mjs` (the esbuild bundle), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible.py` (the Audible sync), `fixtures/` (a made-up Audible library for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
 ## The asteroid (homepage)
 
@@ -101,7 +102,7 @@ Design rules, from Krug's *Don't Make Me Think* and Apple's HIG. Keep them when 
 - The menu is an old-school tiki menu (bamboo frame, parchment, tapa band, "Steve's" in script) with plain labels (`label` in `_data/bar.yml`) and one line each saying what's there (`note`). No filler text: no prices, no made-up drink names, nothing decorative that's words.
 - Every state has a way back: × and Esc close panels; at the bar × and Esc put the menu back down, then Esc or "Leave the bar" (in the menu, or bottom-left when it's down) leave; the browser Back button closes panels (`#<id>` history entries), and deep links (`/#about`) open content directly.
 - The camera never moves on its own: no intro flights, no idle sway. It moves only when the guest asks (sitting, leaving, leaning in to watch a drink being made). Respect reduced motion.
-- The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one eased curve through a few poses in `bar.seat`) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
+- The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one curve through a few poses in `bar.seat`, speeding up over its first quarter, steady, slowing over its last, so its peak is only 4/3 of its average speed) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
 - Tap targets at least 44px.
 
 How it's built, module by module: `docs/world.md`.
