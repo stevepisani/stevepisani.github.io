@@ -7,3 +7,4 @@ vendor
 .bundle
 node_modules
 assets/js/dist
+smoke-failed-*.png
