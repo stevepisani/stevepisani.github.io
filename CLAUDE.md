@@ -102,7 +102,7 @@ Design rules, from Krug's *Don't Make Me Think* and Apple's HIG. Keep them when 
 - The menu is an old-school tiki menu (bamboo frame, parchment, tapa band, "Steve's" in script) with plain labels (`label` in `_data/bar.yml`) and one line each saying what's there (`note`). No filler text: no prices, no made-up drink names, nothing decorative that's words.
 - Every state has a way back: × and Esc close panels; at the bar × and Esc put the menu back down, then Esc or "Leave the bar" (in the menu, or bottom-left when it's down) leave; the browser Back button closes panels (`#<id>` history entries), and deep links (`/#about`) open content directly.
 - The camera never moves on its own: no intro flights, no idle sway. It moves only when the guest asks (sitting, leaving, leaning in to watch a drink being made). Respect reduced motion.
-- The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one eased curve through a few poses in `bar.seat`) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
+- The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one curve through a few poses in `bar.seat`, speeding up over its first quarter, steady, slowing over its last, so its peak is only 4/3 of its average speed) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
 - Tap targets at least 44px.
 
 How it's built, module by module: `docs/world.md`.
