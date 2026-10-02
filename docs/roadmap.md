@@ -25,6 +25,9 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **The Audible secret:** run `audible quickstart` once and add the file as the `AUDIBLE_AUTH` repo
+  secret (docs/backend.md, "Audible"), then run the Audible workflow. Until then the bookshelf shows
+  only the old shelf and the sky over the hammock has no book stars.
 - **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
   with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a
   doorway (Spark or gsplat.js).
@@ -40,6 +43,9 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the Audible library, synced daily: /bookshelf by year finished, with samples; the
+  listening sky over the hammock (finished books as stars, series as constellations, what's playing
+  now as comets); the bartender knows what Steve's listening to.
 - Oct 2026: one esbuild bundle for the scripts, deploys through GitHub Actions, a smoke test in CI;
   Rapier physics (coconuts and glass floats you can kick, carry, throw and float); flagstones that
   never overlap; a walk-to ring that lies on the ground, clear of things.

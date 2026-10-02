@@ -23,6 +23,8 @@ layout: null
   ],
   "writing": [{% for post in site.posts %}{{ post.title | append: " (" | append: post.url | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
   "lab": [{% for item in site.data.lab %}{{ item.title | append: ": " | append: item.blurb | strip | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "listening": [{% for b in site.data.audible.listening %}{{ b.title | append: " by " | append: b.authors[0] | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "finished": [{% for b in site.data.audible.finished limit: 40 %}{% capture f %}{{ b.title }} by {{ b.authors[0] }}{% if b.finished_on %} (finished {{ b.finished_on | date: "%B %Y" }}){% endif %}{% endcapture %}{{ f | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
   "books": [{% for shelf in site.data.books %}{% for b in shelf.books %}{{ b.title | append: " (" | append: shelf.shelf | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}{% unless forloop.last %}, {% endunless %}{% endfor %}],
   "planet": {{ site.data.bar.bartender | jsonify }}
 }
