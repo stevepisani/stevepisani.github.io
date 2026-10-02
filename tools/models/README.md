@@ -12,7 +12,7 @@ Downloaded as GLB from the mirror at https://github.com/Hidencod/tge-assets.
 | `furniture-kit/` | [Furniture Kit](https://kenney.nl/assets/furniture-kit) |
 | `space-kit/` | [Space Kit](https://kenney.nl/assets/space-kit) |
 
-`npm run models` (from `tools/`) merges everything here into
+`npm run models` (from the repo root) merges everything here into
 `assets/models/props.glb`. Node names are `<kit>_<model>`.
 
 # Hero props (`assets/models/hero/`)

@@ -6,7 +6,9 @@
   "scripts": {
     "build": "node tools/build-js.mjs",
     "watch": "node tools/build-js.mjs --watch",
-    "models": "node tools/build-models.mjs"
+    "models": "node tools/build-models.mjs",
+    "test": "node tools/smoke.mjs",
+    "check": "node tools/check-site.mjs"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
@@ -15,10 +17,11 @@
     "three": "0.186.1"
   },
   "devDependencies": {
-    "esbuild": "0.28.2",
     "@gltf-transform/core": "^4.5.0",
     "@gltf-transform/extensions": "^4.5.0",
     "@gltf-transform/functions": "^4.5.0",
-    "meshoptimizer": "^1.0.1"
+    "esbuild": "0.28.2",
+    "meshoptimizer": "^1.0.1",
+    "playwright": "1.56.1"
   }
 }
