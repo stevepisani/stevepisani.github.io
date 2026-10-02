@@ -25,9 +25,6 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
-- **The Audible secret:** run `audible quickstart` once and add the file as the `AUDIBLE_AUTH` repo
-  secret (docs/backend.md, "Audible"), then run the Audible workflow. Until then the bookshelf shows
-  only the old shelf and the sky over the hammock has no book stars.
 - **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
   with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a
   doorway (Spark or gsplat.js).
