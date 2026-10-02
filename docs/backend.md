@@ -50,7 +50,7 @@ database: 1,000 replies a month (about $5) and 20 questions an hour per visitor,
 daily-salted hash of the IP, never the IP. It declines to talk about clients and points people
 to email. When it can't answer, the page says the bar's closed for a moment.
 
-## Audible (`tools/audible.py`)
+## Audible (`tools/audible_sync.py`)
 
 Steve's Audible library, once a day (`.github/workflows/audible.yml`, 05:41 Philadelphia time, or
 run it by hand): the books he's finished and the ones he's partway through (never ones he hasn't
@@ -74,7 +74,7 @@ From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) a
 
   (or paste the file into Settings → Secrets and variables → Actions → New repository secret).
   Then run the Audible workflow once (Actions → Audible → Run workflow).
-- **Try the transform without an account:** `python tools/audible.py --from tools/fixtures/audible-library.json`
+- **Try the transform without an account:** `python tools/audible_sync.py --from tools/fixtures/audible-library.json`
   (a made-up API response; `tools/fixtures/listening.json` is its output, which the smoke test serves
   as `/listening.json`).
 
@@ -84,7 +84,7 @@ From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) a
 |---|---|---|
 | The site | `.github/workflows/site.yml`: bundle (`npm run build`), Jekyll, link check, smoke test, then `actions/deploy-pages` | every push to main; PRs build and test only |
 | Supabase | `.github/workflows/supabase.yml` | merges touching `supabase/` |
-| Audible library | `.github/workflows/audible.yml` (`tools/audible.py`); commits `_data/audible.json` and starts the site workflow | daily |
+| Audible library | `.github/workflows/audible.yml` (`tools/audible_sync.py`); commits `_data/audible.json` and starts the site workflow | daily |
 | GitHub profile README | the `stevepisani/stevepisani` repo rebuilds its README daily from `https://stevenpisani.com/profile.json` (built from `_data/profile.yml`) | daily |
 
 Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't remove it.

@@ -77,7 +77,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
   - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from
-  - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show. Feeds /bookshelf, `/listening.json` (the stars over the hammock) and the bartender.
+  - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible_sync.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show. Feeds /bookshelf, `/listening.json` (the stars over the hammock) and the bartender.
   - `books.yml`: the old shelf, before Audible (the spines at the bottom of /bookshelf)
   - `bar.yml`: the homepage's menu (label, a one-line note on what's there, fallback href), the bartender's lines, and the campfire list
 - `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url` (a URL or a site path like `/assets/images/x.webp`, with a 192px square `x-thumb.webp` beside it for the post lists; `cover.html` asks Unsplash and Pexels for thumbnail-sized crops itself), `description`
@@ -86,7 +86,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
 - `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab; members only (`public.members`), sign-ups off. Its Supabase URL and key come from `_config.yml` via Liquid.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
-- `tools/`: `build-js.mjs` (the esbuild bundle), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible.py` (the Audible sync), `fixtures/` (a made-up Audible library for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
+- `tools/`: `build-js.mjs` (the esbuild bundle), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible_sync.py` (the Audible sync), `fixtures/` (a made-up Audible library for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
 ## The asteroid (homepage)
 

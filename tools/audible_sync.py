@@ -4,11 +4,11 @@
 Only books he's finished or is partway through are kept (nothing he hasn't started), minus any in
 _data/audible_hide.yml. Podcasts are skipped. Run by .github/workflows/audible.yml once a day:
 
-    AUDIBLE_AUTH='<the auth file's JSON>' python tools/audible.py
+    AUDIBLE_AUTH='<the auth file's JSON>' python tools/audible_sync.py
 
 The auth file comes from `audible quickstart` (audible-cli), run once on Steve's own machine; it's a
 device registration, so it refreshes its own access token and never needs his password here. To try
-the transform without an account: python tools/audible.py --from tools/fixtures/audible-library.json
+the transform without an account: python tools/audible_sync.py --from tools/fixtures/audible-library.json
 (a saved API response), which writes to stdout instead.
 
 The Audible API isn't public; this uses the same endpoints as Audible's apps, through the
