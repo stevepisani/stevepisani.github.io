@@ -44,8 +44,12 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   // only the build: fonts, APIs, Supabase (REST and the fireflies' websocket) are refused
   await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
   await context.routeWebSocket(/.*/, (ws) => ws.close());
-  // a made-up Audible library for the stars over the hammock (the real one is synced daily)
-  await context.route(`${base}/listening.json`, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/listening.json', import.meta.url)) }));
+  // a made-up Audible library for the stars over the hammock (the real one is synced daily), plus
+  // a book read on paper too and two only on paper, as listening.json adds them from books.yml
+  const sky = JSON.parse(readFileSync(new URL('./fixtures/listening.json', import.meta.url)));
+  sky.both = [sky.finished[0].asin];
+  sky.read = [{ title: 'Paper Moon', author: 'A. Writer', shelf: 'Fiction' }, { title: 'Ink and Pulp', author: null, shelf: 'Data & Craft' }];
+  await context.route(`${base}/listening.json`, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(sky) }));
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
@@ -158,9 +162,15 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
-  await page.evaluate(() => window.__world.openStar(0));
+  await page.evaluate(() => window.__world.openStar(window.__world.listening.books.findIndex((b) => b.book.paper && b.book.asin)));
   if (await page.isHidden('#star-card')) throw new Error("a star's card didn't open");
+  if (!(await page.textContent('#star-kind')).includes('read on paper too')) throw new Error("a book read both ways doesn't say so");
   await shot('star');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('star-card').hidden && window.__world.state === 'hammock');
+  // a book only read on paper is a star too, and its card says so
+  await page.evaluate(() => window.__world.openStar(window.__world.listening.books.findIndex((b) => b.book.title === 'Paper Moon')));
+  if ((await page.textContent('#star-kind')) !== 'Read on paper') throw new Error("a paper book's star doesn't say it was read on paper");
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('star-card').hidden && window.__world.state === 'hammock');
   await page.evaluate(() => window.__world.getOutOfHammock());

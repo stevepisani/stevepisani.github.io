@@ -1,7 +1,9 @@
 {%- comment -%} One Audible book: include.b (from _data/audible.json). Cover (its sample plays from the
-round button on it: site.js handles [data-sample]), title, author, series. {%- endcomment -%}
+round button on it: site.js handles [data-sample]), title, author, series, and "read on paper too" if
+it's on the print shelf as well (bookshelf.html includes books-read.html first). {%- endcomment -%}
 {%- assign b = include.b -%}
 {%- assign len = b.title | size -%}
+{%- include read-too.html b=b -%}
 <li class="book">
   <div class="book__cover" style="--hue: {{ len | times: 47 | modulo: 360 }}">
     {%- if b.cover %}<img src="{{ b.cover }}" alt="" loading="lazy" width="500" height="500">{% else %}<span>{{ b.title }}</span>{% endif -%}
@@ -10,4 +12,5 @@ round button on it: site.js handles [data-sample]), title, author, series. {%- e
   </div>
   <p class="book__title" title="{{ b.title }}">{{ b.title }}</p>
   <p class="book__meta">{{ b.authors | first }}{% if b.series %}<br>{{ b.series }}{% if b.seq and b.seq != "" %}, {{ b.seq }}{% endif %}{% endif %}</p>
+  {%- if read_too %}<p class="book__paper">Read on paper too</p>{% endif %}
 </li>

@@ -1,0 +1,3 @@
+{%- comment -%} A title as a key for matching books across lists: before any subtitle, letters and
+digits only, lower case ("We Are Legion (We Are Bob)" and "We Are Legion" are both "wearelegion"). {%- endcomment -%}
+{{- include.t | split: ":" | first | split: " (" | first | replace: "&", "and" | slugify | remove: "-" -}}

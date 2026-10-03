@@ -68,6 +68,11 @@ changed, the workflow commits it to main and starts the site workflow to publish
 wouldn't). From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) and the
 bartender.
 
+Books read on paper are kept by hand in `_data/books.yml`. `_includes/books-read.html` matches them
+against Audible at build time: the same title before any subtitle and, if the paper book names an
+author, that surname among the Audible book's authors. A match is one book read both ways ("read on
+paper too" on its card, one star); the rest are paper-only (the spines on /bookshelf, warm stars).
+
 - **The API isn't public.** It's the one Audible's apps use, through the `audible` Python package
   (pinned in the workflow). If Amazon changes it, the sync fails and the site keeps the last good
   data; the job's log says why.

@@ -1225,13 +1225,14 @@ async function start() {
   afterHammockPanel = () => {
     if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
     tweenBook(CHEST, 0.1, 600);
-    if (listening.count) showHint(coarse ? 'Every star above you is a book Steve has listened to. Tap one.' : 'Every star above you is a book Steve has listened to. Click one.', 'stars');
+    if (listening.count) showHint(coarse ? 'Every star above you is a book Steve has read or listened to. Tap one.' : 'Every star above you is a book Steve has read or listened to. Click one.', 'stars');
   };
 
-  /* ---------- The listening sky: Steve's Audible books as stars over the hammock ---------- */
+  /* ---------- The listening sky: Steve's books as stars over the hammock ---------- */
   // listening.js lays them out in a cone round where you look when you lie back; here, tapping
   // one (only from the hammock) opens its card: cover, who wrote it, when he finished it (or how
-  // far through he is), and Audible's sample to play (site.js playSample). The data is
+  // far through he is), whether he read it on paper, and Audible's sample to play (site.js
+  // playSample). A paper-only book has just its title, author and "Read on paper". The data is
   // /listening.json, fetched once the planet's up.
   const listening = createListeningSky({
     center: (() => {
@@ -1247,10 +1248,11 @@ async function start() {
   let starOpen = null;
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   function starStatus(b) {
-    if (!b.finished) return `Listening now, ${b.percent}% through`;
-    if (!b.finished_on) return 'Finished';
-    const [y, m] = b.finished_on.split('-');
-    return `Finished ${MONTHS[+m - 1]} ${y}`;
+    if (!b.asin) return 'Read on paper';
+    let s = 'Finished';
+    if (!b.finished) s = `Listening now, ${b.percent}% through`;
+    else if (b.finished_on) { const [y, m] = b.finished_on.split('-'); s = `Finished ${MONTHS[+m - 1]} ${y}`; }
+    return b.paper ? `${s}; read on paper too` : s;
   }
   function openStar(s) {
     tip.hidden = true; // the hover label goes; the card says it all
@@ -1765,7 +1767,7 @@ async function start() {
   window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, listening, openStar: (i) => openStar(listening.books[i]), closeStar: () => closeStar(), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
   window.__sceneReady = true;
 
-  // Steve's Audible books, for the stars over the hammock (tools/audible-sync.py, daily)
+  // Steve's books, for the stars over the hammock (Audible via tools/audible-sync.py, daily, and _data/books.yml)
   fetch('/listening.json').then((r) => (r.ok ? r.json() : null)).then((d) => { listening.setBooks(d); window.__world.stars = listening.count; }).catch(() => {});
 
   // The physics engine: a megabyte of WebAssembly nobody needs for the first frame

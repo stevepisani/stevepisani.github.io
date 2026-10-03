@@ -1,6 +1,16 @@
 ---
-# Steve's Audible library for the listening sky on the planet (assets/js/world/listening.js):
-# _data/audible.json as it is, which tools/audible-sync.py writes once a day.
+# Steve's books for the listening sky on the planet (assets/js/world/listening.js): _data/audible.json
+# as it is (tools/audible-sync.py writes it once a day), plus what he read on paper (_data/books.yml):
+# `read`, the paper books that aren't on Audible, and `both`, the ASINs of Audible books he also
+# read on paper (_includes/books-read.html matches them).
 layout: null
 ---
-{{ site.data.audible | jsonify }}
+{%- assign a = site.data.audible -%}
+{%- include books-read.html -%}
+{
+  "updated": {{ a.updated | jsonify }},
+  "listening": {{ a.listening | jsonify }},
+  "finished": {{ a.finished | jsonify }},
+  "both": [{% assign sep = "" %}{% for b in a.finished %}{% include read-too.html b=b %}{% if read_too %}{{ sep }}{{ b.asin | jsonify }}{% assign sep = ", " %}{% endif %}{% endfor %}{% for b in a.listening %}{% include read-too.html b=b %}{% if read_too %}{{ sep }}{{ b.asin | jsonify }}{% assign sep = ", " %}{% endif %}{% endfor %}],
+  "read": [{% assign sep = "" %}{% for s in site.data.books %}{% for p in s.books %}{% include print-key.html p=p %}{% unless printed contains print_key %}{{ sep }}{ "title": {{ p.title | jsonify }}, "author": {{ p.author | jsonify }}, "shelf": {{ s.shelf | jsonify }} }{% assign sep = ", " %}{% endunless %}{% endfor %}{% endfor %}]
+}
