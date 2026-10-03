@@ -1,6 +1,6 @@
 ---
 # Steve's Audible library for the listening sky on the planet (assets/js/world/listening.js):
-# _data/audible.json as it is, which tools/audible.py writes once a day.
+# _data/audible.json as it is, which tools/audible-sync.py writes once a day.
 layout: null
 ---
 {{ site.data.audible | jsonify }}
