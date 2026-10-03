@@ -11,7 +11,7 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | `_data/apps.yml` | the list on `/apps` (`apps/index.html`): title, url, emoji, blurb |
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`) and the script named by `app:` |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, toolbar (`.app-bar`), numbers (`.app-stats`), cards (`.items`, `.item`), photo slot, pill, rating, dialog, toast |
-| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open)` (the gate), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type), `ask(dialog)` (a form in a dialog), `photos` (put, urls, remove), `toast(text)` |
+| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close)` (the gate), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `ask(dialog)` (a form in a dialog; Cancel is `type="button" data-close`, so Enter submits), `photos` (put, urls, remove), `toast(text)` |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
 Signing in is a link by email (Supabase magic link), sign-ups off. The session is kept in the
@@ -55,6 +55,17 @@ to someone signed in (`site.js`). Who's a member is the `members` table; every t
 
 Put something in the kit or `apps.css` only when a second app needs it.
 
+Known limits, to deal with when an app meets them:
+
+- **Photos are members-wide.** The `photos` bucket's policy asks only `is_member()`, so the
+  per-person variant above keeps rows private but not pictures; that needs a policy on the path.
+- **Photos load at full size** (1600px), freshly signed each visit, so the browser never caches
+  them. Fine for a few dozen; an app with hundreds (a wardrobe) wants a thumbnail stored beside
+  each picture by `photos.put`, and the signed links kept until they're near expiry.
+- **`rows().list()` has no paging**; the API returns at most 1,000 rows.
+- Recipe photos from before Oct 2026 sit at the bucket's root (`<recipe id>/…`); new ones are
+  under `recipes/`. Both work.
+
 ## The recipe tracker (`/apps/recipes`)
 
 Table `recipes`. Each card: a photo, the name (a link to the recipe), cooked or not and when, a
@@ -64,6 +75,8 @@ rating, the week streak, and tonight's pick (the same one all day; "another" pic
 Import takes a pasted list, one recipe a line, `Name | link`.
 
 It lived at `/recipe_tracker/` as a standalone page until Oct 2026; that address redirects.
-The old page could also fetch an NYT Cooking collection through public CORS proxies; that was
+Gone with the old page: the Refresh button (it reloads by itself when you come back to it), the
+Cmd+I, Cmd+N and R shortcuts, and the camera opening straight away for a photo (the phone now
+offers the library too). The old page could also fetch an NYT Cooking collection through public CORS proxies; that was
 dropped (third-party proxies, and no way to test it). If it's missed, the way to do it is an edge
 function.

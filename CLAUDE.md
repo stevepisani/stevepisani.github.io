@@ -50,7 +50,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 
 ## The JavaScript build
 
-- `package.json` pins every library (three, postprocessing, n8ao, Rapier, esbuild, Playwright, the model tools), nowhere else. Import three's addons as `three/addons/...`.
+- `package.json` pins every library (three, postprocessing, n8ao, Rapier, supabase-js, esbuild, Playwright, the model tools), nowhere else. Import three's addons as `three/addons/...`.
 - `tools/build-js.mjs` bundles and minifies `assets/js/site.js` → `assets/js/dist/site.js` (every page), each file in `assets/js/apps/` → `assets/js/dist/apps/` (the private apps, with their shared kit and the Supabase client split into one chunk), and `assets/js/world/main.js` with everything it imports, three.js included → `assets/js/dist/world.js` (one request), with source maps. `assets/js/dist/` isn't committed; the sources are in `exclude:` so only the bundles are published. A new world module needs nothing but its import.
 - The only thing split off is what's loaded later by `import()`: Rapier (`physics.js`), as `rapier-*.js` plus its `.wasm` (a plugin swaps the compat build's inline base64 for the file). The build fails if `world.js` would import a chunk statically (a request waterfall): keep `import()` targets self-contained.
 
