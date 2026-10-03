@@ -7,14 +7,17 @@
   <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
   <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
   <!-- The whole world, three.js included, is one minified file (npm run build, tools/build-js.mjs) -->
-  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}">
+  {%- comment -%} The bundle URLs carry the build time, so a cached page and the script it loads always
+  belong to the same build: GitHub Pages caches each for ten minutes, and a page from one build with the
+  script from another stalls on the first frame. {%- endcomment -%}
+  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}">
 </head>
 <body class="world-page">
   <a class="skip-link" href="#topbar">Skip to the sections</a>
   <main id="main">
     {{ content }}
   </main>
-  <script src="{{ '/assets/js/dist/site.js' | relative_url }}" defer></script>
-  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}" data-models="{{ '/assets/models/props.glb' | relative_url }}"></script>
+  <script src="{{ '/assets/js/dist/site.js' | relative_url }}?v={{ site.time | date: '%s' }}" defer></script>
+  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" data-models="{{ '/assets/models/props.glb' | relative_url }}"></script>
 </body>
 </html>
