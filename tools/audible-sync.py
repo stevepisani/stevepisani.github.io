@@ -81,8 +81,8 @@ def fetch() -> tuple[list[dict], dict[str, str]]:
         try:
             open_asins = [i["asin"] for i in items if i.get("asin") and not i.get("is_finished")
                           and i.get("content_delivery_type") in BOOK_TYPES]
-            for n in range(0, len(open_asins), 40):  # the asins parameter is capped at 500 characters
-                r = client.get("1.0/annotations/lastpositions", asins=",".join(open_asins[n:n + 40]))
+            for n in range(0, len(open_asins), 25):  # the API allows at most 25 asins per request
+                r = client.get("1.0/annotations/lastpositions", asins=",".join(open_asins[n:n + 25]))
                 for e in r.get("asin_last_position_heard_annots", []):
                     ts = (e.get("last_position_heard") or {}).get("last_updated")
                     if e.get("asin") and ts:
