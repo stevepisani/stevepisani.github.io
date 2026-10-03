@@ -11,23 +11,26 @@
 .app [hidden] { display: none !important; } /* over .btn, .app-stats and the rest that set a display */
 .app .page-head { padding-top: 40px; margin-bottom: 24px; max-width: none; }
 .app h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); margin-bottom: .2em; }
-.app-who { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0; font: .8rem var(--font-mono); color: var(--ink-3); }
+.app-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 40px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: .9rem; color: var(--ink-2); }
 .link-btn { min-height: 44px; padding: 0; border: 0; background: none; color: var(--link); font: inherit; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
 
 /* ---------- Fields and buttons ---------- */
-.app label { display: grid; gap: 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.app label { display: grid; gap: 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 .app input:not([type="file"]), .app select, .app textarea {
-  width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--ink-3); /* --line is too faint to show where a field is */
   background: var(--card); color: var(--ink); font: 400 1rem/1.45 var(--font-body); letter-spacing: 0; text-transform: none;
 }
 .app textarea { display: block; min-height: 76px; resize: vertical; }
 .app :is(input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 10px; }
 /* a field saving itself (saver() in kit.js) */
-.app [data-save="saving"] { border-style: dashed; border-color: var(--ink-3); }
-.app [data-save="saved"] { border-color: var(--ok); }
-.app [data-save="failed"] { border-color: var(--bad); }
-.app button.btn { min-height: 44px; font: 600 1rem var(--font-body); cursor: pointer; }
-.app .btn--small { padding: 6px 16px; font-size: .9rem; }
+.app [data-save="saving"] { border-style: dashed; }
+.app [data-save="saved"] { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+.app [data-save="failed"] { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad); }
+.app button.btn, .app label.btn { min-height: 44px; font: 600 1rem var(--font-body); letter-spacing: 0; text-transform: none; cursor: pointer; }
+.app label.btn { display: inline-flex; align-items: center; }
+.app label.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.app label.btn.is-busy { opacity: .6; cursor: progress; }
+.app .btn--small { padding: 6px 16px; font-size: .95rem; }
 .app .btn:disabled { opacity: .6; cursor: progress; transform: none; }
 
 /* ---------- The gate ---------- */
@@ -37,55 +40,60 @@
 .app-gate #gate-note { margin: 14px 0 0; }
 .app-gate #gate-note:empty { display: none; }
 
-/* ---------- Toolbar, numbers, progress ---------- */
-.app-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 10px; align-items: center; margin-bottom: 18px; }
-.app-bar select { width: auto; }
-@media (max-width: 760px) {
-  .app-bar { grid-template-columns: 1fr 1fr; }
-  .app-bar > :first-child { grid-column: 1 / -1; }
-  .app-bar select { width: 100%; }
-  .app-stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; }
-  .stat--wide { grid-column: 1 / -1; }
-}
-.app-stats { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding: 14px 18px; margin-bottom: 18px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); }
-.stat { display: grid; }
-.stat strong { font: 600 1.4rem/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
-.stat span { font: 600 .68rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
-.stat--wide { flex: 1 1 14rem; min-width: 0; }
-.stat--wide strong { font-size: 1.05rem; }
-.stat--wide .link-btn { min-height: 0; font: inherit; color: var(--ink); text-align: left; }
-.app-progress { height: 6px; margin: -8px 0 18px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
+/* ---------- What's up top: the one thing to act on, and how it's going ---------- */
+.app-hero { display: grid; gap: 6px; padding: 16px 18px 18px; margin-bottom: 18px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); }
+.app-hero__label { margin: 0; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.app-hero__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.app-hero__pick { min-width: 0; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink); font: 600 1.35rem/1.2 var(--font-display); text-align: left; text-wrap: balance; text-decoration: underline; text-decoration-color: var(--ink-3); text-decoration-thickness: 1px; text-underline-offset: .18em; cursor: pointer; }
+.app-hero__pick:disabled { text-decoration: none; cursor: default; }
+.app-hero__row .btn { flex-shrink: 0; }
+.app-hero__tally { margin: 0; font-size: .9rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.app-progress { height: 6px; margin-top: 4px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
 .app-progress > div { height: 100%; width: var(--p, 0%); background: var(--accent); transition: width .3s; }
-.app-empty { color: var(--ink-2); }
 
-/* ---------- Items: a grid of cards, each a thing with a photo ---------- */
-.items { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; align-items: start; }
+/* ---------- Toolbar: search and the main action, then what to show and in what order ---------- */
+.app-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; margin-bottom: 18px; }
+.app-bar select { width: auto; justify-self: end; }
+.seg { display: inline-flex; justify-self: start; max-width: 100%; border: 1px solid var(--ink-3); border-radius: 999px; background: var(--card); overflow: hidden; }
+.seg button { min-height: 42px; padding: 0 14px; border: 0; background: none; color: var(--ink-2); font: 500 .95rem var(--font-body); white-space: nowrap; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
+.seg button span { font: .78rem var(--font-mono); opacity: .8; margin-left: 2px; }
+.seg button:focus-visible { outline-offset: -3px; border-radius: 999px; }
+@media (max-width: 480px) {
+  .seg, .app-bar select { grid-column: 1 / -1; }
+  .seg { display: flex; justify-self: stretch; }
+  .seg button { flex: 1; padding: 0 6px; }
+  .app-bar select { width: 100%; }
+}
+.app-empty { color: var(--ink-2); }
+.app-foot { margin: 20px 0 0; }
+
+/* ---------- Items: a grid of cards. Small until there's something to say about one ---------- */
+.items { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; align-items: start; }
 .item { display: grid; align-content: start; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; scroll-margin-top: 90px; }
 .item.is-picked { outline: 3px solid var(--accent); outline-offset: 2px; }
-.item__body { display: grid; gap: 12px; padding: 16px; }
+.item__photo { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; background: var(--bg-2); }
+.item__body { display: grid; gap: 10px; padding: 14px 16px; }
 .item__title { margin: 0; font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
-.item__title a { color: inherit; text-decoration-color: var(--line); }
+.item__title a { color: inherit; text-decoration-color: var(--ink-3); }
 .item__title a:hover { color: var(--link); }
-.item__meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font: .8rem var(--font-mono); color: var(--ink-3); }
-.item__more summary { min-height: 44px; display: flex; align-items: center; font: .8rem var(--font-mono); color: var(--ink-3); cursor: pointer; }
-.item__edit { display: grid; gap: 12px; padding-top: 4px; }
+.item__meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-size: .9rem; color: var(--ink-2); }
+.item__row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.item__toggle { margin-left: auto; padding: 0 4px; color: var(--ink-2); }
+.item__edit { display: grid; gap: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 .item__edit .link-btn { justify-self: start; }
 .link-btn--bad { color: var(--bad); }
 
-/* a thin strip until there's a picture, so a list without photos isn't a wall of empty boxes */
-.app .photo { position: relative; display: grid; place-items: center; min-height: 52px; background: var(--bg-2); border-bottom: 1px solid var(--line); cursor: pointer; }
-.app .photo.has-photo { aspect-ratio: 16 / 10; }
-.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.photo.is-busy { opacity: .5; cursor: progress; }
-.photo:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
-
-.pill { padding: 3px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-3); font: 600 .68rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.pill { padding: 3px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-2); font: 600 .68rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
 .pill--ok { background: var(--ok-soft); color: var(--ok); }
 
+/* ten stars across the card: an outline until it's given, so it's a shape and not only a colour */
 .rating { display: flex; align-items: center; }
-.rating button { flex: 1 1 0; min-width: 0; max-width: 26px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--line); font-size: 1.3rem; line-height: 1; cursor: pointer; }
-.rating button[aria-pressed="true"] { color: var(--accent); }
-.rating output { margin-left: 8px; white-space: nowrap; font: .78rem var(--font-mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.rating button { flex: 1 1 0; min-width: 0; max-width: 34px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--ink-3); font-size: 1.45rem; line-height: 1; cursor: pointer; }
+.rating button.is-on { color: var(--accent); }
+.rating button:focus-visible { outline-offset: -2px; }
+.rating output { margin-left: auto; padding-left: 8px; white-space: nowrap; font-size: .85rem; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
 /* ---------- A form in a dialog (ask() in kit.js), and the toast ---------- */
 .app-dialog { width: min(34rem, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); box-shadow: var(--shadow); }

@@ -6,7 +6,6 @@ layout: default
   <header class="page-head">
     <p class="kicker">{% unless page.url == '/apps/' %}<a href="{{ '/apps/' | relative_url }}">Apps</a> · {% endunless %}Members only</p>
     <h1>{{ page.heading | default: page.title }}</h1>
-    <p class="app-who" id="app-who" hidden><span id="app-email"></span> <button class="link-btn" id="app-signout" type="button">Sign out</button></p>
   </header>
 
   <section class="card app-gate" id="app-gate" hidden>
@@ -22,6 +21,8 @@ layout: default
   <div id="app-main" hidden>
     {{ content }}
   </div>
+
+  <p class="app-who" id="app-who" hidden>Signed in as <span id="app-email"></span> <button class="link-btn" id="app-signout" type="button">Sign out</button></p>
 
   <noscript><p>This needs JavaScript.</p></noscript>
   <p class="app-toast" id="app-toast" role="status" hidden></p>

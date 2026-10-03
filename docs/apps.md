@@ -10,7 +10,7 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 |---|---|
 | `_data/apps.yml` | the list on `/apps` (`apps/index.html`): title, url, emoji, blurb |
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`) and the script named by `app:` |
-| `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, toolbar (`.app-bar`), numbers (`.app-stats`), cards (`.items`, `.item`), photo slot, pill, rating, dialog, toast |
+| `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, dialog, toast |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close)` (the gate), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `ask(dialog)` (a form in a dialog; Cancel is `type="button" data-close`, so Enter submits), `photos` (put, urls, remove), `toast(text)` |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
@@ -68,11 +68,26 @@ Known limits, to deal with when an app meets them:
 
 ## The recipe tracker (`/apps/recipes`)
 
-Table `recipes`. Each card: a photo, the name (a link to the recipe), cooked or not and when, a
-rating out of 10 (the same star again clears it), notes that save as you type, and under "Edit"
-the name, link, date and remove. Above: search, filter, sort, how many are cooked, the average
-rating, the week streak, and tonight's pick (the same one all day; "another" picks at random).
-Import takes a pasted list, one recipe a line, `Name | link`.
+Table `recipes`. Up top, the one thing to act on: tonight's pick (the same one all day; "Another"
+picks at random), with how many are cooked, the average rating, the streak and a progress bar.
+Then search and Add; All / To cook / Cooked with their counts; and the order. The filter and order
+are remembered on that phone (`localStorage` `recipes-view`).
+
+A recipe still to cook is a small card: its name (a link to the recipe) and "Cooked it". Once
+cooked it grows: the photo, the date, a rating out of 10 (the same star again clears it), notes
+that save as you type, and "Add a photo". "Edit" opens the name, link, date, "Not cooked yet"
+and remove (and, on one still to cook, its notes). Import, a pasted list of `Name | link` lines,
+is a link under the list.
+
+Design rules for the apps, from the Oct 2026 critique and accessibility pass:
+- Show a control when there's something to do with it, not before (no rating on an uncooked
+  recipe). The first phone screen should reach the list.
+- Text is `--ink` or `--ink-2`; `--ink-3` is for borders and outlines only (in the light theme
+  it's 3.7:1 on white, short of the 4.5:1 text needs). Field borders are `--ink-3`, not `--line`.
+- State is never colour alone: stars are outlined or filled, a pressed filter is inverted.
+- Tap targets are 44px tall; scrolling and confetti respect reduced motion.
+- Not fixed, because it's the whole site's: white on the light theme's `--accent` (buttons) is
+  3.9:1.
 
 It lived at `/recipe_tracker/` as a standalone page until Oct 2026; that address redirects.
 Gone with the old page: the Refresh button (it reloads by itself when you come back to it), the
