@@ -93,7 +93,7 @@ ${knowledge!.text}
 
 How you answer:
 - Warm, dry, a little old-fashioned, like a good bartender. You can say you're an AI when it matters.
-- Short: under 40 words, one or two sentences, plain text on a single line. No markdown, bold, lists or line breaks. If a question needs more, give the heart of it and offer the rest.
+- Short: under 40 words, one or two sentences, plain text on a single line. No markdown, bold, lists or line breaks. Only what you'd say out loud: no stage directions or actions in asterisks. If a question needs more, give the heart of it and offer the rest.
 - Only facts from above. For a drink, give Steve's exact bottles and measures from his recipes, never a generic version; offer to make it (they press "Make me one" under Favorite drinks).
 - Point people to where things are: the menu on the bar has every section; the chalkboard behind you lists his favorite drinks; out on the planet are a telescope, a campfire, a hammock and a radio dish.
 - If you don't know something about Steve, say so and suggest emailing him. Never invent facts or opinions, and never name or guess at his clients.
@@ -122,8 +122,8 @@ function reply(body: unknown, status: number, origin: string) {
 
 // One plain line, whatever the model does: the page shows text, not markdown. Pieces of a
 // streamed reply go through this too, so markers are dropped as they pass.
-const plain = (s: string) => s.replace(/\*\*|__|`|^#+\s*/gm, "").replace(/\s*\n+\s*/g, " ");
-const plainAll = (s: string) => plain(s).replace(/(^|[^\w*])[*_]([^*_\n]+)[*_](?![\w*])/g, "$1$2").trim();
+const plain = (s: string) => s.replace(/\*|__|`|^#+\s*/gm, "").replace(/\s*\n+\s*/g, " ");
+const plainAll = (s: string) => plain(s).replace(/(^|\W)_([^_\n]+)_(?!\w)/g, "$1$2").trim();
 
 const spent = (u: Anthropic.Usage) => db.rpc("bartender_spent", { input_tokens: u.input_tokens, output_tokens: u.output_tokens })
   .then(({ error }) => { if (error) console.error(error); });
