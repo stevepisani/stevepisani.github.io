@@ -1,498 +1,6 @@
 {
   "listening": [
     {
-      "asin": "B0BKR3Y6SP",
-      "title": "Wool",
-      "subtitle": "The Silo Saga, Book 1",
-      "authors": [
-        "Hugh Howey"
-      ],
-      "narrators": [
-        "Edoardo Ballerini"
-      ],
-      "series": "The Silo Saga",
-      "seq": "1",
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 900,
-      "released": "2023-03-07",
-      "cover": "https://m.media-amazon.com/images/I/51wvy7jratL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/blak/020509/bk_blak_020509_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2026-08-17"
-    },
-    {
-      "asin": "B002V0TGB6",
-      "title": "Beyond the Aquila Rift",
-      "subtitle": null,
-      "authors": [
-        "Alastair Reynolds"
-      ],
-      "narrators": [
-        "Tom Dheere"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 71,
-      "released": "2008-02-22",
-      "cover": "https://m.media-amazon.com/images/I/5141+Qr8HOL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/atxt/000020/bk_atxt_000020_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2025-05-21"
-    },
-    {
-      "asin": "B0C7WJXBRL",
-      "title": "$100M Leads",
-      "subtitle": "How to Get Strangers to Want to Buy Your Stuff",
-      "authors": [
-        "Alex Hormozi"
-      ],
-      "narrators": [
-        "Alex Hormozi"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 361,
-      "released": "2023-08-20",
-      "cover": "https://m.media-amazon.com/images/I/41P0BdphG7L._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/acx0/356143/bk_acx0_356143_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2024-08-22"
-    },
-    {
-      "asin": "B0C6YL9M27",
-      "title": "The Algebra of Wealth",
-      "subtitle": "A Simple Formula for Financial Security",
-      "authors": [
-        "Scott Galloway"
-      ],
-      "narrators": [
-        "Scott Galloway"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Money & Finance",
-      "minutes": 509,
-      "released": "2024-04-23",
-      "cover": "https://m.media-amazon.com/images/I/51L64SWoqfL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/peng/007156/bk_peng_007156_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2024-05-07"
-    },
-    {
-      "asin": "B00NAE2TV6",
-      "title": "Authority",
-      "subtitle": "Become an Expert, Build a Following, and Gain Financial Independence",
-      "authors": [
-        "Nathan Barry"
-      ],
-      "narrators": [
-        "Nathan Barry"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 180,
-      "released": "2014-09-05",
-      "cover": "https://m.media-amazon.com/images/I/41m9bNkm7SL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/acx0/022504/bk_acx0_022504_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2022-02-14"
-    },
-    {
-      "asin": "B08F6D4ZPV",
-      "title": "12 Months to $1 Million",
-      "subtitle": "How to Pick a Winning Product, Build a Real Business, and Become a Seven-Figure Entrepreneur",
-      "authors": [
-        "Ryan Daniel Moran"
-      ],
-      "narrators": [
-        "Ryan Daniel Moran"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 458,
-      "released": "2020-08-11",
-      "cover": "https://m.media-amazon.com/images/I/51Y80DfRruL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/adbl/056014/bk_adbl_056014_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2021-08-20"
-    },
-    {
-      "asin": "B007NKXYEO",
-      "title": "The Third Chimpanzee",
-      "subtitle": "The Evolution and Future of the Human Animal",
-      "authors": [
-        "Jared Diamond"
-      ],
-      "narrators": [
-        "Rob Shapiro"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Politics & Social Sciences",
-      "minutes": 933,
-      "released": "2012-04-03",
-      "cover": "https://m.media-amazon.com/images/I/5113eS7xKML._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rand/002987/bk_rand_002987_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2021-08-20"
-    },
-    {
-      "asin": "B00Y1R6RSM",
-      "title": "Aurora",
-      "subtitle": null,
-      "authors": [
-        "Kim Stanley Robinson"
-      ],
-      "narrators": [
-        "Ali Ahn"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Literature & Fiction",
-      "minutes": 1016,
-      "released": "2015-07-07",
-      "cover": "https://m.media-amazon.com/images/I/41epcVBitXL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/hach/002113/bk_hach_002113_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2021-07-15"
-    },
-    {
-      "asin": "0593345525",
-      "title": "How to Get Rich",
-      "subtitle": "One of the World's Greatest Entrepreneurs Shares His Secrets",
-      "authors": [
-        "Felix Dennis"
-      ],
-      "narrators": [
-        "Roy McMillan"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 593,
-      "released": "2020-09-15",
-      "cover": "https://m.media-amazon.com/images/I/41um2b4SQWL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/peng/005271/bk_peng_005271_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2021-06-14"
-    },
-    {
-      "asin": "B002V1A1YQ",
-      "title": "Einstein",
-      "subtitle": "His Life and Universe",
-      "authors": [
-        "Walter Isaacson"
-      ],
-      "narrators": [
-        "Edward Herrmann"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 1290,
-      "released": "2007-04-10",
-      "cover": "https://m.media-amazon.com/images/I/51IigyHsULL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/sans/000887/bk_sans_000887_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2021-02-14"
-    },
-    {
-      "asin": "B002VA9SWS",
-      "title": "The Hitchhiker's Guide to the Galaxy",
-      "subtitle": null,
-      "authors": [
-        "Douglas Adams"
-      ],
-      "narrators": [
-        "Stephen Fry"
-      ],
-      "series": "Hitchhiker's Guide to the Galaxy",
-      "seq": "1",
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 351,
-      "released": "2005-04-28",
-      "cover": "https://m.media-amazon.com/images/I/51b09NRSkiL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rand/000600/bk_rand_000600_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2020-12-06"
-    },
-    {
-      "asin": "1452184712",
-      "title": "Mythos",
-      "subtitle": null,
-      "authors": [
-        "Stephen Fry"
-      ],
-      "narrators": [
-        "Stephen Fry"
-      ],
-      "series": "Mythos",
-      "seq": "1",
-      "genre": "History",
-      "minutes": 926,
-      "released": "2019-08-27",
-      "cover": "https://m.media-amazon.com/images/I/41wx8gHf4BL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/hach/005380/bk_hach_005380_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2020-09-11"
-    },
-    {
-      "asin": "B0099RKI5W",
-      "title": "The Hobbit",
-      "subtitle": null,
-      "authors": [
-        "J.R.R. Tolkien"
-      ],
-      "narrators": [
-        "Rob Inglis"
-      ],
-      "series": "The Lord of the Rings",
-      "seq": "0.5",
-      "genre": "Children's Audiobooks",
-      "minutes": 664,
-      "released": "2012-10-09",
-      "cover": "https://m.media-amazon.com/images/I/51U7W9O0UKL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/reco/006155/bk_reco_006155_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2020-06-18"
-    },
-    {
-      "asin": "B078SDRSGX",
-      "title": "Thinking in Bets",
-      "subtitle": "Making Smarter Decisions When You Don't Have All the Facts",
-      "authors": [
-        "Annie Duke"
-      ],
-      "narrators": [
-        "Annie Duke"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 410,
-      "released": "2018-02-06",
-      "cover": "https://m.media-amazon.com/images/I/41CueL9WfHL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/peng/003379/bk_peng_003379_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2019-11-13"
-    },
-    {
-      "asin": "B004VA8ZVQ",
-      "title": "Benjamin Franklin: An American Life",
-      "subtitle": null,
-      "authors": [
-        "Walter Isaacson"
-      ],
-      "narrators": [
-        "Nelson Runger"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 1480,
-      "released": "2011-04-07",
-      "cover": "https://m.media-amazon.com/images/I/61zcpKItWZL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/sans/005486/bk_sans_005486_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2017-09-13"
-    },
-    {
-      "asin": "B00W2FAAY2",
-      "title": "Strategies for Beating Small Stakes Poker Tournaments",
-      "subtitle": null,
-      "authors": [
-        "Jonathan Little"
-      ],
-      "narrators": [
-        "Jonathan Little"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": null,
-      "minutes": 74,
-      "released": "2015-04-14",
-      "cover": "https://m.media-amazon.com/images/I/514Sir6BGKL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/acx0/033832/bk_acx0_033832_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 99,
-      "added": "2017-06-23"
-    },
-    {
-      "asin": "0593294181",
-      "title": "Greenlights",
-      "subtitle": null,
-      "authors": [
-        "Matthew McConaughey"
-      ],
-      "narrators": [
-        "Matthew McConaughey"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 411,
-      "released": "2020-10-20",
-      "cover": "https://m.media-amazon.com/images/I/51m+AA2gNaL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rand/008072/bk_rand_008072_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 98,
-      "added": "2020-11-20"
-    },
-    {
-      "asin": "B007JJSURA",
-      "title": "The Godfather",
-      "subtitle": "50th Anniversary Edition",
-      "authors": [
-        "Mario Puzo",
-        "Francis Ford Coppola - introduction",
-        "Anthony Puzo - note",
-        "Robert J. Thompson - afterword"
-      ],
-      "narrators": [
-        "Joe Mantegna",
-        "Anthony Puzo",
-        "Angelo Di Loreto"
-      ],
-      "series": "The Godfather",
-      "seq": "1",
-      "genre": "Literature & Fiction",
-      "minutes": 1128,
-      "released": "2012-03-13",
-      "cover": "https://m.media-amazon.com/images/I/51Vg8SyXbWL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/brll/003625/bk_brll_003625_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 97,
-      "added": "2022-08-15"
-    },
-    {
-      "asin": "B08W2G36PX",
-      "title": "The Neil Gaiman at the End of the Universe",
-      "subtitle": null,
-      "authors": [
-        "Arvind Ethan David"
-      ],
-      "narrators": [
-        "Neil Gaiman",
-        "Jewel Staite"
-      ],
-      "series": "Earworms",
-      "seq": "",
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 29,
-      "released": "2021-03-18",
-      "cover": "https://m.media-amazon.com/images/I/51RXf5x8+dL._SL500_.jpg",
-      "sample": "https://samples.audible.com/or/orig/001695/or_orig_001695_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 97,
-      "added": "2021-06-10"
-    },
-    {
-      "asin": "B01G4ENQYC",
-      "title": "The Expectant Father",
-      "subtitle": "The Ultimate Guide for Dads-to-Be",
-      "authors": [
-        "Armin A. Brott",
-        "Jennifer Ash"
-      ],
-      "narrators": [
-        "Armin A. Brott"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Health & Wellness",
-      "minutes": 652,
-      "released": "2016-05-25",
-      "cover": "https://m.media-amazon.com/images/I/6162FCjLAdL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/acx0/059886/bk_acx0_059886_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 96,
-      "added": "2025-07-06"
-    },
-    {
-      "asin": "B077Z8S58Y",
-      "title": "Exactly What to Say",
-      "subtitle": "The Magic Words for Influence and Impact",
-      "authors": [
-        "Phil M. Jones"
-      ],
-      "narrators": [
-        "Phil M. Jones"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 74,
-      "released": "2017-12-01",
-      "cover": "https://m.media-amazon.com/images/I/51R6B8Gj6GL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/acx0/102673/bk_acx0_102673_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 96,
-      "added": "2018-08-13"
-    },
-    {
-      "asin": "B0BRBR3VHC",
-      "title": "The Woman in Me",
-      "subtitle": null,
-      "authors": [
-        "Britney Spears",
-        "Britney Spears - introduction"
-      ],
-      "narrators": [
-        "Michelle Williams"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 331,
-      "released": "2023-10-24",
-      "cover": "https://m.media-amazon.com/images/I/41HTcyZSRjL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/sans/012008/bk_sans_012008_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 95,
-      "added": "2023-10-30"
-    },
-    {
       "asin": "B07HPCM856",
       "title": "The New Father: A Dad's Guide to the First Year (New Father Series)",
       "subtitle": null,
@@ -512,7 +20,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 90,
-      "added": "2025-07-10"
+      "added": "2025-07-10",
+      "last_heard": null
     },
     {
       "asin": "B08VLGDK32",
@@ -534,7 +43,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 85,
-      "added": "2022-03-19"
+      "added": "2022-03-19",
+      "last_heard": null
     },
     {
       "asin": "B002UZLEFS",
@@ -556,7 +66,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 81,
-      "added": "2025-06-09"
+      "added": "2025-06-09",
+      "last_heard": null
     },
     {
       "asin": "B0BX4SCV1V",
@@ -579,7 +90,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 75,
-      "added": "2023-09-25"
+      "added": "2023-09-25",
+      "last_heard": null
     },
     {
       "asin": "B00FK6F02C",
@@ -601,7 +113,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 75,
-      "added": "2017-08-12"
+      "added": "2017-08-12",
+      "last_heard": null
     },
     {
       "asin": "B07KFN2255",
@@ -623,7 +136,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 72,
-      "added": "2024-08-22"
+      "added": "2024-08-22",
+      "last_heard": null
     },
     {
       "asin": "B0C6YK4917",
@@ -646,7 +160,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 66,
-      "added": "2024-01-30"
+      "added": "2024-01-30",
+      "last_heard": null
     },
     {
       "asin": "B0BYGPGBGH",
@@ -668,7 +183,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 66,
-      "added": "2023-06-27"
+      "added": "2023-06-27",
+      "last_heard": null
     },
     {
       "asin": "B0B4BN56CR",
@@ -692,7 +208,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 61,
-      "added": "2024-09-12"
+      "added": "2024-09-12",
+      "last_heard": null
     },
     {
       "asin": "B002VA8G9E",
@@ -715,7 +232,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 60,
-      "added": "2026-04-29"
+      "added": "2026-04-29",
+      "last_heard": null
     },
     {
       "asin": "B0DM36RXD3",
@@ -737,7 +255,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 57,
-      "added": "2024-12-04"
+      "added": "2024-12-04",
+      "last_heard": null
     },
     {
       "asin": "B00551W570",
@@ -760,7 +279,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 56,
-      "added": "2025-12-25"
+      "added": "2025-12-25",
+      "last_heard": null
     },
     {
       "asin": "B00A4OPH0U",
@@ -782,7 +302,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 55,
-      "added": "2023-04-03"
+      "added": "2023-04-03",
+      "last_heard": null
     },
     {
       "asin": "B0BWGWKVN5",
@@ -804,7 +325,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 54,
-      "added": "2025-03-13"
+      "added": "2025-03-13",
+      "last_heard": null
     },
     {
       "asin": "B0FN4VZJGK",
@@ -826,7 +348,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 53,
-      "added": "2026-01-01"
+      "added": "2026-01-01",
+      "last_heard": null
     },
     {
       "asin": "B00WYDJ2YQ",
@@ -848,7 +371,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 51,
-      "added": "2018-10-15"
+      "added": "2018-10-15",
+      "last_heard": null
     },
     {
       "asin": "B073RQZFTX",
@@ -871,7 +395,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 50,
-      "added": "2020-10-05"
+      "added": "2020-10-05",
+      "last_heard": null
     },
     {
       "asin": "0062969765",
@@ -893,7 +418,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 49,
-      "added": "2021-12-07"
+      "added": "2021-12-07",
+      "last_heard": null
     },
     {
       "asin": "B01MSMZKM5",
@@ -916,7 +442,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 47,
-      "added": "2018-02-14"
+      "added": "2018-02-14",
+      "last_heard": null
     },
     {
       "asin": "0063031884",
@@ -941,7 +468,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 45,
-      "added": "2020-12-26"
+      "added": "2020-12-26",
+      "last_heard": null
     },
     {
       "asin": "B007OQ0MY2",
@@ -964,7 +492,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 45,
-      "added": "2018-01-13"
+      "added": "2018-01-13",
+      "last_heard": null
     },
     {
       "asin": "1401957927",
@@ -986,7 +515,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 43,
-      "added": "2021-09-24"
+      "added": "2021-09-24",
+      "last_heard": null
     },
     {
       "asin": "B002V57S2U",
@@ -1008,7 +538,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 41,
-      "added": "2026-04-29"
+      "added": "2026-04-29",
+      "last_heard": null
     },
     {
       "asin": "B0833FMYH9",
@@ -1031,7 +562,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 37,
-      "added": "2023-06-06"
+      "added": "2023-06-06",
+      "last_heard": null
     },
     {
       "asin": "1524779261",
@@ -1053,7 +585,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 36,
-      "added": "2020-08-14"
+      "added": "2020-08-14",
+      "last_heard": null
     },
     {
       "asin": "B015EXHPCI",
@@ -1075,7 +608,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 33,
-      "added": "2017-07-24"
+      "added": "2017-07-24",
+      "last_heard": null
     },
     {
       "asin": "B0CNFJ1BVP",
@@ -1097,7 +631,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 32,
-      "added": "2024-06-04"
+      "added": "2024-06-04",
+      "last_heard": null
     },
     {
       "asin": "059339402X",
@@ -1126,7 +661,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 29,
-      "added": "2025-03-05"
+      "added": "2025-03-05",
+      "last_heard": null
     },
     {
       "asin": "B002VA9DAU",
@@ -1148,7 +684,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 28,
-      "added": "2024-04-04"
+      "added": "2024-04-04",
+      "last_heard": null
     },
     {
       "asin": "B0BT54XTLW",
@@ -1170,7 +707,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 28,
-      "added": "2023-02-25"
+      "added": "2023-02-25",
+      "last_heard": null
     },
     {
       "asin": "B0D155XJDY",
@@ -1193,7 +731,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 27,
-      "added": "2026-03-29"
+      "added": "2026-03-29",
+      "last_heard": null
     },
     {
       "asin": "0593163265",
@@ -1215,7 +754,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 24,
-      "added": "2024-06-05"
+      "added": "2024-06-05",
+      "last_heard": null
     },
     {
       "asin": "B076MGCL4G",
@@ -1237,7 +777,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 24,
-      "added": "2023-08-02"
+      "added": "2023-08-02",
+      "last_heard": null
     },
     {
       "asin": "B07QSC29JT",
@@ -1259,7 +800,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 24,
-      "added": "2020-06-18"
+      "added": "2020-06-18",
+      "last_heard": null
     },
     {
       "asin": "B07LH64B2P",
@@ -1281,7 +823,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 24,
-      "added": "2020-05-17"
+      "added": "2020-05-17",
+      "last_heard": null
     },
     {
       "asin": "B0031AS3BE",
@@ -1303,7 +846,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 23,
-      "added": "2021-09-27"
+      "added": "2021-09-27",
+      "last_heard": null
     },
     {
       "asin": "B00OGKTAV0",
@@ -1325,7 +869,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 19,
-      "added": "2019-01-14"
+      "added": "2019-01-14",
+      "last_heard": null
     },
     {
       "asin": "B074B29GQJ",
@@ -1348,7 +893,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 18,
-      "added": "2017-11-14"
+      "added": "2017-11-14",
+      "last_heard": null
     },
     {
       "asin": "1549191144",
@@ -1372,7 +918,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 17,
-      "added": "2026-05-16"
+      "added": "2026-05-16",
+      "last_heard": null
     },
     {
       "asin": "B074WFYZYH",
@@ -1395,7 +942,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 17,
-      "added": "2024-08-19"
+      "added": "2024-08-19",
+      "last_heard": null
     },
     {
       "asin": "1977349250",
@@ -1417,7 +965,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 17,
-      "added": "2022-12-31"
+      "added": "2022-12-31",
+      "last_heard": null
     },
     {
       "asin": "1977386865",
@@ -1439,7 +988,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 16,
-      "added": "2021-09-08"
+      "added": "2021-09-08",
+      "last_heard": null
     },
     {
       "asin": "B01BVPXR7K",
@@ -1462,7 +1012,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 15,
-      "added": "2020-07-23"
+      "added": "2020-07-23",
+      "last_heard": null
     },
     {
       "asin": "B07DKVMMRZ",
@@ -1485,7 +1036,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 15,
-      "added": "2019-02-22"
+      "added": "2019-02-22",
+      "last_heard": null
     },
     {
       "asin": "B0B1N93JC2",
@@ -1507,7 +1059,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 14,
-      "added": "2023-11-07"
+      "added": "2023-11-07",
+      "last_heard": null
     },
     {
       "asin": "B00URXOQ1E",
@@ -1529,7 +1082,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 14,
-      "added": "2020-09-29"
+      "added": "2020-09-29",
+      "last_heard": null
     },
     {
       "asin": "1250818664",
@@ -1552,7 +1106,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 13,
-      "added": "2025-12-03"
+      "added": "2025-12-03",
+      "last_heard": null
     },
     {
       "asin": "B07TS4MKQP",
@@ -1574,7 +1129,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 13,
-      "added": "2025-09-24"
+      "added": "2025-09-24",
+      "last_heard": null
     },
     {
       "asin": "B002V8LCH4",
@@ -1596,7 +1152,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 13,
-      "added": "2025-05-21"
+      "added": "2025-05-21",
+      "last_heard": null
     },
     {
       "asin": "B07GX2GD4N",
@@ -1618,7 +1175,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 12,
-      "added": "2019-05-18"
+      "added": "2019-05-18",
+      "last_heard": null
     },
     {
       "asin": "B01705KJRQ",
@@ -1641,7 +1199,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 11,
-      "added": "2021-04-14"
+      "added": "2021-04-14",
+      "last_heard": null
     },
     {
       "asin": "B0041PD25K",
@@ -1663,7 +1222,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 10,
-      "added": "2025-08-30"
+      "added": "2025-08-30",
+      "last_heard": null
     },
     {
       "asin": "1705255264",
@@ -1685,7 +1245,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 10,
-      "added": "2025-01-01"
+      "added": "2025-01-01",
+      "last_heard": null
     },
     {
       "asin": "1250245788",
@@ -1707,7 +1268,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 9,
-      "added": "2026-02-17"
+      "added": "2026-02-17",
+      "last_heard": null
     },
     {
       "asin": "B002V5GYHA",
@@ -1729,7 +1291,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 8,
-      "added": "2021-04-01"
+      "added": "2021-04-01",
+      "last_heard": null
     },
     {
       "asin": "B002VA9OJA",
@@ -1751,7 +1314,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 8,
-      "added": "2020-12-14"
+      "added": "2020-12-14",
+      "last_heard": null
     },
     {
       "asin": "B002V1M0SG",
@@ -1774,7 +1338,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 8,
-      "added": "2019-08-13"
+      "added": "2019-08-13",
+      "last_heard": null
     },
     {
       "asin": "B002VAEJOA",
@@ -1810,7 +1375,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 7,
-      "added": "2025-12-20"
+      "added": "2025-12-20",
+      "last_heard": null
     },
     {
       "asin": "B081J92T5Z",
@@ -1832,7 +1398,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 7,
-      "added": "2022-08-15"
+      "added": "2022-08-15",
+      "last_heard": null
     },
     {
       "asin": "1978632835",
@@ -1854,7 +1421,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 6,
-      "added": "2023-04-18"
+      "added": "2023-04-18",
+      "last_heard": null
     },
     {
       "asin": "B0036NHZ10",
@@ -1877,7 +1445,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 5,
-      "added": "2023-08-27"
+      "added": "2023-08-27",
+      "last_heard": null
     },
     {
       "asin": "B007RQ21FM",
@@ -1899,7 +1468,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 5,
-      "added": "2023-01-24"
+      "added": "2023-01-24",
+      "last_heard": null
     },
     {
       "asin": "B082VK6Q8G",
@@ -1929,320 +1499,34 @@
       "finished": false,
       "finished_on": null,
       "percent": 5,
-      "added": "2020-12-26"
-    },
-    {
-      "asin": "0593394763",
-      "title": "Think Again",
-      "subtitle": "The Power of Knowing What You Don't Know",
-      "authors": [
-        "Adam Grant"
-      ],
-      "narrators": [
-        "Adam Grant"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 400,
-      "released": "2021-02-02",
-      "cover": "https://m.media-amazon.com/images/I/41U8b9qyLZL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/peng/005441/bk_peng_005441_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 4,
-      "added": "2023-11-14"
-    },
-    {
-      "asin": "B00ANSTMV2",
-      "title": "Homer Box Set: Iliad & Odyssey",
-      "subtitle": null,
-      "authors": [
-        "Homer",
-        "W. H. D. Rouse - translator"
-      ],
-      "narrators": [
-        "Anthony Heald"
-      ],
-      "series": "Iliad & Odyssey",
-      "seq": "1 & 2",
-      "genre": "Literature & Fiction",
-      "minutes": 1502,
-      "released": "2012-12-14",
-      "cover": "https://m.media-amazon.com/images/I/51AiHNDBpaL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/blak/005511/bk_blak_005511_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 4,
-      "added": "2020-03-16"
-    },
-    {
-      "asin": "B0BYBB1YW4",
-      "title": "Data Mesh",
-      "subtitle": "Delivering Data-Driven Value at Scale",
-      "authors": [
-        "Zhamak Dehghani"
-      ],
-      "narrators": [
-        "Zura Johnson"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Computers & Technology",
-      "minutes": 842,
-      "released": "2023-03-28",
-      "cover": "https://m.media-amazon.com/images/I/41IhikfDCVL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/gdan/005222/bk_gdan_005222_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 3,
-      "added": "2024-01-30"
-    },
-    {
-      "asin": "B01KOQW7HI",
-      "title": "The 1-Page Marketing Plan",
-      "subtitle": "Get New Customers, Make More Money, And Stand Out From The Crowd",
-      "authors": [
-        "Allan Dib"
-      ],
-      "narrators": [
-        "Joel Richards"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Business & Careers",
-      "minutes": 391,
-      "released": "2016-08-16",
-      "cover": "https://m.media-amazon.com/images/I/41TcuVTomJL._SL500_.jpg",
-      "sample": null,
-      "finished": false,
-      "finished_on": null,
-      "percent": 3,
-      "added": "2022-01-20"
-    },
-    {
-      "asin": "0062981854",
-      "title": "Don't Panic",
-      "subtitle": "Douglas Adams and the Hitchhiker's Guide to the Galaxy",
-      "authors": [
-        "Neil Gaiman"
-      ],
-      "narrators": [
-        "Simon Jones",
-        "Neil Gaiman"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Literature & Fiction",
-      "minutes": 506,
-      "released": "2020-08-11",
-      "cover": "https://m.media-amazon.com/images/I/61KOLh8yBZL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/harp/011275/bk_harp_011275_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 2,
-      "added": "2024-06-05"
-    },
-    {
-      "asin": "B002V02SHK",
-      "title": "Life, the Universe, and Everything",
-      "subtitle": "The Hitchhiker's Guide to the Galaxy, Book 3",
-      "authors": [
-        "Douglas Adams"
-      ],
-      "narrators": [
-        "Martin Freeman"
-      ],
-      "series": "Hitchhiker's Guide to the Galaxy",
-      "seq": "3",
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 348,
-      "released": "2006-07-04",
-      "cover": "https://m.media-amazon.com/images/I/51KVVr4ryVL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rand/000858/bk_rand_000858_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 2,
-      "added": "2023-10-10"
-    },
-    {
-      "asin": "B00WRAAXNK",
-      "title": "The Autobiography of Benjamin Franklin",
-      "subtitle": null,
-      "authors": [
-        "Benjamin Franklin"
-      ],
-      "narrators": [
-        "Qarie Marshall"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Biographies & Memoirs",
-      "minutes": 395,
-      "released": "2015-04-28",
-      "cover": "https://m.media-amazon.com/images/I/51qGsH8bZKL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/drms/000567/bk_drms_000567_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 2,
-      "added": "2023-02-19"
-    },
-    {
-      "asin": "B07MNH2T6M",
-      "title": "The Philosophy Book",
-      "subtitle": "Big Ideas Simply Explained",
-      "authors": [
-        "DK"
-      ],
-      "narrators": [
-        "Jason Culp"
-      ],
-      "series": "Big Ideas Simply Explained",
-      "seq": "",
-      "genre": "History",
-      "minutes": 982,
-      "released": "2019-01-08",
-      "cover": "https://m.media-amazon.com/images/I/61eQEOTYw-L._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rand/006645/bk_rand_006645_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 2,
-      "added": "2021-01-24"
-    },
-    {
-      "asin": "B06WVW8XCP",
-      "title": "A Little History of Economics",
-      "subtitle": null,
-      "authors": [
-        "Niall Kishtainy"
-      ],
-      "narrators": [
-        "Steven Crossley"
-      ],
-      "series": "Little Histories Series",
-      "seq": "",
-      "genre": "History",
-      "minutes": 592,
-      "released": "2017-03-07",
-      "cover": "https://m.media-amazon.com/images/I/41qtUeZ4sfL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/blak/009746/bk_blak_009746_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 2,
-      "added": "2020-09-29"
-    },
-    {
-      "asin": "B0F79VZSK4",
-      "title": "Feersum Endjinn",
-      "subtitle": null,
-      "authors": [
-        "Iain M. Banks"
-      ],
-      "narrators": [
-        "Peter Kenny"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 599,
-      "released": "2026-02-17",
-      "cover": "https://m.media-amazon.com/images/I/41cyV1LFK1L._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/hach/009998/bk_hach_009998_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 1,
-      "added": "2026-02-24"
-    },
-    {
-      "asin": "B00MQ5WUGE",
-      "title": "A Glass Half Full",
-      "subtitle": null,
-      "authors": [
-        "Felix Dennis"
-      ],
-      "narrators": [
-        "Felix Dennis"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Literature & Fiction",
-      "minutes": 201,
-      "released": "2014-08-28",
-      "cover": "https://m.media-amazon.com/images/I/61TKOGFbnJL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/rhuk/001793/bk_rhuk_001793_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 1,
-      "added": "2022-06-21"
-    },
-    {
-      "asin": "1094170534",
-      "title": "Unf*ck Your Boundaries: Build Better Relationships Through Consent, Communication, and Expressing Your Needs",
-      "subtitle": "The 5-minute Therapy Series",
-      "authors": [
-        "Faith G. Harper PhD LPC-S ACS ACN"
-      ],
-      "narrators": [
-        "Erin Bennett"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Politics & Social Sciences",
-      "minutes": 168,
-      "released": "2020-04-28",
-      "cover": "https://m.media-amazon.com/images/I/51bA1OpEvkL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/blak/014940/bk_blak_014940_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 1,
-      "added": "2020-09-29"
-    },
-    {
-      "asin": "B0030H777E",
-      "title": "A People's History of the United States",
-      "subtitle": null,
-      "authors": [
-        "Howard Zinn"
-      ],
-      "narrators": [
-        "Jeff Zinn"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "History",
-      "minutes": 2050,
-      "released": "2009-12-14",
-      "cover": "https://m.media-amazon.com/images/I/31e1+7T5-vL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/harp/002064/bk_harp_002064_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 1,
-      "added": "2019-05-20"
-    },
-    {
-      "asin": "B00SI7QJA2",
-      "title": "Shogun",
-      "subtitle": "The Epic Novel of Japan: The Asian Saga, Book 1",
-      "authors": [
-        "James Clavell"
-      ],
-      "narrators": [
-        "Ralph Lister"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Literature & Fiction",
-      "minutes": 3213,
-      "released": "2015-01-16",
-      "cover": "https://m.media-amazon.com/images/I/41-ztRhYcfL._SL500_.jpg",
-      "sample": null,
-      "finished": false,
-      "finished_on": null,
-      "percent": 1,
-      "added": "2018-01-13"
+      "added": "2020-12-26",
+      "last_heard": null
     }
   ],
   "finished": [
+    {
+      "asin": "B0BKR3Y6SP",
+      "title": "Wool",
+      "subtitle": "The Silo Saga, Book 1",
+      "authors": [
+        "Hugh Howey"
+      ],
+      "narrators": [
+        "Edoardo Ballerini"
+      ],
+      "series": "The Silo Saga",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 900,
+      "released": "2023-03-07",
+      "cover": "https://m.media-amazon.com/images/I/51wvy7jratL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/blak/020509/bk_blak_020509_sample.mp3",
+      "finished": true,
+      "finished_on": "2026-09-25",
+      "percent": 100,
+      "added": "2026-08-17",
+      "last_heard": null
+    },
     {
       "asin": "B079YY41HL",
       "title": "Bullshit Jobs",
@@ -2263,7 +1547,8 @@
       "finished": true,
       "finished_on": "2026-08-04",
       "percent": 100,
-      "added": "2022-08-15"
+      "added": "2022-08-15",
+      "last_heard": null
     },
     {
       "asin": "B002UZLF2U",
@@ -2286,7 +1571,8 @@
       "finished": true,
       "finished_on": "2026-06-10",
       "percent": 100,
-      "added": "2026-05-31"
+      "added": "2026-05-31",
+      "last_heard": null
     },
     {
       "asin": "B0FBCFCBG1",
@@ -2298,7 +1584,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -2308,7 +1594,31 @@
       "finished": true,
       "finished_on": "2026-04-27",
       "percent": 100,
-      "added": "2026-04-14"
+      "added": "2026-04-14",
+      "last_heard": null
+    },
+    {
+      "asin": "0593345525",
+      "title": "How to Get Rich",
+      "subtitle": "One of the World's Greatest Entrepreneurs Shares His Secrets",
+      "authors": [
+        "Felix Dennis"
+      ],
+      "narrators": [
+        "Roy McMillan"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Biographies & Memoirs",
+      "minutes": 593,
+      "released": "2020-09-15",
+      "cover": "https://m.media-amazon.com/images/I/41um2b4SQWL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/peng/005271/bk_peng_005271_sample.mp3",
+      "finished": true,
+      "finished_on": "2026-04-12",
+      "percent": 100,
+      "added": "2021-06-14",
+      "last_heard": null
     },
     {
       "asin": "B06Y46VB4L",
@@ -2338,7 +1648,8 @@
       "finished": true,
       "finished_on": "2026-03-27",
       "percent": 100,
-      "added": "2018-09-08"
+      "added": "2018-09-08",
+      "last_heard": null
     },
     {
       "asin": "B002V0Q4LG",
@@ -2360,7 +1671,8 @@
       "finished": true,
       "finished_on": "2026-03-27",
       "percent": 100,
-      "added": "2018-07-25"
+      "added": "2018-07-25",
+      "last_heard": null
     },
     {
       "asin": "B01EB1VMJQ",
@@ -2384,7 +1696,31 @@
       "finished": true,
       "finished_on": "2026-03-07",
       "percent": 100,
-      "added": "2026-01-18"
+      "added": "2026-01-18",
+      "last_heard": null
+    },
+    {
+      "asin": "B078SDRSGX",
+      "title": "Thinking in Bets",
+      "subtitle": "Making Smarter Decisions When You Don't Have All the Facts",
+      "authors": [
+        "Annie Duke"
+      ],
+      "narrators": [
+        "Annie Duke"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Business & Careers",
+      "minutes": 410,
+      "released": "2018-02-06",
+      "cover": "https://m.media-amazon.com/images/I/41CueL9WfHL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/peng/003379/bk_peng_003379_sample.mp3",
+      "finished": true,
+      "finished_on": "2026-01-19",
+      "percent": 100,
+      "added": "2019-11-13",
+      "last_heard": null
     },
     {
       "asin": "0593162927",
@@ -2406,7 +1742,31 @@
       "finished": true,
       "finished_on": "2026-01-18",
       "percent": 100,
-      "added": "2025-07-20"
+      "added": "2025-07-20",
+      "last_heard": null
+    },
+    {
+      "asin": "B007NKXYEO",
+      "title": "The Third Chimpanzee",
+      "subtitle": "The Evolution and Future of the Human Animal",
+      "authors": [
+        "Jared Diamond"
+      ],
+      "narrators": [
+        "Rob Shapiro"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Politics & Social Sciences",
+      "minutes": 933,
+      "released": "2012-04-03",
+      "cover": "https://m.media-amazon.com/images/I/5113eS7xKML._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/rand/002987/bk_rand_002987_sample.mp3",
+      "finished": true,
+      "finished_on": "2026-01-09",
+      "percent": 100,
+      "added": "2021-08-20",
+      "last_heard": null
     },
     {
       "asin": "1549174908",
@@ -2428,7 +1788,8 @@
       "finished": true,
       "finished_on": "2026-01-03",
       "percent": 100,
-      "added": "2025-12-03"
+      "added": "2025-12-03",
+      "last_heard": null
     },
     {
       "asin": "B0FVMNRTPZ",
@@ -2450,7 +1811,8 @@
       "finished": true,
       "finished_on": "2026-01-01",
       "percent": 100,
-      "added": "2025-12-27"
+      "added": "2025-12-27",
+      "last_heard": null
     },
     {
       "asin": "B002V0PYYE",
@@ -2473,7 +1835,31 @@
       "finished": true,
       "finished_on": "2025-11-27",
       "percent": 100,
-      "added": "2025-10-29"
+      "added": "2025-10-29",
+      "last_heard": null
+    },
+    {
+      "asin": "1452184712",
+      "title": "Mythos",
+      "subtitle": null,
+      "authors": [
+        "Stephen Fry"
+      ],
+      "narrators": [
+        "Stephen Fry"
+      ],
+      "series": "Mythos",
+      "seq": "1",
+      "genre": "History",
+      "minutes": 926,
+      "released": "2019-08-27",
+      "cover": "https://m.media-amazon.com/images/I/41wx8gHf4BL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/hach/005380/bk_hach_005380_sample.mp3",
+      "finished": true,
+      "finished_on": "2025-10-29",
+      "percent": 100,
+      "added": "2020-09-11",
+      "last_heard": null
     },
     {
       "asin": "B002V5D34W",
@@ -2495,7 +1881,8 @@
       "finished": true,
       "finished_on": "2025-10-27",
       "percent": 100,
-      "added": "2022-04-05"
+      "added": "2022-04-05",
+      "last_heard": null
     },
     {
       "asin": "B002V5BLIW",
@@ -2521,7 +1908,8 @@
       "finished": true,
       "finished_on": "2025-10-18",
       "percent": 100,
-      "added": "2022-03-27"
+      "added": "2022-03-27",
+      "last_heard": null
     },
     {
       "asin": "B0F38S8J8S",
@@ -2543,7 +1931,8 @@
       "finished": true,
       "finished_on": "2025-10-01",
       "percent": 100,
-      "added": "2025-09-29"
+      "added": "2025-09-29",
+      "last_heard": null
     },
     {
       "asin": "B0DP5CM73B",
@@ -2565,7 +1954,8 @@
       "finished": true,
       "finished_on": "2025-09-24",
       "percent": 100,
-      "added": "2025-08-30"
+      "added": "2025-08-30",
+      "last_heard": null
     },
     {
       "asin": "B0DK2DQZ7P",
@@ -2587,7 +1977,8 @@
       "finished": true,
       "finished_on": "2025-09-23",
       "percent": 100,
-      "added": "2025-06-22"
+      "added": "2025-06-22",
+      "last_heard": null
     },
     {
       "asin": "B0F5BTJ3KX",
@@ -2609,7 +2000,31 @@
       "finished": true,
       "finished_on": "2025-08-30",
       "percent": 100,
-      "added": "2025-08-19"
+      "added": "2025-08-19",
+      "last_heard": null
+    },
+    {
+      "asin": "0593294181",
+      "title": "Greenlights",
+      "subtitle": null,
+      "authors": [
+        "Matthew McConaughey"
+      ],
+      "narrators": [
+        "Matthew McConaughey"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Biographies & Memoirs",
+      "minutes": 411,
+      "released": "2020-10-20",
+      "cover": "https://m.media-amazon.com/images/I/51m+AA2gNaL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/rand/008072/bk_rand_008072_sample.mp3",
+      "finished": true,
+      "finished_on": "2025-08-02",
+      "percent": 100,
+      "added": "2020-11-20",
+      "last_heard": null
     },
     {
       "asin": "B0C7YLL2T3",
@@ -2633,7 +2048,31 @@
       "finished": true,
       "finished_on": "2025-07-30",
       "percent": 100,
-      "added": "2025-06-09"
+      "added": "2025-06-09",
+      "last_heard": null
+    },
+    {
+      "asin": "B002V0TGB6",
+      "title": "Beyond the Aquila Rift",
+      "subtitle": null,
+      "authors": [
+        "Alastair Reynolds"
+      ],
+      "narrators": [
+        "Tom Dheere"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 71,
+      "released": "2008-02-22",
+      "cover": "https://m.media-amazon.com/images/I/5141+Qr8HOL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/atxt/000020/bk_atxt_000020_sample.mp3",
+      "finished": true,
+      "finished_on": "2025-07-18",
+      "percent": 100,
+      "added": "2025-05-21",
+      "last_heard": null
     },
     {
       "asin": "0593208382",
@@ -2656,7 +2095,32 @@
       "finished": true,
       "finished_on": "2025-07-17",
       "percent": 100,
-      "added": "2025-06-15"
+      "added": "2025-06-15",
+      "last_heard": null
+    },
+    {
+      "asin": "B01G4ENQYC",
+      "title": "The Expectant Father",
+      "subtitle": "The Ultimate Guide for Dads-to-Be",
+      "authors": [
+        "Armin A. Brott",
+        "Jennifer Ash"
+      ],
+      "narrators": [
+        "Armin A. Brott"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Health & Wellness",
+      "minutes": 652,
+      "released": "2016-05-25",
+      "cover": "https://m.media-amazon.com/images/I/6162FCjLAdL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/acx0/059886/bk_acx0_059886_sample.mp3",
+      "finished": true,
+      "finished_on": "2025-07-10",
+      "percent": 100,
+      "added": "2025-07-06",
+      "last_heard": null
     },
     {
       "asin": "B019J43338",
@@ -2678,7 +2142,8 @@
       "finished": true,
       "finished_on": "2025-06-29",
       "percent": 100,
-      "added": "2025-06-09"
+      "added": "2025-06-09",
+      "last_heard": null
     },
     {
       "asin": "B0036N2C7M",
@@ -2700,7 +2165,8 @@
       "finished": true,
       "finished_on": "2025-06-18",
       "percent": 100,
-      "added": "2025-06-09"
+      "added": "2025-06-09",
+      "last_heard": null
     },
     {
       "asin": "B01GF59UJK",
@@ -2722,7 +2188,8 @@
       "finished": true,
       "finished_on": "2025-06-11",
       "percent": 100,
-      "added": "2025-03-05"
+      "added": "2025-03-05",
+      "last_heard": null
     },
     {
       "asin": "B00YN9XROA",
@@ -2744,7 +2211,31 @@
       "finished": true,
       "finished_on": "2025-06-02",
       "percent": 100,
-      "added": "2019-04-16"
+      "added": "2019-04-16",
+      "last_heard": null
+    },
+    {
+      "asin": "B0C6YL9M27",
+      "title": "The Algebra of Wealth",
+      "subtitle": "A Simple Formula for Financial Security",
+      "authors": [
+        "Scott Galloway"
+      ],
+      "narrators": [
+        "Scott Galloway"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Money & Finance",
+      "minutes": 509,
+      "released": "2024-04-23",
+      "cover": "https://m.media-amazon.com/images/I/51L64SWoqfL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/peng/007156/bk_peng_007156_sample.mp3",
+      "finished": true,
+      "finished_on": "2025-05-21",
+      "percent": 100,
+      "added": "2024-05-07",
+      "last_heard": null
     },
     {
       "asin": "B0036KOD4U",
@@ -2766,7 +2257,8 @@
       "finished": true,
       "finished_on": "2025-05-17",
       "percent": 100,
-      "added": "2025-03-13"
+      "added": "2025-03-13",
+      "last_heard": null
     },
     {
       "asin": "B09Q9WQ1QJ",
@@ -2789,7 +2281,8 @@
       "finished": true,
       "finished_on": "2025-05-17",
       "percent": 100,
-      "added": "2025-03-11"
+      "added": "2025-03-11",
+      "last_heard": null
     },
     {
       "asin": "1250839610",
@@ -2812,7 +2305,8 @@
       "finished": true,
       "finished_on": "2025-03-14",
       "percent": 100,
-      "added": "2025-02-19"
+      "added": "2025-02-19",
+      "last_heard": null
     },
     {
       "asin": "B002V0QZL0",
@@ -2834,7 +2328,8 @@
       "finished": true,
       "finished_on": "2025-02-25",
       "percent": 100,
-      "added": "2025-02-20"
+      "added": "2025-02-20",
+      "last_heard": null
     },
     {
       "asin": "B0CF6R3R7W",
@@ -2856,7 +2351,8 @@
       "finished": true,
       "finished_on": "2025-02-24",
       "percent": 100,
-      "added": "2024-04-05"
+      "added": "2024-04-05",
+      "last_heard": null
     },
     {
       "asin": "B002V5BDXK",
@@ -2878,7 +2374,8 @@
       "finished": true,
       "finished_on": "2025-02-20",
       "percent": 100,
-      "added": "2025-02-02"
+      "added": "2025-02-02",
+      "last_heard": null
     },
     {
       "asin": "B002V59TMM",
@@ -2900,7 +2397,8 @@
       "finished": true,
       "finished_on": "2024-12-30",
       "percent": 100,
-      "added": "2018-12-14"
+      "added": "2018-12-14",
+      "last_heard": null
     },
     {
       "asin": "B0CQ3NCJTC",
@@ -2922,7 +2420,8 @@
       "finished": true,
       "finished_on": "2024-12-12",
       "percent": 100,
-      "added": "2024-11-16"
+      "added": "2024-11-16",
+      "last_heard": null
     },
     {
       "asin": "B078PJ2TY4",
@@ -2944,7 +2443,8 @@
       "finished": true,
       "finished_on": "2024-12-04",
       "percent": 100,
-      "added": "2024-11-16"
+      "added": "2024-11-16",
+      "last_heard": null
     },
     {
       "asin": "B0CR4CLJ65",
@@ -2966,7 +2466,8 @@
       "finished": true,
       "finished_on": "2024-11-18",
       "percent": 100,
-      "added": "2024-08-14"
+      "added": "2024-08-14",
+      "last_heard": null
     },
     {
       "asin": "B09V5RJ3FW",
@@ -2988,7 +2489,8 @@
       "finished": true,
       "finished_on": "2024-11-11",
       "percent": 100,
-      "added": "2024-10-14"
+      "added": "2024-10-14",
+      "last_heard": null
     },
     {
       "asin": "1508287058",
@@ -3012,7 +2514,8 @@
       "finished": true,
       "finished_on": "2024-10-30",
       "percent": 100,
-      "added": "2024-10-28"
+      "added": "2024-10-28",
+      "last_heard": null
     },
     {
       "asin": "B0CW23CC7L",
@@ -3034,7 +2537,8 @@
       "finished": true,
       "finished_on": "2024-10-19",
       "percent": 100,
-      "added": "2024-10-12"
+      "added": "2024-10-12",
+      "last_heard": null
     },
     {
       "asin": "B0CT49S3V8",
@@ -3056,7 +2560,8 @@
       "finished": true,
       "finished_on": "2024-10-17",
       "percent": 100,
-      "added": "2024-09-23"
+      "added": "2024-09-23",
+      "last_heard": null
     },
     {
       "asin": "B09BK57L5W",
@@ -3078,7 +2583,8 @@
       "finished": true,
       "finished_on": "2024-10-03",
       "percent": 100,
-      "added": "2021-10-27"
+      "added": "2021-10-27",
+      "last_heard": null
     },
     {
       "asin": "B0DG33GL7C",
@@ -3100,7 +2606,8 @@
       "finished": true,
       "finished_on": "2024-10-02",
       "percent": 100,
-      "added": "2024-10-01"
+      "added": "2024-10-01",
+      "last_heard": null
     },
     {
       "asin": "B0CQZ5167B",
@@ -3122,7 +2629,31 @@
       "finished": true,
       "finished_on": "2024-10-01",
       "percent": 100,
-      "added": "2024-09-20"
+      "added": "2024-09-20",
+      "last_heard": null
+    },
+    {
+      "asin": "B0C7WJXBRL",
+      "title": "$100M Leads",
+      "subtitle": "How to Get Strangers to Want to Buy Your Stuff",
+      "authors": [
+        "Alex Hormozi"
+      ],
+      "narrators": [
+        "Alex Hormozi"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Business & Careers",
+      "minutes": 361,
+      "released": "2023-08-20",
+      "cover": "https://m.media-amazon.com/images/I/41P0BdphG7L._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/acx0/356143/bk_acx0_356143_sample.mp3",
+      "finished": true,
+      "finished_on": "2024-09-18",
+      "percent": 100,
+      "added": "2024-08-22",
+      "last_heard": null
     },
     {
       "asin": "B0079KEF1O",
@@ -3145,7 +2676,8 @@
       "finished": true,
       "finished_on": "2024-08-22",
       "percent": 100,
-      "added": "2024-08-02"
+      "added": "2024-08-02",
+      "last_heard": null
     },
     {
       "asin": "B00883JQ8S",
@@ -3167,7 +2699,8 @@
       "finished": true,
       "finished_on": "2024-08-07",
       "percent": 100,
-      "added": "2024-06-21"
+      "added": "2024-06-21",
+      "last_heard": null
     },
     {
       "asin": "0593148916",
@@ -3189,7 +2722,8 @@
       "finished": true,
       "finished_on": "2024-07-16",
       "percent": 100,
-      "added": "2024-06-25"
+      "added": "2024-06-25",
+      "last_heard": null
     },
     {
       "asin": "B0C1HW33G3",
@@ -3211,7 +2745,8 @@
       "finished": true,
       "finished_on": "2024-05-31",
       "percent": 100,
-      "added": "2024-04-26"
+      "added": "2024-04-26",
+      "last_heard": null
     },
     {
       "asin": "B0BVSJKM4Z",
@@ -3234,7 +2769,8 @@
       "finished": true,
       "finished_on": "2024-05-13",
       "percent": 100,
-      "added": "2023-09-05"
+      "added": "2023-09-05",
+      "last_heard": null
     },
     {
       "asin": "B06XTZZLZ8",
@@ -3257,7 +2793,8 @@
       "finished": true,
       "finished_on": "2024-04-26",
       "percent": 100,
-      "added": "2024-04-04"
+      "added": "2024-04-04",
+      "last_heard": null
     },
     {
       "asin": "B003O9I8BW",
@@ -3279,7 +2816,8 @@
       "finished": true,
       "finished_on": "2024-04-04",
       "percent": 100,
-      "added": "2023-11-19"
+      "added": "2023-11-19",
+      "last_heard": null
     },
     {
       "asin": "B002V5CUFK",
@@ -3301,7 +2839,8 @@
       "finished": true,
       "finished_on": "2024-02-29",
       "percent": 100,
-      "added": "2023-11-17"
+      "added": "2023-11-17",
+      "last_heard": null
     },
     {
       "asin": "B007IKV2P2",
@@ -3323,7 +2862,31 @@
       "finished": true,
       "finished_on": "2024-02-16",
       "percent": 100,
-      "added": "2024-02-07"
+      "added": "2024-02-07",
+      "last_heard": null
+    },
+    {
+      "asin": "B002VA9SWS",
+      "title": "The Hitchhiker's Guide to the Galaxy",
+      "subtitle": null,
+      "authors": [
+        "Douglas Adams"
+      ],
+      "narrators": [
+        "Stephen Fry"
+      ],
+      "series": "Hitchhiker's Guide to the Galaxy",
+      "seq": "1",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 351,
+      "released": "2005-04-28",
+      "cover": "https://m.media-amazon.com/images/I/51b09NRSkiL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/rand/000600/bk_rand_000600_sample.mp3",
+      "finished": true,
+      "finished_on": "2024-02-13",
+      "percent": 100,
+      "added": "2020-12-06",
+      "last_heard": null
     },
     {
       "asin": "B09MV8FMY2",
@@ -3346,7 +2909,8 @@
       "finished": true,
       "finished_on": "2024-02-09",
       "percent": 100,
-      "added": "2024-01-22"
+      "added": "2024-01-22",
+      "last_heard": null
     },
     {
       "asin": "B076XSGP65",
@@ -3368,7 +2932,8 @@
       "finished": true,
       "finished_on": "2024-01-24",
       "percent": 100,
-      "added": "2023-11-10"
+      "added": "2023-11-10",
+      "last_heard": null
     },
     {
       "asin": "197869167X",
@@ -3390,7 +2955,8 @@
       "finished": true,
       "finished_on": "2023-11-29",
       "percent": 100,
-      "added": "2023-01-19"
+      "added": "2023-01-19",
+      "last_heard": null
     },
     {
       "asin": "B01M4IDLAG",
@@ -3413,7 +2979,8 @@
       "finished": true,
       "finished_on": "2023-11-14",
       "percent": 100,
-      "added": "2017-11-03"
+      "added": "2017-11-03",
+      "last_heard": null
     },
     {
       "asin": "B002V5D5ZE",
@@ -3435,7 +3002,31 @@
       "finished": true,
       "finished_on": "2023-10-10",
       "percent": 100,
-      "added": "2023-09-25"
+      "added": "2023-09-25",
+      "last_heard": null
+    },
+    {
+      "asin": "B077Z8S58Y",
+      "title": "Exactly What to Say",
+      "subtitle": "The Magic Words for Influence and Impact",
+      "authors": [
+        "Phil M. Jones"
+      ],
+      "narrators": [
+        "Phil M. Jones"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Business & Careers",
+      "minutes": 74,
+      "released": "2017-12-01",
+      "cover": "https://m.media-amazon.com/images/I/51R6B8Gj6GL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/acx0/102673/bk_acx0_102673_sample.mp3",
+      "finished": true,
+      "finished_on": "2023-10-06",
+      "percent": 100,
+      "added": "2018-08-13",
+      "last_heard": null
     },
     {
       "asin": "B008XM83T2",
@@ -3457,7 +3048,8 @@
       "finished": true,
       "finished_on": "2023-10-04",
       "percent": 100,
-      "added": "2018-11-19"
+      "added": "2018-11-19",
+      "last_heard": null
     },
     {
       "asin": "B0C8W81ZV7",
@@ -3480,7 +3072,31 @@
       "finished": true,
       "finished_on": "2023-09-25",
       "percent": 100,
-      "added": "2023-07-13"
+      "added": "2023-07-13",
+      "last_heard": null
+    },
+    {
+      "asin": "B00W2FAAY2",
+      "title": "Strategies for Beating Small Stakes Poker Tournaments",
+      "subtitle": null,
+      "authors": [
+        "Jonathan Little"
+      ],
+      "narrators": [
+        "Jonathan Little"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": null,
+      "minutes": 74,
+      "released": "2015-04-14",
+      "cover": "https://m.media-amazon.com/images/I/514Sir6BGKL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/acx0/033832/bk_acx0_033832_sample.mp3",
+      "finished": true,
+      "finished_on": "2023-09-04",
+      "percent": 100,
+      "added": "2017-06-23",
+      "last_heard": null
     },
     {
       "asin": "0593102797",
@@ -3503,7 +3119,8 @@
       "finished": true,
       "finished_on": "2023-08-24",
       "percent": 100,
-      "added": "2023-06-05"
+      "added": "2023-06-05",
+      "last_heard": null
     },
     {
       "asin": "B00OSJZ7BQ",
@@ -3525,7 +3142,8 @@
       "finished": true,
       "finished_on": "2023-07-27",
       "percent": 100,
-      "added": "2023-03-20"
+      "added": "2023-03-20",
+      "last_heard": null
     },
     {
       "asin": "B09VY4TQTN",
@@ -3547,7 +3165,8 @@
       "finished": true,
       "finished_on": "2023-07-21",
       "percent": 100,
-      "added": "2023-06-23"
+      "added": "2023-06-23",
+      "last_heard": null
     },
     {
       "asin": "1980085382",
@@ -3569,7 +3188,36 @@
       "finished": true,
       "finished_on": "2023-07-12",
       "percent": 100,
-      "added": "2023-06-27"
+      "added": "2023-06-27",
+      "last_heard": null
+    },
+    {
+      "asin": "B007JJSURA",
+      "title": "The Godfather",
+      "subtitle": "50th Anniversary Edition",
+      "authors": [
+        "Mario Puzo",
+        "Francis Ford Coppola - introduction",
+        "Anthony Puzo - note",
+        "Robert J. Thompson - afterword"
+      ],
+      "narrators": [
+        "Joe Mantegna",
+        "Anthony Puzo",
+        "Angelo Di Loreto"
+      ],
+      "series": "The Godfather",
+      "seq": "1",
+      "genre": "Literature & Fiction",
+      "minutes": 1128,
+      "released": "2012-03-13",
+      "cover": "https://m.media-amazon.com/images/I/51Vg8SyXbWL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/brll/003625/bk_brll_003625_sample.mp3",
+      "finished": true,
+      "finished_on": "2023-07-12",
+      "percent": 100,
+      "added": "2022-08-15",
+      "last_heard": null
     },
     {
       "asin": "B00995OX28",
@@ -3591,7 +3239,8 @@
       "finished": true,
       "finished_on": "2023-07-05",
       "percent": 100,
-      "added": "2019-01-24"
+      "added": "2019-01-24",
+      "last_heard": null
     },
     {
       "asin": "B0BJ34FWZ3",
@@ -3615,7 +3264,31 @@
       "finished": true,
       "finished_on": "2023-06-20",
       "percent": 100,
-      "added": "2022-12-19"
+      "added": "2022-12-19",
+      "last_heard": null
+    },
+    {
+      "asin": "B004VA8ZVQ",
+      "title": "Benjamin Franklin: An American Life",
+      "subtitle": null,
+      "authors": [
+        "Walter Isaacson"
+      ],
+      "narrators": [
+        "Nelson Runger"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Biographies & Memoirs",
+      "minutes": 1480,
+      "released": "2011-04-07",
+      "cover": "https://m.media-amazon.com/images/I/61zcpKItWZL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/sans/005486/bk_sans_005486_sample.mp3",
+      "finished": true,
+      "finished_on": "2023-05-11",
+      "percent": 100,
+      "added": "2017-09-13",
+      "last_heard": null
     },
     {
       "asin": "B071P3SQ2Z",
@@ -3638,7 +3311,8 @@
       "finished": true,
       "finished_on": "2023-04-19",
       "percent": 100,
-      "added": "2018-12-14"
+      "added": "2018-12-14",
+      "last_heard": null
     },
     {
       "asin": "B00M27LBU2",
@@ -3661,7 +3335,8 @@
       "finished": true,
       "finished_on": "2023-03-20",
       "percent": 100,
-      "added": "2022-11-10"
+      "added": "2022-11-10",
+      "last_heard": null
     },
     {
       "asin": "B09XYYKG15",
@@ -3684,7 +3359,8 @@
       "finished": true,
       "finished_on": "2023-03-17",
       "percent": 100,
-      "added": "2023-02-19"
+      "added": "2023-02-19",
+      "last_heard": null
     },
     {
       "asin": "1982648066",
@@ -3706,7 +3382,8 @@
       "finished": true,
       "finished_on": "2023-03-14",
       "percent": 100,
-      "added": "2020-10-05"
+      "added": "2020-10-05",
+      "last_heard": null
     },
     {
       "asin": "B09L9TXHN4",
@@ -3728,7 +3405,8 @@
       "finished": true,
       "finished_on": "2023-03-09",
       "percent": 100,
-      "added": "2023-03-05"
+      "added": "2023-03-05",
+      "last_heard": null
     },
     {
       "asin": "B07BSXJX88",
@@ -3751,7 +3429,8 @@
       "finished": true,
       "finished_on": "2023-02-20",
       "percent": 100,
-      "added": "2023-02-13"
+      "added": "2023-02-13",
+      "last_heard": null
     },
     {
       "asin": "B002V5BIK8",
@@ -3773,7 +3452,8 @@
       "finished": true,
       "finished_on": "2023-02-05",
       "percent": 100,
-      "added": "2022-06-24"
+      "added": "2022-06-24",
+      "last_heard": null
     },
     {
       "asin": "B007C64916",
@@ -3795,7 +3475,8 @@
       "finished": true,
       "finished_on": "2023-01-31",
       "percent": 100,
-      "added": "2019-04-16"
+      "added": "2019-04-16",
+      "last_heard": null
     },
     {
       "asin": "B002VA97LA",
@@ -3817,7 +3498,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2022-12-31"
+      "added": "2022-12-31",
+      "last_heard": null
     },
     {
       "asin": "B005V0QI82",
@@ -3839,7 +3521,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2022-10-13"
+      "added": "2022-10-13",
+      "last_heard": null
     },
     {
       "asin": "B002V0Q9U2",
@@ -3863,7 +3546,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2022-06-10"
+      "added": "2022-06-10",
+      "last_heard": null
     },
     {
       "asin": "1797204211",
@@ -3885,7 +3569,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2022-02-14"
+      "added": "2022-02-14",
+      "last_heard": null
     },
     {
       "asin": "B00M9KA2ZM",
@@ -3908,7 +3593,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2021-03-15"
+      "added": "2021-03-15",
+      "last_heard": null
     },
     {
       "asin": "B07HJC1BHR",
@@ -3930,7 +3616,8 @@
       "finished": true,
       "finished_on": "2023-01-23",
       "percent": 100,
-      "added": "2020-09-29"
+      "added": "2020-09-29",
+      "last_heard": null
     },
     {
       "asin": "0062913328",
@@ -3952,7 +3639,31 @@
       "finished": true,
       "finished_on": "2022-12-31",
       "percent": 100,
-      "added": "2022-11-14"
+      "added": "2022-11-14",
+      "last_heard": null
+    },
+    {
+      "asin": "B08F6D4ZPV",
+      "title": "12 Months to $1 Million",
+      "subtitle": "How to Pick a Winning Product, Build a Real Business, and Become a Seven-Figure Entrepreneur",
+      "authors": [
+        "Ryan Daniel Moran"
+      ],
+      "narrators": [
+        "Ryan Daniel Moran"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Business & Careers",
+      "minutes": 458,
+      "released": "2020-08-11",
+      "cover": "https://m.media-amazon.com/images/I/51Y80DfRruL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/adbl/056014/bk_adbl_056014_sample.mp3",
+      "finished": true,
+      "finished_on": "2022-12-15",
+      "percent": 100,
+      "added": "2021-08-20",
+      "last_heard": null
     },
     {
       "asin": "B07DHSQL6Q",
@@ -3976,7 +3687,8 @@
       "finished": true,
       "finished_on": "2022-12-15",
       "percent": 100,
-      "added": "2019-03-15"
+      "added": "2019-03-15",
+      "last_heard": null
     },
     {
       "asin": "0063005409",
@@ -4009,7 +3721,8 @@
       "finished": true,
       "finished_on": "2022-12-08",
       "percent": 100,
-      "added": "2022-11-14"
+      "added": "2022-11-14",
+      "last_heard": null
     },
     {
       "asin": "B00482T0DY",
@@ -4031,7 +3744,8 @@
       "finished": true,
       "finished_on": "2022-11-21",
       "percent": 100,
-      "added": "2022-11-09"
+      "added": "2022-11-09",
+      "last_heard": null
     },
     {
       "asin": "B06ZXT7Z51",
@@ -4053,7 +3767,8 @@
       "finished": true,
       "finished_on": "2022-11-10",
       "percent": 100,
-      "added": "2022-10-13"
+      "added": "2022-10-13",
+      "last_heard": null
     },
     {
       "asin": "B005QPB3X2",
@@ -4075,7 +3790,8 @@
       "finished": true,
       "finished_on": "2022-11-09",
       "percent": 100,
-      "added": "2022-11-07"
+      "added": "2022-11-07",
+      "last_heard": null
     },
     {
       "asin": "B06ZXZ3B3W",
@@ -4097,7 +3813,8 @@
       "finished": true,
       "finished_on": "2022-10-16",
       "percent": 100,
-      "added": "2017-10-31"
+      "added": "2017-10-31",
+      "last_heard": null
     },
     {
       "asin": "B010TK9452",
@@ -4119,7 +3836,8 @@
       "finished": true,
       "finished_on": "2022-10-11",
       "percent": 100,
-      "added": "2022-03-04"
+      "added": "2022-03-04",
+      "last_heard": null
     },
     {
       "asin": "179711705X",
@@ -4142,7 +3860,8 @@
       "finished": true,
       "finished_on": "2022-10-05",
       "percent": 100,
-      "added": "2021-03-15"
+      "added": "2021-03-15",
+      "last_heard": null
     },
     {
       "asin": "B005FRGT44",
@@ -4164,7 +3883,8 @@
       "finished": true,
       "finished_on": "2022-10-05",
       "percent": 100,
-      "added": "2018-07-14"
+      "added": "2018-07-14",
+      "last_heard": null
     },
     {
       "asin": "B002VA9EC2",
@@ -4186,7 +3906,8 @@
       "finished": true,
       "finished_on": "2022-10-04",
       "percent": 100,
-      "added": "2020-12-12"
+      "added": "2020-12-12",
+      "last_heard": null
     },
     {
       "asin": "B004ZLBCO8",
@@ -4208,7 +3929,8 @@
       "finished": true,
       "finished_on": "2022-10-04",
       "percent": 100,
-      "added": "2019-06-13"
+      "added": "2019-06-13",
+      "last_heard": null
     },
     {
       "asin": "B00I470OY8",
@@ -4230,7 +3952,8 @@
       "finished": true,
       "finished_on": "2022-09-27",
       "percent": 100,
-      "added": "2022-09-21"
+      "added": "2022-09-21",
+      "last_heard": null
     },
     {
       "asin": "1684577675",
@@ -4252,7 +3975,8 @@
       "finished": true,
       "finished_on": "2022-09-20",
       "percent": 100,
-      "added": "2022-09-14"
+      "added": "2022-09-14",
+      "last_heard": null
     },
     {
       "asin": "B002V0QOJS",
@@ -4274,7 +3998,8 @@
       "finished": true,
       "finished_on": "2022-09-12",
       "percent": 100,
-      "added": "2020-12-14"
+      "added": "2020-12-14",
+      "last_heard": null
     },
     {
       "asin": "B00LPMD72K",
@@ -4296,7 +4021,8 @@
       "finished": true,
       "finished_on": "2022-08-30",
       "percent": 100,
-      "added": "2021-05-23"
+      "added": "2021-05-23",
+      "last_heard": null
     },
     {
       "asin": "B00354ZSS2",
@@ -4318,7 +4044,8 @@
       "finished": true,
       "finished_on": "2022-08-30",
       "percent": 100,
-      "added": "2019-10-09"
+      "added": "2019-10-09",
+      "last_heard": null
     },
     {
       "asin": "B0036KV7Y4",
@@ -4341,7 +4068,8 @@
       "finished": true,
       "finished_on": "2022-08-30",
       "percent": 100,
-      "added": "2019-05-18"
+      "added": "2019-05-18",
+      "last_heard": null
     },
     {
       "asin": "B0057HR4E6",
@@ -4363,7 +4091,8 @@
       "finished": true,
       "finished_on": "2022-08-30",
       "percent": 100,
-      "added": "2018-06-24"
+      "added": "2018-06-24",
+      "last_heard": null
     },
     {
       "asin": "B0030CNJZI",
@@ -4385,7 +4114,8 @@
       "finished": true,
       "finished_on": "2022-08-30",
       "percent": 100,
-      "added": "2017-06-23"
+      "added": "2017-06-23",
+      "last_heard": null
     },
     {
       "asin": "B09TV6N7PD",
@@ -4407,7 +4137,8 @@
       "finished": true,
       "finished_on": "2022-08-15",
       "percent": 100,
-      "added": "2022-08-15"
+      "added": "2022-08-15",
+      "last_heard": null
     },
     {
       "asin": "B09CW92ZHP",
@@ -4429,7 +4160,8 @@
       "finished": true,
       "finished_on": "2022-08-12",
       "percent": 100,
-      "added": "2022-07-13"
+      "added": "2022-07-13",
+      "last_heard": null
     },
     {
       "asin": "B00CRKR77U",
@@ -4451,7 +4183,8 @@
       "finished": true,
       "finished_on": "2022-08-12",
       "percent": 100,
-      "added": "2021-05-16"
+      "added": "2021-05-16",
+      "last_heard": null
     },
     {
       "asin": "0063015684",
@@ -4473,7 +4206,8 @@
       "finished": true,
       "finished_on": "2022-07-28",
       "percent": 100,
-      "added": "2022-07-13"
+      "added": "2022-07-13",
+      "last_heard": null
     },
     {
       "asin": "B00KRMJKPC",
@@ -4495,7 +4229,8 @@
       "finished": true,
       "finished_on": "2022-07-11",
       "percent": 100,
-      "added": "2021-05-14"
+      "added": "2021-05-14",
+      "last_heard": null
     },
     {
       "asin": "B002V5GMRM",
@@ -4517,7 +4252,8 @@
       "finished": true,
       "finished_on": "2022-06-10",
       "percent": 100,
-      "added": "2022-05-18"
+      "added": "2022-05-18",
+      "last_heard": null
     },
     {
       "asin": "0593457080",
@@ -4539,7 +4275,8 @@
       "finished": true,
       "finished_on": "2022-05-27",
       "percent": 100,
-      "added": "2022-02-14"
+      "added": "2022-02-14",
+      "last_heard": null
     },
     {
       "asin": "B07D5HTRPZ",
@@ -4561,7 +4298,8 @@
       "finished": true,
       "finished_on": "2022-05-16",
       "percent": 100,
-      "added": "2020-11-26"
+      "added": "2020-11-26",
+      "last_heard": null
     },
     {
       "asin": "B002UZDVW2",
@@ -4583,7 +4321,31 @@
       "finished": true,
       "finished_on": "2022-04-28",
       "percent": 100,
-      "added": "2022-04-20"
+      "added": "2022-04-20",
+      "last_heard": null
+    },
+    {
+      "asin": "B00NAE2TV6",
+      "title": "Authority",
+      "subtitle": "Become an Expert, Build a Following, and Gain Financial Independence",
+      "authors": [
+        "Nathan Barry"
+      ],
+      "narrators": [
+        "Nathan Barry"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Business & Careers",
+      "minutes": 180,
+      "released": "2014-09-05",
+      "cover": "https://m.media-amazon.com/images/I/41m9bNkm7SL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/acx0/022504/bk_acx0_022504_sample.mp3",
+      "finished": true,
+      "finished_on": "2022-04-21",
+      "percent": 100,
+      "added": "2022-02-14",
+      "last_heard": null
     },
     {
       "asin": "B002V1OH5K",
@@ -4605,7 +4367,8 @@
       "finished": true,
       "finished_on": "2022-04-21",
       "percent": 100,
-      "added": "2018-01-06"
+      "added": "2018-01-06",
+      "last_heard": null
     },
     {
       "asin": "B00DJBVRMM",
@@ -4628,7 +4391,8 @@
       "finished": true,
       "finished_on": "2022-04-13",
       "percent": 100,
-      "added": "2020-07-23"
+      "added": "2020-07-23",
+      "last_heard": null
     },
     {
       "asin": "B015CYJGXA",
@@ -4650,7 +4414,8 @@
       "finished": true,
       "finished_on": "2022-03-22",
       "percent": 100,
-      "added": "2022-03-04"
+      "added": "2022-03-04",
+      "last_heard": null
     },
     {
       "asin": "0593288920",
@@ -4672,7 +4437,8 @@
       "finished": true,
       "finished_on": "2022-02-14",
       "percent": 100,
-      "added": "2021-07-16"
+      "added": "2021-07-16",
+      "last_heard": null
     },
     {
       "asin": "B009ABIN72",
@@ -4694,7 +4460,8 @@
       "finished": true,
       "finished_on": "2022-02-04",
       "percent": 100,
-      "added": "2022-01-26"
+      "added": "2022-01-26",
+      "last_heard": null
     },
     {
       "asin": "1984888439",
@@ -4716,7 +4483,8 @@
       "finished": true,
       "finished_on": "2022-01-21",
       "percent": 100,
-      "added": "2021-10-27"
+      "added": "2021-10-27",
+      "last_heard": null
     },
     {
       "asin": "B0812C4NC9",
@@ -4738,7 +4506,8 @@
       "finished": true,
       "finished_on": "2021-12-26",
       "percent": 100,
-      "added": "2020-06-18"
+      "added": "2020-06-18",
+      "last_heard": null
     },
     {
       "asin": "1541479467",
@@ -4760,7 +4529,8 @@
       "finished": true,
       "finished_on": "2021-12-21",
       "percent": 100,
-      "added": "2021-12-15"
+      "added": "2021-12-15",
+      "last_heard": null
     },
     {
       "asin": "B075F8MBMQ",
@@ -4782,7 +4552,8 @@
       "finished": true,
       "finished_on": "2021-12-16",
       "percent": 100,
-      "added": "2021-12-15"
+      "added": "2021-12-15",
+      "last_heard": null
     },
     {
       "asin": "B00ECGLKLG",
@@ -4804,7 +4575,8 @@
       "finished": true,
       "finished_on": "2021-12-13",
       "percent": 100,
-      "added": "2020-02-17"
+      "added": "2020-02-17",
+      "last_heard": null
     },
     {
       "asin": "B00B505CH0",
@@ -4826,7 +4598,8 @@
       "finished": true,
       "finished_on": "2021-12-13",
       "percent": 100,
-      "added": "2019-07-13"
+      "added": "2019-07-13",
+      "last_heard": null
     },
     {
       "asin": "B002V8L3P0",
@@ -4848,7 +4621,8 @@
       "finished": true,
       "finished_on": "2021-12-03",
       "percent": 100,
-      "added": "2021-06-25"
+      "added": "2021-06-25",
+      "last_heard": null
     },
     {
       "asin": "1980035962",
@@ -4870,7 +4644,8 @@
       "finished": true,
       "finished_on": "2021-12-01",
       "percent": 100,
-      "added": "2021-11-30"
+      "added": "2021-11-30",
+      "last_heard": null
     },
     {
       "asin": "B009ABHTF4",
@@ -4892,7 +4667,8 @@
       "finished": true,
       "finished_on": "2021-11-24",
       "percent": 100,
-      "added": "2021-09-27"
+      "added": "2021-09-27",
+      "last_heard": null
     },
     {
       "asin": "B00DP5FPRK",
@@ -4915,7 +4691,8 @@
       "finished": true,
       "finished_on": "2021-11-17",
       "percent": 100,
-      "added": "2021-09-08"
+      "added": "2021-09-08",
+      "last_heard": null
     },
     {
       "asin": "B0099RKRTY",
@@ -4937,7 +4714,31 @@
       "finished": true,
       "finished_on": "2021-10-29",
       "percent": 100,
-      "added": "2021-09-27"
+      "added": "2021-09-27",
+      "last_heard": null
+    },
+    {
+      "asin": "B00Y1R6RSM",
+      "title": "Aurora",
+      "subtitle": null,
+      "authors": [
+        "Kim Stanley Robinson"
+      ],
+      "narrators": [
+        "Ali Ahn"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Literature & Fiction",
+      "minutes": 1016,
+      "released": "2015-07-07",
+      "cover": "https://m.media-amazon.com/images/I/41epcVBitXL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/hach/002113/bk_hach_002113_sample.mp3",
+      "finished": true,
+      "finished_on": "2021-09-03",
+      "percent": 100,
+      "added": "2021-07-15",
+      "last_heard": null
     },
     {
       "asin": "B002V1O6KQ",
@@ -4960,7 +4761,8 @@
       "finished": true,
       "finished_on": "2021-08-28",
       "percent": 100,
-      "added": "2021-08-20"
+      "added": "2021-08-20",
+      "last_heard": null
     },
     {
       "asin": "B002V1LGZE",
@@ -4982,7 +4784,31 @@
       "finished": true,
       "finished_on": "2021-08-21",
       "percent": 100,
-      "added": "2021-07-16"
+      "added": "2021-07-16",
+      "last_heard": null
+    },
+    {
+      "asin": "B0099RKI5W",
+      "title": "The Hobbit",
+      "subtitle": null,
+      "authors": [
+        "J.R.R. Tolkien"
+      ],
+      "narrators": [
+        "Rob Inglis"
+      ],
+      "series": "The Lord of the Rings",
+      "seq": "0.5",
+      "genre": "Children's Audiobooks",
+      "minutes": 664,
+      "released": "2012-10-09",
+      "cover": "https://m.media-amazon.com/images/I/51U7W9O0UKL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/reco/006155/bk_reco_006155_sample.mp3",
+      "finished": true,
+      "finished_on": "2021-07-31",
+      "percent": 100,
+      "added": "2020-06-18",
+      "last_heard": null
     },
     {
       "asin": "B08G9PRS1K",
@@ -5004,7 +4830,8 @@
       "finished": true,
       "finished_on": "2021-06-17",
       "percent": 100,
-      "added": "2021-06-14"
+      "added": "2021-06-14",
+      "last_heard": null
     },
     {
       "asin": "B082BHJMFF",
@@ -5026,7 +4853,8 @@
       "finished": true,
       "finished_on": "2021-06-16",
       "percent": 100,
-      "added": "2021-06-16"
+      "added": "2021-06-16",
+      "last_heard": null
     },
     {
       "asin": "B01KWAPBHE",
@@ -5048,7 +4876,8 @@
       "finished": true,
       "finished_on": "2021-06-09",
       "percent": 100,
-      "added": "2019-12-17"
+      "added": "2019-12-17",
+      "last_heard": null
     },
     {
       "asin": "B07KKMNZCH",
@@ -5071,7 +4900,8 @@
       "finished": true,
       "finished_on": "2021-06-08",
       "percent": 100,
-      "added": "2021-04-14"
+      "added": "2021-04-14",
+      "last_heard": null
     },
     {
       "asin": "1735803227",
@@ -5093,7 +4923,8 @@
       "finished": true,
       "finished_on": "2021-05-15",
       "percent": 100,
-      "added": "2021-05-14"
+      "added": "2021-05-14",
+      "last_heard": null
     },
     {
       "asin": "B002V08DQ0",
@@ -5116,7 +4947,31 @@
       "finished": true,
       "finished_on": "2021-04-13",
       "percent": 100,
-      "added": "2020-09-29"
+      "added": "2020-09-29",
+      "last_heard": null
+    },
+    {
+      "asin": "B002V1A1YQ",
+      "title": "Einstein",
+      "subtitle": "His Life and Universe",
+      "authors": [
+        "Walter Isaacson"
+      ],
+      "narrators": [
+        "Edward Herrmann"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Biographies & Memoirs",
+      "minutes": 1290,
+      "released": "2007-04-10",
+      "cover": "https://m.media-amazon.com/images/I/51IigyHsULL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/sans/000887/bk_sans_000887_sample.mp3",
+      "finished": true,
+      "finished_on": "2021-03-29",
+      "percent": 100,
+      "added": "2021-02-14",
+      "last_heard": null
     },
     {
       "asin": "0062969536",
@@ -5138,7 +4993,8 @@
       "finished": true,
       "finished_on": "2021-03-05",
       "percent": 100,
-      "added": "2021-01-21"
+      "added": "2021-01-21",
+      "last_heard": null
     },
     {
       "asin": "B002UZKUWQ",
@@ -5160,7 +5016,8 @@
       "finished": true,
       "finished_on": "2021-03-05",
       "percent": 100,
-      "added": "2020-12-26"
+      "added": "2020-12-26",
+      "last_heard": null
     },
     {
       "asin": "B009KPSRIS",
@@ -5182,7 +5039,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2021-02-14"
+      "added": "2021-02-14",
+      "last_heard": null
     },
     {
       "asin": "B004PZR8G0",
@@ -5204,7 +5062,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2021-01-24"
+      "added": "2021-01-24",
+      "last_heard": null
     },
     {
       "asin": "B007NLZ9SM",
@@ -5226,7 +5085,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-10-14"
+      "added": "2020-10-14",
+      "last_heard": null
     },
     {
       "asin": "B00KLK2UN4",
@@ -5248,7 +5108,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-09-24"
+      "added": "2020-09-24",
+      "last_heard": null
     },
     {
       "asin": "B088C4DBYP",
@@ -5270,7 +5131,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-09-24"
+      "added": "2020-09-24",
+      "last_heard": null
     },
     {
       "asin": "B00CH3UI28",
@@ -5292,7 +5154,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-09-10"
+      "added": "2020-09-10",
+      "last_heard": null
     },
     {
       "asin": "B06XV1PVF5",
@@ -5317,7 +5180,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-06-18"
+      "added": "2020-06-18",
+      "last_heard": null
     },
     {
       "asin": "1980006520",
@@ -5339,7 +5203,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-02-13"
+      "added": "2020-02-13",
+      "last_heard": null
     },
     {
       "asin": "B00546SXO0",
@@ -5361,7 +5226,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-01-14"
+      "added": "2020-01-14",
+      "last_heard": null
     },
     {
       "asin": "1549142194",
@@ -5383,7 +5249,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2020-01-13"
+      "added": "2020-01-13",
+      "last_heard": null
     },
     {
       "asin": "B073H9PF2D",
@@ -5405,7 +5272,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2019-12-30"
+      "added": "2019-12-30",
+      "last_heard": null
     },
     {
       "asin": "B01L082HJ2",
@@ -5427,7 +5295,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2019-07-15"
+      "added": "2019-07-15",
+      "last_heard": null
     },
     {
       "asin": "B004ZLBFZ4",
@@ -5449,7 +5318,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2019-06-17"
+      "added": "2019-06-17",
+      "last_heard": null
     },
     {
       "asin": "B0044EMDEO",
@@ -5471,7 +5341,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2019-03-15"
+      "added": "2019-03-15",
+      "last_heard": null
     },
     {
       "asin": "B00P0277C2",
@@ -5494,7 +5365,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2019-02-22"
+      "added": "2019-02-22",
+      "last_heard": null
     },
     {
       "asin": "B00P021P9I",
@@ -5516,7 +5388,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2018-09-14"
+      "added": "2018-09-14",
+      "last_heard": null
     },
     {
       "asin": "B01N4DCBK6",
@@ -5538,7 +5411,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2018-05-07"
+      "added": "2018-05-07",
+      "last_heard": null
     },
     {
       "asin": "B0036NK9D6",
@@ -5560,7 +5434,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2018-04-14"
+      "added": "2018-04-14",
+      "last_heard": null
     },
     {
       "asin": "B0742K1G4Q",
@@ -5582,7 +5457,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2018-03-18"
+      "added": "2018-03-18",
+      "last_heard": null
     },
     {
       "asin": "B071VTQZYT",
@@ -5604,7 +5480,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2018-02-24"
+      "added": "2018-02-24",
+      "last_heard": null
     },
     {
       "asin": "B00WNBF0RM",
@@ -5627,7 +5504,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2017-12-18"
+      "added": "2017-12-18",
+      "last_heard": null
     },
     {
       "asin": "B004G7VN04",
@@ -5649,7 +5527,8 @@
       "finished": true,
       "finished_on": "2021-03-02",
       "percent": 100,
-      "added": "2017-09-13"
+      "added": "2017-09-13",
+      "last_heard": null
     },
     {
       "asin": "B06XDJHMS2",
@@ -5671,7 +5550,8 @@
       "finished": true,
       "finished_on": "2021-01-21",
       "percent": 100,
-      "added": "2020-03-16"
+      "added": "2020-03-16",
+      "last_heard": null
     },
     {
       "asin": "B00B91PMPM",
@@ -5693,7 +5573,8 @@
       "finished": true,
       "finished_on": "2020-11-30",
       "percent": 100,
-      "added": "2020-11-07"
+      "added": "2020-11-07",
+      "last_heard": null
     },
     {
       "asin": "B01LWUJKQ7",
@@ -5715,7 +5596,8 @@
       "finished": true,
       "finished_on": "2020-11-18",
       "percent": 100,
-      "added": "2020-10-28"
+      "added": "2020-10-28",
+      "last_heard": null
     },
     {
       "asin": "1250317533",
@@ -5738,7 +5620,8 @@
       "finished": true,
       "finished_on": "2020-08-23",
       "percent": 100,
-      "added": "2020-08-22"
+      "added": "2020-08-22",
+      "last_heard": null
     },
     {
       "asin": "B07C8GVTB5",
@@ -5760,7 +5643,8 @@
       "finished": true,
       "finished_on": "2020-08-01",
       "percent": 100,
-      "added": "2020-07-15"
+      "added": "2020-07-15",
+      "last_heard": null
     },
     {
       "asin": "B0189PX1RQ",
@@ -5782,7 +5666,8 @@
       "finished": true,
       "finished_on": "2020-07-24",
       "percent": 100,
-      "added": "2020-03-16"
+      "added": "2020-03-16",
+      "last_heard": null
     },
     {
       "asin": "B07BGG8SMR",
@@ -5804,7 +5689,8 @@
       "finished": true,
       "finished_on": "2020-07-13",
       "percent": 100,
-      "added": "2020-05-17"
+      "added": "2020-05-17",
+      "last_heard": null
     },
     {
       "asin": "1508299536",
@@ -5827,7 +5713,8 @@
       "finished": true,
       "finished_on": "2020-06-18",
       "percent": 100,
-      "added": "2020-04-20"
+      "added": "2020-04-20",
+      "last_heard": null
     },
     {
       "asin": "B073V797JS",
@@ -5849,7 +5736,8 @@
       "finished": true,
       "finished_on": "2020-06-16",
       "percent": 100,
-      "added": "2020-05-17"
+      "added": "2020-05-17",
+      "last_heard": null
     },
     {
       "asin": "B00M9KCT12",
@@ -5871,7 +5759,8 @@
       "finished": true,
       "finished_on": "2020-04-29",
       "percent": 100,
-      "added": "2020-03-16"
+      "added": "2020-03-16",
+      "last_heard": null
     },
     {
       "asin": "0062945149",
@@ -5893,7 +5782,8 @@
       "finished": true,
       "finished_on": "2020-04-16",
       "percent": 100,
-      "added": "2019-11-16"
+      "added": "2019-11-16",
+      "last_heard": null
     },
     {
       "asin": "B07FNWW85Y",
@@ -5915,7 +5805,8 @@
       "finished": true,
       "finished_on": "2020-04-06",
       "percent": 100,
-      "added": "2020-02-17"
+      "added": "2020-02-17",
+      "last_heard": null
     },
     {
       "asin": "1984886878",
@@ -5938,7 +5829,8 @@
       "finished": true,
       "finished_on": "2019-12-11",
       "percent": 100,
-      "added": "2019-12-10"
+      "added": "2019-12-10",
+      "last_heard": null
     },
     {
       "asin": "B0077DEH7A",
@@ -5960,7 +5852,8 @@
       "finished": true,
       "finished_on": "2019-12-10",
       "percent": 100,
-      "added": "2017-04-13"
+      "added": "2017-04-13",
+      "last_heard": null
     },
     {
       "asin": "0062868071",
@@ -5982,7 +5875,8 @@
       "finished": true,
       "finished_on": "2019-11-03",
       "percent": 100,
-      "added": "2019-10-30"
+      "added": "2019-10-30",
+      "last_heard": null
     },
     {
       "asin": "1549150340",
@@ -6004,7 +5898,8 @@
       "finished": true,
       "finished_on": "2019-10-02",
       "percent": 100,
-      "added": "2019-09-30"
+      "added": "2019-09-30",
+      "last_heard": null
     },
     {
       "asin": "1978650817",
@@ -6026,7 +5921,8 @@
       "finished": true,
       "finished_on": "2019-10-01",
       "percent": 100,
-      "added": "2019-09-23"
+      "added": "2019-09-23",
+      "last_heard": null
     },
     {
       "asin": "B00VAZZY32",
@@ -6050,7 +5946,8 @@
       "finished": true,
       "finished_on": "2019-09-04",
       "percent": 100,
-      "added": "2019-07-15"
+      "added": "2019-07-15",
+      "last_heard": null
     },
     {
       "asin": "1980024987",
@@ -6072,7 +5969,8 @@
       "finished": true,
       "finished_on": "2019-08-23",
       "percent": 100,
-      "added": "2019-08-13"
+      "added": "2019-08-13",
+      "last_heard": null
     },
     {
       "asin": "B002V5D7IE",
@@ -6094,7 +5992,8 @@
       "finished": true,
       "finished_on": "2019-01-26",
       "percent": 100,
-      "added": "2019-01-14"
+      "added": "2019-01-14",
+      "last_heard": null
     },
     {
       "asin": "B07BHVWFSM",
@@ -6116,7 +6015,8 @@
       "finished": true,
       "finished_on": "2018-12-14",
       "percent": 100,
-      "added": "2018-12-10"
+      "added": "2018-12-10",
+      "last_heard": null
     },
     {
       "asin": "B07GDQLGR7",
@@ -6140,7 +6040,8 @@
       "finished": true,
       "finished_on": "2018-12-13",
       "percent": 100,
-      "added": "2018-11-14"
+      "added": "2018-11-14",
+      "last_heard": null
     },
     {
       "asin": "B01NBWW2H5",
@@ -6164,7 +6065,8 @@
       "finished": true,
       "finished_on": "2018-11-14",
       "percent": 100,
-      "added": "2018-11-12"
+      "added": "2018-11-12",
+      "last_heard": null
     },
     {
       "asin": "B07DHS7PP5",
@@ -6186,7 +6088,8 @@
       "finished": true,
       "finished_on": "2018-11-09",
       "percent": 100,
-      "added": "2018-10-15"
+      "added": "2018-10-15",
+      "last_heard": null
     },
     {
       "asin": "B07F43574T",
@@ -6208,7 +6111,8 @@
       "finished": true,
       "finished_on": "2018-10-11",
       "percent": 100,
-      "added": "2018-10-08"
+      "added": "2018-10-08",
+      "last_heard": null
     },
     {
       "asin": "B002V1OF70",
@@ -6231,8 +6135,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "Dune",
-      "seq": "1",
+      "series": "The Dune Sequence",
+      "seq": "12",
       "genre": "Literature & Fiction",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -6241,7 +6145,8 @@
       "finished": true,
       "finished_on": "2018-10-09",
       "percent": 100,
-      "added": "2018-09-14"
+      "added": "2018-09-14",
+      "last_heard": null
     },
     {
       "asin": "B00D2661LG",
@@ -6263,7 +6168,8 @@
       "finished": true,
       "finished_on": "2018-09-14",
       "percent": 100,
-      "added": "2018-09-14"
+      "added": "2018-09-14",
+      "last_heard": null
     },
     {
       "asin": "B002V8KSTW",
@@ -6285,7 +6191,8 @@
       "finished": true,
       "finished_on": "2018-09-14",
       "percent": 100,
-      "added": "2018-08-17"
+      "added": "2018-08-17",
+      "last_heard": null
     },
     {
       "asin": "B002V0QUOC",
@@ -6307,7 +6214,8 @@
       "finished": true,
       "finished_on": "2018-09-06",
       "percent": 100,
-      "added": "2018-09-06"
+      "added": "2018-09-06",
+      "last_heard": null
     },
     {
       "asin": "B015ELUYL4",
@@ -6329,7 +6237,8 @@
       "finished": true,
       "finished_on": "2018-09-01",
       "percent": 100,
-      "added": "2018-08-27"
+      "added": "2018-08-27",
+      "last_heard": null
     },
     {
       "asin": "B002V0A7X2",
@@ -6353,7 +6262,8 @@
       "finished": true,
       "finished_on": "2018-08-29",
       "percent": 100,
-      "added": "2018-08-27"
+      "added": "2018-08-27",
+      "last_heard": null
     },
     {
       "asin": "B0090N2NK8",
@@ -6375,7 +6285,8 @@
       "finished": true,
       "finished_on": "2018-08-28",
       "percent": 100,
-      "added": "2018-05-20"
+      "added": "2018-05-20",
+      "last_heard": null
     },
     {
       "asin": "B07DHQDMDM",
@@ -6397,7 +6308,8 @@
       "finished": true,
       "finished_on": "2018-08-21",
       "percent": 100,
-      "added": "2018-08-13"
+      "added": "2018-08-13",
+      "last_heard": null
     },
     {
       "asin": "B00KYUYM14",
@@ -6419,7 +6331,8 @@
       "finished": true,
       "finished_on": "2018-08-13",
       "percent": 100,
-      "added": "2018-08-02"
+      "added": "2018-08-02",
+      "last_heard": null
     },
     {
       "asin": "B01CUKULGA",
@@ -6441,7 +6354,8 @@
       "finished": true,
       "finished_on": "2018-08-07",
       "percent": 100,
-      "added": "2018-08-02"
+      "added": "2018-08-02",
+      "last_heard": null
     },
     {
       "asin": "B015TVHUA2",
@@ -6465,7 +6379,8 @@
       "finished": true,
       "finished_on": "2018-07-24",
       "percent": 100,
-      "added": "2018-07-14"
+      "added": "2018-07-14",
+      "last_heard": null
     },
     {
       "asin": "B00771BC6Q",
@@ -6488,7 +6403,8 @@
       "finished": true,
       "finished_on": "2018-07-20",
       "percent": 100,
-      "added": "2017-04-21"
+      "added": "2017-04-21",
+      "last_heard": null
     },
     {
       "asin": "B01N927ANT",
@@ -6511,7 +6427,8 @@
       "finished": true,
       "finished_on": "2018-07-06",
       "percent": 100,
-      "added": "2018-05-20"
+      "added": "2018-05-20",
+      "last_heard": null
     },
     {
       "asin": "B06XY7T9JT",
@@ -6533,7 +6450,8 @@
       "finished": true,
       "finished_on": "2018-05-29",
       "percent": 100,
-      "added": "2018-05-12"
+      "added": "2018-05-12",
+      "last_heard": null
     },
     {
       "asin": "B01CF5O89G",
@@ -6556,7 +6474,8 @@
       "finished": true,
       "finished_on": "2018-03-28",
       "percent": 100,
-      "added": "2018-03-18"
+      "added": "2018-03-18",
+      "last_heard": null
     },
     {
       "asin": "B00HYG9KMC",
@@ -6578,7 +6497,8 @@
       "finished": true,
       "finished_on": "2018-02-28",
       "percent": 100,
-      "added": "2018-02-25"
+      "added": "2018-02-25",
+      "last_heard": null
     },
     {
       "asin": "B06XYTQZ1X",
@@ -6600,7 +6520,8 @@
       "finished": true,
       "finished_on": "2018-01-12",
       "percent": 100,
-      "added": "2017-12-18"
+      "added": "2017-12-18",
+      "last_heard": null
     },
     {
       "asin": "B07341FZDC",
@@ -6622,7 +6543,8 @@
       "finished": true,
       "finished_on": "2017-12-04",
       "percent": 100,
-      "added": "2017-12-03"
+      "added": "2017-12-03",
+      "last_heard": null
     },
     {
       "asin": "B01N17THEO",
@@ -6644,7 +6566,8 @@
       "finished": true,
       "finished_on": "2017-12-03",
       "percent": 100,
-      "added": "2017-12-03"
+      "added": "2017-12-03",
+      "last_heard": null
     },
     {
       "asin": "B072R1CY4P",
@@ -6666,7 +6589,8 @@
       "finished": true,
       "finished_on": "2017-11-16",
       "percent": 100,
-      "added": "2017-11-14"
+      "added": "2017-11-14",
+      "last_heard": null
     },
     {
       "asin": "B01EB3PMYK",
@@ -6688,7 +6612,8 @@
       "finished": true,
       "finished_on": "2017-11-08",
       "percent": 100,
-      "added": "2017-10-17"
+      "added": "2017-10-17",
+      "last_heard": null
     },
     {
       "asin": "B00LXHQO22",
@@ -6710,7 +6635,56 @@
       "finished": true,
       "finished_on": "2017-11-08",
       "percent": 100,
-      "added": "2017-10-17"
+      "added": "2017-10-17",
+      "last_heard": null
+    },
+    {
+      "asin": "B0BRBR3VHC",
+      "title": "The Woman in Me",
+      "subtitle": null,
+      "authors": [
+        "Britney Spears",
+        "Britney Spears - introduction"
+      ],
+      "narrators": [
+        "Michelle Williams"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Biographies & Memoirs",
+      "minutes": 331,
+      "released": "2023-10-24",
+      "cover": "https://m.media-amazon.com/images/I/41HTcyZSRjL._SL500_.jpg",
+      "sample": "https://samples.audible.com/bk/sans/012008/bk_sans_012008_sample.mp3",
+      "finished": true,
+      "finished_on": null,
+      "percent": 100,
+      "added": "2023-10-30",
+      "last_heard": null
+    },
+    {
+      "asin": "B08W2G36PX",
+      "title": "The Neil Gaiman at the End of the Universe",
+      "subtitle": null,
+      "authors": [
+        "Arvind Ethan David"
+      ],
+      "narrators": [
+        "Neil Gaiman",
+        "Jewel Staite"
+      ],
+      "series": "Earworms",
+      "seq": "",
+      "genre": "Science Fiction & Fantasy",
+      "minutes": 29,
+      "released": "2021-03-18",
+      "cover": "https://m.media-amazon.com/images/I/51RXf5x8+dL._SL500_.jpg",
+      "sample": "https://samples.audible.com/or/orig/001695/or_orig_001695_sample.mp3",
+      "finished": true,
+      "finished_on": null,
+      "percent": 100,
+      "added": "2021-06-10",
+      "last_heard": null
     }
   ],
   "updated": "2026-10-03"
