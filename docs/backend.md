@@ -42,13 +42,18 @@ Approving a bottle is, for now, setting `approved = true` on its row (as a membe
 
 ## The bartender (`supabase/functions/bartender`)
 
-The robot answers questions at the bar. The browser posts the conversation (last 12 turns); the
-function asks Claude Haiku 4.5 (`max_tokens` 300) with a plain-prose brief built from
-`/bartender.json` (the site's `_data` as JSON: profile, career, menu, drinks, posts, lab, books,
-the bartender's lines). Replies are flattened to plain text, a line or two. Limits, in the
-database: 1,000 replies a month (about $5) and 20 questions an hour per visitor, keyed by a
-daily-salted hash of the IP, never the IP. It declines to talk about clients and points people
-to email. When it can't answer, the page says the bar's closed for a moment.
+The robot answers questions at the bar. The browser posts the conversation (last 12 turns) with
+`stream: true`; the function asks Claude Haiku 4.5 (`max_tokens` 160, told to stay under 40 words)
+with a plain-prose brief built from `/bartender.json` (the site's `_data` as JSON: profile, career,
+menu, drinks, posts, lab, books, the bartender's lines) and streams the reply back as plain text,
+markdown markers dropped as they pass, so the first words show in well under a second. Without
+`stream: true` it answers `{ reply }` whole, as before. On the way in, the rate-limit check and the
+brief (fetched once an isolate, refreshed hourly in the background) run side by side; token
+accounting runs after the reply has gone out. Limits, in the database: 1,000 replies a month (about
+$5) and 20 questions an hour per visitor, keyed by a daily-salted hash of the IP, never the IP. It
+declines to talk about clients and points people to email. When it can't answer, the page says the
+bar's closed for a moment. No prompt caching: Haiku 4.5 caches only a prefix of 4,096 tokens or
+more, and the brief sits right at that line, so it would come and go.
 
 ## Audible (`tools/audible-sync.py`)
 
