@@ -20,7 +20,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 42,
-      "added": "2022-05-02"
+      "added": "2022-05-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE010",
@@ -42,7 +43,8 @@
       "finished": false,
       "finished_on": null,
       "percent": 8,
-      "added": "2021-02-02"
+      "added": "2021-02-02",
+      "last_heard": null
     }
   ],
   "finished": [
@@ -66,7 +68,8 @@
       "finished": true,
       "finished_on": "2025-09-21",
       "percent": 100,
-      "added": "2024-03-02"
+      "added": "2024-03-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE006",
@@ -88,7 +91,8 @@
       "finished": true,
       "finished_on": "2025-07-07",
       "percent": 100,
-      "added": "2024-07-02"
+      "added": "2024-07-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE013",
@@ -110,7 +114,8 @@
       "finished": true,
       "finished_on": "2025-02-14",
       "percent": 100,
-      "added": "2024-05-02"
+      "added": "2024-05-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE019",
@@ -132,7 +137,8 @@
       "finished": true,
       "finished_on": "2024-08-20",
       "percent": 100,
-      "added": "2023-02-02"
+      "added": "2023-02-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE005",
@@ -154,7 +160,8 @@
       "finished": true,
       "finished_on": "2024-06-06",
       "percent": 100,
-      "added": "2023-06-02"
+      "added": "2023-06-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE012",
@@ -176,7 +183,8 @@
       "finished": true,
       "finished_on": "2024-01-13",
       "percent": 100,
-      "added": "2023-04-02"
+      "added": "2023-04-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE011",
@@ -198,7 +206,8 @@
       "finished": true,
       "finished_on": "2023-12-12",
       "percent": 100,
-      "added": "2022-03-02"
+      "added": "2022-03-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE018",
@@ -220,7 +229,8 @@
       "finished": true,
       "finished_on": "2023-07-19",
       "percent": 100,
-      "added": "2022-01-02"
+      "added": "2022-01-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE017",
@@ -242,7 +252,8 @@
       "finished": true,
       "finished_on": "2022-06-18",
       "percent": 100,
-      "added": "2021-09-02"
+      "added": "2021-09-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE003",
@@ -264,29 +275,8 @@
       "finished": true,
       "finished_on": "2022-04-04",
       "percent": 100,
-      "added": "2021-04-02"
-    },
-    {
-      "asin": "FIXTURE024",
-      "title": "Slaughterhouse-Five",
-      "subtitle": null,
-      "authors": [
-        "Kurt Vonnegut"
-      ],
-      "narrators": [
-        "A Narrator"
-      ],
-      "series": null,
-      "seq": null,
-      "genre": "Literature & Fiction",
-      "minutes": 310,
-      "released": "2020-07-15",
-      "cover": null,
-      "sample": null,
-      "finished": true,
-      "finished_on": "2022-01-25",
-      "percent": 100,
-      "added": "2021-07-02"
+      "added": "2021-04-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE023",
@@ -308,7 +298,8 @@
       "finished": true,
       "finished_on": "2021-12-24",
       "percent": 100,
-      "added": "2020-06-02"
+      "added": "2020-06-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE009",
@@ -330,7 +321,8 @@
       "finished": true,
       "finished_on": "2021-10-10",
       "percent": 100,
-      "added": "2020-01-02"
+      "added": "2020-01-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE016",
@@ -352,7 +344,8 @@
       "finished": true,
       "finished_on": "2021-05-17",
       "percent": 100,
-      "added": "2020-08-02"
+      "added": "2020-08-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE002",
@@ -374,7 +367,8 @@
       "finished": true,
       "finished_on": "2021-03-03",
       "percent": 100,
-      "added": "2020-03-02"
+      "added": "2020-03-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE022",
@@ -396,7 +390,8 @@
       "finished": true,
       "finished_on": "2020-11-23",
       "percent": 100,
-      "added": "2019-05-02"
+      "added": "2019-05-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE008",
@@ -418,7 +413,8 @@
       "finished": true,
       "finished_on": "2020-09-09",
       "percent": 100,
-      "added": "2019-09-02"
+      "added": "2019-09-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE015",
@@ -440,7 +436,8 @@
       "finished": true,
       "finished_on": "2020-04-16",
       "percent": 100,
-      "added": "2019-07-02"
+      "added": "2019-07-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE001",
@@ -462,7 +459,8 @@
       "finished": true,
       "finished_on": "2020-02-02",
       "percent": 100,
-      "added": "2019-02-02"
+      "added": "2019-02-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE021",
@@ -484,7 +482,8 @@
       "finished": true,
       "finished_on": "2019-10-22",
       "percent": 100,
-      "added": "2018-04-02"
+      "added": "2018-04-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE007",
@@ -506,7 +505,8 @@
       "finished": true,
       "finished_on": "2019-08-08",
       "percent": 100,
-      "added": "2018-08-02"
+      "added": "2018-08-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE014",
@@ -528,7 +528,8 @@
       "finished": true,
       "finished_on": "2019-03-15",
       "percent": 100,
-      "added": "2018-06-02"
+      "added": "2018-06-02",
+      "last_heard": null
     },
     {
       "asin": "FIXTURE000",
@@ -550,7 +551,31 @@
       "finished": true,
       "finished_on": "2019-01-01",
       "percent": 100,
-      "added": "2018-01-02"
+      "added": "2018-01-02",
+      "last_heard": null
+    },
+    {
+      "asin": "FIXTURE024",
+      "title": "Slaughterhouse-Five",
+      "subtitle": null,
+      "authors": [
+        "Kurt Vonnegut"
+      ],
+      "narrators": [
+        "A Narrator"
+      ],
+      "series": null,
+      "seq": null,
+      "genre": "Literature & Fiction",
+      "minutes": 310,
+      "released": "2020-07-15",
+      "cover": null,
+      "sample": null,
+      "finished": true,
+      "finished_on": null,
+      "percent": 100,
+      "added": "2021-07-02",
+      "last_heard": null
     }
   ]
 }
