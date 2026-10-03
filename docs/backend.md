@@ -55,9 +55,13 @@ to email. When it can't answer, the page says the bar's closed for a moment.
 Steve's Audible library, once a day (`.github/workflows/audible.yml`, 05:41 Philadelphia time, or
 run it by hand): the books he's finished and the ones he's at least 5% into (`STARTED_AT` in the
 script; one he owns but has barely opened stays private), minus `_data/audible_hide.yml`, written
-to `_data/audible.json`. If that changed, the workflow commits it to main and starts the site
-workflow to publish it (its own push wouldn't). From there it feeds /bookshelf, `/listening.json`
-(the stars over the hammock) and the bartender.
+to `_data/audible.json`. A book 95% or more through counts as finished whether or not he marked it
+(`FINISHED_AT`); with no mark there's no finish date, so the bookshelf lists it under "Finished
+earlier". One under 35% that he hasn't played in about six months (`STALE_BELOW`, `STALE_BEFORE`;
+the last-played dates come from a second API call) is parked and stays private too. If the data
+changed, the workflow commits it to main and starts the site workflow to publish it (its own push
+wouldn't). From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) and the
+bartender.
 
 - **The API isn't public.** It's the one Audible's apps use, through the `audible` Python package
   (pinned in the workflow). If Amazon changes it, the sync fails and the site keeps the last good
