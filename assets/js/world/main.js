@@ -890,11 +890,22 @@ async function start() {
 
   let chatter;
   // Ask the bartender: a real conversation (Claude, through supabase/functions/bartender, which
-  // knows the site from /bartender.json). Its answer shows above the question box, on phones
-  // too; the rotating chatter stops once you've said something.
-  const chat = $('chat'), chatInput = $('chat-input'), chatReply = $('chat-reply');
+  // knows the site from /bartender.json). Your question and its answer stack up in a short
+  // transcript just above the question box, on phones too, and the answer shows as it's said.
+  // The rotating chatter stops once you've said something.
+  const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log');
   const talk = [];
   let talking = false, talked = false;
+  const CLOSED = "The bar's closed for a moment. The menu's right in front of you.";
+  const said = (who, text) => { // one line of the transcript; the robot's starts empty and fills in
+    const li = document.createElement('li');
+    li.className = `chat-log__${who}`;
+    li.textContent = text;
+    chatLog.append(li);
+    while (chatLog.children.length > 12) chatLog.firstElementChild.remove(); // the last six exchanges
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return li;
+  };
   chat.addEventListener('submit', async (e) => {
     e.preventDefault();
     const q = chatInput.value.trim();
@@ -903,25 +914,38 @@ async function start() {
     clearInterval(chatter);
     bubble.hidden = true;
     talking = true;
-    chatReply.classList.add('is-thinking');
-    chatReply.hidden = false;
-    chatReply.textContent = '…';
+    chatLog.hidden = false;
+    said('q', q);
+    const line = said('a', '');
+    line.classList.add('is-thinking');
     chatInput.value = '';
     talk.push({ role: 'user', content: q });
-    let answer = null;
+    let answer = '';
     try {
       const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}` },
-        body: JSON.stringify({ messages: talk.slice(-12) }),
+        body: JSON.stringify({ messages: talk.slice(-12), stream: true }),
       });
-      answer = (await res.json()).reply || null;
+      if ((res.headers.get('content-type') || '').includes('application/json')) answer = (await res.json()).reply || '';
+      else if (res.ok && res.body) { // plain text, streamed: show it as it comes
+        const reader = res.body.getReader(), decoder = new TextDecoder();
+        for (let r = await reader.read(); !r.done; r = await reader.read()) {
+          answer += decoder.decode(r.value, { stream: true });
+          line.classList.remove('is-thinking');
+          line.textContent = answer;
+          chatLog.scrollTop = chatLog.scrollHeight;
+        }
+        answer += decoder.decode();
+      }
     } catch (err) { /* offline, or the function isn't there: say so below */ }
+    answer = answer.trim();
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
-    chatReply.textContent = answer || "The bar's closed for a moment. The menu's right in front of you.";
+    line.classList.remove('is-thinking');
+    line.textContent = answer || CLOSED;
+    chatLog.scrollTop = chatLog.scrollHeight;
     talking = false;
-    chatReply.classList.remove('is-thinking');
   });
   let leaving = false;
   function sitDown({ pickUp = false, then = null } = {}) {
@@ -1666,7 +1690,7 @@ async function start() {
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
-      const show = onScreen && panel.hidden && menu.hidden && !hovered;
+      const show = onScreen && panel.hidden && menu.hidden && !hovered && chatLog.hidden; // not over the conversation
       beacon.hidden = !show;
       if (show) {
         if (beacon.textContent !== label[1]) beacon.textContent = label[1];
@@ -1676,7 +1700,8 @@ async function start() {
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && panel.hidden && menu.hidden);
-    if (chat.hidden && !chatReply.hidden && !talking) chatReply.hidden = true; // the answer goes when the box does
+    if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
+    else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
     const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
     if (state === 'camp' && !leaving) roaster.update(realDt, atFire && (roast.pointer || roast.key), campSpot.hotSpot);
