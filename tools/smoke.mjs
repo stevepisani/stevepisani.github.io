@@ -127,6 +127,15 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !window.__world.making, null, 60000);
   step('the robot made a drink');
 
+  // ask the bartender: your question shows in the transcript and, with every request outside the
+  // site refused here, the robot says the bar's closed
+  await until(page, () => !document.getElementById('chat').hidden);
+  await page.fill('#chat-input', "What's on the chalkboard?");
+  await page.click('#chat button[type="submit"]');
+  await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /closed/.test(l[1].textContent); }, null, 60000);
+  await shot('asked');
+  step('asked the bartender: the question showed, and offline the bar said it was closed');
+
   await page.click('#seat-leave');
   await expectState(page, 'walk', 120000);
   step('left the bar');
