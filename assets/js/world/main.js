@@ -465,7 +465,7 @@ async function start() {
   }
 
   function onTap(x, y) {
-    if (state === 'hammock' && lying && !flight && !leaving && panel.hidden && menu.hidden) {
+    if (state === 'hammock' && lying && !flight && !leaving && panel.hidden && menu.hidden && bookSky.settled) {
       // the whole sky: a tap on a shelf leans in on it (a comet is still a book). Leaned in: a
       // star is its card, another shelf's name moves over to it, empty sky puts the card away.
       const rect = canvas.getBoundingClientRect();
@@ -504,7 +504,7 @@ async function start() {
   let hovered = null;
   function onHover(x, y) {
     // in the hammock: the stars are (the books)
-    if (x !== null && state === 'hammock' && lying && !flight && panel.hidden && menu.hidden) {
+    if (x !== null && state === 'hammock' && lying && !flight && panel.hidden && menu.hidden && bookSky.settled) {
       const rect = canvas.getBoundingClientRect();
       const b = bookSky.pick(x, y, camera, rect, zoom.region ? 34 : 26, zoom.region);
       const r = !zoom.region && !(b && b.comet) ? bookSky.regionAt(x, y, camera, rect) : null;
@@ -1223,6 +1223,7 @@ async function start() {
     closePanel();
     closeStar();
     zoomOut();
+    skyGather = false;
     // the book goes back where it was, as you sit up
     HM.swing.attach(HM.book);
     tweenBook(HM.bookHome, 0.35, 700);
@@ -1246,6 +1247,7 @@ async function start() {
   afterHammockPanel = () => {
     if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
     tweenBook(CHEST, 0.1, 600);
+    skyGather = true;
     if (bookSky.count) showHint(`Every star above you is a book Steve has read, grouped by kind. ${coarse ? 'Tap' : 'Click'} a group to look closer.`, 'stars');
   };
 
@@ -1269,7 +1271,7 @@ async function start() {
   scene.add(bookSky.group);
   const starCard = $('star-card'), starSample = $('star-sample'), starPrev = $('star-prev'), starNext = $('star-next');
   const skyShelf = $('sky-shelf'), skyLabels = $('sky-labels');
-  let starOpen = null;
+  let starOpen = null, skyGather = false;
   // leaning in on a shelf: k eases 0..1 as the view narrows from BASE_FOV to `cur`, which follows
   // `fov` (the shelf's) when you step to another
   const zoom = { region: null, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, pushed: false, applied: false };
@@ -1341,7 +1343,7 @@ async function start() {
   }
 
   function zoomTo(r) {
-    if (!r || state !== 'hammock' || !lying || leaving) return;
+    if (!r || state !== 'hammock' || !lying || leaving || !bookSky.settled) return;
     clearHint('stars');
     tip.hidden = true;
     if (!starCard.hidden) { starCard.hidden = true; starOpen = null; bookSky.select(null); if (window.stopSample) window.stopSample(); }
@@ -1385,7 +1387,8 @@ async function start() {
     if (!r) return;
     e.preventDefault();
     closePanel();
-    const go = () => (panel.hidden && location.hash !== '#shelf' ? zoomTo(r) : requestAnimationFrame(go));
+    // once the list's gone and the stars have gathered (the first time, they drift in as you watch)
+    const go = () => { if (state !== 'hammock' || leaving) return; if (panel.hidden && location.hash !== '#shelf' && bookSky.settled) zoomTo(r); else requestAnimationFrame(go); };
     go();
   });
 
@@ -1738,7 +1741,9 @@ async function start() {
     }
     skipper.update(realDt);
     ritual.update(realDt);
-    bookSky.update(t, camera, realDt, state === 'hammock' && !!lying && !flight && !leaving);
+    // lying back with the sky to look at (from when the reading list first closes), the loose
+    // stars drift into their shelves; getting up, they drift apart
+    bookSky.update(t, camera, realDt, skyGather && state === 'hammock' && !!lying && !flight && !leaving);
     // leaning in on a shelf of the book sky (or back out, wherever you are by then)
     if (zoom.k !== zoom.want) zoom.k = reducedMotion ? zoom.want : THREE.MathUtils.clamp(zoom.k + Math.sign(zoom.want - zoom.k) * realDt / 1.1, 0, 1);
     if (zoom.k > 0 || zoom.applied) {

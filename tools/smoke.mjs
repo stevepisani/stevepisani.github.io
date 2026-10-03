@@ -174,12 +174,13 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.evaluate(() => window.__world.lieInHammock());
   await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
   await shot('hammock');
-  // the book sky: lean in on a shelf (the view narrows, its titles come up, the strip names it),
+  // the book sky: the stars gather once the list closes; lean in on a shelf (the view narrows, its titles come up, the strip names it),
   // step to the next shelf, open a book and step to the next one; Esc puts the card away, Esc
   // again leans out; Back leans out too
   await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
+  await until(page, () => window.__world.sky.settled, null, 60000); // the loose stars gather into their shelves once the list closes
   const fov0 = await page.evaluate(() => window.__world.camera.fov);
   await page.evaluate(() => window.__world.zoom('science-fiction'));
   await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
