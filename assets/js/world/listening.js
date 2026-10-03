@@ -1,5 +1,5 @@
 // The listening sky: every book Steve has finished on Audible is a star over the hammock, and
-// what he's listening to now is a comet crossing them. A series is a constellation, its books
+// what he's listening to now crosses them as comets, a few at a time. A series is a constellation, its books
 // joined in order and its name written faintly beside it. A star's colour is its kind of book,
 // its size how long it is. Lie in the hammock, look up, tap one (main.js picks with `pick()` and
 // shows the card). The data is /listening.json (tools/audible-sync.py, daily); with none, no stars.
@@ -12,6 +12,8 @@ import { PALETTE } from './materials.js';
 const R = 520;          // inside the background star shell (600), outside everything else
 const GAP = 3.4;        // degrees between any two stars
 const STEP = 4.2;       // degrees between books in a constellation
+const COMETS = 3;       // comets in flight at once; the other books wait their turn
+const CROSS = 90;       // seconds for a comet to cross the field
 const DEG = Math.PI / 180;
 
 // kind of book -> colour (Audible's top category)
@@ -110,31 +112,34 @@ export function createListeningSky({ center, reducedMotion = false }) {
       }
     }
 
-    // the stars: one Points, a soft glow each, bright enough to bloom a little
+    // the stars: one Points, a small core each that just blooms, with faint rays; a few times the
+    // size of the field's stars, no more
     const n = stars.length + listening.length;
     const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), seed = new Float32Array(n);
     const v = new THREE.Vector3();
     stars.forEach((s, i) => {
       dirAt(s.x, s.y, v).multiplyScalar(R);
       pos.set([v.x, v.y, v.z], i * 3);
-      const c = kindColour(s.book.genre).multiplyScalar(2.4);
+      const c = kindColour(s.book.genre).multiplyScalar(1.6);
       col.set([c.r, c.g, c.b], i * 3);
-      size[i] = 13 + 9 * Math.min(1, (s.book.minutes || 600) / 1500);
+      size[i] = 8 + 5 * Math.min(1, (s.book.minutes || 600) / 1500);
       seed[i] = (hash(s.book.asin || s.book.title) % 1000) / 10;
       books.push({ book: s.book, dir: dirAt(s.x, s.y), index: i, series: s.series || null });
     });
-    // listening now: comets, drifting slowly across the field (still under reduced motion)
-    listening.forEach((b, k) => {
+    // listening now: comets, the most recently played first; placeComets() decides which few are in
+    // flight (under reduced motion the first few sit mid-way)
+    const order = [...listening].sort((a, b) => (b.last_heard || '').localeCompare(a.last_heard || ''));
+    order.forEach((b, k) => {
       const i = stars.length + k, r = rng(hash(b.asin || b.title));
       const a = r() * Math.PI * 2, from = [Math.cos(a) * spread * 0.9, Math.sin(a) * spread * 0.9];
       const to = [-from[0] * 0.8 + (r() - 0.5) * 10, -from[1] * 0.8 + (r() - 0.5) * 10];
-      const c = new THREE.Color(PALETTE.coral).lerp(new THREE.Color(PALETTE.amber), 0.6).multiplyScalar(1.8);
+      const c = new THREE.Color(PALETTE.coral).lerp(new THREE.Color(PALETTE.amber), 0.6).multiplyScalar(1.3);
       col.set([c.r, c.g, c.b], i * 3);
-      size[i] = 15;
+      size[i] = 0; // set each frame while it's in flight
       seed[i] = 0;
-      const comet = { book: b, index: i, from, to, phase: r(), dir: new THREE.Vector3(), tail: null };
+      const comet = { book: b, index: i, from, to, slot: k, dir: new THREE.Vector3(), tail: null, active: false };
       comets.push(comet);
-      books.push({ book: b, dir: comet.dir, index: i, comet: true });
+      books.push({ book: b, dir: comet.dir, index: i, comet });
     });
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -147,11 +152,11 @@ export function createListeningSky({ center, reducedMotion = false }) {
         void main(){ float tw = still > .5 ? 1. : .8 + .2 * sin(time * (.4 + fract(seed) * 1.2) + seed);
           float sel = abs(float(gl_VertexID) - picked) < .5 ? 1.7 : 1.;
           vC = color; vA = tw; gl_PointSize = size * dpr * tw * sel; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
-      // a bright core, a soft halo, and four thin rays: they read as stars you can pick, not the field
+      // a small core, a soft halo and four faint rays: they read as stars you can pick, not the field
       fragmentShader: `varying vec3 vC; varying float vA;
         void main(){ vec2 p = gl_PointCoord - .5; float d = length(p); if (d > .5) discard;
-          float core = smoothstep(.09, .0, d), halo = smoothstep(.5, .0, d) * .22;
-          float rays = (smoothstep(.035, .0, abs(p.x)) + smoothstep(.035, .0, abs(p.y))) * smoothstep(.5, .1, d) * .5;
+          float core = smoothstep(.09, .0, d), halo = smoothstep(.5, .0, d) * .18;
+          float rays = (smoothstep(.025, .0, abs(p.x)) + smoothstep(.025, .0, abs(p.y))) * smoothstep(.5, .1, d) * .28;
           float k = core + halo + rays;
           gl_FragColor = vec4(vC * k, k * vA); }`,
     }));
@@ -188,8 +193,8 @@ export function createListeningSky({ center, reducedMotion = false }) {
     for (const c of comets) {
       const tg = new THREE.BufferGeometry();
       tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
-      tg.setAttribute('color', new THREE.BufferAttribute(new Float32Array([2.2, 1.4, 0.8, 0, 0, 0]), 3));
-      c.tail = new THREE.Line(tg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+      tg.setAttribute('color', new THREE.BufferAttribute(new Float32Array([1.4, 0.9, 0.5, 0, 0, 0]), 3));
+      c.tail = new THREE.Line(tg, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
       c.tail.frustumCulled = false;
       c.tail.renderOrder = -1;
       group.add(c.tail);
@@ -197,24 +202,38 @@ export function createListeningSky({ center, reducedMotion = false }) {
     placeComets(0);
   }
 
-  // A comet crosses the field in about four minutes and comes round again; the tail points back
-  // along its path.
+  // A few comets are in flight at once. Each takes CROSS seconds to cross the field, fading in and
+  // out at the ends (the head shrinks to nothing, the tail goes transparent); when its turn is over
+  // the next book's begins, so over time every one of them shows. The tail points back along the path.
   const _a = new THREE.Vector3(), _b = new THREE.Vector3();
   function placeComets(t) {
     if (!points) return;
-    const pos = points.geometry.attributes.position;
+    const pos = points.geometry.attributes.position, size = points.geometry.attributes.size;
+    const n = comets.length, atOnce = Math.min(COMETS, n), period = (CROSS * n) / atOnce;
     for (const c of comets) {
-      const k = reducedMotion ? 0.5 : (c.phase + t / 240) % 1;
-      const x = c.from[0] + (c.to[0] - c.from[0]) * k, y = c.from[1] + (c.to[1] - c.from[1]) * k;
+      let k = 0.5, env = 1;
+      if (reducedMotion) c.active = c.slot < atOnce;
+      else {
+        // seconds into this comet's turn; the clock starts a crossing ahead, so a few are already mid-flight when you look
+        const u = (((t + CROSS - (c.slot * period) / n) % period) + period) % period;
+        c.active = u < CROSS;
+        k = u / CROSS;
+        env = Math.sin(Math.PI * k);
+      }
+      size.setX(c.index, c.active ? 11 * env : 0);
+      c.tail.material.opacity = c.active ? env : 0;
+      if (!c.active) continue;
+      const dx = c.to[0] - c.from[0], dy = c.to[1] - c.from[1], x = c.from[0] + dx * k, y = c.from[1] + dy * k;
       dirAt(x, y, c.dir);
       _a.copy(c.dir).multiplyScalar(R);
       pos.setXYZ(c.index, _a.x, _a.y, _a.z);
-      const back = Math.hypot(c.to[0] - c.from[0], c.to[1] - c.from[1]);
-      dirAt(x - ((c.to[0] - c.from[0]) / back) * 9, y - ((c.to[1] - c.from[1]) / back) * 9, _b).multiplyScalar(R);
+      const back = Math.hypot(dx, dy);
+      dirAt(x - (dx / back) * 6, y - (dy / back) * 6, _b).multiplyScalar(R);
       c.tail.geometry.attributes.position.array.set([_a.x, _a.y, _a.z, _b.x, _b.y, _b.z]);
       c.tail.geometry.attributes.position.needsUpdate = true;
     }
     pos.needsUpdate = true;
+    size.needsUpdate = true;
   }
 
   let shown = 0, selected = null;
@@ -232,12 +251,13 @@ export function createListeningSky({ center, reducedMotion = false }) {
       const want = lying ? 1 : 0;
       shown = reducedMotion ? want : THREE.MathUtils.clamp(shown + Math.sign(want - shown) * dt / 1.5, 0, 1);
       for (const s of labels) s.material.opacity = shown * (selected && selected.series === s.userData.series ? 0.95 : 0.5);
-      for (const l of lines) l.material.opacity = 0.14 + 0.16 * shown + (selected && selected.series === l.userData.series ? 0.35 : 0);
+      for (const l of lines) l.material.opacity = 0.08 + 0.14 * shown + (selected && selected.series === l.userData.series ? 0.35 : 0);
     },
     /** The book nearest screen point (x, y) within `reach` px, or null. */
     pick(x, y, camera, rect, reach = 26) {
       let best = null, bestD = reach;
       for (const b of books) {
+        if (b.comet && !b.comet.active) continue; // waiting its turn: not in the sky
         _p.copy(b.dir).multiplyScalar(R).add(camera.position).project(camera);
         if (_p.z > 1 || _p.z < -1) continue;
         const sx = rect.left + ((_p.x + 1) / 2) * rect.width, sy = rect.top + ((1 - _p.y) / 2) * rect.height;
