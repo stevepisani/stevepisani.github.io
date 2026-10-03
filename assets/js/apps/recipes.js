@@ -1,13 +1,14 @@
 // The recipe tracker (/apps/recipes, apps/recipes.html): the recipes we're cooking through, each
 // with a photo, a rating out of 10, notes and the day it was cooked. Table public.recipes.
-import { $, start, rows, saver, ask, photos, toast } from './lib/kit.js';
+import { $, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
 
 const recipes = rows('recipes');
 const cards = new Map(); // recipe id → its card, built once so typing is never interrupted
 let list = [];
 let links = new Map(); // photo path → signed link
+let failed = false; // the list didn't load
 
-const today = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, here rather than in UTC
+const today = () => { const d = new Date(), two = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`; }; // here, not in UTC
 const day = (d) => new Date(d + 'T12:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', ...(d.slice(0, 4) !== today().slice(0, 4) && { year: 'numeric' }) });
 const href = (link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
 const todo = () => list.filter((r) => !r.cooked);
@@ -96,7 +97,9 @@ function build(r) {
     saver(el, (value) => set({ [field]: value.trim() }));
   }
   // a date means it's been cooked; no date means it hasn't
-  $('[data-is="date"]', card).addEventListener('change', (e) => set({ date_cooked: e.target.value || null, cooked: !!e.target.value }));
+  $('[data-is="date"]', card).addEventListener('change', async (e) => {
+    if (!(await set({ date_cooked: e.target.value || null, cooked: !!e.target.value }))) paint(r); // back to what's saved
+  });
   $('[data-do="uncook"]', card).addEventListener('click', () => set({ cooked: false, date_cooked: null }));
   $('[data-do="cook"]', card).addEventListener('click', async () => {
     if (await set({ cooked: true, date_cooked: r.date_cooked || today() })) confetti();
@@ -114,12 +117,12 @@ function build(r) {
   $('input', slot).addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || slot.classList.contains('is-busy')) return;
     slot.classList.add('is-busy');
     const old = r.photo_path, path = await photos.put(file, `recipes/${r.id}`);
     if (path) {
       links.set(path, URL.createObjectURL(file)); // shown straight from the phone; signed next visit
-      if (await set({ photo_path: path })) photos.remove(old);
+      photos.remove((await set({ photo_path: path })) ? old : path); // whichever nothing points at now
     }
     slot.classList.remove('is-busy');
   });
@@ -146,7 +149,7 @@ function render() {
     $('#cards').append(card);
   }
   $('#empty').hidden = shown > 0;
-  $('#empty').textContent = list.length ? 'Nothing matches that.' : 'No recipes yet. Add one, or import a list.';
+  $('#empty').textContent = failed ? "The recipes didn't load. Reload the page to try again." : list.length ? 'Nothing matches that.' : 'No recipes yet. Add one, or import a list.';
   summary();
 }
 
@@ -198,10 +201,18 @@ document.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('#search').focus(); }
 });
 
-start(async () => {
-  list = (await recipes.list()) || [];
+async function load() {
+  const got = await recipes.list();
+  failed = !got;
+  list = got || [];
   links = await photos.urls(list.map((r) => r.photo_path).filter(Boolean));
+  clear();
+  render();
+}
+function clear() {
   cards.clear();
   $('#cards').textContent = '';
-  render();
-});
+}
+
+start(load, () => { list = []; clear(); });
+fresh(load);

@@ -33,7 +33,7 @@ What's in the database:
 |---|---|---|
 | `members`, `is_member()` | who may use the private bits; every policy asks `is_member()` | members |
 | `recipes` | the recipe tracker (`/apps/recipes`; `docs/apps.md`) | members only |
-| `photos` bucket | every private app's pictures, a folder per app | members only |
+| `photos` bucket | every private app's pictures, a folder per app (recipe photos from before Oct 2026 are at the root) | members only |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
 | `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts; members read rows; everyone reads daily totals |
 | `bartender_usage`, `bartender_asks`, `bartender_take()`, `bartender_spent()` | the bartender's limits and token log | service role only |

@@ -36,7 +36,7 @@ lede: What we're cooking our way through, with ratings, notes and photos.
   <li class="item">
     <label class="photo">
       <span>Add a photo</span>
-      <img alt="" hidden>
+      <img alt="" loading="lazy" decoding="async" hidden>
       <input class="visually-hidden" type="file" accept="image/*">
     </label>
     <div class="item__body">
@@ -49,7 +49,7 @@ lede: What we're cooking our way through, with ratings, notes and photos.
         <summary>Edit</summary>
         <div class="item__edit">
         <label>Name <input data-is="title" type="text"></label>
-        <label>Link <input data-is="link" type="url" inputmode="url" placeholder="https://"></label>
+        <label>Link <input data-is="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
         <label>Cooked on <input data-is="date" type="date"></label>
         <button class="link-btn" data-do="uncook" type="button">Not cooked yet</button>
         <button class="link-btn link-btn--bad" data-do="remove" type="button">Remove this recipe</button>
@@ -63,9 +63,9 @@ lede: What we're cooking our way through, with ratings, notes and photos.
   <form method="dialog">
     <h2>Add a recipe</h2>
     <label>Name <input name="title" type="text" required></label>
-    <label>Link (optional) <input name="link" type="url" inputmode="url" placeholder="https://"></label>
+    <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
     <div class="app-dialog__buttons">
-      <button class="btn btn--ghost btn--small" type="submit" value="" formnovalidate>Cancel</button>
+      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
       <button class="btn btn--small" type="submit" value="ok">Add</button>
     </div>
   </form>
@@ -77,7 +77,7 @@ lede: What we're cooking our way through, with ratings, notes and photos.
     <p>One recipe a line. To include its link, put it after a bar: <code>Name | https://…</code></p>
     <label>Recipes <textarea name="list" rows="8" required></textarea></label>
     <div class="app-dialog__buttons">
-      <button class="btn btn--ghost btn--small" type="submit" value="" formnovalidate>Cancel</button>
+      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
       <button class="btn btn--small" type="submit" value="ok">Import</button>
     </div>
   </form>
