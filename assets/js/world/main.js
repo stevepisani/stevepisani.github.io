@@ -1253,6 +1253,7 @@ async function start() {
     return `Finished ${MONTHS[+m - 1]} ${y}`;
   }
   function openStar(s) {
+    tip.hidden = true; // the hover label goes; the card says it all
     const b = s.book;
     clearHint('stars');
     starOpen = s;
@@ -1260,7 +1261,7 @@ async function start() {
     const cover = $('star-cover');
     cover.textContent = '';
     cover.style.setProperty('--hue', (b.title.length * 47) % 360);
-    if (b.cover) { const img = new Image(); img.src = b.cover; img.alt = ''; cover.append(img); } else cover.textContent = b.title;
+    if (b.cover) { const img = new Image(); img.onerror = () => { cover.textContent = b.title; }; img.src = b.cover; img.alt = ''; cover.append(img); } else cover.textContent = b.title;
     $('star-kind').textContent = starStatus(b);
     $('star-title').textContent = b.title;
     const by = (b.authors || []).join(', ');

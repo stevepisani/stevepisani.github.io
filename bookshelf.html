@@ -7,20 +7,36 @@ lede: Mostly in my ears these days. What I'm listening to on Audible, everything
 wide: true
 ---
 {%- assign a = site.data.audible -%}
+{%- comment -%} Long lists fold: the first few books of "listening now" and the two latest years show;
+the rest are a click away (<details>), so the page stays short on a phone. {%- endcomment -%}
 {% if a.listening.size > 0 %}
 <section class="books">
-  <h2 class="shelf__name">Listening now</h2>
-  <ul class="books__grid">{% for b in a.listening %}{% include book-card.html b=b %}{% endfor %}</ul>
+  <h2 class="shelf__name">Listening now <span class="books__count">{{ a.listening.size }}</span></h2>
+  <ul class="books__grid">{% for b in a.listening limit: 8 %}{% include book-card.html b=b %}{% endfor %}</ul>
+  {% if a.listening.size > 8 %}
+  <details class="books__more">
+    <summary>{{ a.listening.size | minus: 8 }} more</summary>
+    <ul class="books__grid">{% for b in a.listening offset: 8 %}{% include book-card.html b=b %}{% endfor %}</ul>
+  </details>
+  {% endif %}
 </section>
 {% endif %}
 
 {% if a.finished.size > 0 %}
 {%- assign years = a.finished | group_by_exp: "b", "b.finished_on | slice: 0, 4" -%}
 {% for y in years %}
+{%- capture name %}{% if y.name == "" %}Finished earlier{% else %}Finished in {{ y.name }}{% endif %}{% endcapture -%}
+{% if forloop.index <= 2 %}
 <section class="books">
-  <h2 class="shelf__name">{% if y.name == "" %}Finished earlier{% else %}Finished in {{ y.name }}{% endif %} <span class="books__count">{{ y.items.size }}</span></h2>
+  <h2 class="shelf__name">{{ name }} <span class="books__count">{{ y.items.size }}</span></h2>
   <ul class="books__grid">{% for b in y.items %}{% include book-card.html b=b %}{% endfor %}</ul>
 </section>
+{% else %}
+<details class="books books__year">
+  <summary class="shelf__name">{{ name }} <span class="books__count">{{ y.items.size }}</span></summary>
+  <ul class="books__grid">{% for b in y.items %}{% include book-card.html b=b %}{% endfor %}</ul>
+</details>
+{% endif %}
 {% endfor %}
 <p class="books__note">From my Audible library, updated daily{% if a.updated %} (last {{ a.updated | date: "%-d %B %Y" }}){% endif %}.</p>
 {% endif %}
