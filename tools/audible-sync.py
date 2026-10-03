@@ -1,8 +1,9 @@
 """Steve's Audible library -> _data/audible.json, for /bookshelf, the listening sky on the planet
 (/listening.json) and the bartender.
 
-Only books he's finished or is partway through are kept (nothing he hasn't started), minus any in
-_data/audible_hide.yml. Podcasts are skipped. Run by .github/workflows/audible.yml once a day:
+Only books he's finished or is at least 5% into are kept (one he owns but has barely opened stays
+private), minus any in _data/audible_hide.yml. Podcasts are skipped. Run by
+.github/workflows/audible.yml once a day:
 
     AUDIBLE_AUTH='<the auth file's JSON>' python tools/audible-sync.py
 
@@ -34,6 +35,7 @@ GROUPS = ", ".join([
     "sample", "category_ladders", "is_finished", "percent_complete", "listening_status",
 ])
 BOOK_TYPES = {"SinglePartBook", "MultiPartBook"}
+STARTED_AT = 5  # percent; under this a book is owned, not started, and stays private
 
 
 def hidden() -> set[str]:
@@ -95,8 +97,8 @@ def book(item: dict, finished_at: dict[str, str]) -> dict | None:
     if pct is None:
         pct = status.get("percent_complete")
     pct = round(float(pct or 0))
-    if not done and pct <= 0:
-        return None  # never started: stays private
+    if not done and pct < STARTED_AT:
+        return None  # owned but barely opened: stays private
     series = (item.get("series") or [{}])[0]
     ladder = ((item.get("category_ladders") or [{}])[0].get("ladder") or [])
     images = item.get("product_images") or {}
