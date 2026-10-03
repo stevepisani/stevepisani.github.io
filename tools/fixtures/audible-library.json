@@ -409,6 +409,38 @@
    "percent_complete": 8
   },
   {
+   "asin": "FIXTURE026",
+   "title": "The Left Hand of Darkness",
+   "content_delivery_type": "SinglePartBook",
+   "authors": [
+    {
+     "name": "Ursula K. Le Guin"
+    }
+   ],
+   "narrators": [
+    {
+     "name": "A Narrator"
+    }
+   ],
+   "runtime_length_min": 560,
+   "release_date": "2019-05-01",
+   "purchase_date": "2022-03-03T10:00:00Z",
+   "product_images": {},
+   "sample_url": null,
+   "category_ladders": [
+    {
+     "ladder": [
+      {
+       "name": "Science Fiction & Fantasy"
+      }
+     ]
+    }
+   ],
+   "series": [],
+   "is_finished": false,
+   "percent_complete": 20
+  },
+  {
    "asin": "FIXTURE011",
    "title": "Blindsight",
    "content_delivery_type": "SinglePartBook",
@@ -875,8 +907,8 @@
      ]
     }
    ],
-   "is_finished": true,
-   "percent_complete": 100
+   "is_finished": false,
+   "percent_complete": 97
   },
   {
    "asin": "FIXTURE025",
@@ -938,7 +970,9 @@
   "FIXTURE020": "2025-09-21T21:00:00Z",
   "FIXTURE021": "2019-10-22T21:00:00Z",
   "FIXTURE022": "2020-11-23T21:00:00Z",
-  "FIXTURE023": "2021-12-24T21:00:00Z",
-  "FIXTURE024": "2022-01-25T21:00:00Z"
+  "FIXTURE023": "2021-12-24T21:00:00Z"
+ },
+ "last_heard": {
+  "FIXTURE026": "2023-03-03T12:00:00Z"
  }
 }
