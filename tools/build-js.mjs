@@ -5,6 +5,8 @@
 //   dist/world.js   the homepage's planet (assets/js/world/main.js and everything it imports,
 //                   three.js and the post-processing included), one file, one request
 //   dist/rapier-*.js the physics engine, loaded once the planet is up (import() in physics.js)
+//   dist/apps/*.js  one per private app (every file in assets/js/apps/), with what they share
+//                   (lib/kit.js and the Supabase client) split into a chunk of its own
 //
 // First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
 // then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes.
@@ -14,7 +16,7 @@
 //
 // Library versions live in package.json, nowhere else.
 import * as esbuild from 'esbuild';
-import { rmSync, readFileSync, watch as watchFile } from 'node:fs';
+import { rmSync, readFileSync, readdirSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +46,8 @@ const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
   { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm], metafile: true },
+  // a new app needs nothing but its file (watch: restart to pick it up)
+  { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
 ];
 
 if (watch) {
@@ -57,5 +61,5 @@ if (watch) {
   // (it happens when something imported both directly and by import() is shared).
   const shared = outputs['assets/js/dist/world.js'].imports.filter((i) => i.kind === 'import-statement');
   if (shared.length) throw new Error(`world.js imports ${shared.map((i) => i.path).join(', ')} statically; keep import() targets self-contained`);
-  for (const [file, o] of Object.entries(outputs)) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
+  for (const [file, o] of Object.entries({ ...outputs, ...results[2].metafile.outputs })) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
 }
