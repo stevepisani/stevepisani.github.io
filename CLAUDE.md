@@ -10,13 +10,14 @@ built and deployed by GitHub Actions. The homepage is a small walkable planet in
 dropped onto an asteroid in first person with a tiki bar in view, walk over, sit, and pick the
 site's content from a menu; every section is also one click away in the top bar, and `/classic`
 is the homepage without 3D. Every other page is a normal Jekyll page. Behind it is one Supabase
-project (bottles, the page count, the AI bartender, the recipe tracker), all as code. No CSS
+project (bottles, the page count, the AI bartender, the private apps at `/apps`), all as code. No CSS
 framework; the one build step besides Jekyll is `npm run build`: esbuild bundling the JavaScript, and
 merging Steve's books into `_data/library.json`.
 
 | Read | When |
 |---|---|
 | `docs/world.md` | before changing anything on the planet (`assets/js/world/`): every module, and how each thing a visitor does works |
+| `docs/apps.md` | before touching the private apps (`/apps`: the recipe tracker, and whatever's next), or adding one |
 | `docs/backend.md` | Supabase, the bartender, deploys, secrets, the monthly budget |
 | `docs/roadmap.md` | what to build next, what's waiting on Steve, what's parked |
 | `.claude/skills/verify-world` | how to see a change to the planet working (and the sandbox's quirks) |
@@ -40,8 +41,8 @@ npm run build && bundle exec jekyll build --strict_front_matter
 npm run check
 
 # Smoke test: every page, then the planet driven through everything a visitor can do, on desktop
-# and phone, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
-# About 5 minutes under software WebGL. --only desktop|phone|pages|nogl, --shots <dir>.
+# and phone, the private apps against a made-up Supabase, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
+# About 5 minutes under software WebGL. --only desktop|phone|pages|apps|nogl, --shots <dir>.
 npm test
 ```
 
@@ -50,8 +51,8 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 
 ## The JavaScript build
 
-- `package.json` pins every library (three, postprocessing, n8ao, Rapier, esbuild, Playwright, the model tools), nowhere else. Import three's addons as `three/addons/...`.
-- `tools/build-js.mjs` bundles and minifies `assets/js/site.js` → `assets/js/dist/site.js` (every page) and `assets/js/world/main.js` with everything it imports, three.js included → `assets/js/dist/world.js` (one request), with source maps. `assets/js/dist/` isn't committed; the sources are in `exclude:` so only the bundles are published. A new world module needs nothing but its import.
+- `package.json` pins every library (three, postprocessing, n8ao, Rapier, supabase-js, esbuild, Playwright, the model tools), nowhere else. Import three's addons as `three/addons/...`.
+- `tools/build-js.mjs` bundles and minifies `assets/js/site.js` → `assets/js/dist/site.js` (every page), each file in `assets/js/apps/` → `assets/js/dist/apps/` (the private apps, with their shared kit and the Supabase client split into one chunk), and `assets/js/world/main.js` with everything it imports, three.js included → `assets/js/dist/world.js` (one request), with source maps. `assets/js/dist/` isn't committed; the sources are in `exclude:` so only the bundles are published. A new world module needs nothing but its import.
 - The only thing split off is what's loaded later by `import()`: Rapier (`physics.js`), as `rapier-*.js` plus its `.wasm` (a plugin swaps the compat build's inline base64 for the file). The build fails if `world.js` would import a chunk statically (a request waterfall): keep `import()` targets self-contained.
 
 ## How Steve wants it done
@@ -71,7 +72,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 
 ## Where things are
 
-- `_layouts/`: `default.html` (shell), `world.html` (the homepage: loads `world.css` and the one bundle `dist/world.js`, modulepreloaded, and preloads `props.glb`; the bundle URLs carry the build time as `?v=`, so a cached page never runs another build's script), `page.html` (kicker/heading/lede header + prose; `wide: true` drops the prose width), `post.html`. Both shells share `_includes/head.html` (SEO via `{% seo %}`, fonts, site.css).
+- `_layouts/`: `default.html` (shell), `world.html` (the homepage: loads `world.css` and the one bundle `dist/world.js`, modulepreloaded, and preloads `props.glb`; the bundle URLs carry the build time as `?v=`, so a cached page never runs another build's script), `page.html` (kicker/heading/lede header + prose; `wide: true` drops the prose width), `post.html`, `app.html` (a private app: the sign-in gate around the page's content). Both shells share `_includes/head.html` (SEO via `{% seo %}`, fonts, site.css).
 - `_includes/`: `nav.html`, `footer.html`, `launch.html` (next-launch card, Launch Library 2 API), `cover.html` (post cover, gradient fallback seeded by title), `post-row.html`, `lab-card.html`, `read_time.html`
 - `_data/`: content lives here, edit these rather than HTML
   - `timeline.yml`: career timeline on /about
@@ -86,7 +87,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html` (a row of shelf links, "Reading now", then a section per shelf, newest first, three rows showing and the rest folded; covers in a dense grid, a title tile in the shelf's colour where there's no cover, a round play button for a sample), `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
 - `lab/`: lab experiments with their own pages, e.g. `lab/sql-formatter.html` (SQLFluff in the browser via Pyodide; its Python lives in `assets/py/fluff.py`)
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
-- `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab; members only (`public.members`), sign-ups off. Its Supabase URL and key come from `_config.yml` via Liquid.
+- `apps/`: the private apps, members only (`public.members`), sign-ups off: `index.html` (/apps, the list from `_data/apps.yml`) and `recipes.html` (/apps/recipes, the recipe tracker, also linked from the lab). They use `_layouts/app.html`, `assets/css/apps.css` and `assets/js/apps/` (one script per app on the shared `lib/kit.js`, bundled to `dist/apps/`). How they work and how to add one: `docs/apps.md`. `recipe_tracker/` only redirects to /apps/recipes.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
 - `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible-sync.py` (the Audible sync), `fixtures/` (a made-up Audible library and shelves for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
@@ -112,8 +113,8 @@ How it's built, module by module: `docs/world.md`.
 ## Styling and scripts
 
 - `assets/css/site.css`: the site-wide stylesheet (`assets/css/world.css` adds the homepage world on top). Colors are custom properties on `:root` with three themes: light (default), dark a.k.a. space (Milky Way background; system preference or chosen), terminal (chosen). New components should use the tokens, never raw colors.
-- `assets/js/site.js` (published as `dist/site.js`): theme cycling (auto → light → dark → terminal) and `window.nextLaunch()` / `window.tMinus()`, which fill any `[data-launch]` block (cached in localStorage for an hour; the API allows 15 requests/hour/IP); `window.moonTonight()`, `window.issNow()` (wheretheiss.at, no key, about 1 request/s allowed) and `window.fillSky(el)`, which fill a `[data-sky]` block (the telescope's "Up there tonight": the moon's phase, and the ISS live every 5 s with its distance from Philadelphia); `window.siteDb` (the Supabase url and public key, from the `supabase-url` / `supabase-key` meta tags `_includes/head.html` writes from `_config.yml`) and the page count: one `pageviews` row per page view (path, referring host if it's another site, phone/tablet/desktop), no cookies or IPs, skipped for Do Not Track, Global Privacy Control, automated browsers and localhost. No jQuery.
-- `assets/css/normalize.css` is kept only for `recipe_tracker/`.
+- `assets/js/site.js` (published as `dist/site.js`): theme cycling (auto → light → dark → terminal) and `window.nextLaunch()` / `window.tMinus()`, which fill any `[data-launch]` block (cached in localStorage for an hour; the API allows 15 requests/hour/IP); `window.moonTonight()`, `window.issNow()` (wheretheiss.at, no key, about 1 request/s allowed) and `window.fillSky(el)`, which fill a `[data-sky]` block (the telescope's "Up there tonight": the moon's phase, and the ISS live every 5 s with its distance from Philadelphia); `window.siteDb` (the Supabase url and public key, from the `supabase-url` / `supabase-key` meta tags `_includes/head.html` writes from `_config.yml`) the nav's "Apps" link, shown only to someone signed in to the private apps on this browser; and the page count: one `pageviews` row per page view (path, referring host if it's another site, phone/tablet/desktop), no cookies or IPs, skipped for Do Not Track, Global Privacy Control, automated browsers and localhost. No jQuery.
+- `assets/css/apps.css`: the private apps' parts, on the same tokens; loaded only by `layout: app` pages.
 - Fonts: Fraunces (display), Inter (body), JetBrains Mono (labels/code) from Google Fonts; the homepage adds Pacifico (the neon and the menu's script) and Caveat (the message in a bottle's handwriting).
 
 ## Important notes

@@ -13,5 +13,7 @@
 <link rel="preconnect" href="{{ site.supabase.url }}" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
+{% if page.layout == 'app' %}<link rel="stylesheet" href="{{ '/assets/css/apps.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+<meta name="robots" content="noindex">{% endif %}
 <link rel="icon" href="{{ '/assets/images/sj-64.png' | relative_url }}">
 <link rel="apple-touch-icon" href="{{ '/assets/images/sj-180.png' | relative_url }}">
