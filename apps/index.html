@@ -1,0 +1,11 @@
+---
+layout: app
+app: home
+title: Apps
+lede: Small tools for life at home.
+---
+<div class="lab-grid">
+  {% for item in site.data.apps %}
+    {% include lab-card.html item=item %}
+  {% endfor %}
+</div>

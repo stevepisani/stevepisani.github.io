@@ -10,6 +10,8 @@
       <a href="{{ '/blog' | relative_url }}" {% if here == '/blog' or page.layout == 'post' %}aria-current="page"{% endif %}>Writing</a>
       <a href="{{ '/lab' | relative_url }}" {% if here == '/lab' %}aria-current="page"{% endif %}>Lab</a>
       <a href="{{ '/bookshelf' | relative_url }}" {% if here == '/bookshelf' %}aria-current="page"{% endif %}>Books</a>
+      {%- comment %} shown by site.js to someone signed in to the private apps on this browser {% endcomment %}
+      <a href="{{ '/apps/' | relative_url }}" data-members hidden {% if page.layout == 'app' %}aria-current="page"{% endif %}>Apps</a>
       <a href="{{ site.links.resume }}" target="_blank" rel="noopener">Resume ↗</a>
     </nav>
     <button id="theme" class="theme-btn" type="button" aria-label="Change theme" title="Change theme">

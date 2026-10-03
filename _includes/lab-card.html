@@ -1,7 +1,7 @@
 {%- assign it = include.item -%}
 <a class="lab-card" href="{{ it.url | relative_url }}">
   <span class="lab-card__emoji" aria-hidden="true">{{ it.emoji }}</span>
-  <span class="lab-card__status lab-card__status--{{ it.status }}">{{ it.status }}</span>
+  {% if it.status %}<span class="lab-card__status lab-card__status--{{ it.status }}">{{ it.status }}</span>{% endif %}
   <h3>{{ it.title }}</h3>
   <p>{{ it.blurb }}</p>
   {% if it.tags %}<ul class="chips chips--small">{% for t in it.tags %}<li>{{ t }}</li>{% endfor %}</ul>{% endif %}

@@ -8,7 +8,7 @@ description: How work moves through this repo, from branch to live site. Use whe
 ## Before you start
 
 - Read `docs/roadmap.md` for what's next, and the doc for the area you're touching
-  (`docs/world.md` for the planet, `docs/backend.md` for Supabase and deploys).
+  (`docs/world.md` for the planet, `docs/apps.md` for the private apps, `docs/backend.md` for Supabase and deploys).
 - Work on the branch the session names. If its pull request has already merged, restart the
   branch from `origin/main` (same name) rather than stacking on merged history.
 - One pull request per coherent change. Small follow-ups Steve asks for while a PR is open can
