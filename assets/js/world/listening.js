@@ -10,8 +10,10 @@ import * as THREE from 'three';
 import { PALETTE } from './materials.js';
 
 const R = 520;          // inside the background star shell (600), outside everything else
-const GAP = 3.4;        // degrees between any two stars
-const STEP = 4.2;       // degrees between books in a constellation
+const FIELD = 21;       // degrees from the centre the field fills (a little wider than tall): the gap between the palms
+const WIDE = 1.3;       // how much wider than tall
+const GAP_MAX = 3.4;    // degrees between stars when there are few; with many they sit closer, never under GAP_MIN
+const GAP_MIN = 1.5;
 const COMETS = 3;       // comets in flight at once; the other books wait their turn
 const CROSS = 90;       // seconds for a comet to cross the field
 const DEG = Math.PI / 180;
@@ -74,8 +76,12 @@ export function createListeningSky({ center, reducedMotion = false }) {
     const finished = (data && data.finished) || [], listening = (data && data.listening) || [];
     if (!finished.length && !listening.length) return;
     const placed = []; // [x, y] in degrees
-    let spread = Math.max(14, Math.sqrt(finished.length) * 3); // degrees from the centre; it grows if it must
-    const free = (x, y) => Math.hypot(x, y) < spread && placed.every(([a, b]) => Math.hypot(a - x, b - y) >= GAP);
+    // The field stays the size of the window between the palms; more books sit closer together
+    // (half the field's area shared out, so there's room to place them). It only grows if it must.
+    const GAP = Math.min(GAP_MAX, Math.max(GAP_MIN, Math.sqrt((Math.PI * FIELD * FIELD * WIDE * 0.5) / Math.max(1, finished.length))));
+    const STEP = GAP * 1.25; // between books in a constellation
+    let spread = FIELD;
+    const free = (x, y) => Math.hypot(x / WIDE, y) < spread && placed.every(([a, b]) => Math.hypot(a - x, b - y) >= GAP);
     // series of two or more become constellations; the rest are single stars
     const bySeries = new Map();
     for (const b of finished) if (b.series) (bySeries.get(b.series) || bySeries.set(b.series, []).get(b.series)).push(b);
@@ -89,9 +95,9 @@ export function createListeningSky({ center, reducedMotion = false }) {
       const r = rng(hash(g.name));
       let ok = null;
       for (let tries = 0; !ok; tries++) {
-        if (tries && tries % 80 === 0) spread += 4;
+        if (tries && tries % 200 === 0) spread += 1;
         const a = r() * Math.PI * 2, d = Math.sqrt(r()) * (spread - 2);
-        let x = Math.cos(a) * d, y = Math.sin(a) * d, heading = r() * Math.PI * 2;
+        let x = Math.cos(a) * d * WIDE, y = Math.sin(a) * d, heading = r() * Math.PI * 2;
         const pts = [];
         for (let i = 0; i < g.list.length; i++) {
           if (i) { heading += (r() - 0.5) * 1.6; x += Math.cos(heading) * STEP; y += Math.sin(heading) * STEP; }
@@ -106,8 +112,8 @@ export function createListeningSky({ center, reducedMotion = false }) {
       if (inGroup.has(b)) continue;
       const r = rng(hash(b.asin || b.title));
       for (let tries = 0; ; tries++) {
-        if (tries && tries % 80 === 0) spread += 4;
-        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread, x = Math.cos(a) * d, y = Math.sin(a) * d;
+        if (tries && tries % 200 === 0) spread += 1;
+        const a = r() * Math.PI * 2, d = Math.sqrt(r()) * spread, x = Math.cos(a) * d * WIDE, y = Math.sin(a) * d;
         if (free(x, y)) { placed.push([x, y]); stars.push({ book: b, x, y }); break; }
       }
     }
@@ -164,6 +170,7 @@ export function createListeningSky({ center, reducedMotion = false }) {
     points.renderOrder = -1;
     group.add(points);
 
+    const named = []; // the names' boxes, in degrees
     // constellation lines and names
     for (const g of groups) {
       const p = [];
@@ -181,10 +188,14 @@ export function createListeningSky({ center, reducedMotion = false }) {
       line.userData.series = g.name;
       group.add(line);
       lines.push(line);
-      // its name, below its lowest star
+      // its name, below its lowest star, unless it would cover another name (the biggest series
+      // were placed first, so they keep theirs)
       const low = g.pts.reduce((m, q) => (q[1] < m[1] ? q : m));
       const s = label(g.name);
-      s.position.copy(dirAt(low[0], low[1] - 2.4)).multiplyScalar(R);
+      const box = { x: low[0], y: low[1] - 2.1, w: s.scale.x / R / DEG, h: s.scale.y / R / DEG };
+      if (named.some((o) => Math.abs(o.x - box.x) * 2 < o.w + box.w && Math.abs(o.y - box.y) * 2 < o.h + box.h)) { s.material.map.dispose(); s.material.dispose(); continue; }
+      named.push(box);
+      s.position.copy(dirAt(box.x, box.y)).multiplyScalar(R);
       s.userData.series = g.name;
       group.add(s);
       labels.push(s);

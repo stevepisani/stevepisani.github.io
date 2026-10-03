@@ -316,4 +316,6 @@
 .star-card .book__sample { background: transparent; color: #eef0fa; border-color: rgb(143 162 255 / .45); }
 .star-card .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .star-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
+/* on wide screens, lower left: clear of the book in your hands and the middle of the sky */
+@media (min-width: 901px) { .star-card { left: 16px; translate: 0 0; } }
 @media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } }
