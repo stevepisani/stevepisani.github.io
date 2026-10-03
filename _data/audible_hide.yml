@@ -1,6 +1,6 @@
 # Audible books never to show on the site (/bookshelf, the listening sky, the bartender).
 # One per line: the title as Audible has it, or its ASIN (the 10 characters after /pd/.../ in
-# the book's Audible URL). The daily sync (tools/audible.py) leaves them out.
+# the book's Audible URL). The daily sync (tools/audible-sync.py) leaves them out.
 #
 # - The Title Exactly
 # - B0XXXXXXXX

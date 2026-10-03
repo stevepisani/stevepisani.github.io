@@ -1,4 +1,4 @@
-# Steve's Audible library, once a day: tools/audible.py writes _data/audible.json (finished and
+# Steve's Audible library, once a day: tools/audible-sync.py writes _data/audible.json (finished and
 # listening-now books, minus _data/audible_hide.yml). If it changed, it's committed to main and
 # the site workflow is started to publish it (a push by this workflow's token doesn't start other
 # workflows by itself; a dispatch does).
@@ -47,7 +47,7 @@ jobs:
         run: pip install --quiet audible==0.12.0
       - if: steps.auth.outputs.ok == 'true'
         name: Sync
-        run: python tools/audible.py
+        run: python tools/audible-sync.py
       - if: steps.auth.outputs.ok == 'true'
         name: Publish if it changed
         env:
