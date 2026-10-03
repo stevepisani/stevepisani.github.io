@@ -4,7 +4,6 @@
 layout: null
 ---
 {%- assign p = site.data.profile -%}
-{%- include books-read.html -%}
 {
   "site": {{ site.url | jsonify }},
   "steve": {
@@ -24,8 +23,7 @@ layout: null
   ],
   "writing": [{% for post in site.posts %}{{ post.title | append: " (" | append: post.url | append: ")" | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
   "lab": [{% for item in site.data.lab %}{{ item.title | append: ": " | append: item.blurb | strip | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
-  "listening": [{% for b in site.data.audible.listening %}{% include read-too.html b=b %}{% capture f %}{{ b.title }} by {{ b.authors[0] }}{% if read_too %} (read it on paper before){% endif %}{% endcapture %}{{ f | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
-  "finished": [{% for b in site.data.audible.finished limit: 40 %}{% include read-too.html b=b %}{% capture f %}{{ b.title }} by {{ b.authors[0] }}{% if b.finished_on %} (finished {{ b.finished_on | date: "%B %Y" }}){% endif %}{% if read_too %} (read it on paper too){% endif %}{% endcapture %}{{ f | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
-  "books": [{% assign sep = "" %}{% for shelf in site.data.books %}{% for b in shelf.books %}{{ sep }}{{ b.title | append: " (" | append: shelf.shelf | append: ")" | jsonify }}{% assign sep = ", " %}{% endfor %}{% endfor %}],
+  "reading_now": [{% for b in site.data.library.now %}{{ b.title | append: " by " | append: b.by | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
+  "books": [{% for s in site.data.library.shelves %}{% assign books = site.data.library.read | where: "shelf", s.slug %}{% capture line %}{{ s.name }} ({{ books.size }} books; newest first): {% for b in books limit: 15 %}{{ b.title }} by {{ b.by | split: ", " | first }}{% if b.on %} ({{ b.on | date: "%B %Y" }}){% endif %}{% unless forloop.last %}; {% endunless %}{% endfor %}{% if books.size > 15 %}; and {{ books.size | minus: 15 }} more{% endif %}{% endcapture %}{{ line | jsonify }}{% unless forloop.last %}, {% endunless %}{% endfor %}],
   "planet": {{ site.data.bar.bartender | jsonify }}
 }

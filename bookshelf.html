@@ -3,66 +3,44 @@ layout: page
 title: Bookshelf
 kicker: The bookshelf
 heading: Books I've read and liked
-lede: Mostly in my ears these days. What I'm listening to on Audible and everything I've finished, then the books I read on paper. A book I've done both ways is marked. On the planet they're the stars over the hammock.
+lede: What I've read, by kind, newest first. On the planet they're the stars over the hammock.
 wide: true
 ---
-{%- assign a = site.data.audible -%}
-{%- include books-read.html -%}
-{%- comment -%} Long lists fold: the first few books of "listening now" and the two latest years show;
-the rest are a click away (<details>), so the page stays short on a phone. {%- endcomment -%}
-{% if a.listening.size > 0 %}
-<section class="books">
-  <h2 class="shelf__name">Listening now <span class="books__count">{{ a.listening.size }}</span></h2>
-  <ul class="books__grid">{% for b in a.listening limit: 8 %}{% include book-card.html b=b %}{% endfor %}</ul>
-  {% if a.listening.size > 8 %}
+{%- assign lib = site.data.library -%}
+{%- comment -%} One list of books (_data/library.json, from tools/library.mjs), by shelf in the order
+of _data/books.yml, the same shelves as the sky over the hammock. Each shelf shows three rows'
+worth and folds the rest (<details>), so the page stays short on a phone. {%- endcomment -%}
+<nav class="books__jump" aria-label="Shelves">
+  {%- if lib.now.size > 0 %}<a href="#now">Reading now <span class="books__count">{{ lib.now.size }}</span></a>{% endif -%}
+  {%- for s in lib.shelves %}<a href="#{{ s.slug }}" style="--hue: {{ s.hue }}">{{ s.name }} <span class="books__count">{{ s.count }}</span></a>{% endfor -%}
+</nav>
+
+{% if lib.now.size > 0 %}
+<section class="books" id="now">
+  <h2 class="shelf__name">Reading now <span class="books__count">{{ lib.now.size }}</span></h2>
+  <ul class="books__grid">{% for b in lib.now limit: 9 %}{% assign s = lib.shelves | where: "slug", b.shelf | first %}{% include book-card.html b=b hue=s.hue %}{% endfor %}</ul>
+  {% if lib.now.size > 9 %}
   <details class="books__more">
-    <summary>{{ a.listening.size | minus: 8 }} more</summary>
-    <ul class="books__grid">{% for b in a.listening offset: 8 %}{% include book-card.html b=b %}{% endfor %}</ul>
+    <summary>Show all {{ lib.now.size }}</summary>
+    <ul class="books__grid">{% for b in lib.now offset: 9 %}{% assign s = lib.shelves | where: "slug", b.shelf | first %}{% include book-card.html b=b hue=s.hue %}{% endfor %}</ul>
   </details>
   {% endif %}
 </section>
 {% endif %}
 
-{% if a.finished.size > 0 %}
-{%- assign years = a.finished | group_by_exp: "b", "b.finished_on | slice: 0, 4" -%}
-{% for y in years %}
-{%- capture name %}{% if y.name == "" %}Finished earlier{% else %}Finished in {{ y.name }}{% endif %}{% endcapture -%}
-{% if forloop.index <= 2 %}
-<section class="books">
-  <h2 class="shelf__name">{{ name }} <span class="books__count">{{ y.items.size }}</span></h2>
-  <ul class="books__grid">{% for b in y.items %}{% include book-card.html b=b %}{% endfor %}</ul>
-</section>
-{% else %}
-<details class="books books__year">
-  <summary class="shelf__name">{{ name }} <span class="books__count">{{ y.items.size }}</span></summary>
-  <ul class="books__grid">{% for b in y.items %}{% include book-card.html b=b %}{% endfor %}</ul>
-</details>
-{% endif %}
-{% endfor %}
-<p class="books__note">From my Audible library, updated daily{% if a.updated %} (last {{ a.updated | date: "%-d %B %Y" }}){% endif %}.</p>
-{% endif %}
-
-<h2 class="books__old">Read on paper</h2>
-<p class="books__note">From a reading list I kept until about 2020. The ones I've also listened to are up above, marked "read on paper too". Tilt your head.</p>
-{% for shelf in site.data.books %}
-{%- capture spines -%}
-    {% for b in shelf.books %}
-      {%- include print-key.html p=b -%}
-      {%- if printed contains print_key %}{% continue %}{% endif -%}
-      {%- assign len = b.title | size -%}
-      {%- assign hue = len | times: 47 | plus: forloop.index | times: 13 | modulo: 360 -%}
-      {%- assign height = len | modulo: 5 | times: 10 | plus: 196 -%}
-      <li class="spine" tabindex="0" style="--hue: {{ hue }}; --h: {{ height }}px;"
-          title="{{ b.title }}{% if b.author %} by {{ b.author }}{% endif %}">
-        <span class="spine__title">{{ b.title }}</span>
-        {% if b.author %}<span class="spine__author">{{ b.author }}</span>{% endif %}
-      </li>
-    {% endfor %}
-{%- endcapture -%}
-{% if spines contains "<li" %}
-<section class="shelf">
-  <h2 class="shelf__name">{{ shelf.shelf }}</h2>
-  <ul class="shelf__books">{{ spines }}</ul>
+{% for s in lib.shelves %}
+{%- assign books = lib.read | where: "shelf", s.slug -%}
+{% if books.size > 0 %}
+<section class="books" id="{{ s.slug }}" style="--hue: {{ s.hue }}">
+  <h2 class="shelf__name">{{ s.name }} <span class="books__count">{{ books.size }}</span></h2>
+  <ul class="books__grid">{% for b in books limit: 9 %}{% include book-card.html b=b hue=s.hue %}{% endfor %}</ul>
+  {% if books.size > 9 %}
+  <details class="books__more">
+    <summary>Show all {{ books.size }}</summary>
+    <ul class="books__grid">{% for b in books offset: 9 %}{% include book-card.html b=b hue=s.hue %}{% endfor %}</ul>
+  </details>
+  {% endif %}
 </section>
 {% endif %}
 {% endfor %}
+<p class="books__note">Updated daily{% if lib.updated %} (last {{ lib.updated | date: "%-d %B %Y" }}){% endif %}.</p>
