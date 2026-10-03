@@ -1,6 +1,8 @@
-// The book sky: every book Steve has read is a star over the hammock, grouped by shelf (the
-// shelves of /bookshelf, _data/books.yml): each shelf is a patch of sky in its own soft colour
-// with its name above it, and a series inside it is a constellation, its books joined in order.
+// The book sky: every book Steve has read is a star. Walking about, they're loose in the sky over
+// the lagoon, small and pale among the others, nothing to see. Lie back in the hammock and they
+// drift together into their shelves between the palms (the shelves of /bookshelf,
+// _data/books.yml): each a patch of sky in its own soft colour with its name beside it, a series
+// inside it a constellation, its books joined in order. Get up and they drift apart again.
 // What he's reading now crosses the whole field as comets, a few at a time. A star's size is the
 // book's length. Lie in the hammock, look up, tap a shelf to lean in (main.js zooms to `aim()`),
 // tap a star for its card. The data is /library.json (tools/library.mjs); with none, no stars.
@@ -18,6 +20,8 @@ const PAD = 1;          // degrees between shelves
 // the window the palms leave open, which the shelves are packed into: half-width, half-height and
 // how far below the centre its middle is (degrees). The fronds hang across the top.
 const WIN = { w: 30, h: 16, down: 5 };
+const LOOSE = 70;       // degrees round the hammock view the loose stars are scattered over
+const GATHER = 7;       // seconds for them to drift into their shelves (each starts a little after the last)
 const COMETS = 3;       // comets in flight at once; the other books wait their turn
 const CROSS = 90;       // seconds for a comet to cross the field
 const DEG = Math.PI / 180;
@@ -60,7 +64,7 @@ export function createBookSky({ center, reducedMotion = false }) {
   const dirAt = (x, y, out = new THREE.Vector3()) => out.copy(C).addScaledVector(e1, Math.tan(x * DEG)).addScaledVector(e2, Math.tan(y * DEG)).normalize();
 
   let books = [], regions = [], points = null, comets = [], lines = [], labels = [];
-  const uniforms = { time: { value: 0 }, dpr: { value: Math.min(devicePixelRatio, 2) }, picked: { value: -1 }, still: { value: reducedMotion ? 1 : 0 }, focus: { value: -1 }, dim: { value: 0 } };
+  const uniforms = { time: { value: 0 }, dpr: { value: Math.min(devicePixelRatio, 2) }, picked: { value: -1 }, still: { value: reducedMotion ? 1 : 0 }, focus: { value: -1 }, dim: { value: 0 }, gather: { value: 0 } };
 
   function clear() {
     for (const o of [...group.children]) { group.remove(o); o.geometry && o.geometry.dispose(); o.material && (o.material.map && o.material.map.dispose(), o.material.dispose()); }
@@ -95,7 +99,9 @@ export function createBookSky({ center, reducedMotion = false }) {
       rows.forEach(([a, b], ri) => {
         y -= tall[ri] / 2;
         let x = -width(a, b) / 2;
-        for (let i = a; i < b; i++) { out.push({ s: shelves[i], x: x + rs[i], y, r: rs[i] }); x += 2 * rs[i] + PAD; }
+        // each a little above or below the row's line, as far as the row's height allows, so they sit
+        // like clusters in the sky rather than a row of plates
+        for (let i = a; i < b; i++) { const j = (rng(hash(shelves[i].slug))() - 0.5) * 1.6 * (tall[ri] / 2 - rs[i]); out.push({ s: shelves[i], x: x + rs[i], y: y + j, r: rs[i] }); x += 2 * rs[i] + PAD; }
         y -= tall[ri] / 2 + PAD;
       });
       return out;
@@ -161,8 +167,12 @@ export function createBookSky({ center, reducedMotion = false }) {
       size[i] = s.book.minutes ? 8 + 5 * Math.min(1, s.book.minutes / 1500) : 10;
       seed[i] = (hash(s.book.id || s.book.title) % 1000) / 10;
       region[i] = s.region;
-      const entry = { book: s.book, dir: dirAt(s.x, s.y), index: i, series: s.series || null, region: regions[s.region] };
-      books.push(entry);
+      // where it is while you're up and about: somewhere in a cap round the hammock view
+      const rn = rng(hash(s.book.id || s.book.title) ^ 0x5bd1e995);
+      const th = Math.acos(1 - rn() * (1 - Math.cos(LOOSE * DEG))), ph = rn() * Math.PI * 2;
+      const loose = C.clone().multiplyScalar(Math.cos(th)).addScaledVector(e1, Math.cos(ph) * Math.sin(th)).addScaledVector(e2, Math.sin(ph) * Math.sin(th));
+      const home = dirAt(s.x, s.y);
+      books.push({ book: s.book, home, loose, dir: loose.clone(), delay: rn() * 0.4, index: i, series: s.series || null, region: regions[s.region] });
     });
     // each shelf's books in the shelf page's order (newest first), for stepping through them
     for (const r of regions) r.books = r.slug ? books.filter((b) => b.region === r).sort((a, b) => read.indexOf(a.book) - read.indexOf(b.book)) : [];
@@ -189,17 +199,18 @@ export function createBookSky({ center, reducedMotion = false }) {
     geo.setAttribute('region', new THREE.BufferAttribute(region, 1));
     points = new THREE.Points(geo, new THREE.ShaderMaterial({
       uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      // leaning in on a shelf (`focus`), the others fade back as `dim` comes up
-      vertexShader: `attribute float size; attribute float seed; attribute float region; attribute vec3 color; uniform float time, dpr, picked, still, focus, dim; varying vec3 vC; varying float vA;
+      // leaning in on a shelf (`focus`), the others fade back as `dim` comes up. Loose (`gather` 0)
+      // they're small and pale, like the field's stars; gathered they take their shelf's colour
+      vertexShader: `attribute float size; attribute float seed; attribute float region; attribute vec3 color; uniform float time, dpr, picked, still, focus, dim, gather; varying vec3 vC; varying float vA; varying float vG;
         void main(){ float tw = still > .5 ? 1. : .8 + .2 * sin(time * (.4 + fract(seed) * 1.2) + seed);
           float sel = abs(float(gl_VertexID) - picked) < .5 ? 1.7 : 1.;
           float away = focus > -.5 && region > -.5 && abs(region - focus) > .5 ? dim * .85 : 0.;
-          vC = color; vA = tw * (1. - away); gl_PointSize = size * dpr * tw * sel; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+          vC = mix(vec3(.85, .88, 1.) * (region > -.5 ? .9 : 1.), color, region > -.5 ? gather : 1.); vG = region > -.5 ? gather : 1.; vA = tw * (1. - away); gl_PointSize = size * dpr * tw * sel * mix(.55, 1., vG); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
       // a small core, a soft halo and four faint rays: they read as stars you can pick, not the field
-      fragmentShader: `varying vec3 vC; varying float vA;
+      fragmentShader: `varying vec3 vC; varying float vA; varying float vG;
         void main(){ vec2 p = gl_PointCoord - .5; float d = length(p); if (d > .5) discard;
-          float core = smoothstep(.09, .0, d), halo = smoothstep(.5, .0, d) * .18;
-          float rays = (smoothstep(.025, .0, abs(p.x)) + smoothstep(.025, .0, abs(p.y))) * smoothstep(.5, .1, d) * .28;
+          float core = smoothstep(.09, .0, d), halo = smoothstep(.5, .0, d) * .18 * vG;
+          float rays = (smoothstep(.025, .0, abs(p.x)) + smoothstep(.025, .0, abs(p.y))) * smoothstep(.5, .1, d) * .28 * vG;
           float k = core + halo + rays;
           gl_FragColor = vec4(vC * k * vA, k * vA); }`,
     }));
@@ -260,6 +271,7 @@ export function createBookSky({ center, reducedMotion = false }) {
       cm.tail.renderOrder = -1;
       group.add(cm.tail);
     }
+    gathered = -1; // place the stars on the next update
     placeComets(0);
   }
 
@@ -282,8 +294,9 @@ export function createBookSky({ center, reducedMotion = false }) {
         env = Math.sin(Math.PI * k);
       }
       const fade = focus ? 1 - shownDim * 0.85 : 1; // leaning in on a shelf, they pass quietly
-      size.setX(c.index, c.active ? 11 * env : 0);
-      c.tail.material.opacity = c.active ? env * fade : 0;
+      const g = Math.max(0, gathered);
+      size.setX(c.index, c.active ? 11 * env * g : 0);
+      c.tail.material.opacity = c.active ? env * fade * g : 0;
       if (!c.active) continue;
       const dx = c.to[0] - c.from[0], dy = c.to[1] - c.from[1], x = c.from[0] + dx * k, y = c.from[1] + dy * k;
       dirAt(x, y, c.dir);
@@ -298,7 +311,7 @@ export function createBookSky({ center, reducedMotion = false }) {
     size.needsUpdate = true;
   }
 
-  let shown = 0, shownDim = 0, selected = null, focus = null;
+  let shown = 0, shownDim = 0, selected = null, focus = null, gathered = 0;
   const _p = new THREE.Vector3();
   const toScreen = (dir, camera, rect) => {
     _p.copy(dir).multiplyScalar(R).add(camera.position).project(camera);
@@ -310,13 +323,31 @@ export function createBookSky({ center, reducedMotion = false }) {
     get books() { return books; },
     get regions() { return regions; },
     get focus() { return focus; },
+    /** Whether they've drifted into their shelves (and can be leaned in on). */
+    get settled() { return gathered >= 1; },
     setBooks,
-    /** `t` ambient time; `lying`: you're in the hammock, so the names come up. */
-    update(t, camera, dt, lying) {
+    /** `t` ambient time; `gather`: you're lying back in the hammock with the sky to look at, so
+     * the stars drift into their shelves (and apart again when it's false). */
+    update(t, camera, dt, gather) {
       group.position.copy(camera.position);
       uniforms.time.value = t;
       const step = (v, want, s) => (reducedMotion ? want : THREE.MathUtils.clamp(v + Math.sign(want - v) * dt / s, 0, 1));
-      shown = step(shown, lying ? 1 : 0, 1.5);
+      const was = gathered;
+      gathered = step(Math.max(0, gathered), gather ? 1 : 0, GATHER);
+      if (gathered !== was && points) {
+        // each star sets off a little after the last (its `delay`), eases out and in, and keeps to the sky's shell
+        const pos = points.geometry.attributes.position;
+        for (const b of books) {
+          if (!b.home) continue;
+          const u = THREE.MathUtils.clamp((gathered - b.delay) / 0.6, 0, 1), e = u * u * (3 - 2 * u);
+          b.dir.copy(b.loose).lerp(b.home, e).normalize();
+          pos.setXYZ(b.index, b.dir.x * R, b.dir.y * R, b.dir.z * R);
+        }
+        pos.needsUpdate = true;
+      }
+      uniforms.gather.value = gathered * gathered * (3 - 2 * gathered);
+      // the names and lines only once they've settled
+      shown = step(shown, gather && gathered >= 1 ? 1 : 0, 1.5);
       shownDim = step(shownDim, focus ? 1 : 0, 0.8);
       uniforms.dim.value = shownDim;
       if (comets.length) placeComets(t);
@@ -327,7 +358,7 @@ export function createBookSky({ center, reducedMotion = false }) {
       }
       for (const l of lines) {
         const mine = focus && l.userData.region === focus;
-        l.material.opacity = (0.06 + 0.1 * shown) * (focus && !mine ? 1 - shownDim * 0.8 : 1) + (mine ? 0.18 * shownDim : 0) + (selected && selected.series === l.userData.series ? 0.3 : 0);
+        l.material.opacity = shown * (0.14 * (focus && !mine ? 1 - shownDim * 0.8 : 1) + (mine ? 0.18 * shownDim : 0) + (selected && selected.series === l.userData.series ? 0.3 : 0));
       }
     },
     /** The book nearest screen point (x, y) within `reach` px, or null; with `inRegion`, only its books (and comets). */
