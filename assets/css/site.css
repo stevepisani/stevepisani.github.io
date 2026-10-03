@@ -158,7 +158,7 @@ mark { background: var(--mark); color: inherit; padding: 0 .2em; border-radius: 
 .hero__photo img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 50%; background: var(--accent-soft); box-shadow: 12px 12px 0 var(--accent); }
 @media (max-width: 600px) {
   .site-head__inner { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; }
-  .site-nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .site-nav { grid-column: 1 / -1; grid-row: 2; margin-left: 0; min-width: 0; /* fills the row and scrolls, instead of widening the page */ flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .site-nav a { white-space: nowrap; }
   .site-nav a:first-child { padding-left: 0; }
 }

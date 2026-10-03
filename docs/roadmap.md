@@ -6,6 +6,12 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
+   saved to the home screen (which keeps its own storage on iOS) never gets signed in. Put the
+   six-digit code in the email (`mailer_templates_magic_link_content` in `supabase/auth.json`) and
+   a field for it on the gate (`verifyOtp` in `kit.js`); then add a web app manifest so /apps
+   installs properly.
+
 1. **Read bottles on the planet.** Approved bottles (`bottles.approved`) wash up at the waterline
    for the next visitor to open and read, with the same unrolling letter as writing one
    (`note.js`). Today an approved bottle shows up nowhere. Small; finishes the bottle feature.
@@ -25,6 +31,9 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **The wardrobe** (the next private app; `docs/apps.md` has the steps): what it's for decides its
+  shape. A catalogue with photos? What was worn when? Outfits? Steve's only, or Lexi's too?
+
 - **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
   with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a
   doorway (Spark or gsplat.js).
@@ -39,6 +48,9 @@ rather than leaving it in a chat.
   read; it opens a PR here and merges it once the site's checks pass.
 
 ## Done lately
+
+- Oct 2026: the private apps at /apps: one sign-in, the site's look and themes, a shared kit; the
+  recipe tracker rebuilt on it (it was a standalone page), with a browser test.
 
 - Oct 2026: the Audible library, synced daily: /bookshelf by year finished, with samples; the
   listening sky over the hammock (finished books as stars, series as constellations, what's playing

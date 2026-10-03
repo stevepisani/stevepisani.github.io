@@ -1,0 +1,5 @@
+# The private apps on /apps (members only; docs/apps.md). Same fields as lab.yml, minus the status.
+- title: Recipes
+  url: /apps/recipes
+  emoji: "🍳"
+  blurb: What we're cooking our way through, with ratings, notes and photos.

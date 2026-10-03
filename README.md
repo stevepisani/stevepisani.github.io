@@ -9,7 +9,7 @@ without 3D.
 - **Site:** Jekyll (`github-pages` gem), deployed to GitHub Pages by GitHub Actions.
 - **Homepage:** three.js, Rapier physics, Web Audio, bundled with esbuild.
 - **Backend:** one Supabase project, kept as code in `supabase/` (messages in bottles, a
-  cookieless page count, the AI bartender on Claude Haiku, the recipe tracker).
+  cookieless page count, the AI bartender on Claude Haiku, the private apps at /apps, the recipe tracker first).
 
 ## Run it
 

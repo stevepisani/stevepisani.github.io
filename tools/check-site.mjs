@@ -30,13 +30,10 @@ const exists = (path) => {
   return !extname(p) && existsSync(p + '.html');
 };
 const pages = walk(root).filter((f) => f.endsWith('.html'));
-// Standalone apps with their own rules, not built from the site's layouts.
-const skip = ['recipe_tracker/'];
 let links = 0;
 const missing = {}; // url -> pages that link to it
 for (const file of pages) {
   const rel = relative(root, file);
-  if (skip.some((s) => rel.startsWith(s))) continue;
   const html = readFileSync(file, 'utf8')
     .replace(/(<script\b(?![^>]*type="application\/json")[^>]*>)[\s\S]*?<\/script>/g, '$1</script>'); // keep the tag (its src), drop the code
   for (const [, attr, url] of html.matchAll(/\s(href|src)="([^"]*)"/g)) {

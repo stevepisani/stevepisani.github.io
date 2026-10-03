@@ -8,7 +8,7 @@ all of it is code in this repo: nothing is changed by hand in a dashboard.
 The project: `dkaiavlnmtetqigxnkwb`. Its URL and public (anon) key are set once, in
 `supabase:` in `_config.yml`; `_includes/head.html` writes them into `supabase-url` /
 `supabase-key` meta tags, and everything in the browser reads them from there (`window.siteDb`
-in `site.js`, `DB` in `world/main.js`, Liquid in `recipe_tracker/`). The anon key is public by
+in `site.js`, `DB` in `world/main.js`, `db` in `apps/lib/kit.js`). The anon key is public by
 design: row-level security guards every table.
 
 - `migrations/*.sql`: applied in name order, each once, recorded in
@@ -32,7 +32,8 @@ What's in the database:
 | Thing | What it is | Who can do what |
 |---|---|---|
 | `members`, `is_member()` | who may use the private bits; every policy asks `is_member()` | members |
-| `recipes`, `photos` bucket | the recipe tracker (`recipe_tracker/`) | members only |
+| `recipes` | the recipe tracker (`/apps/recipes`; `docs/apps.md`) | members only |
+| `photos` bucket | every private app's pictures, a folder per app | members only |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
 | `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts; members read rows; everyone reads daily totals |
 | `bartender_usage`, `bartender_asks`, `bartender_take()`, `bartender_spent()` | the bartender's limits and token log | service role only |

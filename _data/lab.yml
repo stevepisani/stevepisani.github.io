@@ -8,12 +8,12 @@
     It's real SQLFluff running in your browser via WebAssembly.
   tags: [sqlfluff, pyodide, webassembly]
 - title: Recipe Tracker
-  url: /recipe_tracker/
+  url: /apps/recipes
   status: live
   emoji: "🍳"
   blurb: >-
     A shared tracker for working through NYT Cooking's most popular recipes of 2025.
-    Ratings, notes, and photos, synced with Supabase.
+    Ratings, notes, and photos, synced with Supabase. Members only: it's ours.
   tags: [supabase, vanilla js, food]
 - title: Terminal Mode
   url: "#theme"

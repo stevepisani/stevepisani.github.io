@@ -1,0 +1,101 @@
+/* ==========================================================================
+   The private apps at /apps (_layouts/app.html, assets/js/apps/; docs/apps.md):
+   the sign-in gate and the parts every app is made of. Everything is on the
+   site's tokens (site.css), so all three themes work without a line here.
+   ========================================================================== */
+
+.app { --ok: #1f7a45; --ok-soft: #d9f5e3; --bad: #b3261e; }
+:root[data-theme="dark"] .app, :root[data-theme="terminal"] .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; } }
+
+.app [hidden] { display: none !important; } /* over .btn, .app-stats and the rest that set a display */
+.app .page-head { padding-top: 40px; margin-bottom: 24px; max-width: none; }
+.app h1 { font-size: clamp(1.9rem, 5vw, 2.6rem); margin-bottom: .2em; }
+.app-who { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0; font: .8rem var(--font-mono); color: var(--ink-3); }
+.link-btn { min-height: 44px; padding: 0; border: 0; background: none; color: var(--link); font: inherit; text-decoration: underline; text-underline-offset: .18em; cursor: pointer; }
+
+/* ---------- Fields and buttons ---------- */
+.app label { display: grid; gap: 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.app input:not([type="file"]), .app select, .app textarea {
+  width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--card); color: var(--ink); font: 400 1rem/1.45 var(--font-body); letter-spacing: 0; text-transform: none;
+}
+.app textarea { display: block; min-height: 76px; resize: vertical; }
+.app :is(input, select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 10px; }
+/* a field saving itself (saver() in kit.js) */
+.app [data-save="saving"] { border-style: dashed; border-color: var(--ink-3); }
+.app [data-save="saved"] { border-color: var(--ok); }
+.app [data-save="failed"] { border-color: var(--bad); }
+.app button.btn { min-height: 44px; font: 600 1rem var(--font-body); cursor: pointer; }
+.app .btn--small { padding: 6px 16px; font-size: .9rem; }
+.app .btn:disabled { opacity: .6; cursor: progress; transform: none; }
+
+/* ---------- The gate ---------- */
+.app-gate { max-width: 32rem; }
+.app-gate form { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.app-gate label { flex: 1 1 14rem; }
+.app-gate #gate-note { margin: 14px 0 0; }
+.app-gate #gate-note:empty { display: none; }
+
+/* ---------- Toolbar, numbers, progress ---------- */
+.app-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto auto; gap: 10px; align-items: center; margin-bottom: 18px; }
+.app-bar select { width: auto; }
+@media (max-width: 760px) {
+  .app-bar { grid-template-columns: 1fr 1fr; }
+  .app-bar > :first-child { grid-column: 1 / -1; }
+  .app-bar select { width: 100%; }
+  .app-stats { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; }
+  .stat--wide { grid-column: 1 / -1; }
+}
+.app-stats { display: flex; flex-wrap: wrap; gap: 10px 28px; align-items: center; padding: 14px 18px; margin-bottom: 18px; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); }
+.stat { display: grid; }
+.stat strong { font: 600 1.4rem/1.2 var(--font-display); font-variant-numeric: tabular-nums; }
+.stat span { font: 600 .68rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+.stat--wide { flex: 1 1 14rem; min-width: 0; }
+.stat--wide strong { font-size: 1.05rem; }
+.stat--wide .link-btn { min-height: 0; font: inherit; color: var(--ink); text-align: left; }
+.app-progress { height: 6px; margin: -8px 0 18px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
+.app-progress > div { height: 100%; width: var(--p, 0%); background: var(--accent); transition: width .3s; }
+.app-empty { color: var(--ink-2); }
+
+/* ---------- Items: a grid of cards, each a thing with a photo ---------- */
+.items { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; align-items: start; }
+.item { display: grid; align-content: start; min-width: 0; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; scroll-margin-top: 90px; }
+.item.is-picked { outline: 3px solid var(--accent); outline-offset: 2px; }
+.item__body { display: grid; gap: 12px; padding: 16px; }
+.item__title { margin: 0; font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
+.item__title a { color: inherit; text-decoration-color: var(--line); }
+.item__title a:hover { color: var(--link); }
+.item__meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font: .8rem var(--font-mono); color: var(--ink-3); }
+.item__more summary { min-height: 44px; display: flex; align-items: center; font: .8rem var(--font-mono); color: var(--ink-3); cursor: pointer; }
+.item__edit { display: grid; gap: 12px; padding-top: 4px; }
+.item__edit .link-btn { justify-self: start; }
+.link-btn--bad { color: var(--bad); }
+
+/* a thin strip until there's a picture, so a list without photos isn't a wall of empty boxes */
+.app .photo { position: relative; display: grid; place-items: center; min-height: 52px; background: var(--bg-2); border-bottom: 1px solid var(--line); cursor: pointer; }
+.app .photo.has-photo { aspect-ratio: 16 / 10; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo.is-busy { opacity: .5; cursor: progress; }
+.photo:focus-within { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.pill { padding: 3px 9px; border-radius: 999px; background: var(--bg-2); color: var(--ink-3); font: 600 .68rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.pill--ok { background: var(--ok-soft); color: var(--ok); }
+
+.rating { display: flex; align-items: center; }
+.rating button { flex: 1 1 0; min-width: 0; max-width: 26px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--line); font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.rating button[aria-pressed="true"] { color: var(--accent); }
+.rating output { margin-left: 8px; white-space: nowrap; font: .78rem var(--font-mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---------- A form in a dialog (ask() in kit.js), and the toast ---------- */
+.app-dialog { width: min(34rem, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); box-shadow: var(--shadow); }
+.app-dialog::backdrop { background: rgb(0 0 0 / .5); }
+.app-dialog form { display: grid; gap: 14px; }
+.app-dialog h2 { margin: 0; }
+.app-dialog p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+.app-dialog__buttons { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+
+.app-toast { position: fixed; left: 50%; bottom: 20px; z-index: 20; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); margin: 0; padding: 12px 18px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 500; box-shadow: var(--shadow); }
+.app-toast.is-bad { background: var(--bad); color: #fff; }
+:root[data-theme="dark"] .app-toast.is-bad, :root[data-theme="terminal"] .app-toast.is-bad { color: #15171c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app-toast.is-bad { color: #15171c; } }
