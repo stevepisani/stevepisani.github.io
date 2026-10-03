@@ -1,0 +1,84 @@
+---
+layout: app
+app: recipes
+title: Recipes
+lede: What we're cooking our way through, with ratings, notes and photos.
+---
+<div class="app-bar">
+  <input id="search" type="search" placeholder="Search recipes and notes" aria-label="Search recipes and notes">
+  <select id="filter" aria-label="Show">
+    <option value="all">All</option>
+    <option value="todo">To cook</option>
+    <option value="cooked">Cooked</option>
+  </select>
+  <select id="sort" aria-label="Sort by">
+    <option value="title">By name</option>
+    <option value="added">Newest added</option>
+    <option value="cooked">Last cooked</option>
+    <option value="rating">Best rated</option>
+  </select>
+  <button class="btn btn--small" id="add" type="button">Add</button>
+  <button class="btn btn--ghost btn--small" id="import" type="button">Import a list</button>
+</div>
+
+<div class="app-stats" id="stats" hidden>
+  <div class="stat"><strong id="stat-cooked"></strong><span>Cooked</span></div>
+  <div class="stat"><strong id="stat-rating"></strong><span>Average rating</span></div>
+  <div class="stat"><strong id="stat-streak"></strong><span>Week streak</span></div>
+  <div class="stat stat--wide"><strong><button class="link-btn" id="pick" type="button"></button></strong><span>Tonight's pick · <button class="link-btn" id="another" type="button">another</button></span></div>
+</div>
+<div class="app-progress" id="progress" hidden><div></div></div>
+
+<ul class="items" id="cards"></ul>
+<p class="app-empty" id="empty" hidden></p>
+
+<template id="card">
+  <li class="item">
+    <label class="photo">
+      <span>Add a photo</span>
+      <img alt="" hidden>
+      <input class="visually-hidden" type="file" accept="image/*">
+    </label>
+    <div class="item__body">
+      <h3 class="item__title"></h3>
+      <p class="item__meta"><span class="pill"></span> <span data-is="when"></span></p>
+      <div class="rating" role="group" aria-label="Rating out of 10"><output></output></div>
+      <textarea data-is="notes" placeholder="Notes: what you changed, what to do next time" aria-label="Notes"></textarea>
+      <button class="btn btn--small" data-do="cook" type="button">Cooked it</button>
+      <details class="item__more">
+        <summary>Edit</summary>
+        <div class="item__edit">
+        <label>Name <input data-is="title" type="text"></label>
+        <label>Link <input data-is="link" type="url" inputmode="url" placeholder="https://"></label>
+        <label>Cooked on <input data-is="date" type="date"></label>
+        <button class="link-btn" data-do="uncook" type="button">Not cooked yet</button>
+        <button class="link-btn link-btn--bad" data-do="remove" type="button">Remove this recipe</button>
+        </div>
+      </details>
+    </div>
+  </li>
+</template>
+
+<dialog class="app-dialog" id="add-dialog">
+  <form method="dialog">
+    <h2>Add a recipe</h2>
+    <label>Name <input name="title" type="text" required></label>
+    <label>Link (optional) <input name="link" type="url" inputmode="url" placeholder="https://"></label>
+    <div class="app-dialog__buttons">
+      <button class="btn btn--ghost btn--small" type="submit" value="" formnovalidate>Cancel</button>
+      <button class="btn btn--small" type="submit" value="ok">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog" id="import-dialog">
+  <form method="dialog">
+    <h2>Import a list</h2>
+    <p>One recipe a line. To include its link, put it after a bar: <code>Name | https://…</code></p>
+    <label>Recipes <textarea name="list" rows="8" required></textarea></label>
+    <div class="app-dialog__buttons">
+      <button class="btn btn--ghost btn--small" type="submit" value="" formnovalidate>Cancel</button>
+      <button class="btn btn--small" type="submit" value="ok">Import</button>
+    </div>
+  </form>
+</dialog>

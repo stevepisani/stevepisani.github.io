@@ -49,6 +49,12 @@
   // Skipped for Do Not Track / Global Privacy Control, automated browsers and local previews.
   function meta(name) { var m = document.querySelector('meta[name="' + name + '"]'); return m ? m.content : ''; }
   window.siteDb = { url: meta('supabase-url'), key: meta('supabase-key') };
+  // The private apps (/apps) are in the nav only for someone signed in to them on this browser
+  // (the session supabase-js keeps; signing out removes it).
+  try {
+    var apps = document.querySelector('[data-members]'), ref = /\/\/([^.]+)\./.exec(window.siteDb.url);
+    if (apps && ref && localStorage.getItem('sb-' + ref[1] + '-auth-token')) apps.hidden = false;
+  } catch (e) {}
   (function count() {
     var db = window.siteDb, n = navigator;
     if (!db.url || !db.key || n.webdriver || n.doNotTrack === '1' || n.globalPrivacyControl) return;

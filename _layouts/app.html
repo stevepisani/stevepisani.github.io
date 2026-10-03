@@ -1,0 +1,29 @@
+---
+layout: default
+---
+{%- comment -%} A private app (docs/apps.md): the page's content is the app, hidden until a member signs in. `app:` names its script in assets/js/apps/. {%- endcomment -%}
+<article class="wrap page app" id="app" data-state="loading">
+  <header class="page-head">
+    <p class="kicker">{% unless page.url == '/apps/' %}<a href="{{ '/apps/' | relative_url }}">Apps</a> · {% endunless %}Members only</p>
+    <h1>{{ page.heading | default: page.title }}</h1>
+    <p class="app-who" id="app-who" hidden><span id="app-email"></span> <button class="link-btn" id="app-signout" type="button">Sign out</button></p>
+  </header>
+
+  <section class="card app-gate" id="app-gate" hidden>
+    <h2>Sign in</h2>
+    <p>{{ page.lede }} It's private: only members can sign in. Enter your email and you'll get a link.</p>
+    <form id="gate-form">
+      <label>Email <input name="email" type="email" autocomplete="email" required></label>
+      <button class="btn" type="submit">Email me a link</button>
+    </form>
+    <p id="gate-note" role="status"></p>
+  </section>
+
+  <div id="app-main" hidden>
+    {{ content }}
+  </div>
+
+  <noscript><p>This needs JavaScript.</p></noscript>
+  <p class="app-toast" id="app-toast" role="status" hidden></p>
+</article>
+<script type="module" src="{{ '/assets/js/dist/apps/' | append: page.app | append: '.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>

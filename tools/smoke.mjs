@@ -1,12 +1,12 @@
 // Smoke test: drives the built site in a real browser and fails on anything broken. It serves
 // the build itself (`_site`, or the folder given), loads every page, then walks the homepage's
-// planet through each thing a visitor can do, on desktop and on a phone, and checks the
-// no-WebGL fallback. Nothing leaves the machine: every request outside the build is refused,
-// so it runs offline and never writes to Supabase. WebGL runs on SwiftShader (software), so
+// planet through each thing a visitor can do, on desktop and on a phone, the private apps
+// against a made-up Supabase, and checks the no-WebGL fallback. Nothing leaves the machine:
+// every request outside the build is refused, so it runs offline and never writes to Supabase. WebGL runs on SwiftShader (software), so
 // the planet is driven through `window.__world` with `?test=1` and reduced motion.
 //
 //   npm run build && bundle exec jekyll build && npm test            (CI does this)
-//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|nogl]
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|nogl]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from 'playwright';
@@ -70,7 +70,7 @@ const expectState = async (page, s, timeout) => { await until(page, (s) => windo
 // Every page loads without a script error
 async function pages(page) {
   const all = (function walk(d) { return readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; }); })(root)
-    .filter((f) => f.endsWith('.html') && !relative(root, f).startsWith('recipe_tracker/') && relative(root, f) !== 'index.html');
+    .filter((f) => f.endsWith('.html') && !relative(root, f).startsWith('recipe_tracker/') /* it only redirects */ && relative(root, f) !== 'index.html');
   for (const f of all) {
     const path = '/' + relative(root, f);
     await page.goto(base + path, { waitUntil: 'load' });
@@ -209,6 +209,66 @@ async function planet(page, shot, { phone = false } = {}) {
   step(`threw a coconut ${landed.moved.toFixed(1)} m`);
 }
 
+// The private apps (/apps), on a phone, against a made-up Supabase: signed out there's only the
+// sign-in form; signed in as a member, the recipe tracker lists, searches, marks one cooked and
+// adds one, and each of those asks the database for the right thing.
+async function apps(page, shot) {
+  await page.goto(base + '/apps/recipes');
+  await until(page, () => document.getElementById('app').dataset.state === 'out');
+  if (await page.isVisible('#app-main')) throw new Error('the app shows without signing in');
+  await shot('gate');
+  step('signed out: only the sign-in form');
+
+  const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
+  const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
+  await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: Math.floor(Date.now() / 1000) + 86400, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
+  const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
+  const asked = [];
+  await page.route(`${db.origin}/**`, (route) => {
+    const req = route.request(), url = new URL(req.url()), method = req.method();
+    const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+    if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
+    asked.push({ method, path: url.pathname + url.search, body: req.postDataJSON() });
+    if (url.pathname.endsWith('/rpc/is_member')) return json(true);
+    if (url.pathname.endsWith('/rest/v1/recipes')) {
+      if (method === 'GET') return json(table);
+      if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-${i}`, cooked: false, rating: 0, created_at: new Date().toISOString(), ...r })), 201);
+      return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } });
+    }
+    return json([]); // signed links for photos: none
+  });
+
+  await page.goto(base + '/apps/recipes');
+  await until(page, () => document.querySelectorAll('#cards .item').length === 3);
+  if (!(await page.textContent('#stat-cooked')).includes('1 of 3')) throw new Error('the cooked count is wrong');
+  await shot('recipes');
+  step('signed in as a member: 3 recipes, 1 cooked');
+
+  await page.fill('#search', 'noodles');
+  if ((await page.locator('#cards .item:visible').count()) !== 1) throw new Error("search didn't narrow the list to one");
+  await page.fill('#search', '');
+  step('search narrows the list');
+
+  await page.locator('#cards .item:visible [data-do="cook"]:visible').first().click();
+  await until(page, () => document.getElementById('stat-cooked').textContent.includes('2 of 3'));
+  const cooked = asked.find((a) => a.method === 'PATCH');
+  if (!cooked || cooked.body.cooked !== true || !/^\d{4}-\d\d-\d\d$/.test(cooked.body.date_cooked)) throw new Error(`marking one cooked sent ${JSON.stringify(cooked)}`);
+  step('marked one cooked');
+
+  await page.click('#add');
+  await page.fill('#add-dialog [name="title"]', 'Smoke test soup');
+  await page.click('#add-dialog button[value="ok"]');
+  await until(page, () => document.querySelectorAll('#cards .item').length === 4);
+  await shot('added');
+  step('added one');
+
+  await page.goto(base + '/apps/');
+  await until(page, () => document.getElementById('app').dataset.state === 'in');
+  if (!(await page.isVisible('#app-main a[href="/apps/recipes"]')) || !(await page.isVisible('.site-nav [data-members]'))) throw new Error("/apps doesn't list the recipe tracker, or the nav has no Apps link");
+  await shot('home');
+  step('/apps lists it, and the nav has Apps');
+}
+
 // Without WebGL the menu is the page, and its links are real
 async function noWebGL(page, shot) {
   await page.goto(base + '/');
@@ -220,6 +280,7 @@ async function noWebGL(page, shot) {
 
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
+if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, apps);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
