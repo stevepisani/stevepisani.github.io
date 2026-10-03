@@ -1,5 +1,6 @@
-// The listening sky: every book Steve has finished on Audible is a star over the hammock, and
-// what he's listening to now crosses them as comets, a few at a time. A series is a constellation, its books
+// The listening sky: every book Steve has finished on Audible is a star over the hammock, every
+// book he read on paper a quieter one (warmer, dimmer, no rays), and what he's listening to now
+// crosses them as comets, a few at a time. A series is a constellation, its books
 // joined in order and its name written faintly beside it. A star's colour is its kind of book,
 // its size how long it is. Lie in the hammock, look up, tap one (main.js picks with `pick()` and
 // shows the card). The data is /listening.json (tools/audible-sync.py, daily); with none, no stars.
@@ -18,12 +19,12 @@ const COMETS = 3;       // comets in flight at once; the other books wait their 
 const CROSS = 90;       // seconds for a comet to cross the field
 const DEG = Math.PI / 180;
 
-// kind of book -> colour (Audible's top category)
+// kind of book -> colour (Audible's top category, or the paper book's shelf)
 const KIND = [
   [/science fiction|fantasy/i, PALETTE.aqua],
   [/literature|fiction|mystery|thriller|romance|teen/i, PALETTE.cream],
   [/history|biograph|memoir|politic/i, PALETTE.amber],
-  [/science|technology|computer|engineering|business|money|education/i, PALETTE.moon],
+  [/science|technology|computer|engineering|data|business|money|education/i, PALETTE.moon],
 ];
 const kindColour = (genre) => new THREE.Color((KIND.find(([re]) => re.test(genre || '')) || [0, 0xf3ede2])[1]);
 
@@ -70,15 +71,21 @@ export function createListeningSky({ center, reducedMotion = false }) {
     books = []; comets = []; lines = []; labels = []; points = null;
   }
 
-  /** Lay out the stars for `data` ({ finished: [...], listening: [...] } from /listening.json). */
+  /** Lay out the stars for `data` ({ finished, listening, read, both } from /listening.json). */
   function setBooks(data) {
     clear();
     const finished = (data && data.finished) || [], listening = (data && data.listening) || [];
-    if (!finished.length && !listening.length) return;
+    // read on paper: the ones not on Audible become books of their own (no ASIN); the ones that
+    // are (`both`) are marked, and stay one star
+    const both = new Set((data && data.both) || []);
+    for (const b of [...finished, ...listening]) b.paper = both.has(b.asin);
+    const read = ((data && data.read) || []).map((p) => ({ title: p.title, authors: p.author ? [p.author] : [], genre: p.shelf, paper: true, finished: true }));
+    const singles = [...finished, ...read];
+    if (!singles.length && !listening.length) return;
     const placed = []; // [x, y] in degrees
     // The field stays the size of the window between the palms; more books sit closer together
     // (half the field's area shared out, so there's room to place them). It only grows if it must.
-    const GAP = Math.min(GAP_MAX, Math.max(GAP_MIN, Math.sqrt((Math.PI * FIELD * FIELD * WIDE * 0.5) / Math.max(1, finished.length))));
+    const GAP = Math.min(GAP_MAX, Math.max(GAP_MIN, Math.sqrt((Math.PI * FIELD * FIELD * WIDE * 0.5) / Math.max(1, singles.length))));
     const STEP = GAP * 1.25; // between books in a constellation
     let spread = FIELD;
     const free = (x, y) => Math.hypot(x / WIDE, y) < spread && placed.every(([a, b]) => Math.hypot(a - x, b - y) >= GAP);
@@ -108,7 +115,7 @@ export function createListeningSky({ center, reducedMotion = false }) {
       ok.forEach(([x, y], i) => { placed.push([x, y]); stars.push({ book: g.list[i], x, y, series: g.name }); });
       g.pts = ok;
     }
-    for (const b of finished) {
+    for (const b of singles) {
       if (inGroup.has(b)) continue;
       const r = rng(hash(b.asin || b.title));
       for (let tries = 0; ; tries++) {
@@ -121,14 +128,16 @@ export function createListeningSky({ center, reducedMotion = false }) {
     // the stars: one Points, a small core each that just blooms, with faint rays; a few times the
     // size of the field's stars, no more
     const n = stars.length + listening.length;
-    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), seed = new Float32Array(n);
+    const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), seed = new Float32Array(n), paper = new Float32Array(n);
     const v = new THREE.Vector3();
     stars.forEach((s, i) => {
       dirAt(s.x, s.y, v).multiplyScalar(R);
       pos.set([v.x, v.y, v.z], i * 3);
-      const c = kindColour(s.book.genre).multiplyScalar(1.6);
+      const onlyPaper = !s.book.asin;
+      const c = onlyPaper ? kindColour(s.book.genre).lerp(new THREE.Color(PALETTE.amber), 0.45).multiplyScalar(1.15) : kindColour(s.book.genre).multiplyScalar(1.6);
       col.set([c.r, c.g, c.b], i * 3);
-      size[i] = 8 + 5 * Math.min(1, (s.book.minutes || 600) / 1500);
+      size[i] = onlyPaper ? 8 : 8 + 5 * Math.min(1, (s.book.minutes || 600) / 1500);
+      paper[i] = onlyPaper ? 1 : 0;
       seed[i] = (hash(s.book.asin || s.book.title) % 1000) / 10;
       books.push({ book: s.book, dir: dirAt(s.x, s.y), index: i, series: s.series || null });
     });
@@ -152,17 +161,19 @@ export function createListeningSky({ center, reducedMotion = false }) {
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
     geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+    geo.setAttribute('paper', new THREE.BufferAttribute(paper, 1));
     points = new THREE.Points(geo, new THREE.ShaderMaterial({
       uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      vertexShader: `attribute float size; attribute float seed; attribute vec3 color; uniform float time, dpr, picked, still; varying vec3 vC; varying float vA;
+      vertexShader: `attribute float size; attribute float seed; attribute float paper; attribute vec3 color; uniform float time, dpr, picked, still; varying vec3 vC; varying float vA; varying float vP;
         void main(){ float tw = still > .5 ? 1. : .8 + .2 * sin(time * (.4 + fract(seed) * 1.2) + seed);
           float sel = abs(float(gl_VertexID) - picked) < .5 ? 1.7 : 1.;
-          vC = color; vA = tw; gl_PointSize = size * dpr * tw * sel; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
-      // a small core, a soft halo and four faint rays: they read as stars you can pick, not the field
-      fragmentShader: `varying vec3 vC; varying float vA;
+          vC = color; vA = tw; vP = paper; gl_PointSize = size * dpr * tw * sel; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+      // a small core, a soft halo and four faint rays: they read as stars you can pick, not the
+      // field. A paper book's has no rays: a softer, rounder glow
+      fragmentShader: `varying vec3 vC; varying float vA; varying float vP;
         void main(){ vec2 p = gl_PointCoord - .5; float d = length(p); if (d > .5) discard;
           float core = smoothstep(.09, .0, d), halo = smoothstep(.5, .0, d) * .18;
-          float rays = (smoothstep(.025, .0, abs(p.x)) + smoothstep(.025, .0, abs(p.y))) * smoothstep(.5, .1, d) * .28;
+          float rays = (smoothstep(.025, .0, abs(p.x)) + smoothstep(.025, .0, abs(p.y))) * smoothstep(.5, .1, d) * .28 * (1. - vP);
           float k = core + halo + rays;
           gl_FragColor = vec4(vC * k, k * vA); }`,
     }));

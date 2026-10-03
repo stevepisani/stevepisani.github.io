@@ -3,10 +3,11 @@ layout: page
 title: Bookshelf
 kicker: The bookshelf
 heading: Books I've read and liked
-lede: Mostly in my ears these days. What I'm listening to on Audible, everything I've finished, and the old shelf from before. On the planet they're the stars over the hammock.
+lede: Mostly in my ears these days. What I'm listening to on Audible and everything I've finished, then the books I read on paper. A book I've done both ways is marked. On the planet they're the stars over the hammock.
 wide: true
 ---
 {%- assign a = site.data.audible -%}
+{%- include books-read.html -%}
 {%- comment -%} Long lists fold: the first few books of "listening now" and the two latest years show;
 the rest are a click away (<details>), so the page stays short on a phone. {%- endcomment -%}
 {% if a.listening.size > 0 %}
@@ -41,13 +42,13 @@ the rest are a click away (<details>), so the page stays short on a phone. {%- e
 <p class="books__note">From my Audible library, updated daily{% if a.updated %} (last {{ a.updated | date: "%-d %B %Y" }}){% endif %}.</p>
 {% endif %}
 
-<h2 class="books__old">The old shelf</h2>
-<p class="books__note">Rescued from a reading list from around 2020. Tilt your head.</p>
+<h2 class="books__old">Read on paper</h2>
+<p class="books__note">From a reading list I kept until about 2020. The ones I've also listened to are up above, marked "read on paper too". Tilt your head.</p>
 {% for shelf in site.data.books %}
-<section class="shelf">
-  <h2 class="shelf__name">{{ shelf.shelf }}</h2>
-  <ul class="shelf__books">
+{%- capture spines -%}
     {% for b in shelf.books %}
+      {%- include print-key.html p=b -%}
+      {%- if printed contains print_key %}{% continue %}{% endif -%}
       {%- assign len = b.title | size -%}
       {%- assign hue = len | times: 47 | plus: forloop.index | times: 13 | modulo: 360 -%}
       {%- assign height = len | modulo: 5 | times: 10 | plus: 196 -%}
@@ -57,6 +58,11 @@ the rest are a click away (<details>), so the page stays short on a phone. {%- e
         {% if b.author %}<span class="spine__author">{{ b.author }}</span>{% endif %}
       </li>
     {% endfor %}
-  </ul>
+{%- endcapture -%}
+{% if spines contains "<li" %}
+<section class="shelf">
+  <h2 class="shelf__name">{{ shelf.shelf }}</h2>
+  <ul class="shelf__books">{{ spines }}</ul>
 </section>
+{% endif %}
 {% endfor %}

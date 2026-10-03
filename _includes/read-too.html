@@ -1,0 +1,10 @@
+{%- comment -%} Sets `read_too` for an Audible book, include.b: Steve read it in print as well
+(books-read.html must have run). {%- endcomment -%}
+{%- assign read_too = false -%}
+{%- capture probe %}|{% include book-key.html t=include.b.title %}:{% endcapture -%}
+{%- assign by = include.b.authors | join: "," | downcase -%}
+{%- assign parts = printed | split: probe -%}
+{%- for part in parts offset: 1 -%}
+  {%- assign sn = part | split: "|" | first -%}
+  {%- if sn == "" or by contains sn %}{% assign read_too = true %}{% break %}{% endif -%}
+{%- endfor -%}

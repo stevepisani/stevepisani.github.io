@@ -58,7 +58,7 @@ WRITING: ${d.writing.join("; ")}
 PROJECTS: ${d.lab.join(" | ")}
 LISTENING TO NOW (Audible): ${(d.listening || []).join("; ") || "nothing right now"}
 FINISHED ON AUDIBLE, NEWEST FIRST: ${(d.finished || []).join("; ") || "none listed yet"}
-OLDER BOOKS ON HIS SHELF: ${d.books.join("; ")}
+READ ON PAPER (his reading list until about 2020; he listened to many of these too): ${d.books.join("; ")}
 THE MENU ON THE BAR: ${d.menu.join("; ")}
 AROUND THE PLANET: ${d.planet.join(" ")}`;
 }

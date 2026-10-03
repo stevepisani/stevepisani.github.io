@@ -1,0 +1,16 @@
+{%- comment -%} Which books Steve has read in print (_data/books.yml) and also listened to on Audible
+(_data/audible.json): the same title (book-key.html) and, if the print book names an author, that
+author's surname among the Audible book's authors (Vance's "Elon Musk" isn't Isaacson's). Sets
+`printed`: "|key:surname|" for each print book that's also on Audible. Then:
+  a print book:   {% include print-key.html p=p %} and `printed contains print_key`
+  an Audible one: {% include read-too.html b=b %} sets `read_too` {%- endcomment -%}
+{%- capture heard -%}|{%- for b in site.data.audible.finished -%}{% include book-key.html t=b.title %}:{{ b.authors | join: "," | downcase }}|{%- endfor -%}{%- for b in site.data.audible.listening -%}{% include book-key.html t=b.title %}:{{ b.authors | join: "," | downcase }}|{%- endfor -%}{%- endcapture -%}
+{%- capture printed -%}|{%- for s in site.data.books -%}{%- for p in s.books -%}
+  {%- include print-key.html p=p -%}
+  {%- assign probe = print_key | split: ":" | first | append: ":" -%}
+  {%- assign parts = heard | split: probe -%}
+  {%- for part in parts offset: 1 -%}
+    {%- assign by = part | split: "|" | first -%}
+    {%- if p.author == nil or by contains surname -%}{{ print_key | remove_first: "|" }}{% break %}{%- endif -%}
+  {%- endfor -%}
+{%- endfor -%}{%- endfor -%}{%- endcapture -%}
