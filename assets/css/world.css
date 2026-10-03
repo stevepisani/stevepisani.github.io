@@ -299,7 +299,7 @@
   .veil__slow { animation: veil-slow 0s 10s forwards !important; } /* site.css stops all animation; this one is a message, not motion */
 }
 
-/* A book from the listening sky (main.js openStar): over the bottom buttons, clear of the sky */
+/* A book from the book sky (main.js openStar): over the bottom buttons, clear of the sky */
 .star-card {
   position: absolute; z-index: 3; left: 50%; bottom: 84px; translate: -50% 0;
   width: min(440px, calc(100% - 32px)); display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: start;
@@ -317,5 +317,28 @@
 .star-card .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .star-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
 /* on wide screens, lower left: clear of the book in your hands and the middle of the sky */
+.star-card__steps { position: absolute; right: 4px; bottom: 4px; display: flex; }
+.star-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.5rem; cursor: pointer; }
+.star-card__steps button:hover { color: #fff; }
+.star-card__steps button[hidden] { display: none; }
+/* leaned in on a shelf of the book sky: its name, a step either way, and the way back out */
+.sky-shelf {
+  position: absolute; z-index: 3; left: 50%; bottom: 84px; translate: -50% 0;
+  display: flex; align-items: center; gap: 2px; padding: 0 2px; border-radius: 999px;
+  background: rgb(14 16 36 / .82); border: 1px solid hsl(var(--hue, 230) 60% 75% / .45); color: #eef0fa;
+  box-shadow: 0 10px 30px rgb(0 0 0 / .4); backdrop-filter: blur(6px);
+}
+.sky-shelf[hidden] { display: none; }
+.sky-shelf button { width: 44px; height: 44px; border: 0; background: none; color: #cfd5f5; font-size: 1.4rem; cursor: pointer; border-radius: 50%; }
+.sky-shelf button:hover { color: #fff; }
+.sky-shelf__name { margin: 0 6px; font: 600 .78rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; color: hsl(var(--hue, 230) 60% 86%); }
+.sky-shelf__count { font-weight: 400; color: #9aa1c4; letter-spacing: .02em; text-transform: none; margin-left: 4px; }
+.sky-labels { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; transition: opacity .2s; }
+.sky-label {
+  position: absolute; left: 0; top: 0; height: 16px; font: 500 12px/16px var(--font-body); color: rgb(226 230 255 / .82);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 3px rgb(0 0 0 / .9);
+}
+.sky-label[hidden] { display: none; }
+.sky-label.is-open { color: #fff; font-weight: 600; }
 @media (min-width: 901px) { .star-card { left: 16px; translate: 0 0; } }
-@media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } }
+@media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } .sky-shelf { bottom: 76px; } }

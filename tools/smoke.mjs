@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, extname, resolve, relative } from 'node:path';
+import { buildLibrary } from './library.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -20,6 +21,18 @@ const shotsDir = flag('--shots'), only = flag('--only');
 const root = resolve(args[0] || '_site');
 if (!existsSync(join(root, 'index.html'))) { console.error(`No built site at ${root}.`); process.exit(2); }
 if (shotsDir) mkdirSync(shotsDir, { recursive: true });
+
+// Steve's books for the sky, made up: a fixture Audible library and shelves, merged by the real
+// tools/library.mjs (the real ones are synced daily). The merge first: a book on both lists is
+// one book (Audible's, so its cover and date) on its listed shelf, a genre no shelf lists lands on the "*" shelf.
+const library = buildLibrary(JSON.parse(readFileSync(new URL('./fixtures/listening.json', import.meta.url))), readFileSync(new URL('./fixtures/books.yml', import.meta.url), 'utf8'));
+{
+  const dune = library.read.filter((b) => b.title === 'Dune');
+  if (dune.length !== 1 || !dune[0].id.startsWith('FIXTURE') || dune[0].shelf !== 'science-fiction') throw new Error('library: a book on both lists should be one book, the Audible one, on its listed shelf');
+  if (library.read.find((b) => b.title === 'The Signal and the Noise').shelf !== 'data-and-craft') throw new Error('library: a genre no shelf lists should land on the "*" shelf');
+  if (library.read.length !== 25 || library.now.length !== 2 || library.shelves.reduce((n, s) => n + s.count, 0) !== 25) throw new Error(`library: counts don't add up (${library.read.length} read, ${library.now.length} now)`);
+  console.log(`library: ${library.read.length} read on ${library.shelves.length} shelves, ${library.now.length} reading now, merged as expected`);
+}
 
 // A static server for the build (what Pages does: /x serves x.html or x/index.html)
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml', '.map': 'application/json', '.py': 'text/plain' };
@@ -44,12 +57,7 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   // only the build: fonts, APIs, Supabase (REST and the fireflies' websocket) are refused
   await context.route((url) => !url.href.startsWith(base), (route) => route.abort());
   await context.routeWebSocket(/.*/, (ws) => ws.close());
-  // a made-up Audible library for the stars over the hammock (the real one is synced daily), plus
-  // a book read on paper too and two only on paper, as listening.json adds them from books.yml
-  const sky = JSON.parse(readFileSync(new URL('./fixtures/listening.json', import.meta.url)));
-  sky.both = [sky.finished[0].asin];
-  sky.read = [{ title: 'Paper Moon', author: 'A. Writer', shelf: 'Fiction' }, { title: 'Ink and Pulp', author: null, shelf: 'Data & Craft' }];
-  await context.route(`${base}/listening.json`, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(sky) }));
+  await context.route(`${base}/library.json`, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(library) }));
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
@@ -81,6 +89,14 @@ async function pages(page) {
     await page.waitForTimeout(150);
   }
   step(`${all.length} pages load`);
+  // the bookshelf: one list, by shelf in the library's order, nothing about how a book was read
+  const lib = JSON.parse(readFileSync(join(root, 'library.json'), 'utf8'));
+  await page.goto(base + '/bookshelf', { waitUntil: 'load' });
+  const ids = await page.$$eval('section.books[id]', (els) => els.map((e) => e.id).filter((id) => id !== 'now'));
+  const want = lib.shelves.filter((sh) => sh.count).map((sh) => sh.slug);
+  if (ids.join() !== want.join()) throw new Error(`bookshelf: shelves ${ids} should be ${want}`);
+  if (await page.$('.spine') || /read on paper|listened/i.test(await page.textContent('main'))) throw new Error('bookshelf: still tells read and listened apart');
+  step(`bookshelf: ${ids.length} shelves in order, ${lib.read.length} books`);
 }
 
 // The planet, everything a visitor can do
@@ -158,24 +174,38 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.evaluate(() => window.__world.lieInHammock());
   await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
   await shot('hammock');
-  // the listening sky: a star's card opens, Esc puts it away and you're still lying there
+  // the book sky: lean in on a shelf (the view narrows, its titles come up, the strip names it),
+  // step to the next shelf, open a book and step to the next one; Esc puts the card away, Esc
+  // again leans out; Back leans out too
   await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
-  await page.evaluate(() => window.__world.openStar(window.__world.listening.books.findIndex((b) => b.book.paper && b.book.asin)));
+  const fov0 = await page.evaluate(() => window.__world.camera.fov);
+  await page.evaluate(() => window.__world.zoom('science-fiction'));
+  await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
+  if (await page.isHidden('#sky-shelf') || !(await page.textContent('#sky-name')).includes('Science Fiction')) throw new Error("leaning in on a shelf didn't show its name");
+  await shot('shelf');
+  await page.evaluate(() => window.__world.stepShelf(1));
+  await until(page, () => window.__world.zoomed === 'fiction');
+  await page.evaluate(() => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'fiction'); W.openStar(W.sky.books.indexOf(r.books[0])); });
   if (await page.isHidden('#star-card')) throw new Error("a star's card didn't open");
-  if (!(await page.textContent('#star-kind')).includes('read on paper too')) throw new Error("a book read both ways doesn't say so");
+  if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
+  const first = await page.textContent('#star-title');
+  await page.click('#star-next');
+  if ((await page.textContent('#star-title')) === first) throw new Error("the card's › didn't step to the next book");
+  if (/paper|listen|audible/i.test(await page.textContent('#star-card'))) throw new Error('a card still says how the book was read');
   await shot('star');
   await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('star-card').hidden && window.__world.state === 'hammock');
-  // a book only read on paper is a star too, and its card says so
-  await page.evaluate(() => window.__world.openStar(window.__world.listening.books.findIndex((b) => b.book.title === 'Paper Moon')));
-  if ((await page.textContent('#star-kind')) !== 'Read on paper') throw new Error("a paper book's star doesn't say it was read on paper");
+  await until(page, () => document.getElementById('star-card').hidden && !document.getElementById('sky-shelf').hidden);
   await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('star-card').hidden && window.__world.state === 'hammock');
+  await until(page, (f) => !window.__world.zoomed && window.__world.camera.fov === f && window.__world.state === 'hammock', fov0);
+  await page.evaluate(() => window.__world.zoom('fiction'));
+  await until(page, () => window.__world.zoomed === 'fiction' && location.hash === '#sky');
+  await page.goBack();
+  await until(page, () => !window.__world.zoomed && document.getElementById('sky-shelf').hidden);
   await page.evaluate(() => window.__world.getOutOfHammock());
   await expectState(page, 'walk');
-  step(`hammock: lay down, opened a star (${await page.evaluate(() => window.__world.stars)} in the sky), got up`);
+  step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
 
   // skip a stone
   await page.evaluate(() => window.__world.goToShore());

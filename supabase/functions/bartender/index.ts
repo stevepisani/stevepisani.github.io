@@ -28,7 +28,7 @@ type Site = {
   menu: string[];
   drinks: { name: string; origin?: string; glass?: string; build?: string[]; method?: string; note?: string }[];
   writing: string[]; lab: string[]; books: string[]; planet: string[];
-  listening?: string[]; finished?: string[];
+  reading_now?: string[];
 };
 
 // The site's data as plain prose sections, which the model follows far more faithfully than a
@@ -56,9 +56,9 @@ ${drinks}
 
 WRITING: ${d.writing.join("; ")}
 PROJECTS: ${d.lab.join(" | ")}
-LISTENING TO NOW (Audible): ${(d.listening || []).join("; ") || "nothing right now"}
-FINISHED ON AUDIBLE, NEWEST FIRST: ${(d.finished || []).join("; ") || "none listed yet"}
-READ ON PAPER (his reading list until about 2020; he listened to many of these too): ${d.books.join("; ")}
+READING NOW: ${(d.reading_now || []).join("; ") || "nothing right now"}
+BOOKS HE'S READ, BY SHELF:
+${d.books.join("\n")}
 THE MENU ON THE BAR: ${d.menu.join("; ")}
 AROUND THE PLANET: ${d.planet.join(" ")}`;
 }

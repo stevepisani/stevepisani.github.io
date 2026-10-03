@@ -1,5 +1,5 @@
-"""Steve's Audible library -> _data/audible.json, for /bookshelf, the listening sky on the planet
-(/listening.json) and the bartender.
+"""Steve's Audible library -> _data/audible.json, which tools/library.mjs merges with his shelves
+(_data/books.yml) into the one list of books behind /bookshelf, the book sky and the bartender.
 
 Only books he's finished or is at least 5% into are kept (one he owns but has barely opened stays
 private), minus any in _data/audible_hide.yml. A book 95% or more through counts as finished, mark

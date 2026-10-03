@@ -1,0 +1,6 @@
+---
+# Steve's books for the stars over the hammock (assets/js/world/booksky.js): _data/library.json as it
+# is, which tools/library.mjs writes at `npm run build` from _data/audible.json and _data/books.yml.
+layout: null
+---
+{{ site.data.library | jsonify }}

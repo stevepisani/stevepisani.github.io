@@ -11,7 +11,8 @@ dropped onto an asteroid in first person with a tiki bar in view, walk over, sit
 site's content from a menu; every section is also one click away in the top bar, and `/classic`
 is the homepage without 3D. Every other page is a normal Jekyll page. Behind it is one Supabase
 project (bottles, the page count, the AI bartender, the recipe tracker), all as code. No CSS
-framework; the one build step besides Jekyll is esbuild bundling the JavaScript.
+framework; the one build step besides Jekyll is `npm run build`: esbuild bundling the JavaScript, and
+merging Steve's books into `_data/library.json`.
 
 | Read | When |
 |---|---|
@@ -77,16 +78,17 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
   - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from
-  - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible-sync.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show. Feeds /bookshelf, `/listening.json` (the stars over the hammock, with the paper books added) and the bartender.
-  - `books.yml`: books Steve read on paper (his list until about 2020). `_includes/books-read.html` matches them against Audible: a book on both is marked "read on paper too" and shown once; the rest are the spines at the bottom of /bookshelf and warm, rayless stars on the planet
+  - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible-sync.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show.
+  - `books.yml`: Steve's shelves, the categories everywhere books show, in order: each with `hue`, `genres` (the Audible categories that land on it; `"*"` takes the rest) and `books` (a title listed here goes on that shelf, whether it's also on Audible or not; to move an Audible book, list it)
+  - `library.json`: every book Steve has read, one list with no telling how he read it, by shelf, newest first, plus what he's reading now. Written by `tools/library.mjs` from the two above at `npm run build` (not committed; `jekyll serve` without a build shows no books). Feeds /bookshelf, `/library.json` (the stars over the hammock), the hammock's reading list and the bartender
   - `bar.yml`: the homepage's menu (label, a one-line note on what's there, fallback href), the bartender's lines, and the campfire list
 - `_posts/`: posts (layout defaults to `post`). Optional front matter: `image_url` (a URL or a site path like `/assets/images/x.webp`, with a 192px square `x-thumb.webp` beside it for the post lists; `cover.html` asks Unsplash and Pexels for thumbnail-sized crops itself), `description`
-- Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html` (Audible: listening now, then finished books by year, the two latest years open and older ones folded; covers in a dense grid, each with a round play button for its sample, and "read on paper too" on the ones on both lists; then the paper-only books as spines), `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
+- Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html` (a row of shelf links, "Reading now", then a section per shelf, newest first, three rows showing and the rest folded; covers in a dense grid, a title tile in the shelf's colour where there's no cover, a round play button for a sample), `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
 - `lab/`: lab experiments with their own pages, e.g. `lab/sql-formatter.html` (SQLFluff in the browser via Pyodide; its Python lives in `assets/py/fluff.py`)
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
 - `recipe_tracker/`: standalone app (own inline styles, Supabase), linked from the lab; members only (`public.members`), sign-ups off. Its Supabase URL and key come from `_config.yml` via Liquid.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
-- `tools/`: `build-js.mjs` (the esbuild bundle), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible-sync.py` (the Audible sync), `fixtures/` (a made-up Audible library for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
+- `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `audible-sync.py` (the Audible sync), `fixtures/` (a made-up Audible library and shelves for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
 ## The asteroid (homepage)
 

@@ -1,3 +1,0 @@
-{%- comment -%} Sets `print_key` ("|key:surname|") and `surname` for a print book, include.p. {%- endcomment -%}
-{%- assign surname = include.p.author | split: " (" | first | split: " et al" | first | split: " " | last | downcase -%}
-{%- capture print_key %}|{% include book-key.html t=include.p.title %}:{{ surname }}|{% endcapture -%}

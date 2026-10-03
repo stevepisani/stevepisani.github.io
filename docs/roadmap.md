@@ -42,8 +42,9 @@ rather than leaving it in a chat.
 
 - Oct 2026: the Audible library, synced daily: /bookshelf by year finished, with samples; the
   listening sky over the hammock (finished books as stars, series as constellations, what's playing
-  now as comets); the bartender knows what Steve's listening to. Books read on paper are stars too,
-  and a book read both ways is marked and shown once.
+  now as comets); the bartender knows what Steve's listening to. Then one library: paper and Audible
+  merged with no telling them apart (`tools/library.mjs`), seven shelves the same on /bookshelf, in the
+  sky and for the bartender; tap a shelf of stars to lean in and step through its books.
 - Oct 2026: one esbuild bundle for the scripts, deploys through GitHub Actions, a smoke test in CI;
   Rapier physics (coconuts and glass floats you can kick, carry, throw and float); flagstones that
   never overlap; a walk-to ring that lies on the ground, clear of things.
