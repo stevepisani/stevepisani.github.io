@@ -40,13 +40,15 @@ npm run build && bundle exec jekyll build --strict_front_matter
 # Check: every internal link and asset in the build exists (the bundles included)
 npm run check
 
-# Smoke test: every page, then the planet driven through everything a visitor can do, on desktop
-# and phone, the private apps against a made-up Supabase, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
-# About 5 minutes under software WebGL. --only desktop|phone|pages|apps|nogl, --shots <dir>.
+# Test: first the wardrobe's data and MCP server on the real schema (tools/wardrobe-test.mjs: every
+# migration in PGlite, a few seconds), then the smoke test: every page, then the planet driven
+# through everything a visitor can do, on desktop and phone, the private apps against a made-up
+# Supabase, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
+# About 5 minutes under software WebGL. node tools/smoke.mjs --only desktop|phone|pages|apps|nogl, --shots <dir>.
 npm test
 ```
 
-CI (`.github/workflows/site.yml`) runs build, check and smoke test on every PR, and on main
+CI (`.github/workflows/site.yml`) runs build, check, the wardrobe test and the smoke test on every PR, and on main
 deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
 
 ## The JavaScript build
@@ -87,9 +89,9 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - Pages: `index.html` (the asteroid), `classic.html` (/classic, the non-3D homepage), `about.html`, `blog.html` (/blog, labelled "Writing"), `lab.html`, `bookshelf.html` (a row of shelf links, "Reading now", then a section per shelf, newest first, three rows showing and the rest folded; covers in a dense grid, a title tile in the shelf's colour where there's no cover, a round play button for a sample), `drinks.html` (/drinks, recipes via `_includes/drinks.html`), `404.html`, `401.html`
 - `lab/`: lab experiments with their own pages, e.g. `lab/sql-formatter.html` (SQLFluff in the browser via Pyodide; its Python lives in `assets/py/fluff.py`)
 - `assets/files/.sqlfluff`: downloadable SQLFluff config for the SQL style guide. It's the single source of truth; the formatter fetches it too. Listed under `include:` because Jekyll skips dotfiles.
-- `apps/`: the private apps, members only (`public.members`), sign-ups off: `index.html` (/apps, the list from `_data/apps.yml`), `recipes.html` (/apps/recipes, the recipe tracker, also linked from the lab), `wardrobe.html` (/apps/wardrobe, Steve's clothes, private to him; ChatGPT reaches it through an MCP server, `supabase/functions/mcp`) and `authorize.html` (/apps/authorize, the OAuth consent page ChatGPT sends you to; not listed). `offline.js` is the service worker that lets the wardrobe open with no connection. They use `_layouts/app.html`, `assets/css/apps.css` and `assets/js/apps/` (one script per app on the shared `lib/kit.js`, bundled to `dist/apps/`). How they work and how to add one: `docs/apps.md`. `recipe_tracker/` only redirects to /apps/recipes.
+- `apps/`: the private apps, members only (`public.members`), sign-ups off: `index.html` (/apps, the list from `_data/apps.yml`), `recipes.html` (/apps/recipes, the recipe tracker, also linked from the lab), `wardrobe.html` (/apps/wardrobe, Steve's clothes, private to him; ChatGPT and Claude reach it through an MCP server, `supabase/functions/mcp`) and `authorize.html` (/apps/authorize, the OAuth consent page they send you to; not listed). `offline.js` is the service worker that lets the wardrobe open with no connection. They use `_layouts/app.html`, `assets/css/apps.css` and `assets/js/apps/` (one script per app on the shared `lib/kit.js`, bundled to `dist/apps/`). How they work and how to add one: `docs/apps.md`. `recipe_tracker/` only redirects to /apps/recipes.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
-- `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `supabase.mjs` (applies `supabase/`), `supabase-logs.mjs` (the edge functions' recent logs, via the Supabase workflow's "logs" option), `audible-sync.py` (the Audible sync), `fixtures/` (a made-up Audible library and shelves for tests), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
+- `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `wardrobe-test.mjs` (the wardrobe's migrations, view, row-level security and MCP tools, in PGlite), `supabase.mjs` (applies `supabase/`), `supabase-logs.mjs` (the edge functions' recent logs, via the Supabase workflow's "logs" option), `audible-sync.py` (the Audible sync), `fixtures/` (made-up data for tests: an Audible library and shelves, recipes, clothes, photos, trips), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
 ## The asteroid (homepage)
 

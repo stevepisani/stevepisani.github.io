@@ -134,12 +134,20 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
         <label class="btn btn--ghost btn--small photo-btn sheet__edit" id="sheet-photo"><span>Change the photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
       </div>
     </div>
+    <div class="photo-strip" id="sheet-photos" role="group" aria-label="Photos" hidden></div>
+    <div class="photo-tools" id="photo-tools" hidden>
+      <label>This photo is <select id="photo-role"><option value="garment">The garment</option><option value="tag">A tag</option><option value="care_label">A care label</option><option value="detail">A detail</option><option value="other">Something else</option></select></label>
+      <button class="btn btn--ghost btn--small" id="photo-show" type="button">Show this one</button>
+      <button class="link-btn link-btn--bad" id="photo-remove" type="button">Remove</button>
+    </div>
     <p class="sheet__view sheet__notes" id="sv-notes"></p>
+    <p class="sheet__edit sheet__shared" id="sheet-shared" hidden>Changes here are for this piece only. To change a fact for every colour and size of it, ask ChatGPT.</p>
     <div class="sheet__grid sheet__edit">
       <label>Brand <input data-is="brand" type="text"></label>
       <label>Colour <input data-is="colour" type="text"></label>
       <label>Size <input data-is="size" type="text"></label>
       <label>Material <input data-is="material" type="text"></label>
+      <label>Condition <input data-is="condition" type="text" placeholder="Good"></label>
       <label class="sheet__wide">Fit <input data-is="fit" type="text" placeholder="Runs small, size up"></label>
       <fieldset class="sheet__wide sheet__seasons"><legend>Seasons</legend>
         <label><input type="checkbox" value="spring"> Spring</label><label><input type="checkbox" value="summer"> Summer</label><label><input type="checkbox" value="autumn"> Autumn</label><label><input type="checkbox" value="winter"> Winter</label>
