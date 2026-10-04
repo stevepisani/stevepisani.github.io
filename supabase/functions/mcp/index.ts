@@ -9,13 +9,15 @@
 // checked here.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { rpc } from "./server.js";
-import { readProduct, storeImage } from "../_shared/product.js";
+import { fetchLimited, readProduct, storeImage } from "../_shared/product.js";
+import { legWeather, locate } from "../_shared/weather.js";
 
 const SUPABASE = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const RESOURCE = `${SUPABASE}/functions/v1/mcp`;
 const METADATA = `${RESOURCE}/.well-known/oauth-protected-resource`;
 const DAY = 60 * 60 * 24;
+const PHOTO_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif", "image/gif": "gif" };
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
@@ -54,6 +56,26 @@ Deno.serve(async (req) => {
     },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),
+    // a photo uploaded in the chat: fetched from ChatGPT's short-lived link and kept in the person's folder
+    storeUpload: async (file: { download_url: string; mime_type?: string }) => {
+      try {
+        const res = await fetchLimited(new URL(file.download_url), "image/*", 15 * 1024 * 1024 + 1);
+        const type = (file.mime_type || res.headers.get("content-type") || "").split(";")[0].toLowerCase();
+        if (!res.ok || !PHOTO_TYPES[type] || !res.bytes?.length || res.bytes.length > 15 * 1024 * 1024) return null;
+        const path = `wardrobe/${uid}/${Date.now()}-${crypto.randomUUID().slice(0, 4)}.${PHOTO_TYPES[type]}`;
+        const { error } = await db.storage.from("photos").upload(path, res.bytes, { contentType: type });
+        if (error) { console.error(error); return null; }
+        return path;
+      } catch (e) { console.error(e); return null; }
+    },
+    trips: {
+      list: async () => { const { data, error } = await db.from("trips").select("*"); if (error) throw error; return data; },
+      get: async (id: string) => { const { data, error } = await db.from("trips").select("*").eq("id", id).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+      add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("trips").insert(row).select().single(); if (error) throw error; return data; },
+      set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("trips").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+    },
+    locate,
+    weather: (leg: { lat: number; lon: number; from: string; to: string }) => legWeather(leg),
   };
 
   let body: unknown;

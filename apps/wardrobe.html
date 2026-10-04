@@ -2,8 +2,14 @@
 layout: app
 app: wardrobe
 title: Wardrobe
-lede: Steve's clothes, each with a photo, what it is, and where to buy another.
+lede: Steve's clothes, each with a photo, what it is, and where to buy another; and trips, with what to wear and pack.
 ---
+<div class="seg wardrobe-tabs" id="tabs" role="group" aria-label="Show">
+  <button type="button" data-value="closet" aria-pressed="true">Closet</button>
+  <button type="button" data-value="trips" aria-pressed="false">Trips</button>
+</div>
+
+<div id="closet-view">
 <div class="app-bar">
   <input id="search" type="search" placeholder="Search the wardrobe" aria-label="Search the wardrobe">
   <button class="btn btn--small" id="add" type="button">Add</button>
@@ -23,6 +29,36 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another.
 
 <ul class="closet" id="grid"></ul>
 <p class="app-empty" id="empty" hidden></p>
+</div>
+
+<div id="trips-view" hidden>
+  <div id="trip-list-view">
+    <div class="app-bar trips-bar"><p class="trips-lede">Trips, with the weather, what to wear each day and what to pack. Plan them in ChatGPT; they show up here.</p><button class="btn btn--small" id="new-trip" type="button">New trip</button></div>
+    <ul class="trip-list" id="trip-list"></ul>
+    <p class="app-empty" id="trips-empty" hidden></p>
+  </div>
+  <article class="trip" id="trip" hidden>
+    <button class="link-btn" id="trip-back" type="button">← All trips</button>
+    <header class="trip__head">
+      <h2 class="trip__name" id="trip-name"></h2>
+      <p class="trip__when" id="trip-when"></p>
+      <button class="link-btn" id="trip-edit" type="button">Edit</button>
+    </header>
+    <ol class="legs" id="legs"></ol>
+    <section class="trip__part" aria-labelledby="days-title">
+      <h3 id="days-title">Day by day</h3>
+      <ol class="days" id="days"></ol>
+      <p class="app-empty" id="days-empty" hidden></p>
+    </section>
+    <section class="trip__part" aria-labelledby="pack-title">
+      <h3 id="pack-title">Packing <span class="books__count" id="pack-count"></span></h3>
+      <div class="app-progress" id="pack-progress" role="progressbar" aria-label="Packed" aria-valuemin="0"><div></div></div>
+      <ul class="packing" id="packing"></ul>
+      <form class="pack-add" id="pack-add"><label>Add something <input name="label" type="text" maxlength="120" placeholder="Charger, umbrella…"></label><button class="btn btn--ghost btn--small" type="submit">Add</button></form>
+    </section>
+    <p class="trip__notes" id="trip-notes" hidden></p>
+  </article>
+</div>
 
 <template id="tile">
   <li class="tile">
@@ -90,3 +126,19 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another.
     </div>
   </form>
 </dialog>
+
+<dialog class="app-dialog" id="trip-dialog" aria-labelledby="trip-dialog-title">
+  <form method="dialog">
+    <h2 id="trip-dialog-title">New trip</h2>
+    <label>Name <input name="name" type="text" required maxlength="120" placeholder="Europe, autumn"></label>
+    <fieldset class="leg-rows" id="leg-rows"><legend>Where and when, in order</legend></fieldset>
+    <button class="link-btn" id="add-leg" type="button">Add a place</button>
+    <label>Notes <textarea name="notes" rows="2"></textarea></label>
+    <div class="app-dialog__buttons">
+      <button class="link-btn link-btn--bad" id="trip-remove" type="button" hidden>Delete this trip</button>
+      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
+      <button class="btn btn--small" type="submit" value="ok">Save</button>
+    </div>
+  </form>
+</dialog>
+<template id="leg-row"><div class="leg-row"><label>Place <input data-k="place" type="text" required placeholder="Florence, Italy"></label><label>From <input data-k="from" type="date" required></label><label>To <input data-k="to" type="date" required></label><button class="link-btn leg-row__x" type="button" aria-label="Remove this place">×</button></div></template>
