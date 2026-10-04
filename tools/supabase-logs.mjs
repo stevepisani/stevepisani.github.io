@@ -28,9 +28,9 @@ const when = (t) => new Date(typeof t === 'number' ? t / 1000 : `${String(t).rep
 
 console.log(`Edge function requests, the last ${hours} h (newest first):`);
 for (const r of await logs(`select timestamp, log_attributes['response.status_code'] as status,
-    log_attributes['request.method'] as method, log_attributes['request.path'] as path
+    log_attributes['request.method'] as method, log_attributes['request.pathname'] as path, log_attributes['request.url'] as url
   from logs where source = 'function_edge_logs' order by timestamp desc limit 80`)) {
-  console.log(`  ${when(r.timestamp)}  ${r.status}  ${String(r.method).padEnd(7)} ${clean(r.path)}`);
+  console.log(`  ${when(r.timestamp)}  ${r.status}  ${String(r.method).padEnd(7)} ${clean(r.path || r.url || '')}`);
 }
 
 console.log(`\nWhat the functions logged, the last ${hours} h (newest first):`);
