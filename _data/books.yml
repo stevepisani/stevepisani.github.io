@@ -1,6 +1,16 @@
-# The bookshelf on /bookshelf. Curated from my old reading list (circa 2020).
-# Add `note:` to any book for a hover blurb. Add `fav: true` to star it.
-- shelf: Fiction
+# Steve's books, by shelf: every book he's read, whichever way he read it. tools/library.mjs (run by
+# `npm run build`) merges this with his Audible library (_data/audible.json, synced daily) into
+# _data/library.json, which feeds /bookshelf, the stars over the hammock (/library.json) and the
+# bartender. The shelves are the categories everywhere, in this order.
+#
+# Each shelf: `hue` (its colour, 0-360: the shelf page and its stars), `genres` (the Audible
+# categories whose books land here; "*" catches the rest) and `books`. A book listed here goes on
+# this shelf; if it's also on Audible (same title, and the author's surname if one's given) it's
+# the same book, with Audible's cover and date. To move an Audible book to another shelf, list it
+# there.
+- shelf: Science Fiction
+  hue: 185
+  genres: [Science Fiction & Fantasy, LGBTQ+, Romance]
   books:
     - { title: Dune }
     - { title: Blindsight, author: Peter Watts }
@@ -13,15 +23,27 @@
     - { title: Seveneves, author: Neal Stephenson }
     - { title: Cryptonomicon, author: Neal Stephenson }
     - { title: Neuromancer, author: William Gibson }
+    - { title: Fahrenheit 451, author: Ray Bradbury }
+    - { title: Neverwhere, author: Neil Gaiman }
+    - { title: Annihilation, author: Jeff VanderMeer }
+    - { title: The Graveyard Book, author: Neil Gaiman }
+    - { title: For We Are Many, author: Dennis E. Taylor }
+    - { title: All These Worlds, author: Dennis E. Taylor }
+    - { title: The Singularity Trap, author: Dennis E. Taylor }
+    - { title: Lock In, author: John Scalzi }
+    - { title: Dark Matter, author: Blake Crouch }
+    - { title: Ready Player One, author: Ernest Cline }
+    - { title: Artemis, author: Andy Weir }
+- shelf: Fiction
+  hue: 42
+  genres: [Literature & Fiction, "Mystery, Thriller & Suspense", Children's Audiobooks, Teen & Young Adult]
+  books:
     - { title: Shōgun, author: James Clavell }
     - { title: East of Eden, author: John Steinbeck }
     - { title: Slaughterhouse-Five, author: Kurt Vonnegut }
     - { title: Breakfast of Champions, author: Kurt Vonnegut }
-    - { title: Fahrenheit 451, author: Ray Bradbury }
     - { title: The Stand, author: Stephen King }
-    - { title: Neverwhere, author: Neil Gaiman }
     - { title: The Count of Monte Cristo, author: Alexandre Dumas }
-    - { title: Annihilation, author: Jeff VanderMeer }
     - { title: Damned, author: Chuck Palahniuk }
     - { title: Fight Club, author: Chuck Palahniuk }
     - { title: Pride and Prejudice, author: Jane Austen }
@@ -33,16 +55,10 @@
     - { title: The Complete Works of H. P. Lovecraft, author: H. P. Lovecraft }
     - { title: The Book Thief, author: Markus Zusak }
     - { title: The Alchemist, author: Paulo Coelho }
-    - { title: The Graveyard Book, author: Neil Gaiman }
-    - { title: For We Are Many, author: Dennis E. Taylor }
-    - { title: All These Worlds, author: Dennis E. Taylor }
-    - { title: The Singularity Trap, author: Dennis E. Taylor }
-    - { title: Lock In, author: John Scalzi }
-    - { title: Dark Matter, author: Blake Crouch }
-    - { title: Ready Player One, author: Ernest Cline }
-    - { title: Artemis, author: Andy Weir }
     - { title: Uncommon Type, author: Tom Hanks }
 - shelf: History & Science
+  hue: 18
+  genres: [Biographies & Memoirs, History, Politics & Social Sciences, Arts & Entertainment, Science & Engineering]
   books:
     - { title: A Short History of Nearly Everything, author: Bill Bryson }
     - { title: "Guns, Germs, and Steel", author: Jared Diamond }
@@ -68,6 +84,8 @@
     - { title: Abundance, author: Peter H. Diamandis and Steven Kotler }
     - { title: Winners Take All, author: Anand Giridharadas }
 - shelf: Data & Craft
+  hue: 215
+  genres: [Computers & Technology]
   books:
     - { title: Designing Data-Intensive Applications, author: Martin Kleppmann }
     - { title: The Data Warehouse Toolkit, author: Ralph Kimball }
@@ -80,27 +98,12 @@
     - { title: The Phoenix Project, author: "Gene Kim, Kevin Behr and George Spafford" }
     - { title: Prediction Machines, author: "Ajay Agrawal, Joshua Gans and Avi Goldfarb" }
     - { title: Quantitative Trading, author: Ernest P. Chan }
-- shelf: Mind & Kitchen
-  books:
-    - { title: Meditations, author: Marcus Aurelius }
-    - { title: Letters from a Stoic, author: Seneca }
-    - { title: "Man's Search for Meaning", author: Viktor Frankl }
-    - { title: A Mind for Numbers, author: Barbara Oakley }
-    - { title: The Art of Learning, author: Josh Waitzkin }
-    - { title: "Salt, Fat, Acid, Heat", author: Samin Nosrat }
-    - { title: The Daily Stoic, author: Ryan Holiday and Stephen Hanselman }
-    - { title: Tao Te Ching, author: Lao Tzu }
-    - { title: The Prince, author: Niccolò Machiavelli }
-    - { title: Waking Up, author: Sam Harris }
-    - { title: Lying, author: Sam Harris }
-    - { title: The Laws of Human Nature, author: Robert Greene }
-    - { title: Talking to Strangers, author: Malcolm Gladwell }
-    - { title: Outliers, author: Malcolm Gladwell }
 - shelf: Business & Money
+  hue: 140
+  genres: [Business & Careers, Money & Finance, Sports & Outdoors]
   books:
     - { title: The 48 Laws of Power, author: Robert Greene }
     - { title: Extreme Ownership, author: Jocko Willink and Leif Babin }
-    - { title: Barking Up the Wrong Tree, author: Eric Barker }
     - { title: Never Split the Difference, author: Chris Voss }
     - { title: Getting Past No, author: William Ury }
     - { title: Exactly What to Say, author: Phil M. Jones }
@@ -112,7 +115,6 @@
     - { title: Principles, author: Ray Dalio }
     - { title: The Everything Store, author: Brad Stone }
     - { title: Bold, author: Peter H. Diamandis and Steven Kotler }
-    - { title: Stealing Fire, author: Steven Kotler and Jamie Wheal }
     - { title: Venture Deals, author: Brad Feld and Jason Mendelson }
     - { title: Do More Faster, author: David Cohen and Brad Feld }
     - { title: Angel, author: Jason Calacanis }
@@ -123,6 +125,8 @@
     - { title: The Simple Path to Wealth, author: JL Collins }
     - { title: The Millionaire Real Estate Investor, author: Gary Keller }
 - shelf: Habits & Growth
+  hue: 275
+  genres: ["Relationships, Parenting & Personal Development"]
   books:
     - { title: Atomic Habits, author: James Clear }
     - { title: The Power of Habit, author: Charles Duhigg }
@@ -140,3 +144,28 @@
     - { title: Influencer, author: Joseph Grenny et al. }
     - { title: How to Be Idle, author: Tom Hodgkinson }
     - { title: The Book of Questions, author: Gregory Stock }
+    - { title: Barking Up the Wrong Tree, author: Eric Barker }
+    - { title: Stealing Fire, author: Steven Kotler and Jamie Wheal }
+    - { title: The Compound Effect, author: Darren Hardy }
+    - { title: Deep Work, author: Cal Newport }
+    - { title: Range, author: David Epstein }
+    - { title: Mastery, author: Robert Greene }
+    - { title: Plays Well with Others, author: Eric Barker }
+- shelf: Mind & Kitchen
+  hue: 335
+  genres: [Health & Wellness, Education & Learning, Home & Garden, "*"]
+  books:
+    - { title: Meditations, author: Marcus Aurelius }
+    - { title: Letters from a Stoic, author: Seneca }
+    - { title: "Man's Search for Meaning", author: Viktor Frankl }
+    - { title: A Mind for Numbers, author: Barbara Oakley }
+    - { title: The Art of Learning, author: Josh Waitzkin }
+    - { title: "Salt, Fat, Acid, Heat", author: Samin Nosrat }
+    - { title: The Daily Stoic, author: Ryan Holiday and Stephen Hanselman }
+    - { title: Tao Te Ching, author: Lao Tzu }
+    - { title: The Prince, author: Niccolò Machiavelli }
+    - { title: Waking Up, author: Sam Harris }
+    - { title: Lying, author: Sam Harris }
+    - { title: The Laws of Human Nature, author: Robert Greene }
+    - { title: Talking to Strangers, author: Malcolm Gladwell }
+    - { title: Outliers, author: Malcolm Gladwell }

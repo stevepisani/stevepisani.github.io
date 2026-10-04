@@ -1,13 +1,13 @@
-{%- comment -%} One Audible book: include.b (from _data/audible.json). Cover, title, author, series, and
-a sample to play (site.js handles [data-sample]). {%- endcomment -%}
+{%- comment -%} One book from _data/library.json: include.b, on a shelf of hue include.hue. Its cover,
+or a tile with its title in the shelf's colour; how far through if he's reading it now; the sample
+(a round button on the cover: site.js handles [data-sample]); title, author, the year he read it. {%- endcomment -%}
 {%- assign b = include.b -%}
-{%- assign len = b.title | size -%}
 <li class="book">
-  <div class="book__cover" style="--hue: {{ len | times: 47 | modulo: 360 }}">
+  <div class="book__cover" style="--hue: {{ include.hue }}">
     {%- if b.cover %}<img src="{{ b.cover }}" alt="" loading="lazy" width="500" height="500">{% else %}<span>{{ b.title }}</span>{% endif -%}
-    {%- unless b.finished %}<span class="book__progress" style="--p: {{ b.percent }}%" title="{{ b.percent }}% through"></span>{% endunless -%}
+    {%- if b.percent %}<span class="book__progress" style="--p: {{ b.percent }}%" title="{{ b.percent }}% through"></span>{% endif -%}
+    {%- if b.sample %}<button type="button" class="book__play" data-sample="{{ b.sample }}" aria-pressed="false" aria-label="Play a sample of {{ b.title }}"></button>{% endif -%}
   </div>
-  <p class="book__title">{{ b.title }}</p>
-  <p class="book__meta">{{ b.authors | join: ", " }}{% if b.series %}<br>{{ b.series }}{% if b.seq %}, book {{ b.seq }}{% endif %}{% endif %}</p>
-  {%- if b.sample %}<button type="button" class="book__sample" data-sample="{{ b.sample }}" aria-label="Play a sample of {{ b.title }}">▶ Sample</button>{% endif %}
+  <p class="book__title" title="{{ b.title }}">{{ b.title }}</p>
+  <p class="book__meta">{{ b.by | split: ", " | first }}{% if b.on %} · {{ b.on | slice: 0, 4 }}{% endif %}{% if b.series %}<br>{{ b.series }}{% if b.seq and b.seq != "" %}, {{ b.seq }}{% endif %}{% endif %}</p>
 </li>

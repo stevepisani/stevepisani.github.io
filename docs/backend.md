@@ -66,8 +66,13 @@ to `_data/audible.json`. A book 95% or more through counts as finished whether o
 earlier". One under 35% that he hasn't played in about six months (`STALE_BELOW`, `STALE_BEFORE`;
 the last-played dates come from a second API call) is parked and stays private too. If the data
 changed, the workflow commits it to main and starts the site workflow to publish it (its own push
-wouldn't). From there it feeds /bookshelf, `/listening.json` (the stars over the hammock) and the
-bartender.
+wouldn't). `tools/library.mjs` then merges it with Steve's shelves (`_data/books.yml`) into one list
+of books, `_data/library.json`, at `npm run build`: a book is a book however he read it. A listed title
+that's also on Audible (the same title before any subtitle and, if the shelf names an author, that
+surname among the Audible authors) is one book, with Audible's cover and date, on the listed shelf; an
+unlisted Audible book goes on the shelf whose `genres` has its genre, else the `"*"` one (the build
+says which genres it didn't know). That feeds /bookshelf, `/library.json` (the stars over the hammock)
+and the bartender.
 
 - **The API isn't public.** It's the one Audible's apps use, through the `audible` Python package
   (pinned in the workflow). If Amazon changes it, the sync fails and the site keeps the last good
@@ -86,8 +91,8 @@ bartender.
   (or paste the file into Settings → Secrets and variables → Actions → New repository secret).
   Then run the Audible workflow once (Actions → Audible → Run workflow).
 - **Try the transform without an account:** `python tools/audible-sync.py --from tools/fixtures/audible-library.json`
-  (a made-up API response; `tools/fixtures/listening.json` is its output, which the smoke test serves
-  as `/listening.json`).
+  (a made-up API response; `tools/fixtures/listening.json` is its output, which the smoke test merges
+  with `tools/fixtures/books.yml` and serves as `/library.json`).
 
 ## Deploys
 

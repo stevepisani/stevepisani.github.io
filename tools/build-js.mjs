@@ -8,12 +8,16 @@
 //   dist/apps/*.js  one per private app (every file in assets/js/apps/), with what they share
 //                   (lib/kit.js and the Supabase client) split into a chunk of its own
 //
+// First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
+// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes.
+//
 //   npm run build          once (CI does this before Jekyll)
 //   npm run watch          rebuild on save, beside `bundle exec jekyll serve`
 //
 // Library versions live in package.json, nowhere else.
 import * as esbuild from 'esbuild';
-import { rmSync, readFileSync, readdirSync } from 'node:fs';
+import { rmSync, readFileSync, readdirSync, watch as watchFile } from 'node:fs';
+import { writeLibrary } from './library.mjs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -36,6 +40,7 @@ const rapierWasm = {
   },
 };
 
+writeLibrary(root);
 rmSync(out, { recursive: true, force: true });
 const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
@@ -47,6 +52,7 @@ const builds = [
 
 if (watch) {
   for (const b of builds) await (await esbuild.context(b)).watch();
+  for (const f of ['_data/audible.json', '_data/books.yml']) watchFile(root + f, () => { try { writeLibrary(root); } catch (e) { console.error(e.message); } });
   console.log('Watching assets/js for changes…');
 } else {
   const results = await Promise.all(builds.map((b) => esbuild.build(b)));
