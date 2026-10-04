@@ -1,7 +1,7 @@
 # The private apps (`/apps`)
 
 Small tools for life at home, on the site but only for members: Steve and Lexi today. The recipe
-tracker is the first; a wardrobe is next (`docs/roadmap.md`). They share one sign-in, one look and
+tracker was the first; the wardrobe is the second. They share one sign-in, one look and
 one small kit, so a new app is a table, a page and a script, and nothing else.
 
 ## How it fits together
@@ -57,11 +57,12 @@ Put something in the kit or `apps.css` only when a second app needs it.
 
 Known limits, to deal with when an app meets them:
 
-- **Photos are members-wide.** The `photos` bucket's policy asks only `is_member()`, so the
-  per-person variant above keeps rows private but not pictures; that needs a policy on the path.
-- **Photos load at full size** (1600px), freshly signed each visit, so the browser never caches
-  them. Fine for a few dozen; an app with hundreds (a wardrobe) wants a thumbnail stored beside
-  each picture by `photos.put`, and the signed links kept until they're near expiry.
+- **Photos are members-wide**, except the wardrobe's: the `photos` bucket's one policy asks
+  `is_member()`, and for paths under `wardrobe/` also that the second folder is the person's own
+  id (`wardrobe/<user id>/…`). Another per-person app needs the same clause for its folder.
+- **Photos are freshly signed each visit**, so the browser never caches them. Fine for a few
+  dozen at 1600px; the wardrobe stores its cut-outs at 1200px as WebP (`photos.put(file, folder,
+  { alpha: true, longest: 1200 })`, 50 to 200 KB each), which holds up to a couple of hundred.
 - **`rows().list()` has no paging**; the API returns at most 1,000 rows.
 - Recipe photos from before Oct 2026 sit at the bucket's root (`<recipe id>/…`); new ones are
   under `recipes/`. Both work.
@@ -95,3 +96,30 @@ Cmd+I, Cmd+N and R shortcuts, and the camera opening straight away for a photo (
 offers the library too). The old page could also fetch an NYT Cooking collection through public CORS proxies; that was
 dropped (third-party proxies, and no way to test it). If it's missed, the way to do it is an edge
 function.
+
+## The wardrobe (`/apps/wardrobe`)
+
+Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned by `auth.uid()`;
+photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
+wardrobe MCP server, signed in as him (next).
+
+- **The closet:** search and Add, category chips (All, then each category with something in it,
+  with counts), season, dressiness and "In the closet / Retired". A grid of square tiles: the
+  photo cut out on a soft tile, the name, brand and size. Remembered on that phone
+  (`localStorage` `wardrobe-view`).
+- **An item's sheet** (tap a tile): the photo, name, category, "Buy another" (the replacement
+  link) and "Find another" (a Google Shopping search for brand, name and colour), then brand,
+  colour, size, material, fit, seasons, warmth, dressiness, price and currency, bought on, where
+  to buy another, notes. Text saves as it's typed, the rest at once. "Retire it" moves it out of
+  the closet (kept, under Retired); "Delete it" is for good, and only here, never from ChatGPT.
+- **Adding:** a photo, or a store link (or both: the link is kept as where to buy another).
+  - A photo is cut out of its background in the browser (`@imgly/background-removal`, run on
+    demand; its model, about 40 MB, comes from imgly's CDN the first time and is then cached;
+    about 15 s on a laptop). If it can't be cut out it's kept as taken. The library is AGPL-3.0,
+    which this site, whose source is public, already meets.
+  - A store link goes to the `wardrobe-link` edge function, which reads the page's JSON-LD or
+    Open Graph tags (`supabase/functions/_shared/product.ts`: name, brand, picture, price) and
+    copies the picture into the person's folder, as them. Some shops (Patagonia, J.Crew) refuse
+    anything that isn't a browser; then only the link is kept and the name is typed.
+- Categories: tops, bottoms, outerwear, suits, shoes, accessories, workout, swim (a check in the
+  table, and `CATS` in `wardrobe.js`).

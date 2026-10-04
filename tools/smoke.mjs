@@ -264,6 +264,7 @@ async function apps(page, shot) {
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
   await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: Math.floor(Date.now() / 1000) + 86400, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
+  const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
   const asked = [];
   await page.route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
@@ -277,6 +278,13 @@ async function apps(page, shot) {
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-${i}`, cooked: false, rating: 0, created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []); // the row an update asks back for
     }
+    if (url.pathname.endsWith('/rest/v1/wardrobe_items')) {
+      if (method === 'GET') return json(closet);
+      if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-w${i}`, owner: 'u1', seasons: [], retired: false, created_at: new Date().toISOString(), ...r })), 201);
+      return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
+    // a store link, read: what the edge function answers for a page it can read
+    if (url.pathname.endsWith('/functions/v1/wardrobe-link')) return json({ name: 'The Organic Cotton Crew | White', brand: 'Everlane', price: 30, currency: 'USD', link: 'https://www.everlane.com/products/crew', photo_path: null });
     return json([]); // signed links for photos: none
   });
 
@@ -333,8 +341,53 @@ async function apps(page, shot) {
   if (!/expired/.test(await page.textContent('#gate-note')) || (await page.evaluate(() => location.hash))) throw new Error("an expired sign-in link wasn't explained");
   step('an expired sign-in link says so');
 
+  // the wardrobe: the closet, a chip, an item's sheet saving as it's typed, adding from a store
+  // link and from a photo (offline the cut-out can't load, so the photo is kept as taken), retiring
+  await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
+  if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
+  await shot('wardrobe');
+  step('wardrobe: 3 in the closet (the retired one hidden), chips counted');
+  await page.click('#cats button[data-value="shoes"]');
+  if ((await page.locator('#grid .tile:visible').count()) !== 1) throw new Error("the Shoes chip didn't narrow the closet");
+  await page.click('#cats button[data-value=""]');
+  await page.locator('#grid .tile:visible .tile__open').first().click();
+  await page.fill('#sheet [data-is="brand"]', 'Smoke Brand');
+  await page.selectOption('#sheet [data-is="dressiness"]', 'formal');
+  await until(page, () => !document.querySelector('#sheet [data-save="saving"]'));
+  await shot('sheet');
+  await page.click('#sheet [data-close]');
+  const patched = asked.filter((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items')).map((a) => a.body);
+  if (!patched.some((b) => b.brand === 'Smoke Brand') || !patched.some((b) => b.dressiness === 'formal')) throw new Error(`the sheet saved ${JSON.stringify(patched)}`);
+  step('an item\'s sheet saves as it\'s typed');
+  await page.click('#add');
+  await page.fill('#add-dialog [name="link"]', 'everlane.com/products/crew');
+  await page.click('#read-link');
+  await until(page, () => document.querySelector('#add-dialog [name="name"]').value.includes('Organic Cotton'));
+  await page.click('#add-ok');
+  await until(page, () => document.getElementById('sheet').open);
+  const fromLink = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items'));
+  if (!fromLink || fromLink.body[0].brand !== 'Everlane' || fromLink.body[0].buy_link !== 'https://www.everlane.com/products/crew') throw new Error(`adding from a link sent ${JSON.stringify(fromLink)}`);
+  await page.click('#sheet [data-close]');
+  step('added one from a store link: name, brand, price and the buy link');
+  await page.click('#add');
+  await page.locator('#add-photo input').setInputFiles({ name: 'shirt.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
+  await page.fill('#add-dialog [name="name"]', 'Smoke linen shirt');
+  await until(page, () => !document.getElementById('add-ok').disabled, null, 60000);
+  await page.click('#add-ok');
+  await until(page, () => document.getElementById('sheet').open);
+  const shirtUpload = asked.find((a) => a.method === 'POST' && a.path.includes('/object/photos/wardrobe/u1/'));
+  const withPhoto = asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items')).pop();
+  if (!shirtUpload || !/^wardrobe\/u1\//.test(withPhoto.body[0].photo_path || '')) throw new Error(`adding a photo sent ${JSON.stringify(shirtUpload)} / ${JSON.stringify(withPhoto)}`);
+  await page.click('#retire');
+  await until(page, () => !document.getElementById('sheet').open);
+  if (!asked.some((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items') && a.body?.retired === true)) throw new Error("retiring didn't save");
+  await shot('wardrobe-added');
+  step('added one from a photo, into its own folder; retired it');
+
   await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
+  if (!(await page.isVisible('#app-main a[href="/apps/wardrobe"]'))) throw new Error("/apps doesn't list the wardrobe");
   if (!(await page.isVisible('#app-main a[href="/apps/recipes"]')) || !(await page.isVisible('.site-nav [data-members]'))) throw new Error("/apps doesn't list the recipe tracker, or the nav has no Apps link");
   await shot('home');
   step('/apps lists it, and the nav has Apps');

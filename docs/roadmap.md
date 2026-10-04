@@ -6,6 +6,10 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **The wardrobe** (`docs/apps.md`), in three steps: the closet (done), ChatGPT through an MCP
+   server with read and write tools (OAuth on the site's sign-in), then trips (London, Florence,
+   Paris first: weather, day-by-day outfits, a packing list).
+
 0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
    saved to the home screen (which keeps its own storage on iOS) never gets signed in. Put the
    six-digit code in the email (`mailer_templates_magic_link_content` in `supabase/auth.json`) and
@@ -30,9 +34,6 @@ rather than leaving it in a chat.
    the bar, a Pan Galactic Gargle Blaster on the chalkboard.
 
 ## Waiting on Steve
-
-- **The wardrobe** (the next private app; `docs/apps.md` has the steps): what it's for decides its
-  shape. A catalogue with photos? What was worn when? Outfits? Steve's only, or Lexi's too?
 
 - **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
   with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a

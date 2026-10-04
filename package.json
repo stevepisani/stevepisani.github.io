@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",
+    "@imgly/background-removal": "1.7.0",
     "@supabase/supabase-js": "2.117.2",
     "n8ao": "2.0.1",
+    "onnxruntime-web": "1.21.0",
     "postprocessing": "6.39.5",
     "three": "0.186.1"
   },
