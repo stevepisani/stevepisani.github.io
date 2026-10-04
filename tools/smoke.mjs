@@ -312,24 +312,18 @@ async function planet(page, shot, { phone = false } = {}) {
   step(`threw a coconut ${landed.moved.toFixed(1)} m`);
 }
 
-// The private apps (/apps), on a phone, against a made-up Supabase: signed out there's only the
-// sign-in form; signed in as a member, the recipe tracker lists, searches, marks one cooked,
-// saves notes and a rating, and adds one, and each of those asks the database for the right thing.
-async function apps(page, shot) {
-  await page.goto(base + '/apps/recipes');
-  await until(page, () => document.getElementById('app').dataset.state === 'out');
-  if (await page.isVisible('#app-main')) throw new Error('the app shows without signing in');
-  await shot('gate');
-  step('signed out: only the sign-in form');
-
+// Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
+// context so the service worker's requests are caught too) and a made-up Open-Meteo where every
+// day is 18° / 9° with a 40% chance of rain (70% on 15 October). Returns what was asked of it.
+async function member(page, target) {
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
-  await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: Math.floor(Date.now() / 1000) + 86400, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
+  await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: 4102444800, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
   const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
   const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url)));
   const asked = [];
-  await page.route(`${db.origin}/**`, (route) => {
+  await target.route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
     const json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
@@ -363,15 +357,29 @@ async function apps(page, shot) {
     return json([]); // signed links for photos: none
   });
 
-  // Open-Meteo, made up: a place is wherever you ask, and every day is 18° / 9° with a 40% chance of rain
-  await page.route(/open-meteo\.com/, (route) => {
+  // Open-Meteo, made up: a place is wherever you ask
+  await target.route(/open-meteo\.com/, (route) => {
     const u = new URL(route.request().url()), json = (b) => route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) });
     if (u.hostname.startsWith('geocoding')) return json({ results: [{ name: u.searchParams.get('name').split(',')[0], country: 'Somewhere', latitude: 45, longitude: 9, timezone: 'Europe/Rome' }] });
     const from = new Date(u.searchParams.get('start_date') + 'T12:00:00Z'), to = new Date(u.searchParams.get('end_date') + 'T12:00:00Z'), time = [];
     for (let d = from; d <= to; d = new Date(d.getTime() + 864e5)) time.push(d.toISOString().slice(0, 10));
     const fill = (v) => time.map(() => v);
-    return json({ daily: { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_probability_max: fill(40), precipitation_sum: fill(u.searchParams.get('start_date').endsWith('5') ? 3 : 0) } });
+    return json({ daily: { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_probability_max: time.map((d) => (d === '2026-10-15' ? 70 : 40)), precipitation_sum: fill(u.searchParams.get('start_date').endsWith('5') ? 3 : 0) } });
   });
+  return asked;
+}
+
+// The private apps (/apps), on a phone, against a made-up Supabase: signed out there's only the
+// sign-in form; signed in as a member, the recipe tracker lists, searches, marks one cooked,
+// saves notes and a rating, and adds one, and each of those asks the database for the right thing.
+async function apps(page, shot) {
+  await page.goto(base + '/apps/recipes');
+  await until(page, () => document.getElementById('app').dataset.state === 'out');
+  if (await page.isVisible('#app-main')) throw new Error('the app shows without signing in');
+  await shot('gate');
+  step('signed out: only the sign-in form');
+
+  const asked = await member(page, page);
   await page.goto(base + '/apps/recipes');
   await until(page, () => document.querySelectorAll('#cards .item').length === 3);
   if (!(await page.textContent('#tally')).includes('1 of 3')) throw new Error('the cooked count is wrong');
@@ -426,7 +434,9 @@ async function apps(page, shot) {
   step('an expired sign-in link says so');
 
   // the wardrobe: the closet, a chip, an item's sheet saving as it's typed, adding from a store
-  // link and from a photo (offline the cut-out can't load, so the photo is kept as taken), retiring
+  // link and from a photo (offline the cut-out can't load, so the photo is kept as taken), retiring.
+  // The clock is set to before the fixture's trip, so the wardrobe opens on the closet.
+  await page.clock.setFixedTime(new Date('2026-09-01T10:00:00'));
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
   if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
@@ -436,6 +446,10 @@ async function apps(page, shot) {
   if ((await page.locator('#grid .tile:visible').count()) !== 1) throw new Error("the Shoes chip didn't narrow the closet");
   await page.click('#cats button[data-value=""]');
   await page.locator('#grid .tile:visible .tile__open').first().click();
+  await until(page, () => document.getElementById('sheet').open && /^#item\//.test(location.hash));
+  if (!(await page.isVisible('#sv-name')) || await page.isVisible('#sheet [data-is="brand"]')) throw new Error("an item doesn't open on what it is");
+  await shot('item');
+  await page.click('#sheet-edit');
   await page.fill('#sheet [data-is="brand"]', 'Smoke Brand');
   await page.selectOption('#sheet [data-is="dressiness"]', 'formal');
   await until(page, () => !document.querySelector('#sheet [data-save="saving"]'));
@@ -443,7 +457,8 @@ async function apps(page, shot) {
   await page.click('#sheet [data-close]');
   const patched = asked.filter((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items')).map((a) => a.body);
   if (!patched.some((b) => b.brand === 'Smoke Brand') || !patched.some((b) => b.dressiness === 'formal')) throw new Error(`the sheet saved ${JSON.stringify(patched)}`);
-  step('an item\'s sheet saves as it\'s typed');
+  await until(page, () => location.hash === '#closet' || location.hash === '');
+  step('an item opens on what it is, its fields behind Edit save as they\'re typed; closing goes back');
   await page.click('#add');
   await page.fill('#add-dialog [name="link"]', 'everlane.com/products/crew');
   await page.click('#read-link');
@@ -469,23 +484,35 @@ async function apps(page, shot) {
   await shot('wardrobe-added');
   step('added one from a photo, into its own folder; retired it');
 
-  // trips: the list, a trip with its legs and weather, its days and packing; ticking something off
-  // and adding to the list save; a new trip looks its places up
+  // trips: the list, a trip with its legs and weather, its days; packing: ticking something off
+  // (and undoing it) and adding to the list save; a new trip looks its places up
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
-  await page.click('#tabs button[data-value="trips"]');
+  await page.click('#tabs a[data-value="trips"]');
   await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
   await page.click('#trip-list .trip-card');
   await until(page, () => document.querySelectorAll('#legs .leg__days li').length > 30);
-  if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-count')).includes('1 of 3')) throw new Error("the trip doesn't show its legs, days and packing");
+  if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 3')) throw new Error("the trip doesn't show its legs, days and packing");
   if (!/highs 18°, lows 9°/.test(await page.textContent('#legs'))) throw new Error("the trip's weather isn't shown");
   await shot('trip');
-  await page.locator('#packing .pack:not(.is-packed) input[type="checkbox"]').first().check();
+  await page.click('#pack-open');
+  await until(page, () => location.hash === '#trip/t1/pack' && document.querySelectorAll('#pack-groups .pack-row').length === 2);
+  if (!(await page.textContent('#pack-left')).includes('2') || !(await page.isVisible('#pack-from-plan'))) throw new Error("the packing list doesn't show what's left, or the planned outfits' things");
+  await page.locator('#pack-groups .pack-row__box').first().click();
+  await until(page, () => document.getElementById('pack-count').textContent.startsWith('2 of 3') && document.querySelector('.app-toast__undo'));
+  await page.click('.app-toast__undo');
+  await until(page, () => document.getElementById('pack-count').textContent.startsWith('1 of 3'));
+  await page.locator('#pack-groups .pack-row__box').first().click();
   await page.fill('#pack-add [name="label"]', 'Charger');
   await page.click('#pack-add button');
-  await until(page, () => document.getElementById('pack-count').textContent.includes('of 4'));
-  const packs = asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips')).map((a) => a.body.packing);
-  if (!packs.some((p) => p.filter((x) => x.packed).length === 2) || !packs.some((p) => p.some((x) => x.label === 'Charger'))) throw new Error(`packing saved ${JSON.stringify(packs)}`);
+  await until(page, () => /^2 of 4/.test(document.getElementById('pack-count').textContent));
+  await page.click('#pack-show button[data-value="all"]');
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 4);
+  await shot('packing');
+  const packs = asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips')).map((a) => a.body.packing.filter((x) => x.packed).length);
+  if (packs.join() !== '2,1,2,2' || !asked.some((a) => a.body?.packing?.some((x) => x.label === 'Charger'))) throw new Error(`packing saved ${JSON.stringify(packs)}`);
+  await page.goBack();
+  await until(page, () => location.hash === '#trip/t1' && !document.getElementById('trip').hidden);
   await page.click('#trip-back');
   await page.click('#new-trip');
   await page.fill('#trip-dialog [name="name"]', 'Smoke weekend');
@@ -496,7 +523,24 @@ async function apps(page, shot) {
   await until(page, () => document.getElementById('trip-name').textContent === 'Smoke weekend');
   const made = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trips'));
   if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
-  step('trips: legs with weather, days, packing ticked and added to; a new trip');
+  step('trips: legs with weather, days; packing ticked, undone and added to; Back goes back; a new trip');
+
+  // Today, mid-trip: where you are, the weather and what you're wearing, with a word about the rain
+  // (and the suede); the next day is a tap away; an item opens over it and Back closes it
+  await page.clock.setFixedTime(new Date('2026-10-15T09:00:00'));
+  await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.querySelector('.today-card') && location.hash === '');
+  const today = await page.textContent('#today-view');
+  if (!/Florence/.test(await page.textContent('.today-card__place')) || !/Uffizi/.test(today) || (await page.locator('.outfit__item').count()) !== 2) throw new Error(`Today doesn't show the day: ${today.slice(0, 200)}`);
+  if (!/day 9 of 42/.test(today) || !/Rain likely \(70%\), and nothing in this outfit is for rain/.test(today) || !/Maybe not Brown suede loafers/.test(today)) throw new Error(`Today's trip line or advice is wrong: ${today.slice(0, 400)}`);
+  await shot('today');
+  await page.locator('.outfit__item').first().click();
+  await until(page, () => document.getElementById('sheet').open);
+  await page.goBack();
+  await until(page, () => !document.getElementById('sheet').open && !document.getElementById('today-view').hidden);
+  await page.click('.today-card__step button:last-child');
+  await until(page, () => /Friday/.test(document.querySelector('.today-card__kicker').textContent));
+  step('Today: the day, its weather and outfit, the rain and the suede; the next day; Back closes an item');
 
   // the consent page ChatGPT sends you to: it can be allowed; a request that would send you
   // anywhere but ChatGPT can't
@@ -522,6 +566,36 @@ async function apps(page, shot) {
   step('/apps lists it, and the nav has Apps');
 }
 
+// With no connection: the wardrobe opens on the copy it kept (through its service worker), a
+// packing tick is kept, and it's sent when the connection's back
+async function offline(page, shot) {
+  await page.clock.setFixedTime(new Date('2026-10-15T09:00:00'));
+  await page.goto(base + '/apps/wardrobe');
+  const asked = await member(page, page.context());
+  await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.querySelector('.today-card'));
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload(); // now through the service worker, which keeps the page and its scripts as they pass
+  await until(page, () => navigator.serviceWorker.controller && document.querySelector('.today-card'));
+  await page.context().setOffline(true);
+  await page.reload();
+  await until(page, () => document.querySelector('.today-card') && !document.getElementById('offline-note').hidden);
+  if (!/Florence/.test(await page.textContent('.today-card__place'))) throw new Error("offline, Today isn't there");
+  await shot('offline');
+  step('offline: the page, its scripts and the data come from the copy on the phone');
+  await page.click('.today__part a[href$="/pack"]');
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 2);
+  const before = asked.length;
+  await page.locator('#pack-groups .pack-row__box').first().click();
+  await until(page, () => document.getElementById('pack-count').textContent.startsWith('2 of 3'));
+  if (asked.slice(before).some((a) => a.method === 'PATCH')) throw new Error('a tick went out with no connection');
+  await page.context().setOffline(false);
+  await until(page, () => document.getElementById('offline-note').hidden);
+  const sent = asked.slice(before).find((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips'));
+  if (!sent || sent.body.packing.filter((x) => x.packed).length !== 2) throw new Error(`the tick made offline sent ${JSON.stringify(sent)}`);
+  step('a tick made offline is kept, and sent when the connection is back');
+}
+
 // Without WebGL the menu is the page, and its links are real
 async function noWebGL(page, shot) {
   await page.goto(base + '/');
@@ -533,7 +607,8 @@ async function noWebGL(page, shot) {
 
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
-if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, apps);
+if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block' }, apps);
+if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

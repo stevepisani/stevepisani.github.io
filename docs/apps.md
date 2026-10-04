@@ -11,7 +11,8 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | `_data/apps.yml` | the list on `/apps` (`apps/index.html`): title, url, emoji, blurb |
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`) and the script named by `app:` |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, dialog, toast |
-| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close)` (the gate), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `ask(dialog)` (a form in a dialog; Cancel is `type="button" data-close`, so Enter submits), `photos` (put, urls, remove), `toast(text)` |
+| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `ask(dialog)` (a form in a dialog; Cancel is `type="button" data-close`, so Enter submits), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it) |
+| `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
 Signing in is a link by email (Supabase magic link), sign-ups off. The session is kept in the
@@ -103,15 +104,20 @@ Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned 
 photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
 wardrobe MCP server, signed in as him (below).
 
+- **Where you are is in the address** (`#today`, `#closet`, `#trips`, `#trip/<id>`,
+  `#trip/<id>/pack`, `#item/<id>` over whatever's underneath), so Back works everywhere and any
+  view can be linked. With a trip on, or starting within two weeks, it opens on Today; otherwise
+  on the tab last used.
 - **The closet:** search and Add, category chips (All, then each category with something in it,
-  with counts), season, dressiness and "In the closet / Retired". A grid of square tiles: the
-  photo cut out on a soft tile, the name, brand and size. Remembered on that phone
-  (`localStorage` `wardrobe-view`).
-- **An item's sheet** (tap a tile): the photo, name, category, "Buy another" (the replacement
-  link) and "Find another" (a Google Shopping search for brand, name and colour), then brand,
-  colour, size, material, fit, seasons, warmth, dressiness, price and currency, bought on, where
-  to buy another, notes. Text saves as it's typed, the rest at once. "Retire it" moves it out of
-  the closet (kept, under Retired); "Delete it" is for good, and only here, never from ChatGPT.
+  with counts), and Filters (season, dressiness, "In the closet / Retired"; folded away on a
+  phone). A grid of square tiles: the photo cut out on a soft tile, the name, brand and size.
+  Remembered on that phone (`localStorage` `wardrobe-view`).
+- **An item** (tap a tile, or an item anywhere): what it is first: the photo, category, name,
+  brand, colour, material and size, fit, seasons, warmth and dressiness, price and when it was
+  bought, notes, "Buy another" (the replacement link) and "Find another" (a Google Shopping search
+  for brand, name and colour). "Edit" shows the fields; text saves as it's typed, the rest at
+  once. Something just added opens on the fields. "Retire it" moves it out of the closet (kept,
+  under Retired, with Undo); "Delete it" is for good, and only here, never from ChatGPT.
 - **Adding:** a photo, or a store link (or both: the link is kept as where to buy another).
   - A photo is cut out of its background in the browser (`@imgly/background-removal`, run on
     demand; its model, about 40 MB, comes from imgly's CDN the first time and is then cached;
@@ -123,14 +129,35 @@ wardrobe MCP server, signed in as him (below).
     anything that isn't a browser; then only the link is kept and the name is typed.
 - Categories: tops, bottoms, outerwear, suits, shoes, accessories, workout, swim (a check in the
   table, and `CATS` in `wardrobe.js`).
-- **Trips** (the Closet / Trips switch; table `trips`, private like the clothes): a trip is its
-  legs (a place, looked up for its latitude and longitude, and dates), its days (the wardrobe
-  items worn, what the day holds, a note) and its packing list (wardrobe items or plain labels,
-  how many, packed or not), kept on the row as JSON. A trip shows each leg with its weather (a
-  bar a day: its height the high, its blue the chance of rain; dashed for typical days), the
-  planned days with their outfits (tap an item for its sheet), and the packing list to tick off
-  and add to. Trips are mostly made in ChatGPT; "New trip" and "Edit" here take a name, places
-  and dates, and notes.
+- **Trips** (the Trips tab; table `trips`, private like the clothes): a trip is its legs (a
+  place, looked up for its latitude and longitude, and dates), its days (the wardrobe items worn,
+  what the day holds, a note) and its packing list (wardrobe items or plain labels, how many,
+  packed or not), kept on the row as JSON. A trip shows each leg with its weather (a bar a day:
+  its height the high, its blue the chance of rain; dashed for typical days), the planned days
+  with their outfits, and how the packing's going. Trips are mostly made in ChatGPT; "New trip"
+  and "Edit" here take a name, places and dates, and notes.
+- **Today** (a tab only while a trip is on, or starts within two weeks): the trip's line, leg by
+  leg, with the one you're on lit and the days left there; then a card for the day: the place,
+  the high, the low and the chance of rain, a line of advice when the weather and the outfit
+  disagree, and what you're wearing (the occasion, the items, the note). "Day before" and
+  "Tomorrow" step through the trip. Below, the next five days (weather and a thumbnail of each
+  outfit; tap one to see it on the card) and the packing. Before the trip, the card shows its
+  first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say: rain of 50%
+  or more asks for something whose name, material or notes say rain, waterproof, shell, Gore-Tex,
+  trench, mac or umbrella, and warns off suede; a low under 8° with nothing from outerwear or
+  warm; a high of 26° or more with something warm.
+- **Packing** (`#trip/<id>/pack`): "To pack" (what's left) or "All", how many are packed and how
+  long until you leave, then a row a thing by category (other things last), each with its photo,
+  how many, and a round tick. Ticking says so with Undo; × takes it off the list (with Undo).
+  "Make the list from the planned outfits" (or "Add from the planned outfits") adds what the
+  planned days wear that isn't on it yet.
+- **With no connection** (a plane, a train abroad): every load keeps a copy on the phone
+  (`localStorage` `wardrobe-copy:<user id>`: the rows and the photo links; `wardrobe-wx`: the last
+  weather for each leg; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
+  the page and its scripts. Offline, the app opens on that copy and says how old it is. Packing
+  ticks work and wait in `wardrobe-queue`; they're sent (the whole list per trip, the last one
+  wins) when the connection's back, before anything is loaded. Adding and editing wait for a
+  connection, and say so.
 - **Weather** comes from Open-Meteo (free, no key; `supabase/functions/_shared/weather.js`, which
   the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
   the rest the same dates over the last three years, the temperatures averaged and the chance of
