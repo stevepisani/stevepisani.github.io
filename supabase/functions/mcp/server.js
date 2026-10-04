@@ -34,11 +34,11 @@ export const APP_URI = "ui://wardrobe/app.html";
 export const APP_MIME = "text/html;profile=mcp-app";
 const SITE = "https://stevenpisani.com";
 const APP = `${SITE}/apps/wardrobe`; // the app's own links: #closet, #item/<id>, #trip/<id>
-// who this server is, as both apps show it: name, logo (assets/images/wardrobe*), and its home
+// who this server is, as both apps show it: name, logo (the site's SJPJr badge), and its home
 export const ICONS = [
-  { src: `${SITE}/assets/images/wardrobe.svg`, mimeType: "image/svg+xml", sizes: ["any"] },
-  { src: `${SITE}/assets/images/wardrobe-512.png`, mimeType: "image/png", sizes: ["512x512"] },
-  { src: `${SITE}/assets/images/wardrobe-64.png`, mimeType: "image/png", sizes: ["64x64"] },
+  { src: `${SITE}/assets/images/sj-512.png`, mimeType: "image/png", sizes: ["512x512"] },
+  { src: `${SITE}/assets/images/sj-180.png`, mimeType: "image/png", sizes: ["180x180"] },
+  { src: `${SITE}/assets/images/sj-64.png`, mimeType: "image/png", sizes: ["64x64"] },
 ];
 export const SERVER = { name: "wardrobe", title: "Steve's wardrobe", version: "1.2.0", description: "Steve's clothes and trips: find, add and plan what to wear and pack.", websiteUrl: APP, icons: ICONS };
 const showsCard = { ui: { resourceUri: APP_URI }, "openai/outputTemplate": APP_URI };

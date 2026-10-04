@@ -306,9 +306,8 @@ person (the `ctx` object, listed at the top of `server.js`).
   sessions keep working. `wardrobe-link` is deployed with `--no-verify-jwt` too, and checks the
   caller itself, since tokens from the new key may not pass the gateway's old check.
 - **Who it is:** `SERVER` in `server.js` (the `initialize` answer): title, a line on what it
-  does, its home (`websiteUrl`, the app) and its logo (`ICONS`: `assets/images/wardrobe.svg`, and
-  PNGs at 64, 180 and 512, a white hanger with an orange tag on the site's blue; the wardrobe and
-  consent pages use it too, through `icon: wardrobe` in their front matter). Neither app reads the
+  does, its home (`websiteUrl`, the app) and its logo (`ICONS`: the site's SJPJr badge,
+  `assets/images/sj-512.png`, `-180`, `-64`). Neither app reads the
   logo from the server yet (Oct 2026): ChatGPT shows the icon uploaded when the connector is
   created (and can't change it after), Claude a globe for every custom connector. Each tool also
   has the status lines ChatGPT shows while it runs (`STATUS`), and the card's resource tells
@@ -345,7 +344,7 @@ person (the `ctx` object, listed at the top of `server.js`).
   4. Connect the apps again with the new URL (below); the old one keeps working meanwhile.
 - **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
   Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", icon
-  `assets/images/wardrobe-512.png` (only when creating it), URL `https://mcp.stevenpisani.com`
+  `assets/images/sj-512.png` (only when creating it), URL `https://mcp.stevenpisani.com`
   (until that's set up, `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`),
   authentication OAuth → sign in → Allow. ChatGPT asks before each write; that approval lasts the
   conversation if you tell it to.
