@@ -73,7 +73,7 @@ export function start(open = () => {}, close = () => {}) {
     note.textContent = 'Sending…';
     const { error } = await db.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: false }, // sign-ups are off
+      options: { emailRedirectTo: location.origin + location.pathname + location.search, shouldCreateUser: false }, // sign-ups are off; the query keeps the consent page's request
     });
     note.textContent = error
       ? "That didn't send. Only members can sign in; check the address."
@@ -164,21 +164,22 @@ const BUCKET = 'photos', WEEK = 60 * 60 * 24 * 7, LONGEST = 1600, BIGGEST = 5 * 
 export const photos = {
   // Stores a picture under `folder/` and returns its path. It's shrunk first to 1600px on its
   // long side (a phone photo goes from megabytes to a few hundred KB; the free plan has 1 GB).
-  async put(file, folder) {
+  // `alpha` keeps a transparent background (a cut-out, as WebP); `longest` shrinks it further.
+  async put(file, folder, { alpha = false, longest = LONGEST } = {}) {
     let blob = file, ext = (/\.(\w+)$/.exec(file.name)?.[1] || 'jpg').toLowerCase();
     const src = URL.createObjectURL(file);
     try {
       // through an <img>, which every browser turns the right way up (a phone's portrait photo)
       const img = Object.assign(new Image(), { src });
       await img.decode();
-      const k = Math.min(1, LONGEST / Math.max(img.naturalWidth, img.naturalHeight));
+      const k = Math.min(1, longest / Math.max(img.naturalWidth, img.naturalHeight));
       const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff'; // under a transparent PNG
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (!alpha) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); } // under a transparent PNG
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const small = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
-      if (small) { blob = small; ext = 'jpg'; }
+      const type = alpha ? 'image/webp' : 'image/jpeg';
+      const small = await new Promise((r) => canvas.toBlob(r, type, 0.85));
+      if (small && small.type === type) { blob = small; ext = alpha ? 'webp' : 'jpg'; }
     } catch (e) { /* a kind of picture the browser can't draw: store it as it is */ }
     URL.revokeObjectURL(src);
     if (blob.size > BIGGEST) { toast('That photo is too big (5 MB at most).', true); return null; }

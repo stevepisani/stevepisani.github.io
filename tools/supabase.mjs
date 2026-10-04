@@ -3,6 +3,7 @@
 //   - each migration in supabase/migrations/ not yet recorded in
 //     supabase_migrations.schema_migrations (the table the Supabase CLI uses, so the two agree),
 //     in name order, each in its own transaction;
+//   - JWT signing keys: an asymmetric one in use (below);
 //   - the auth settings in supabase/auth.json.
 //
 //   SUPABASE_ACCESS_TOKEN=... node tools/supabase.mjs [--dry-run]
@@ -41,6 +42,22 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
   const body = readFileSync(`${dir}/${file}`, 'utf8');
   await sql(`begin;\n${body}\n;insert into supabase_migrations.schema_migrations (version, name, statements)
     values (${quote(version)}, ${quote(name)}, array[${quote(body)}]);\ncommit;`);
+}
+
+// Asymmetric JWT signing keys, which the OAuth server needs (its ID tokens can't be HS256). Once:
+// the old shared secret is imported as a key, an ES256 key is added and put in use, and the old
+// one becomes "previously used", still trusted, so everything already signed with it (the anon
+// and service keys, sessions in browsers) keeps working. Nothing is revoked here.
+const { keys = [] } = await api('GET', '/config/auth/signing-keys');
+if (!keys.some((k) => k.algorithm !== 'HS256' && k.status === 'in_use')) {
+  console.log(`${dry ? 'would switch' : 'switching'} JWT signing to an ES256 key (the old secret stays trusted)`);
+  if (!dry) {
+    if (!keys.some((k) => k.algorithm === 'HS256')) {
+      try { await api('POST', '/config/auth/signing-keys/legacy'); } catch (e) { console.log(`  (importing the old secret: ${e.message})`); }
+    }
+    const next = keys.find((k) => k.algorithm === 'ES256' && k.status === 'standby') || (await api('POST', '/config/auth/signing-keys', { algorithm: 'ES256', status: 'standby' }));
+    await api('PATCH', `/config/auth/signing-keys/${next.id}`, { status: 'in_use' });
+  }
 }
 
 const auth = JSON.parse(readFileSync(`${repo}/supabase/auth.json`, 'utf8'));

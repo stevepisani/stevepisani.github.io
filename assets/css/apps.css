@@ -107,3 +107,111 @@
 .app-toast.is-bad { background: var(--bad); color: #fff; }
 :root[data-theme="dark"] .app-toast.is-bad, :root[data-theme="terminal"] .app-toast.is-bad { color: #15171c; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) .app-toast.is-bad { color: #15171c; } }
+
+/* ==========================================================================
+   The wardrobe (apps/wardrobe.html): category chips, a closet of cut-out
+   tiles, and an item's sheet.
+   ========================================================================== */
+.cats { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.cats button { flex: none; min-height: 44px; padding: 0 14px; border: 1px solid var(--ink-3); border-radius: 999px; background: var(--card); color: var(--ink-2); font: 500 .95rem var(--font-body); white-space: nowrap; cursor: pointer; }
+.cats button span { margin-left: 6px; font: .78rem var(--font-mono); opacity: .8; }
+.cats button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+.closet-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.closet-filters select { width: auto; flex: 1 1 10rem; }
+
+.closet { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px 12px; }
+.tile { min-width: 0; }
+.tile__open { display: grid; gap: 4px; width: 100%; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.tile__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--radius); }
+/* a cut-out sits on a soft tile, like a shop's; a photo as taken fills it */
+.tile__photo { position: relative; display: grid; place-items: center; aspect-ratio: 1; border-radius: var(--radius); background: var(--bg-2); border: 1px solid var(--line); overflow: hidden; }
+.tile__photo img { width: 100%; height: 100%; object-fit: contain; padding: 8%; filter: drop-shadow(0 6px 10px rgb(0 0 0 / .18)); }
+.tile__none { font: 600 2.2rem var(--font-display); color: var(--ink-2); }
+.tile__open:hover .tile__photo { border-color: var(--ink-3); }
+.tile__name { font: 600 .95rem/1.25 var(--font-display); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile__meta { font-size: .8rem; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile__meta:empty { display: none; }
+@media (max-width: 480px) { .closet { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.add-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.add-preview { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; margin: 0; }
+.add-preview figcaption { color: var(--ink-2); font-size: .9rem; }
+
+.sheet { width: min(44rem, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+.sheet__top { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: 18px; align-items: start; }
+.sheet__head { display: grid; gap: 12px; }
+.sheet__buy { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.sheet__buy a.btn { display: inline-flex; align-items: center; min-height: 44px; }
+.sheet__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.sheet__wide { grid-column: 1 / -1; }
+.sheet__seasons { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; padding: 0; border: 0; }
+.sheet__seasons legend { padding: 0; margin-bottom: 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.sheet__seasons label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
+.app .sheet__seasons input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--accent); }
+.sheet__foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); }
+.sheet__foot .btn { margin-left: auto; }
+@media (max-width: 560px) {
+  .sheet__top { grid-template-columns: 1fr; }
+  .sheet__photo { max-width: 240px; }
+  .sheet__grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- The consent page for apps like ChatGPT (apps/authorize.html) ---------- */
+.consent { max-width: 34rem; display: grid; gap: 12px; }
+.consent p { margin: 0; }
+.consent__where { color: var(--ink-2); font-size: .95rem; }
+.consent__warn { color: var(--bad); font-weight: 600; }
+.consent__buttons { justify-content: flex-start; }
+
+/* ---------- The wardrobe's trips ---------- */
+.wardrobe-tabs { margin-bottom: 16px; }
+.trips-bar { align-items: start; }
+.trips-lede { margin: 0; color: var(--ink-2); }
+.trip-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.trip-card { display: grid; gap: 4px; width: 100%; min-height: 44px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--ink); text-align: left; box-shadow: var(--shadow); cursor: pointer; }
+.trip-card:hover { border-color: var(--ink-3); }
+.trip-card__name { font: 600 1.15rem/1.2 var(--font-display); }
+.trip-card__when, .trip-card__legs { font-size: .9rem; color: var(--ink-2); }
+.trip { display: grid; gap: 18px; }
+.trip > .link-btn { justify-self: start; }
+.trip__head { display: flex; align-items: baseline; gap: 4px 14px; flex-wrap: wrap; }
+.trip__name { margin: 0; }
+.trip__when { margin: 0; color: var(--ink-2); }
+.trip__head .link-btn { margin-left: auto; }
+.trip__part { display: grid; gap: 10px; }
+.trip__part h3 { margin: 0; font: 600 .78rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.trip__notes { margin: 0; color: var(--ink-2); white-space: pre-wrap; }
+.legs { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.leg { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.leg__place { margin: 0; font-size: 1.15rem; }
+.leg__when, .leg__weather { margin: 0; color: var(--ink-2); font-size: .92rem; }
+/* a bar a day: its height the high, its fill the chance of rain; typical days fainter */
+.leg__days { list-style: none; margin: 8px 0 0; padding: 0; display: flex; align-items: end; gap: 2px; height: 64px; overflow-x: auto; }
+.wx { position: relative; flex: 0 0 auto; width: 16px; height: calc(10px + (var(--hi) - 0) * 1.4px); min-height: 10px; max-height: 60px; border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--accent) 25%, var(--bg-2)); border: 1px solid var(--ink-3); overflow: hidden; }
+.wx::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--rain) * 100%); background: color-mix(in srgb, #3a7bd5 55%, transparent); }
+.wx--typical { opacity: .55; border-style: dashed; }
+.wx__hi { position: absolute; inset: 1px 0 auto; z-index: 1; font: 600 .55rem var(--font-mono); text-align: center; color: var(--ink); }
+.days { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.day { display: grid; gap: 6px; padding: 12px 14px; border-left: 3px solid var(--accent); background: var(--bg-2); border-radius: 0 var(--radius) var(--radius) 0; }
+.day p { margin: 0; }
+.day__head { color: var(--ink-2); font-size: .92rem; }
+.day__head strong { color: var(--ink); }
+.day__occasion { font-weight: 600; }
+.day__note { color: var(--ink-2); font-size: .9rem; }
+.day__outfit { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-item { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px 4px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: .9rem; cursor: pointer; }
+.chip-item__photo { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--bg-2); overflow: hidden; font: 600 .9rem var(--font-display); color: var(--ink-2); }
+.chip-item__photo img { width: 100%; height: 100%; object-fit: contain; }
+.packing { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pack { display: flex; align-items: center; gap: 8px; }
+.app .pack__tick { display: flex; align-items: center; gap: 10px; flex: 1; min-height: 44px; font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
+.app .pack__tick input { width: 22px; height: 22px; min-height: 0; padding: 0; flex: none; accent-color: var(--accent); }
+.pack.is-packed .chip-item__name, .pack.is-packed .pack__label { text-decoration: line-through; color: var(--ink-2); }
+.pack__qty { color: var(--ink-2); font-size: .9rem; }
+.pack__x { min-width: 44px; color: var(--ink-2); text-decoration: none; font-size: 1.3rem; }
+.pack-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.leg-rows { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.leg-rows legend { padding: 0; margin-bottom: 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.leg-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) 44px; gap: 8px; align-items: end; }
+.leg-row__x { text-decoration: none; font-size: 1.3rem; color: var(--ink-2); }
+@media (max-width: 560px) { .leg-row { grid-template-columns: 1fr 1fr 44px; } .leg-row label:first-child { grid-column: 1 / -1; } }

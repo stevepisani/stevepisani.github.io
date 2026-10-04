@@ -3,3 +3,7 @@
   url: /apps/recipes
   emoji: "🍳"
   blurb: What we're cooking our way through, with ratings, notes and photos.
+- title: Wardrobe
+  url: /apps/wardrobe
+  emoji: "👕"
+  blurb: My clothes, each with a photo, what it is and where to buy another. ChatGPT can see it too.

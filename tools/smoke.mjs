@@ -14,6 +14,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, extname, resolve, relative } from 'node:path';
 import { buildLibrary } from './library.mjs';
+import { rpc as mcp, TOOLS } from '../supabase/functions/mcp/server.js';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -32,6 +33,67 @@ const library = buildLibrary(JSON.parse(readFileSync(new URL('./fixtures/listeni
   if (library.read.find((b) => b.title === 'The Signal and the Noise').shelf !== 'data-and-craft') throw new Error('library: a genre no shelf lists should land on the "*" shelf');
   if (library.read.length !== 25 || library.now.length !== 2 || library.shelves.reduce((n, s) => n + s.count, 0) !== 25) throw new Error(`library: counts don't add up (${library.read.length} read, ${library.now.length} now)`);
   console.log(`library: ${library.read.length} read on ${library.shelves.length} shelves, ${library.now.length} reading now, merged as expected`);
+}
+
+// The wardrobe's MCP server (what ChatGPT talks to), its tools run against a made-up store: the
+// handshake, the list of tools, finding, adding from a store link, refusing a wrong value,
+// retiring, and a notification getting no answer.
+{
+  const store = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
+  let n = 0;
+  const ctx = {
+    items: {
+      list: async () => store,
+      get: async (id) => store.find((r) => r.id === id) || null,
+      add: async (row) => { const r = { id: `m${++n}`, retired: false, seasons: [], currency: 'USD', ...row }; store.push(r); return r; },
+      set: async (id, patch) => { const r = store.find((x) => x.id === id); return r ? Object.assign(r, patch) : null; },
+    },
+    photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
+    readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
+    storeImage: async () => 'wardrobe/u1/linen.jpg',
+    storeUpload: async (file) => `wardrobe/u1/${file.file_id}.jpg`,
+  };
+  const ask = async (method, params) => (await mcp({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
+  const callTool = (name, args) => ask('tools/call', { name, arguments: args });
+  const fail = (what) => { throw new Error(`mcp: ${what}`); };
+  if ((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion !== '2025-06-18') fail('the handshake picked the wrong protocol');
+  const { tools } = await ask('tools/list');
+  if (tools.length !== TOOLS.length || !tools.find((t) => t.name === 'find_items').annotations.readOnlyHint || tools.find((t) => t.name === 'add_item').annotations.readOnlyHint) fail('the tools or their read-only hints are wrong');
+  const found = await callTool('find_items', { category: 'tops' });
+  if (found.structuredContent.count !== 2 || !/Navy oxford shirt/.test(found.content[0].text)) fail(`find_items(tops) gave ${JSON.stringify(found.structuredContent)}`); // the retired hoodie is left out
+  const added = await callTool('add_item', { name: 'Linen shirt', category: 'tops', buy_link: 'shopco.example/linen', seasons: ['summer'] });
+  const it = added.structuredContent.item;
+  if (it.brand !== 'Shopco' || it.price !== 60 || it.currency !== 'EUR' || !it.photo_url) fail(`add_item from a link gave ${JSON.stringify(it)}`);
+  if (!(await callTool('update_item', { id: it.id, dressiness: 'black tie' })).isError) fail('update_item took a dressiness that isn\'t one');
+  if ((await callTool('update_item', { id: it.id, fit: 'boxy' })).structuredContent.item.fit !== 'boxy') fail('update_item didn\'t change the fit');
+  if (!(await callTool('retire_item', { id: it.id })).structuredContent.retired || (await callTool('find_items', {})).structuredContent.items.some((x) => x.id === it.id)) fail('a retired item is still in the wardrobe');
+  if (!(await callTool('delete_item', { id: it.id })).isError) fail('there\'s a way to delete');
+  if ((await mcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) !== null) fail('a notification got an answer');
+  // a photo uploaded in the chat: stored, and the same upload twice is the same item
+  const up = { download_url: 'https://files.example/abc', file_id: 'file-1', mime_type: 'image/jpeg' };
+  const withPhoto = (await callTool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: up })).structuredContent.item;
+  const again = await callTool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: up });
+  if (!withPhoto.photo_url || again.structuredContent.item.id !== withPhoto.id || !/Already added/.test(again.content[0].text)) fail('an uploaded photo was not stored once');
+  if (!TOOLS.find((t) => t.name === 'add_item')._meta['openai/fileParams'].includes('photo')) fail('add_item doesn\'t take uploads');
+  // trips: created from places, days planned from what's in the wardrobe, packing that remembers what's packed
+  const tripStore = [];
+  Object.assign(ctx, {
+    trips: { list: async () => tripStore, get: async (id) => tripStore.find((t) => t.id === id) || null, add: async (row) => { const t = { id: `t${tripStore.length + 1}`, ...row }; tripStore.push(t); return t; }, set: async (id, patch) => { const t = tripStore.find((x) => x.id === id); return t ? Object.assign(t, patch) : null; } },
+    locate: async (place) => (/nowhere/i.test(place) ? null : { name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
+    weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
+  });
+  if (!(await callTool('create_trip', { name: 'Nowhere', legs: [{ place: 'Nowhere', from: '2026-10-01', to: '2026-10-02' }] })).isError) fail('a trip to a place that can\'t be found was created');
+  await callTool('create_trip', { name: 'Europe', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence, Italy', from: '2026-10-14', to: '2026-11-14' }] });
+  const trip = tripStore[0];
+  if (!(await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-12-25', items: ['w1'] }] })).isError) fail('a day outside the trip was planned');
+  if (!(await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-15', items: ['nope'] }] })).isError) fail('an outfit with something not in the wardrobe was planned');
+  await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-15', items: ['w1', 'w3'], occasion: 'Uffizi, then dinner' }] });
+  await callTool('set_packing', { trip_id: trip.id, items: [{ item_id: 'w1' }, { label: 'Charger' }] });
+  trip.packing[0].packed = true; // ticked off in the app
+  await callTool('set_packing', { trip_id: trip.id, items: [{ item_id: 'w1' }, { item_id: 'w3', qty: 2 }] });
+  const got = await callTool('get_trip', { id: trip.id });
+  if (!trip.packing[0].packed || trip.packing.length !== 2 || !/Florence, Italy .*highs 20°C/.test(got.content[0].text) || !/Uffizi, then dinner: Navy oxford shirt, Brown suede loafers/.test(got.content[0].text)) fail(`get_trip said ${got.content[0].text}`);
+  console.log(`mcp: ${tools.length} tools: found, added from a link and from an upload (once), refused wrong values, retired; a trip with weather, days and packing`);
 }
 
 // A static server for the build (what Pages does: /x serves x.html or x/index.html)
@@ -264,6 +326,8 @@ async function apps(page, shot) {
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
   await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: Math.floor(Date.now() / 1000) + 86400, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
+  const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
+  const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url)));
   const asked = [];
   await page.route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
@@ -277,9 +341,37 @@ async function apps(page, shot) {
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-${i}`, cooked: false, rating: 0, created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []); // the row an update asks back for
     }
+    if (url.pathname.endsWith('/rest/v1/wardrobe_items')) {
+      if (method === 'GET') return json(closet);
+      if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-w${i}`, owner: 'u1', seasons: [], retired: false, created_at: new Date().toISOString(), ...r })), 201);
+      return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
+    if (url.pathname.endsWith('/rest/v1/trips')) {
+      if (method === 'GET') return json(tripTable);
+      if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-t${i}`, owner: 'u1', created_at: new Date().toISOString(), ...r })), 201);
+      return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
+    // a store link, read: what the edge function answers for a page it can read
+    // the consent page: one request from ChatGPT, one from somewhere else
+    const auth = /\/auth\/v1\/oauth\/authorizations\/([^/]+)(\/consent)?$/.exec(url.pathname);
+    if (auth) {
+      if (auth[2]) return json({ redirect_url: `https://chatgpt.com/connector_platform_oauth_redirect?code=c&state=s` });
+      const from = auth[1] === 'gpt' ? 'https://chatgpt.com/connector_platform_oauth_redirect' : 'https://evil.example/callback';
+      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: auth[1] === 'gpt' ? 'ChatGPT' : 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
+    }
+    if (url.pathname.endsWith('/functions/v1/wardrobe-link')) return json({ name: 'The Organic Cotton Crew | White', brand: 'Everlane', price: 30, currency: 'USD', link: 'https://www.everlane.com/products/crew', photo_path: null });
     return json([]); // signed links for photos: none
   });
 
+  // Open-Meteo, made up: a place is wherever you ask, and every day is 18° / 9° with a 40% chance of rain
+  await page.route(/open-meteo\.com/, (route) => {
+    const u = new URL(route.request().url()), json = (b) => route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) });
+    if (u.hostname.startsWith('geocoding')) return json({ results: [{ name: u.searchParams.get('name').split(',')[0], country: 'Somewhere', latitude: 45, longitude: 9, timezone: 'Europe/Rome' }] });
+    const from = new Date(u.searchParams.get('start_date') + 'T12:00:00Z'), to = new Date(u.searchParams.get('end_date') + 'T12:00:00Z'), time = [];
+    for (let d = from; d <= to; d = new Date(d.getTime() + 864e5)) time.push(d.toISOString().slice(0, 10));
+    const fill = (v) => time.map(() => v);
+    return json({ daily: { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_probability_max: fill(40), precipitation_sum: fill(u.searchParams.get('start_date').endsWith('5') ? 3 : 0) } });
+  });
   await page.goto(base + '/apps/recipes');
   await until(page, () => document.querySelectorAll('#cards .item').length === 3);
   if (!(await page.textContent('#tally')).includes('1 of 3')) throw new Error('the cooked count is wrong');
@@ -333,8 +425,98 @@ async function apps(page, shot) {
   if (!/expired/.test(await page.textContent('#gate-note')) || (await page.evaluate(() => location.hash))) throw new Error("an expired sign-in link wasn't explained");
   step('an expired sign-in link says so');
 
+  // the wardrobe: the closet, a chip, an item's sheet saving as it's typed, adding from a store
+  // link and from a photo (offline the cut-out can't load, so the photo is kept as taken), retiring
+  await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
+  if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
+  await shot('wardrobe');
+  step('wardrobe: 3 in the closet (the retired one hidden), chips counted');
+  await page.click('#cats button[data-value="shoes"]');
+  if ((await page.locator('#grid .tile:visible').count()) !== 1) throw new Error("the Shoes chip didn't narrow the closet");
+  await page.click('#cats button[data-value=""]');
+  await page.locator('#grid .tile:visible .tile__open').first().click();
+  await page.fill('#sheet [data-is="brand"]', 'Smoke Brand');
+  await page.selectOption('#sheet [data-is="dressiness"]', 'formal');
+  await until(page, () => !document.querySelector('#sheet [data-save="saving"]'));
+  await shot('sheet');
+  await page.click('#sheet [data-close]');
+  const patched = asked.filter((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items')).map((a) => a.body);
+  if (!patched.some((b) => b.brand === 'Smoke Brand') || !patched.some((b) => b.dressiness === 'formal')) throw new Error(`the sheet saved ${JSON.stringify(patched)}`);
+  step('an item\'s sheet saves as it\'s typed');
+  await page.click('#add');
+  await page.fill('#add-dialog [name="link"]', 'everlane.com/products/crew');
+  await page.click('#read-link');
+  await until(page, () => document.querySelector('#add-dialog [name="name"]').value.includes('Organic Cotton'));
+  await page.click('#add-ok');
+  await until(page, () => document.getElementById('sheet').open);
+  const fromLink = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items'));
+  if (!fromLink || fromLink.body[0].brand !== 'Everlane' || fromLink.body[0].buy_link !== 'https://www.everlane.com/products/crew') throw new Error(`adding from a link sent ${JSON.stringify(fromLink)}`);
+  await page.click('#sheet [data-close]');
+  step('added one from a store link: name, brand, price and the buy link');
+  await page.click('#add');
+  await page.locator('#add-photo input').setInputFiles({ name: 'shirt.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
+  await page.fill('#add-dialog [name="name"]', 'Smoke linen shirt');
+  await until(page, () => !document.getElementById('add-ok').disabled, null, 60000);
+  await page.click('#add-ok');
+  await until(page, () => document.getElementById('sheet').open);
+  const shirtUpload = asked.find((a) => a.method === 'POST' && a.path.includes('/object/photos/wardrobe/u1/'));
+  const withPhoto = asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items')).pop();
+  if (!shirtUpload || !/^wardrobe\/u1\//.test(withPhoto.body[0].photo_path || '')) throw new Error(`adding a photo sent ${JSON.stringify(shirtUpload)} / ${JSON.stringify(withPhoto)}`);
+  await page.click('#retire');
+  await until(page, () => !document.getElementById('sheet').open);
+  if (!asked.some((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items') && a.body?.retired === true)) throw new Error("retiring didn't save");
+  await shot('wardrobe-added');
+  step('added one from a photo, into its own folder; retired it');
+
+  // trips: the list, a trip with its legs and weather, its days and packing; ticking something off
+  // and adding to the list save; a new trip looks its places up
+  await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.getElementById('app').dataset.state === 'in');
+  await page.click('#tabs button[data-value="trips"]');
+  await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
+  await page.click('#trip-list .trip-card');
+  await until(page, () => document.querySelectorAll('#legs .leg__days li').length > 30);
+  if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-count')).includes('1 of 3')) throw new Error("the trip doesn't show its legs, days and packing");
+  if (!/highs 18°, lows 9°/.test(await page.textContent('#legs'))) throw new Error("the trip's weather isn't shown");
+  await shot('trip');
+  await page.locator('#packing .pack:not(.is-packed) input[type="checkbox"]').first().check();
+  await page.fill('#pack-add [name="label"]', 'Charger');
+  await page.click('#pack-add button');
+  await until(page, () => document.getElementById('pack-count').textContent.includes('of 4'));
+  const packs = asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips')).map((a) => a.body.packing);
+  if (!packs.some((p) => p.filter((x) => x.packed).length === 2) || !packs.some((p) => p.some((x) => x.label === 'Charger'))) throw new Error(`packing saved ${JSON.stringify(packs)}`);
+  await page.click('#trip-back');
+  await page.click('#new-trip');
+  await page.fill('#trip-dialog [name="name"]', 'Smoke weekend');
+  await page.fill('#leg-rows [data-k="place"]', 'Lisbon, Portugal');
+  await page.fill('#leg-rows [data-k="from"]', '2026-12-01');
+  await page.fill('#leg-rows [data-k="to"]', '2026-12-03');
+  await page.click('#trip-dialog [type="submit"]');
+  await until(page, () => document.getElementById('trip-name').textContent === 'Smoke weekend');
+  const made = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trips'));
+  if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
+  step('trips: legs with weather, days, packing ticked and added to; a new trip');
+
+  // the consent page ChatGPT sends you to: it can be allowed; a request that would send you
+  // anywhere but ChatGPT can't
+  await page.goto(base + '/apps/authorize?authorization_id=other');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (await page.isVisible('#consent-allow') || !(await page.isVisible('#consent-warn'))) throw new Error('the consent page would let a non-ChatGPT client in');
+  await page.goto(base + '/apps/authorize?authorization_id=gpt');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (!(await page.textContent('#consent-client')).includes('ChatGPT') || (await page.textContent('#consent-host')) !== 'chatgpt.com') throw new Error("the consent page doesn't say who's asking");
+  await shot('consent');
+  await page.route('https://chatgpt.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>ChatGPT, standing in</p>' }));
+  await page.click('#consent-allow');
+  await page.waitForURL(/^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect\?code=c/);
+  if (!asked.some((a) => a.method === 'POST' && a.path.endsWith('/oauth/authorizations/gpt/consent') && a.body?.action === 'approve')) throw new Error("Allow didn't approve the request");
+  await page.unroute('https://chatgpt.com/**');
+  step('consent page: ChatGPT can be allowed (and you go back to it), anyone else can\'t');
+
   await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
+  if (!(await page.isVisible('#app-main a[href="/apps/wardrobe"]'))) throw new Error("/apps doesn't list the wardrobe");
   if (!(await page.isVisible('#app-main a[href="/apps/recipes"]')) || !(await page.isVisible('.site-nav [data-members]'))) throw new Error("/apps doesn't list the recipe tracker, or the nav has no Apps link");
   await shot('home');
   step('/apps lists it, and the nav has Apps');

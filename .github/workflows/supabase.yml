@@ -58,7 +58,11 @@ jobs:
             echo "::warning::No ANTHROPIC_API_KEY secret; the bartender will answer that the bar's closed."
           fi
           for f in supabase/functions/*/index.ts; do
-            supabase functions deploy "$(basename "$(dirname "$f")")" --project-ref "$ref" --use-api
+            name=$(basename "$(dirname "$f")")
+            # these check who's calling themselves: the MCP server's OAuth discovery comes without
+            # a token, and both take tokens from the newer signing keys
+            case "$name" in mcp|wardrobe-link) flags=--no-verify-jwt ;; *) flags= ;; esac
+            supabase functions deploy "$name" --project-ref "$ref" --use-api $flags
           done
 
   keepalive:
