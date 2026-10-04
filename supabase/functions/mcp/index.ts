@@ -42,6 +42,14 @@ Deno.serve(async (req) => {
     let claims: Record<string, unknown> = {};
     try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
     const { aud, iss, role, scope, exp, client_id } = claims as Record<string, unknown>;
+    // what the function's own requests to Supabase get back (status, type, the start of the body)
+    const probe = async (path: string, auth = true) => {
+      try {
+        const r = await fetch(`${SUPABASE}${path}`, { headers: { apikey: ANON, ...(auth ? { authorization: `Bearer ${token}` } : {}) } });
+        return `${path} ${r.status} ${r.headers.get("content-type")} ${(await r.text()).replace(/\s+/g, " ").slice(0, 120)}`;
+      } catch (e) { return `${path} threw ${e}`; }
+    };
+    console.warn("mcp: probes:", new URL(SUPABASE).host, `anon key starts ${ANON.slice(0, 8)}`, await probe("/auth/v1/user"), "|", await probe("/auth/v1/.well-known/jwks.json", false), "|", await probe("/rest/v1/", false));
     console.warn("mcp: token refused:", error?.message, JSON.stringify({ aud, iss, role, scope, client: !!client_id, email: "email" in claims, expired: typeof exp === "number" && exp * 1000 < Date.now() }));
     return unauthorized("That sign-in has expired or isn't valid.");
   }
