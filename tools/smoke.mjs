@@ -282,7 +282,7 @@ async function apps(page, shot) {
 
   await page.goto(base + '/apps/recipes');
   await until(page, () => document.querySelectorAll('#cards .item').length === 3);
-  if (!(await page.textContent('#stat-cooked')).includes('1 of 3')) throw new Error('the cooked count is wrong');
+  if (!(await page.textContent('#tally')).includes('1 of 3')) throw new Error('the cooked count is wrong');
   await shot('recipes');
   step('signed in as a member: 3 recipes, 1 cooked');
 
@@ -292,7 +292,7 @@ async function apps(page, shot) {
   step('search narrows the list');
 
   await page.locator('#cards .item:visible [data-do="cook"]:visible').first().click();
-  await until(page, () => document.getElementById('stat-cooked').textContent.includes('2 of 3'));
+  await until(page, () => document.getElementById('tally').textContent.includes('2 of 3'));
   const cooked = asked.find((a) => a.method === 'PATCH');
   if (!cooked || cooked.body.cooked !== true || !/^\d{4}-\d\d-\d\d$/.test(cooked.body.date_cooked)) throw new Error(`marking one cooked sent ${JSON.stringify(cooked)}`);
   step('marked one cooked');
@@ -308,8 +308,8 @@ async function apps(page, shot) {
   step('notes saved as typed, and a rating');
 
   // a photo is shrunk to a JPEG, stored under recipes/<id>/, and the recipe points at it
-  await first.locator('.photo input').setInputFiles({ name: 'dinner.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
-  await until(page, () => document.querySelector('#cards .item .photo.has-photo'));
+  await first.locator('.photo-btn input').setInputFiles({ name: 'dinner.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
+  await until(page, () => document.querySelector('#cards .item .item__photo:not([hidden])'));
   const upload = asked.find((a) => a.method === 'POST' && a.path.includes('/object/photos/recipes/'));
   if (!upload || !upload.path.endsWith('.jpg') || !asked.some((a) => a.method === 'PATCH' && /^recipes\/.+\.jpg$/.test(a.body?.photo_path))) throw new Error(`adding a photo sent ${JSON.stringify(upload)}`);
   step('added a photo');
