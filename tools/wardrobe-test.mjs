@@ -145,7 +145,8 @@ const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id
 const count = async (table) => (await q(`select count(*)::int as n from public.${table}`))[0].n;
 
 // ---------- The protocol ----------
-ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion === '2025-06-18', 'the handshake picks the asked protocol');
+ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion === '2025-06-18' && (await ask('initialize', { protocolVersion: '2025-11-25' })).protocolVersion === '2025-11-25', 'the handshake picks the asked protocol (ChatGPT\'s and Claude\'s)');
+ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's private wardrobe/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
 const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
 ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos', 'ingest_item takes uploaded photos');
@@ -227,6 +228,7 @@ ok((await tool('ingest_item', { product: { brand: 'Acme', name: 'x', sources: { 
 // ---------- H. find_items, flat ----------
 const all = await tool('find_items', {});
 const darkBrown = all.items.find((i) => i.id === IDS.darkBrown);
+ok(Number.isInteger(all.count) && Array.isArray(all.items), 'H: find_items answers its outputSchema');
 ok(darkBrown && darkBrown.name === 'Soft Brushed Crew Neck Long Sleeve T' && darkBrown.manufacturer_colour === '38 Dark Brown' && darkBrown.colour === 'dark brown' && darkBrown.product_id && darkBrown.variant_id && darkBrown.style_number === 'HT00189AD-US', 'H: find_items gives each piece flat, no joining needed', darkBrown);
 ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo shown');
 const smart = await tool('find_items', { category: 'tops', dressiness: 'smart casual' });

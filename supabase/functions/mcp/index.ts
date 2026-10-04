@@ -1,8 +1,8 @@
-// The wardrobe's MCP server, for ChatGPT (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
+// The wardrobe's MCP server, for ChatGPT and Claude (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
 // MCP over Streamable HTTP, stateless (server.js has the tools and the JSON-RPC). Signing in is
 // OAuth 2.1 through Supabase Auth's OAuth server: a request without a valid token gets a 401
 // pointing at this server's protected-resource metadata, which names Supabase Auth as the
-// authorization server; ChatGPT registers itself there, sends Steve to the consent page
+// authorization server; the app (ChatGPT or Claude) registers itself there, sends Steve to the consent page
 // (/apps/authorize), and comes back with an access token for him. Every query then runs as him,
 // so row-level security decides what it sees, as in the app. Deployed with --no-verify-jwt
 // (.github/workflows/supabase.yml): the discovery request carries no token, and tokens are

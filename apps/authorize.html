@@ -3,14 +3,14 @@ layout: app
 app: authorize
 title: Connect
 heading: Connect an app
-lede: Approve an app (ChatGPT) to use your wardrobe.
+lede: Approve an app (ChatGPT or Claude) to use your wardrobe.
 ---
-{%- comment -%} Supabase Auth's OAuth consent page (docs/apps.md, "ChatGPT"): Auth sends you here
-with ?authorization_id= when an app like ChatGPT asks to sign in as you. Not listed on /apps. {%- endcomment -%}
+{%- comment -%} Supabase Auth's OAuth consent page (docs/apps.md, the MCP server): Auth sends you here
+with ?authorization_id= when ChatGPT or Claude asks to sign in as you. Not listed on /apps. {%- endcomment -%}
 <section class="card consent" id="consent" hidden>
   <p class="consent__ask"><strong id="consent-client"></strong> wants to use your wardrobe as you: see what's in it, and add, change and retire things. It can't delete anything.</p>
   <p class="consent__where">It will send you back to <code id="consent-host"></code>.</p>
-  <p class="consent__warn" id="consent-warn" hidden>That isn't ChatGPT's address, so this can't be approved here.</p>
+  <p class="consent__warn" id="consent-warn" hidden>That isn't ChatGPT's or Claude's address, so this can't be approved here.</p>
   <div class="app-dialog__buttons consent__buttons">
     <button class="btn btn--ghost btn--small" id="consent-deny" type="button">Don't allow</button>
     <button class="btn btn--small" id="consent-allow" type="button">Allow</button>
