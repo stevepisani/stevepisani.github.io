@@ -9,8 +9,16 @@ rather than leaving it in a chat.
 0. **The wardrobe** (`docs/apps.md`): the closet, ChatGPT through an MCP server, trips, and
    then Today, pack mode, offline and the item view: done. Next, in order:
    - generated product shots and outfit pictures (flat, or on Steve), made on the server with
-     OpenAI's image API under a $10 a month cap, and a ChatGPT widget that shows them; needs an
+     OpenAI's image API under a $10 a month cap, and a widget that shows them; needs an
      `OPENAI_API_KEY` repo secret from Steve;
+   - in-chat for ChatGPT and Claude alike (research, Oct 2026: both render MCP Apps, SEP-1865,
+     `ui://` resources): a text description of each photo at ingest plus a read-only `view_photo`
+     returning a small image (Claude sees it; ChatGPT gets the text); an upload link that doesn't
+     depend on ChatGPT's fileParams (the only way Claude can take a photo, and ChatGPT mobile's
+     fallback); one widget bundle (`@modelcontextprotocol/ext-apps`) with a garment grid and an
+     ingest preview with Confirm, then a trip board and a packing checklist that ticks from the
+     chat; checking Supabase's OAuth server for `iss` in redirects (RFC 9207), refresh-token
+     rotation, and tokens bound to this server;
    - the capsule card ("16 pieces, 64 outfits", counting only what goes together) and a laundry
      planner (when each leg runs out of clean clothes);
    - a gap finder per leg (a formal dinner in Paris and nothing smart packed);

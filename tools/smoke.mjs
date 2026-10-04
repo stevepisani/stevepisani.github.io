@@ -14,7 +14,6 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, extname, resolve, relative } from 'node:path';
 import { buildLibrary } from './library.mjs';
-import { rpc as mcp, TOOLS } from '../supabase/functions/mcp/server.js';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -35,66 +34,6 @@ const library = buildLibrary(JSON.parse(readFileSync(new URL('./fixtures/listeni
   console.log(`library: ${library.read.length} read on ${library.shelves.length} shelves, ${library.now.length} reading now, merged as expected`);
 }
 
-// The wardrobe's MCP server (what ChatGPT talks to), its tools run against a made-up store: the
-// handshake, the list of tools, finding, adding from a store link, refusing a wrong value,
-// retiring, and a notification getting no answer.
-{
-  const store = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
-  let n = 0;
-  const ctx = {
-    items: {
-      list: async () => store,
-      get: async (id) => store.find((r) => r.id === id) || null,
-      add: async (row) => { const r = { id: `m${++n}`, retired: false, seasons: [], currency: 'USD', ...row }; store.push(r); return r; },
-      set: async (id, patch) => { const r = store.find((x) => x.id === id); return r ? Object.assign(r, patch) : null; },
-    },
-    photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
-    readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
-    storeImage: async () => 'wardrobe/u1/linen.jpg',
-    storeUpload: async (file) => `wardrobe/u1/${file.file_id}.jpg`,
-  };
-  const ask = async (method, params) => (await mcp({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
-  const callTool = (name, args) => ask('tools/call', { name, arguments: args });
-  const fail = (what) => { throw new Error(`mcp: ${what}`); };
-  if ((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion !== '2025-06-18') fail('the handshake picked the wrong protocol');
-  const { tools } = await ask('tools/list');
-  if (tools.length !== TOOLS.length || !tools.find((t) => t.name === 'find_items').annotations.readOnlyHint || tools.find((t) => t.name === 'add_item').annotations.readOnlyHint) fail('the tools or their read-only hints are wrong');
-  const found = await callTool('find_items', { category: 'tops' });
-  if (found.structuredContent.count !== 2 || !/Navy oxford shirt/.test(found.content[0].text)) fail(`find_items(tops) gave ${JSON.stringify(found.structuredContent)}`); // the retired hoodie is left out
-  const added = await callTool('add_item', { name: 'Linen shirt', category: 'tops', buy_link: 'shopco.example/linen', seasons: ['summer'] });
-  const it = added.structuredContent.item;
-  if (it.brand !== 'Shopco' || it.price !== 60 || it.currency !== 'EUR' || !it.photo_url) fail(`add_item from a link gave ${JSON.stringify(it)}`);
-  if (!(await callTool('update_item', { id: it.id, dressiness: 'black tie' })).isError) fail('update_item took a dressiness that isn\'t one');
-  if ((await callTool('update_item', { id: it.id, fit: 'boxy' })).structuredContent.item.fit !== 'boxy') fail('update_item didn\'t change the fit');
-  if (!(await callTool('retire_item', { id: it.id })).structuredContent.retired || (await callTool('find_items', {})).structuredContent.items.some((x) => x.id === it.id)) fail('a retired item is still in the wardrobe');
-  if (!(await callTool('delete_item', { id: it.id })).isError) fail('there\'s a way to delete');
-  if ((await mcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) !== null) fail('a notification got an answer');
-  // a photo uploaded in the chat: stored, and the same upload twice is the same item
-  const up = { download_url: 'https://files.example/abc', file_id: 'file-1', mime_type: 'image/jpeg' };
-  const withPhoto = (await callTool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: up })).structuredContent.item;
-  const again = await callTool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: up });
-  if (!withPhoto.photo_url || again.structuredContent.item.id !== withPhoto.id || !/Already added/.test(again.content[0].text)) fail('an uploaded photo was not stored once');
-  if (!TOOLS.find((t) => t.name === 'add_item')._meta['openai/fileParams'].includes('photo')) fail('add_item doesn\'t take uploads');
-  // trips: created from places, days planned from what's in the wardrobe, packing that remembers what's packed
-  const tripStore = [];
-  Object.assign(ctx, {
-    trips: { list: async () => tripStore, get: async (id) => tripStore.find((t) => t.id === id) || null, add: async (row) => { const t = { id: `t${tripStore.length + 1}`, ...row }; tripStore.push(t); return t; }, set: async (id, patch) => { const t = tripStore.find((x) => x.id === id); return t ? Object.assign(t, patch) : null; } },
-    locate: async (place) => (/nowhere/i.test(place) ? null : { name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
-    weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
-  });
-  if (!(await callTool('create_trip', { name: 'Nowhere', legs: [{ place: 'Nowhere', from: '2026-10-01', to: '2026-10-02' }] })).isError) fail('a trip to a place that can\'t be found was created');
-  await callTool('create_trip', { name: 'Europe', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence, Italy', from: '2026-10-14', to: '2026-11-14' }] });
-  const trip = tripStore[0];
-  if (!(await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-12-25', items: ['w1'] }] })).isError) fail('a day outside the trip was planned');
-  if (!(await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-15', items: ['nope'] }] })).isError) fail('an outfit with something not in the wardrobe was planned');
-  await callTool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-15', items: ['w1', 'w3'], occasion: 'Uffizi, then dinner' }] });
-  await callTool('set_packing', { trip_id: trip.id, items: [{ item_id: 'w1' }, { label: 'Charger' }] });
-  trip.packing[0].packed = true; // ticked off in the app
-  await callTool('set_packing', { trip_id: trip.id, items: [{ item_id: 'w1' }, { item_id: 'w3', qty: 2 }] });
-  const got = await callTool('get_trip', { id: trip.id });
-  if (!trip.packing[0].packed || trip.packing.length !== 2 || !/Florence, Italy .*highs 20°C/.test(got.content[0].text) || !/Uffizi, then dinner: Navy oxford shirt, Brown suede loafers/.test(got.content[0].text)) fail(`get_trip said ${got.content[0].text}`);
-  console.log(`mcp: ${tools.length} tools: found, added from a link and from an upload (once), refused wrong values, retired; a trip with weather, days and packing`);
-}
 
 // A static server for the build (what Pages does: /x serves x.html or x/index.html)
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.glb': 'model/gltf-binary', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.xml': 'application/xml', '.map': 'application/json', '.py': 'text/plain' };
@@ -322,6 +261,7 @@ async function member(page, target) {
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
   const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
   const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url)));
+  const photoTable = JSON.parse(readFileSync(new URL('./fixtures/wardrobe-photos.json', import.meta.url)));
   const asked = [];
   await target.route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
@@ -335,8 +275,13 @@ async function member(page, target) {
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-${i}`, cooked: false, rating: 0, created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []); // the row an update asks back for
     }
+    if (url.pathname.endsWith('/rest/v1/wardrobe_closet')) return json(closet); // the flat view the app reads
+    if (url.pathname.endsWith('/rest/v1/wardrobe_photos')) {
+      if (method === 'GET') return json(photoTable.filter((f) => f.item_id === url.searchParams.get('item_id')?.slice(3)));
+      if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-f${i}`, owner: 'u1', created_at: new Date().toISOString(), ...r })), 201);
+      return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
     if (url.pathname.endsWith('/rest/v1/wardrobe_items')) {
-      if (method === 'GET') return json(closet);
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-w${i}`, owner: 'u1', seasons: [], retired: false, created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
     }
@@ -350,8 +295,8 @@ async function member(page, target) {
     const auth = /\/auth\/v1\/oauth\/authorizations\/([^/]+)(\/consent)?$/.exec(url.pathname);
     if (auth) {
       if (auth[2]) return json({ redirect_url: `https://chatgpt.com/connector_platform_oauth_redirect?code=c&state=s` });
-      const from = auth[1] === 'gpt' ? 'https://chatgpt.com/connector_platform_oauth_redirect' : 'https://evil.example/callback';
-      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: auth[1] === 'gpt' ? 'ChatGPT' : 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
+      const from = { gpt: 'https://chatgpt.com/connector_platform_oauth_redirect', claude: 'https://claude.ai/api/mcp/auth_callback' }[auth[1]] || 'https://evil.example/callback';
+      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: { gpt: 'ChatGPT', claude: 'Claude' }[auth[1]] || 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
     }
     if (url.pathname.endsWith('/functions/v1/wardrobe-link')) return json({ name: 'The Organic Cotton Crew | White', brand: 'Everlane', price: 30, currency: 'USD', link: 'https://www.everlane.com/products/crew', photo_path: null });
     return json([]); // signed links for photos: none
@@ -449,7 +394,22 @@ async function apps(page, shot) {
   await until(page, () => document.getElementById('sheet').open && /^#item\//.test(location.hash));
   if (!(await page.isVisible('#sv-name')) || await page.isVisible('#sheet [data-is="brand"]')) throw new Error("an item doesn't open on what it is");
   await shot('item');
+  // its photos: the tag is kept beside the garment photo; a garment photo that becomes a "detail"
+  // stops being shown, and the tag never takes its place; any photo can be shown on purpose
+  await until(page, () => document.querySelectorAll('#sheet-photos .photo-thumb').length === 2);
+  if (!/Garment · shown/.test(await page.textContent('#sheet-photos')) || !/Tag/.test(await page.textContent('#sheet-photos'))) throw new Error("the item's photos don't say their roles");
+  await page.locator('#sheet-photos .photo-thumb').first().click();
+  await page.selectOption('#photo-role', 'detail');
+  await until(page, () => !/shown/.test(document.getElementById('sheet-photos').textContent));
+  await page.locator('#sheet-photos .photo-thumb').nth(1).click();
+  await page.click('#photo-show');
+  await until(page, () => /Tag · shown/.test(document.getElementById('sheet-photos').textContent));
+  const photoSaves = asked.filter((a) => a.method === 'PATCH' && /wardrobe_(photos|items)/.test(a.path)).map((a) => a.body);
+  if (!photoSaves.some((b) => b.role === 'detail') || !photoSaves.some((b) => 'photo_path' in b && b.photo_path === null) || !photoSaves.some((b) => b.photo_path === 'wardrobe/u1/oxford-tag.jpg')) throw new Error(`changing photos saved ${JSON.stringify(photoSaves)}`);
+  await shot('photos');
+  step('an item\'s photos, each with its role: a tag is never shown in a garment photo\'s place unless asked');
   await page.click('#sheet-edit');
+  if (!(await page.isVisible('#sheet-shared'))) throw new Error("editing a garment with a product doesn't say the changes are for this piece only");
   await page.fill('#sheet [data-is="brand"]', 'Smoke Brand');
   await page.selectOption('#sheet [data-is="dressiness"]', 'formal');
   await until(page, () => !document.querySelector('#sheet [data-save="saving"]'));
@@ -547,6 +507,9 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/authorize?authorization_id=other');
   await until(page, () => !document.getElementById('consent').hidden);
   if (await page.isVisible('#consent-allow') || !(await page.isVisible('#consent-warn'))) throw new Error('the consent page would let a non-ChatGPT client in');
+  await page.goto(base + '/apps/authorize?authorization_id=claude');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (!(await page.isVisible('#consent-allow')) || (await page.textContent('#consent-host')) !== 'claude.ai') throw new Error("the consent page won't let Claude in");
   await page.goto(base + '/apps/authorize?authorization_id=gpt');
   await until(page, () => !document.getElementById('consent').hidden);
   if (!(await page.textContent('#consent-client')).includes('ChatGPT') || (await page.textContent('#consent-host')) !== 'chatgpt.com') throw new Error("the consent page doesn't say who's asking");
@@ -556,7 +519,7 @@ async function apps(page, shot) {
   await page.waitForURL(/^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect\?code=c/);
   if (!asked.some((a) => a.method === 'POST' && a.path.endsWith('/oauth/authorizations/gpt/consent') && a.body?.action === 'approve')) throw new Error("Allow didn't approve the request");
   await page.unroute('https://chatgpt.com/**');
-  step('consent page: ChatGPT can be allowed (and you go back to it), anyone else can\'t');
+  step('consent page: ChatGPT and Claude can be allowed (and you go back), anyone else can\'t');
 
   await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');

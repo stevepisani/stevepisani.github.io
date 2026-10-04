@@ -1,8 +1,8 @@
-// The wardrobe's MCP server, for ChatGPT (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
+// The wardrobe's MCP server, for ChatGPT and Claude (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
 // MCP over Streamable HTTP, stateless (server.js has the tools and the JSON-RPC). Signing in is
 // OAuth 2.1 through Supabase Auth's OAuth server: a request without a valid token gets a 401
 // pointing at this server's protected-resource metadata, which names Supabase Auth as the
-// authorization server; ChatGPT registers itself there, sends Steve to the consent page
+// authorization server; the app (ChatGPT or Claude) registers itself there, sends Steve to the consent page
 // (/apps/authorize), and comes back with an access token for him. Every query then runs as him,
 // so row-level security decides what it sees, as in the app. Deployed with --no-verify-jwt
 // (.github/workflows/supabase.yml): the discovery request carries no token, and tokens are
@@ -51,12 +51,32 @@ Deno.serve(async (req) => {
   if (member !== true) { console.warn("mcp: not a member"); return json({ error: "forbidden", error_description: "Members only." }, 403); }
   const uid = who.user.id;
 
+  // what the server reads and writes, as this person (server.js lists what each does)
+  // deno-lint-ignore no-explicit-any
+  const rows = async (q: any) => { const { data, error } = await q; if (error) throw error; return data; };
+  // deno-lint-ignore no-explicit-any
+  const one = async (q: any) => { const { data, error } = await q; if (error && error.code !== "22P02") throw error; return data ?? null; }; // 22P02: not an id at all
+  const closet = (id: string) => one(db.from("wardrobe_closet").select("*").eq("id", id).maybeSingle());
+  const table = (name: string) => ({
+    get: (id: string) => one(db.from(name).select("*").eq("id", id).maybeSingle()),
+    add: (row: Record<string, unknown>) => rows(db.from(name).insert(row).select().single()),
+    set: (id: string, patch: Record<string, unknown>) => rows(db.from(name).update(patch).eq("id", id).select().single()),
+  });
   const ctx = {
     items: {
-      list: async () => { const { data, error } = await db.from("wardrobe_items").select("*"); if (error) throw error; return data; },
-      get: async (id: string) => { const { data, error } = await db.from("wardrobe_items").select("*").eq("id", id).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
-      add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("wardrobe_items").insert(row).select().single(); if (error) throw error; return data; },
-      set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("wardrobe_items").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+      list: () => rows(db.from("wardrobe_closet").select("*")),
+      get: closet,
+      own: (id: string) => one(db.from("wardrobe_items").select("*").eq("id", id).maybeSingle()),
+      add: async (row: Record<string, unknown>) => closet((await rows(db.from("wardrobe_items").insert(row).select("id").single())).id),
+      set: async (id: string, patch: Record<string, unknown>) => (await one(db.from("wardrobe_items").update(patch).eq("id", id).select("id").maybeSingle())) && closet(id),
+    },
+    products: { ...table("wardrobe_products"), list: () => rows(db.from("wardrobe_products").select("*")) },
+    variants: { ...table("wardrobe_variants"), list: (productId: string) => rows(db.from("wardrobe_variants").select("*").eq("product_id", productId)) },
+    photos: {
+      ...table("wardrobe_photos"),
+      list: (itemId: string) => rows(db.from("wardrobe_photos").select("*").eq("item_id", itemId).order("created_at")),
+      byFile: (fileId: string) => one(db.from("wardrobe_photos").select("*").eq("file_id", fileId).limit(1).maybeSingle()),
+      add: async (list: Record<string, unknown>[]) => { await rows(db.from("wardrobe_photos").insert(list)); },
     },
     photoUrls: async (paths: string[]) => {
       if (!paths.length) return new Map();

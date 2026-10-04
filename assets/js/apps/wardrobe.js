@@ -1,8 +1,10 @@
 // The wardrobe (/apps/wardrobe, apps/wardrobe.html): Steve's clothes, each with a photo cut out
 // of its background, what it is, and where to buy another; and his trips, with the weather, what
 // to wear each day and what to pack. Private to its owner (tables public.wardrobe_items and
-// public.trips; photos under photos/wardrobe/<owner id>/). ChatGPT reads and edits the same rows
-// through the wardrobe MCP server (docs/apps.md).
+// public.trips; photos under photos/wardrobe/<owner id>/). A garment may belong to a variant and
+// product (wardrobe_variants, wardrobe_products: the maker's facts, filed by ChatGPT); the app
+// reads the flat view (wardrobe_closet) and changes only the garment itself. ChatGPT reads and
+// edits the same rows through the wardrobe MCP server (docs/apps.md).
 //
 // It works with no signal (a train, a plane): every load keeps a copy on the phone (the rows, the
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
@@ -11,7 +13,9 @@
 import { $, db, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
-const items = rows('wardrobe_items');
+const items = rows('wardrobe_items'); // each garment Steve owns; written here
+const closet = rows('wardrobe_closet'); // the same, with its product's and variant's facts filled in; read here
+const photoRows = rows('wardrobe_photos'); // every photo of a garment, with its role
 const tripRows = rows('trips');
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
@@ -150,7 +154,10 @@ $('#add').addEventListener('click', async () => {
   $('#add').disabled = false;
   if (!added) { photos.remove(path); return; }
   list.push(...added);
-  if (path) links = new Map([...links, ...(await photos.urls([path]))]);
+  if (path) {
+    photoRows.add([{ item_id: added[0].id, role: 'garment', path, source: got.photo ? 'app_upload' : 'retailer_page' }]);
+    links = new Map([...links, ...(await photos.urls([path]))]);
+  }
   view.shelf = 'in';
   render();
   keepCopy();
@@ -222,9 +229,10 @@ function paintSheet() {
   // what it is, in a few lines
   $('#sv-cat').textContent = `${catName[it.category] || ''}${it.retired ? ' · retired' : ''}`;
   $('#sv-name').textContent = it.name;
-  $('#sv-facts').textContent = [it.brand, it.colour, it.material, it.size && `size ${it.size}`].filter(Boolean).join(' · ');
-  $('#sv-fit').textContent = it.fit ? `Fit: ${it.fit}` : '';
-  $('#sv-tags').replaceChildren(...[...(it.seasons || []), { light: 'light', mid: 'mid-weight', warm: 'warm' }[it.warmth], it.dressiness].filter(Boolean).map((t) => el('span', 'pill', t)));
+  $('#sv-facts').textContent = [it.brand, it.manufacturer_colour || it.colour, it.material, it.size && `size ${it.size}`].filter(Boolean).join(' · ');
+  $('#sv-fit').textContent = [it.fit && `Fit: ${it.fit}`, it.style_number && `Style ${it.style_number}`, it.condition && `Condition: ${it.condition}`].filter(Boolean).join(' · ');
+  $('#sv-tags').replaceChildren(...[it.subcategory?.replace(/_/g, ' '), ...(it.seasons || []), { light: 'light', mid: 'mid-weight', warm: 'warm' }[it.warmth], it.dressiness, ...(it.dressiness_also || []).map((d) => `also ${d}`), ...(it.style_tags || [])].filter(Boolean).map((t) => el('span', 'pill', t)));
+  $('#sheet-shared').hidden = !it.variant_id;
   const bought = it.bought_on && new Date(`${it.bought_on}T12:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   $('#sv-bought').textContent = [it.price != null && money(Number(it.price), it.currency), bought && `bought ${bought}`].filter(Boolean).join(', ');
   $('#sv-notes').textContent = it.notes || '';
@@ -233,14 +241,18 @@ function paintSheet() {
   $('#find').href = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent([it.brand, it.name, it.colour].filter(Boolean).join(' '))}`;
   $('#find').textContent = it.buy_link ? 'Or find another' : 'Find another';
   $('#retire').textContent = it.retired ? 'Back in the closet' : 'Retire it (worn out, given away)';
-  $('#sheet-photo span').textContent = it.photo_path ? 'Change the photo' : 'Add a photo';
+  $('#sheet-photo span').textContent = 'Add a photo';
+  paintPhotos();
 }
 function openSheet(it, mode = 'view') {
   current = it;
   for (const f of sheet.querySelectorAll('[data-is]')) { f.value = it[f.dataset.is] ?? ''; delete f.dataset.save; }
   for (const box of sheet.querySelectorAll('.sheet__seasons input')) box.checked = !!it.seasons?.includes(box.value);
   sheet.dataset.mode = mode;
+  sheetPhotos = [];
+  picked = null;
   paintSheet();
+  loadPhotos(it);
   sheet.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => sheet.close(); });
   if (!sheet.open) sheet.showModal();
 }
@@ -250,10 +262,10 @@ $('#sheet-edit').addEventListener('click', () => {
   $('[data-is="name"]', sheet).focus();
 });
 // text saves as it's typed; the rest at once
-const TEXT = ['name', 'brand', 'colour', 'size', 'material', 'fit', 'buy_link', 'notes'];
+const TEXT = ['name', 'brand', 'colour', 'size', 'material', 'fit', 'condition', 'buy_link', 'notes'];
 for (const field of TEXT) {
   const f = $(`[data-is="${field}"]`, sheet);
-  saver(f, (value) => (field === 'name' && !value.trim() ? Promise.resolve(false) : save({ [field]: value.trim() || null })));
+  saver(f, (value) => (field === 'name' && !value.trim() && !current?.variant_id ? Promise.resolve(false) : save({ [field]: value.trim() || null })));
 }
 for (const field of ['category', 'warmth', 'dressiness', 'bought_on']) {
   $(`[data-is="${field}"]`, sheet).addEventListener('change', (e) => save({ [field]: e.target.value || null }).then(() => render()));
@@ -285,8 +297,12 @@ $('#retire').addEventListener('click', async () => {
 });
 $('#remove').addEventListener('click', async () => {
   const it = current;
-  if (!confirm(`Delete "${it.name}" for good? (Retiring keeps it.)`) || !(await items.remove(it.id))) return;
-  photos.remove(it.photo_path);
+  if (!confirm(`Delete "${it.name}" for good? (Retiring keeps it.)`)) return;
+  const paths = [...new Set([it.photo_path, ...sheetPhotos.map((p) => p.path)].filter(Boolean))];
+  if (!(await items.remove(it.id))) return; // its photo rows go with it
+  // a photo file another garment still shows (identical pieces filed together) stays
+  const { data: still } = paths.length ? await db.from('wardrobe_photos').select('path').in('path', paths) : { data: [] };
+  photos.remove(...paths.filter((p) => !(still || []).some((r) => r.path === p) && !list.some((x) => x !== it && x.photo_path === p)));
   list = list.filter((x) => x !== it);
   tiles.get(it.id)?.remove();
   tiles.delete(it.id);
@@ -299,17 +315,77 @@ $('#sheet-photo input').addEventListener('change', async (e) => {
   if (!file || !it || slot.classList.contains('is-busy')) return;
   slot.classList.add('is-busy');
   $('span', slot).textContent = 'Cutting it out…';
-  const old = it.photo_path, path = await storePhoto(file);
+  const path = await storePhoto(file);
   if (path) {
     links.set(path, (await photos.urls([path])).get(path) || URL.createObjectURL(file));
-    const ok = await items.set(it.id, { photo_path: path });
-    if (ok) { it.photo_path = path; paintTile(it); keepCopy(); if (current === it) paintSheet(); }
-    photos.remove(ok ? old : path);
+    const added = await photoRows.add([{ item_id: it.id, role: 'garment', path, source: 'app_upload' }]);
+    if (added) {
+      sheetPhotos.push(...added);
+      const shown = sheetPhotos.find((p) => p.path === it.photo_path);
+      if (!it.photo_path || (shown && shown.role !== 'garment')) await showPhoto(it, added[0]); // a new garment photo beats a tag
+    } else photos.remove(path);
   }
   slot.classList.remove('is-busy');
   if (current === it) paintSheet();
 });
 
+// ---------- An item's photos: each with its role, one of them shown ----------
+// Loaded when the item opens (not kept offline). A tag or label is never what's shown for the
+// garment: when the one shown stops being a garment photo, another garment photo takes its
+// place, or none (the same rule the MCP server keeps).
+const ROLE = { garment: 'Garment', tag: 'Tag', care_label: 'Care label', detail: 'Detail', other: 'Other' };
+let sheetPhotos = [], picked = null;
+async function loadPhotos(it) {
+  if (offline) return;
+  const { data } = await db.from('wardrobe_photos').select('*').eq('item_id', it.id).order('created_at');
+  if (current !== it) return;
+  sheetPhotos = data || [];
+  const missing = sheetPhotos.map((p) => p.path).filter((p) => !links.has(p));
+  if (missing.length) links = new Map([...links, ...(await photos.urls(missing))]);
+  if (current === it) paintPhotos();
+}
+async function showPhoto(it, p) {
+  const ok = await save({ photo_path: p?.path ?? null, photo_file_id: p?.file_id ?? null });
+  if (ok) paintTile(it);
+  return ok;
+}
+function paintPhotos() {
+  const it = current, strip = $('#sheet-photos'), tools = $('#photo-tools');
+  strip.hidden = sheetPhotos.length < 2 && !(sheetPhotos.length === 1 && sheetPhotos[0].path !== it?.photo_path);
+  strip.textContent = '';
+  for (const p of sheetPhotos) {
+    const b = el('button', 'photo-thumb');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', picked === p);
+    const box = el('span', 'photo-thumb__img'), url = links.get(p.path);
+    if (url) box.append(Object.assign(document.createElement('img'), { src: url, alt: '' })); else box.textContent = ROLE[p.role][0];
+    b.append(box, el('span', 'photo-thumb__role', `${ROLE[p.role]}${p.path === it.photo_path ? ' · shown' : ''}`));
+    b.addEventListener('click', () => { picked = picked === p ? null : p; paintPhotos(); });
+    strip.append(b);
+  }
+  tools.hidden = !picked;
+  if (picked) {
+    $('#photo-role').value = picked.role;
+    $('#photo-show').disabled = picked.path === it.photo_path;
+  }
+}
+$('#photo-role').addEventListener('change', async (e) => {
+  const it = current, p = picked, role = e.target.value;
+  if (!p || !(await photoRows.set(p.id, { role }))) { if (p) e.target.value = p.role; return; }
+  p.role = role;
+  if (it.photo_path === p.path && role !== 'garment') await showPhoto(it, sheetPhotos.find((x) => x !== p && x.role === 'garment'));
+  paintSheet();
+});
+$('#photo-show').addEventListener('click', async () => { if (picked && (await showPhoto(current, picked))) paintSheet(); });
+$('#photo-remove').addEventListener('click', async () => {
+  const it = current, p = picked;
+  if (!p || !confirm('Remove this photo?') || !(await photoRows.remove(p.id))) return;
+  sheetPhotos = sheetPhotos.filter((x) => x !== p);
+  picked = null;
+  if (it.photo_path === p.path) await showPhoto(it, sheetPhotos.find((x) => x.role === 'garment'));
+  if (!list.some((x) => x.photo_path === p.path)) photos.remove(p.path);
+  paintSheet();
+});
 // ---------- Where you are: the address says, so Back works and any view can be linked ----------
 // #today, #closet, #trips, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over the view)
 let trips = [], openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
@@ -768,7 +844,7 @@ async function load() {
   let got = null, gotTrips = null;
   if (navigator.onLine && (await db.auth.getSession()).data.session) {
     await sendQueue(); // what was ticked offline goes first, so what comes back has it
-    [got, gotTrips] = await Promise.all([items.list('name'), tripRows.list('created_at')]);
+    [got, gotTrips] = await Promise.all([closet.list('name'), tripRows.list('created_at')]);
   }
   const copy = kept(copyKey());
   if (got && gotTrips) {

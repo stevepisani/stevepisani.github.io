@@ -163,6 +163,17 @@
 .sheet__name { margin: 0; font-size: 1.5rem; line-height: 1.2; text-wrap: balance; }
 .sheet__tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .sheet__notes { white-space: pre-wrap; }
+.sheet__shared { margin: 0; padding: 10px 14px; border-radius: 10px; background: var(--bg-2); color: var(--ink-2); font-size: .9rem; }
+/* every photo of a garment, with its role; the one shown marked */
+.photo-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.photo-thumb { flex: none; display: grid; gap: 4px; width: 84px; padding: 0; border: 0; background: none; color: var(--ink-2); font-size: .75rem; text-align: left; cursor: pointer; }
+.photo-thumb__img { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-2); overflow: hidden; font: 600 1.2rem var(--font-display); }
+.photo-thumb__img img { width: 100%; height: 100%; object-fit: contain; }
+.photo-thumb[aria-pressed="true"] .photo-thumb__img { outline: 3px solid var(--accent); outline-offset: 1px; }
+.photo-thumb:focus-visible { outline: none; }
+.photo-thumb:focus-visible .photo-thumb__img { outline: 2px solid var(--accent); outline-offset: 2px; }
+.photo-tools { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.photo-tools label { flex: 1 1 12rem; }
 .sheet__foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); }
 .sheet__foot .btn { margin-left: auto; }
 @media (max-width: 560px) {

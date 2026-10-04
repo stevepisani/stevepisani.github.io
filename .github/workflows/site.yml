@@ -1,6 +1,7 @@
 # Builds the site and publishes it to GitHub Pages: the scripts bundled and minified
 # (npm run build, tools/build-js.mjs), then Jekyll, then a check that every internal link and
-# asset is there (tools/check-site.mjs), then the smoke test drives the built site in a real
+# asset is there (tools/check-site.mjs), then the wardrobe's migrations and MCP server are tested on
+# the real schema (tools/wardrobe-test.mjs, PGlite), then the smoke test drives the built site in a real
 # browser (tools/smoke.mjs: every page, the planet on desktop and phone, the no-WebGL
 # fallback). Pull requests build and test; main also deploys, only once both pass.
 # (Settings → Pages → Source is "GitHub Actions": Pages no longer builds the branch itself.)
@@ -60,6 +61,8 @@ jobs:
         with:
           name: github-pages
       - run: mkdir _site && tar -xf artifact.tar -C _site
+      - name: The wardrobe's data and MCP server, on the real schema
+        run: node tools/wardrobe-test.mjs
       - name: Smoke test
         run: node tools/smoke.mjs _site
       - if: failure() # what the page looked like when it failed
