@@ -37,9 +37,16 @@ Deno.serve(async (req) => {
   if (!token) return unauthorized("Sign in first.");
   const db = createClient(SUPABASE, ANON, { global: { headers: { authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: who, error } = await db.auth.getUser(token);
-  if (error || !who?.user) return unauthorized("That sign-in has expired or isn't valid.");
+  if (error || !who?.user) {
+    // why, for the logs (tools/supabase-logs.mjs): the error and the token's non-personal claims
+    let claims: Record<string, unknown> = {};
+    try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
+    const { aud, iss, role, scope, exp, client_id } = claims as Record<string, unknown>;
+    console.warn("mcp: token refused:", error?.message, JSON.stringify({ aud, iss, role, scope, client: !!client_id, email: "email" in claims, expired: typeof exp === "number" && exp * 1000 < Date.now() }));
+    return unauthorized("That sign-in has expired or isn't valid.");
+  }
   const { data: member } = await db.rpc("is_member");
-  if (member !== true) return json({ error: "forbidden", error_description: "Members only." }, 403);
+  if (member !== true) { console.warn("mcp: not a member"); return json({ error: "forbidden", error_description: "Members only." }, 403); }
   const uid = who.user.id;
 
   const ctx = {
