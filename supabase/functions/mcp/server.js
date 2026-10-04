@@ -410,13 +410,15 @@ async function addOrFind(add, find) {
 }
 
 // ---------- What comes back ----------
-const FLAT = ["id", "name", "brand", "category", "subcategory", "colour", "manufacturer_colour", "size", "manufacturer_size", "material", "fit", "warmth", "seasons", "dressiness", "dressiness_also", "style_tags", "condition", "price", "currency", "bought_on", "buy_link", "notes", "retired", "style_number", "product_id", "variant_id"];
+// what a list gives per garment: enough to dress from and to draw it; the rest is get_item's
+const FLAT = ["id", "name", "brand", "category", "subcategory", "colour", "manufacturer_colour", "size", "material", "fit", "warmth", "seasons", "dressiness", "dressiness_also", "style_tags", "notes", "retired"];
+const FLAT_WHOLE = [...FLAT, "manufacturer_size", "condition", "price", "currency", "bought_on", "buy_link", "style_number", "product_id", "variant_id"];
 const present = (v) => v !== null && v !== undefined && !(Array.isArray(v) && !v.length) && !(typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
 const pick = (row, keys) => Object.fromEntries(keys.filter((k) => present(row[k])).map((k) => [k, row[k]]));
-async function flat(rows, ctx) {
+async function flat(rows, ctx, keys = FLAT) {
   const links = await ctx.photoUrls(rows.map((r) => r.photo_path).filter(Boolean));
   return rows.map((r) => {
-    const o = pick(r, FLAT);
+    const o = pick(r, keys);
     if (!o.retired) delete o.retired;
     if (r.photo_path && links.get(r.photo_path)) o.hero_photo = links.get(r.photo_path); // for the card (photosApart)
     return o;
@@ -427,20 +429,21 @@ async function whole(id, ctx) {
   const row = await ctx.items.get(id);
   if (!row) return null;
   const [[item], own, product, variant, photos] = await Promise.all([
-    flat([row], ctx), ctx.items.own(id),
+    flat([row], ctx, FLAT_WHOLE), ctx.items.own(id),
     row.product_id ? ctx.products.get(row.product_id) : null,
     row.variant_id ? ctx.variants.get(row.variant_id) : null,
     ctx.photos.list(id),
   ]);
   const links = await ctx.photoUrls(photos.map((p) => p.path));
+  const facts = (src) => Object.fromEntries(Object.entries(src || {}).map(([k, v]) => { if (!v || typeof v !== "object" || Array.isArray(v)) return [k, v]; const { at, ...rest } = v; return [k, rest]; }));
   const overrides = own && row.variant_id ? pick(own, ["name", "brand", "colour", "size", "material", "fit", "price", "buy_link"]) : {};
   return {
     view: "garment",
     item,
-    owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at", "created_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: own?.sources || {} },
-    variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: variant.sources },
-    product: product && { ...pick(product, ["id", "brand", "name", "style_number", "description", "material", "country_of_origin", "default_fit", "product_url", "identifiers"]), sources: product.sources },
-    photos: photos.map((p) => ({ id: p.id, role: p.role, hero: p.path === row.photo_path, ...(links.get(p.path) && { url: links.get(p.path) }), ...(p.source && { source: p.source }), created_at: p.created_at })),
+    owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: facts(own?.sources) },
+    variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: facts(variant.sources) },
+    product: product && { ...pick(product, ["id", "brand", "name", "style_number", "description", "material", "country_of_origin", "default_fit", "product_url", "identifiers"]), sources: facts(product.sources) },
+    photos: photos.map((p) => ({ id: p.id, role: p.role, hero: p.path === row.photo_path, ...(links.get(p.path) && { url: links.get(p.path) }), ...(p.source && { source: p.source }) })),
   };
 }
 // one line a garment, for the text half of a result
@@ -707,17 +710,24 @@ async function trips(name, args, ctx) {
     const links = await ctx.photoUrls([...new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id)].map((i) => byId.get(i)?.photo_path).filter(Boolean))]);
     // what the card shows for a garment: its photo, and what tells it apart from its twins
     const look = (i) => { const r = byId.get(i), u = links.get(r?.photo_path); return r ? Object.fromEntries(Object.entries({ category: r.category, colour: r.colour, manufacturer_colour: r.manufacturer_colour, hero_photo: u }).filter(([, v]) => v)) : {}; };
-    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ ...d, place: placeOn(d.date), weather: weatherOn(d.date), items: d.items.map((i) => ({ id: i, name: byId.get(i)?.name || "(no longer in the wardrobe)", ...look(i) })) }));
-    const packing = t.packing.map((p) => ({ ...p, name: p.item_id ? byId.get(p.item_id)?.name || "(no longer in the wardrobe)" : p.label, ...(p.item_id && look(p.item_id)) }));
+    // each garment on the trip once; days and packing name them by id (a garment worn on twenty
+    // days is one entry, not twenty)
+    const garments = {};
+    for (const i of new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id).filter(Boolean)])) garments[i] = { name: byId.get(i)?.name || "(no longer in the wardrobe)", ...look(i) };
+    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => { const w = weatherOn(d.date); return { ...d, place: placeOn(d.date), ...(w && { weather: { hi: Math.round(w.hi), lo: Math.round(w.lo), rain: w.rain } }) }; });
+    const packing = t.packing.map((p) => ({ ...p }));
+    const nameOf = (i) => garments[i].name;
     const text = [
       tripLine(t),
       ...legs.map((l) => `${l.place}, ${l.country} (${l.from} to ${l.to}): ${l.weather ? `${l.weather.kind === "typical" ? "typically" : l.weather.kind === "mixed" ? "forecast then typical:" : "forecast:"} highs ${l.weather.summary.hi}°C, lows ${l.weather.summary.lo}°C, about ${l.weather.summary.wet} day${l.weather.summary.wet === 1 ? "" : "s"} of rain` : "weather unavailable"}`),
-      days.length ? `Planned days:\n${days.map((d) => `  ${d.date} (${d.place || "?"}${d.weather ? `, ${d.weather.hi}°/${d.weather.lo}°, ${d.weather.rain}% rain` : ""}): ${d.occasion ? `${d.occasion}: ` : ""}${d.items.map((i) => i.name).join(", ") || "nothing yet"}${d.note ? ` (${d.note})` : ""}`).join("\n")}` : "No days planned yet.",
-      packing.length ? `Packing (${packing.filter((p) => p.packed).length} of ${packing.length} packed): ${packing.map((p) => `${p.qty > 1 ? `${p.qty}× ` : ""}${p.name}${p.packed ? " ✓" : ""}`).join(", ")}` : "No packing list yet.",
+      days.length ? `Planned days:\n${days.map((d) => `  ${d.date} (${d.place || "?"}${d.weather ? `, ${d.weather.hi}°/${d.weather.lo}°, ${d.weather.rain}% rain` : ""}): ${d.occasion ? `${d.occasion}: ` : ""}${d.items.map(nameOf).join(", ") || "nothing yet"}${d.note ? ` (${d.note})` : ""}`).join("\n")}` : "No days planned yet.",
+      packing.length ? `Packing (${packing.filter((p) => p.packed).length} of ${packing.length} packed): ${packing.map((p) => `${p.qty > 1 ? `${p.qty}× ` : ""}${p.item_id ? nameOf(p.item_id) : p.label}${p.packed ? " ✓" : ""}`).join(", ")}` : "No packing list yet.",
       t.notes ? `Notes: ${t.notes}` : "",
       `In the app: ${APP}#trip/${t.id}`,
     ].filter(Boolean).join("\n");
-    return { text, data: { view: "trip", trip: { id: t.id, name: t.name, notes: t.notes, legs, days, packing } } };
+    // the legs' weather as a summary: the day by day is in each planned day
+    const legsOut = legs.map(({ lat, lon, ...l }) => ({ ...l, ...(l.weather && { weather: { kind: l.weather.kind, summary: { hi: Math.round(l.weather.summary.hi), lo: Math.round(l.weather.summary.lo), wet: l.weather.summary.wet } } }) }));
+    return { text, data: { view: "trip", trip: { id: t.id, name: t.name, notes: t.notes, legs: legsOut, days, packing, garments } } };
   }
   if (name === "update_trip") {
     const patch = {};
@@ -777,14 +787,14 @@ const INSTRUCTIONS = [
 // ("p1") in what the model reads, and the links travel in the result's _meta, which hosts pass to
 // the card and not to the model. The card puts them back (assets/js/mcp-app/widget.js).
 export function photosApart(data) {
-  const photos = {};
+  const photos = {}, refs = new Map();
   let n = 0;
   const walk = (v) => {
     if (Array.isArray(v)) return v.map(walk);
     if (!v || typeof v !== "object") return v;
     const o = {};
     for (const [k, x] of Object.entries(v)) {
-      if ((k === "hero_photo" || k === "url") && typeof x === "string" && /^(https?:|data:)/.test(x)) { const ref = `p${++n}`; photos[ref] = x; o[k] = ref; }
+      if ((k === "hero_photo" || k === "url") && typeof x === "string" && /^(https?:|data:)/.test(x)) { if (!refs.has(x)) { refs.set(x, `p${++n}`); photos[`p${n}`] = x; } o[k] = refs.get(x); }
       else o[k] = walk(x);
     }
     return o;
