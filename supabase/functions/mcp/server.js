@@ -33,14 +33,26 @@ export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
 export const APP_URI = "ui://wardrobe/app.html";
 export const APP_MIME = "text/html;profile=mcp-app";
 const SITE = "https://stevenpisani.com";
+const APP = `${SITE}/apps/wardrobe`; // the app's own links: #closet, #item/<id>, #trip/<id>
+// who this server is, as both apps show it: name, logo (the site's SJPJr badge), and its home
+export const ICONS = [
+  { src: `${SITE}/assets/images/sj-512.png`, mimeType: "image/png", sizes: ["512x512"] },
+  { src: `${SITE}/assets/images/sj-180.png`, mimeType: "image/png", sizes: ["180x180"] },
+  { src: `${SITE}/assets/images/sj-64.png`, mimeType: "image/png", sizes: ["64x64"] },
+];
+export const SERVER = { name: "wardrobe", title: "Steve's wardrobe", version: "1.2.0", description: "Steve's clothes and trips: find, add and plan what to wear and pack.", websiteUrl: APP, icons: ICONS };
 const showsCard = { ui: { resourceUri: APP_URI }, "openai/outputTemplate": APP_URI };
 export function appResource(ctx, script) {
   const site = ctx.siteOrigin || SITE;
   const js = script ? `<script>${script.replace(/<\/(script)/gi, "<\\/$1")}</script>` : `<script src="${site}/assets/js/dist/mcp-app.js"></script>`;
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Wardrobe</title></head><body><div id="app"></div>${js}</body></html>`;
   // what the card may load: its script from the site, and the photos (signed links to Storage)
-  const _meta = { ui: { csp: { resourceDomains: [site, ...(ctx.storageOrigin ? [ctx.storageOrigin] : [])] }, prefersBorder: true } };
-  return { uri: APP_URI, name: "Wardrobe", title: "Steve's wardrobe", mimeType: APP_MIME, html, _meta };
+  const _meta = {
+    ui: { csp: { resourceDomains: [site, ...(ctx.storageOrigin ? [ctx.storageOrigin] : [])] }, prefersBorder: true },
+    // for ChatGPT's model: what Steve already sees, so the answer needn't repeat it
+    "openai/widgetDescription": "Shows the garments, the one garment, the filing preview or the trip just asked for, with their photos. Steve can open a garment, add a previewed garment, say what a photo is and tick off packing in it. Don't list what it shows or paste photo links; add what it doesn't say.",
+  };
+  return { uri: APP_URI, name: "Wardrobe", title: "Steve's wardrobe", mimeType: APP_MIME, icons: ICONS, html, _meta };
 }
 
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
@@ -116,7 +128,7 @@ export const TOOLS = [
     title: "Find clothes in Steve's wardrobe",
     description: "Start here. Lists what Steve owns, one entry per physical garment, flat (product and variant facts filled in), optionally narrowed by words, category, season, dressiness (matches where it mostly belongs or also works) or warmth. Retired things are left out unless asked for. Use it before suggesting outfits or packing, and before ingesting, to see if a garment or its product is already here.",
     inputSchema: { type: "object", properties: { query: { type: "string", description: "Words to look for in the name, brand, colour (plain or as printed), material, style number or notes." }, category: ITEM.category, season: { type: "string", enum: SEASONS }, dressiness: ITEM.dressiness, warmth: ITEM.warmth, include_retired: { type: "boolean" } }, additionalProperties: false },
-    outputSchema: { type: "object", properties: { view: { type: "string" }, count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo, product_id, variant_id…" } } }, required: ["count", "items"] },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo (a photo reference for the card), product_id, variant_id…" } } }, required: ["count", "items"] },
     annotations: read,
     _meta: showsCard,
   },
@@ -125,7 +137,7 @@ export const TOOLS = [
     title: "Get one garment, whole",
     description: "Everything about one owned garment: the flat view, then its product and variant (if it has them), what's set on this piece alone, every photo with its role, and where each fact came from. Photo ids here are what set_photo_role takes.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, focus: { type: "array", items: { type: "string", enum: ["size", "colour", "material", "fit", "price", "bought", "condition", "style_number", "origin", "measurements", "notes"] }, description: "Optional: what Steve asked about, so the card shows those facts first." } }, required: ["id"], additionalProperties: false },
-    outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url, source." } } }, required: ["item", "owned_item", "photos"] },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url (a photo reference for the card), source." } } }, required: ["item", "owned_item", "photos"] },
     annotations: read,
     _meta: { ...showsCard, "openai/widgetAccessible": true },
   },
@@ -262,6 +274,27 @@ export const TOOLS = [
   },
 ];
 
+// What ChatGPT shows while a tool runs, and once it's done (64 characters at most)
+const STATUS = {
+  find_items: ["Looking through the wardrobe…", "Looked through the wardrobe"],
+  get_item: ["Getting the garment…", "Got the garment"],
+  ingest_item: ["Filing it…", "Filed"],
+  read_store_link: ["Reading the shop's page…", "Read the shop's page"],
+  add_item: ["Adding it…", "Added"],
+  add_photo: ["Adding the photo…", "Added the photo"],
+  set_photo_role: ["Updating the photo…", "Updated the photo"],
+  update_item: ["Making the change…", "Changed"],
+  retire_item: ["Updating…", "Updated"],
+  list_trips: ["Getting the trips…", "Got the trips"],
+  get_trip: ["Getting the trip and its weather…", "Got the trip"],
+  create_trip: ["Creating the trip…", "Created the trip"],
+  update_trip: ["Changing the trip…", "Changed the trip"],
+  plan_days: ["Planning the days…", "Planned"],
+  set_packing: ["Updating the packing list…", "Updated the packing list"],
+  tick_packing: ["Ticking it off…", "Ticked off"],
+};
+for (const t of TOOLS) { const [a, b] = STATUS[t.name]; t._meta = { ...t._meta, "openai/toolInvocation/invoking": a, "openai/toolInvocation/invoked": b }; }
+
 // Every tool that writes says plainly what it touches (hosts' safety checks read descriptions too)
 const PRIVATE = "It changes only Steve's private wardrobe on stevenpisani.com; it sends nothing anywhere and deletes nothing.";
 for (const t of TOOLS) if (!t.annotations.readOnlyHint) t.description = `${t.description}\n${PRIVATE}`;
@@ -377,15 +410,17 @@ async function addOrFind(add, find) {
 }
 
 // ---------- What comes back ----------
-const FLAT = ["id", "name", "brand", "category", "subcategory", "colour", "manufacturer_colour", "size", "manufacturer_size", "material", "fit", "warmth", "seasons", "dressiness", "dressiness_also", "style_tags", "condition", "price", "currency", "bought_on", "buy_link", "notes", "retired", "style_number", "product_id", "variant_id"];
+// what a list gives per garment: enough to dress from and to draw it; the rest is get_item's
+const FLAT = ["id", "name", "brand", "category", "subcategory", "colour", "manufacturer_colour", "size", "material", "fit", "warmth", "seasons", "dressiness", "dressiness_also", "style_tags", "notes", "retired"];
+const FLAT_WHOLE = [...FLAT, "manufacturer_size", "condition", "price", "currency", "bought_on", "buy_link", "style_number", "product_id", "variant_id"];
 const present = (v) => v !== null && v !== undefined && !(Array.isArray(v) && !v.length) && !(typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
 const pick = (row, keys) => Object.fromEntries(keys.filter((k) => present(row[k])).map((k) => [k, row[k]]));
-async function flat(rows, ctx) {
+async function flat(rows, ctx, keys = FLAT) {
   const links = await ctx.photoUrls(rows.map((r) => r.photo_path).filter(Boolean));
   return rows.map((r) => {
-    const o = pick(r, FLAT);
+    const o = pick(r, keys);
     if (!o.retired) delete o.retired;
-    if (r.photo_path && links.get(r.photo_path)) o.hero_photo = links.get(r.photo_path); // ChatGPT can't see it, but Steve can open it
+    if (r.photo_path && links.get(r.photo_path)) o.hero_photo = links.get(r.photo_path); // for the card (photosApart)
     return o;
   });
 }
@@ -394,20 +429,21 @@ async function whole(id, ctx) {
   const row = await ctx.items.get(id);
   if (!row) return null;
   const [[item], own, product, variant, photos] = await Promise.all([
-    flat([row], ctx), ctx.items.own(id),
+    flat([row], ctx, FLAT_WHOLE), ctx.items.own(id),
     row.product_id ? ctx.products.get(row.product_id) : null,
     row.variant_id ? ctx.variants.get(row.variant_id) : null,
     ctx.photos.list(id),
   ]);
   const links = await ctx.photoUrls(photos.map((p) => p.path));
+  const facts = (src) => Object.fromEntries(Object.entries(src || {}).map(([k, v]) => { if (!v || typeof v !== "object" || Array.isArray(v)) return [k, v]; const { at, ...rest } = v; return [k, rest]; }));
   const overrides = own && row.variant_id ? pick(own, ["name", "brand", "colour", "size", "material", "fit", "price", "buy_link"]) : {};
   return {
     view: "garment",
     item,
-    owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at", "created_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: own?.sources || {} },
-    variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: variant.sources },
-    product: product && { ...pick(product, ["id", "brand", "name", "style_number", "description", "material", "country_of_origin", "default_fit", "product_url", "identifiers"]), sources: product.sources },
-    photos: photos.map((p) => ({ id: p.id, role: p.role, hero: p.path === row.photo_path, ...(links.get(p.path) && { url: links.get(p.path) }), ...(p.source && { source: p.source }), created_at: p.created_at })),
+    owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: facts(own?.sources) },
+    variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: facts(variant.sources) },
+    product: product && { ...pick(product, ["id", "brand", "name", "style_number", "description", "material", "country_of_origin", "default_fit", "product_url", "identifiers"]), sources: facts(product.sources) },
+    photos: photos.map((p) => ({ id: p.id, role: p.role, hero: p.path === row.photo_path, ...(links.get(p.path) && { url: links.get(p.path) }), ...(p.source && { source: p.source }) })),
   };
 }
 // one line a garment, for the text half of a result
@@ -582,12 +618,12 @@ async function call(name, args = {}, ctx) {
       && (!q || key([r.name, r.brand, r.colour, r.manufacturer_colour, r.material, r.notes, r.category, r.subcategory, r.style_number].join(" ")).includes(q)));
     rows.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || String(a.name).localeCompare(String(b.name)));
     const items = await flat(rows, ctx);
-    return { text: items.length ? `${plural(items.length, "garment")}:\n${items.map(line).join("\n")}` : "Nothing in the wardrobe matches that.", data: { view: "closet", count: items.length, items } };
+    return { text: items.length ? `${plural(items.length, "garment")}:\n${items.map(line).join("\n")}\nIn the app: ${APP}#closet` : "Nothing in the wardrobe matches that.", data: { view: "closet", count: items.length, items } };
   }
   if (name === "get_item") {
     const w = await whole(String(args.id || ""), ctx);
     if (!w) throw new Invalid("There's no item with that id.");
-    return { text: [line(w.item), w.product && `Product: ${w.product.brand} ${w.product.name}${w.product.style_number ? ` (style ${w.product.style_number})` : ""}`, w.variant && `Variant: ${[w.variant.manufacturer_colour, w.variant.manufacturer_size].filter(Boolean).join(" / ")}`, w.photos.length ? `Photos: ${w.photos.map((p) => `${p.role}${p.hero ? " (shown)" : ""} [photo ${p.id}]`).join(", ")}` : "No photos.", w.item.notes && `Notes: ${w.item.notes}`].filter(Boolean).join("\n"), data: w };
+    return { text: [line(w.item), w.product && `Product: ${w.product.brand} ${w.product.name}${w.product.style_number ? ` (style ${w.product.style_number})` : ""}`, w.variant && `Variant: ${[w.variant.manufacturer_colour, w.variant.manufacturer_size].filter(Boolean).join(" / ")}`, w.photos.length ? `Photos: ${w.photos.map((p) => `${p.role}${p.hero ? " (shown)" : ""} [photo ${p.id}]`).join(", ")}` : "No photos.", w.item.notes && `Notes: ${w.item.notes}`, `In the app: ${APP}#item/${w.item.id}`].filter(Boolean).join("\n"), data: w };
   }
   if (name === "read_store_link") {
     const p = await ctx.readProduct(String(args.url || ""));
@@ -674,16 +710,24 @@ async function trips(name, args, ctx) {
     const links = await ctx.photoUrls([...new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id)].map((i) => byId.get(i)?.photo_path).filter(Boolean))]);
     // what the card shows for a garment: its photo, and what tells it apart from its twins
     const look = (i) => { const r = byId.get(i), u = links.get(r?.photo_path); return r ? Object.fromEntries(Object.entries({ category: r.category, colour: r.colour, manufacturer_colour: r.manufacturer_colour, hero_photo: u }).filter(([, v]) => v)) : {}; };
-    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ ...d, place: placeOn(d.date), weather: weatherOn(d.date), items: d.items.map((i) => ({ id: i, name: byId.get(i)?.name || "(no longer in the wardrobe)", ...look(i) })) }));
-    const packing = t.packing.map((p) => ({ ...p, name: p.item_id ? byId.get(p.item_id)?.name || "(no longer in the wardrobe)" : p.label, ...(p.item_id && look(p.item_id)) }));
+    // each garment on the trip once; days and packing name them by id (a garment worn on twenty
+    // days is one entry, not twenty)
+    const garments = {};
+    for (const i of new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id).filter(Boolean)])) garments[i] = { name: byId.get(i)?.name || "(no longer in the wardrobe)", ...look(i) };
+    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => { const w = weatherOn(d.date); return { ...d, place: placeOn(d.date), ...(w && { weather: { hi: Math.round(w.hi), lo: Math.round(w.lo), rain: w.rain } }) }; });
+    const packing = t.packing.map((p) => ({ ...p }));
+    const nameOf = (i) => garments[i].name;
     const text = [
       tripLine(t),
       ...legs.map((l) => `${l.place}, ${l.country} (${l.from} to ${l.to}): ${l.weather ? `${l.weather.kind === "typical" ? "typically" : l.weather.kind === "mixed" ? "forecast then typical:" : "forecast:"} highs ${l.weather.summary.hi}°C, lows ${l.weather.summary.lo}°C, about ${l.weather.summary.wet} day${l.weather.summary.wet === 1 ? "" : "s"} of rain` : "weather unavailable"}`),
-      days.length ? `Planned days:\n${days.map((d) => `  ${d.date} (${d.place || "?"}${d.weather ? `, ${d.weather.hi}°/${d.weather.lo}°, ${d.weather.rain}% rain` : ""}): ${d.occasion ? `${d.occasion}: ` : ""}${d.items.map((i) => i.name).join(", ") || "nothing yet"}${d.note ? ` (${d.note})` : ""}`).join("\n")}` : "No days planned yet.",
-      packing.length ? `Packing (${packing.filter((p) => p.packed).length} of ${packing.length} packed): ${packing.map((p) => `${p.qty > 1 ? `${p.qty}× ` : ""}${p.name}${p.packed ? " ✓" : ""}`).join(", ")}` : "No packing list yet.",
+      days.length ? `Planned days:\n${days.map((d) => `  ${d.date} (${d.place || "?"}${d.weather ? `, ${d.weather.hi}°/${d.weather.lo}°, ${d.weather.rain}% rain` : ""}): ${d.occasion ? `${d.occasion}: ` : ""}${d.items.map(nameOf).join(", ") || "nothing yet"}${d.note ? ` (${d.note})` : ""}`).join("\n")}` : "No days planned yet.",
+      packing.length ? `Packing (${packing.filter((p) => p.packed).length} of ${packing.length} packed): ${packing.map((p) => `${p.qty > 1 ? `${p.qty}× ` : ""}${p.item_id ? nameOf(p.item_id) : p.label}${p.packed ? " ✓" : ""}`).join(", ")}` : "No packing list yet.",
       t.notes ? `Notes: ${t.notes}` : "",
+      `In the app: ${APP}#trip/${t.id}`,
     ].filter(Boolean).join("\n");
-    return { text, data: { view: "trip", trip: { id: t.id, name: t.name, notes: t.notes, legs, days, packing } } };
+    // the legs' weather as a summary: the day by day is in each planned day
+    const legsOut = legs.map(({ lat, lon, ...l }) => ({ ...l, ...(l.weather && { weather: { kind: l.weather.kind, summary: { hi: Math.round(l.weather.summary.hi), lo: Math.round(l.weather.summary.lo), wet: l.weather.summary.wet } } }) }));
+    return { text, data: { view: "trip", trip: { id: t.id, name: t.name, notes: t.notes, legs: legsOut, days, packing, garments } } };
   }
   if (name === "update_trip") {
     const patch = {};
@@ -735,9 +779,29 @@ async function trips(name, args, ctx) {
 const INSTRUCTIONS = [
   "Steve's wardrobe: every garment he owns. Start with find_items (one entry per physical piece, flat) and refer to things by name.",
   "To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.",
-  "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). Results give photo links (for Steve to open) and their roles, not the images; go by the descriptions.",
+  "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). You get each photo's role, not the image; go by the descriptions. Steve sees the photos in the card under your answer, so don't list what it shows; to send him to the app, use the \"In the app\" link a result gives.",
   "Trips: get_trip has the weather for each leg; plan outfits day by day with plan_days from what he owns (item ids), and the packing list with set_packing. Deleting is his to do in the app.",
 ].join(" ");
+
+// The photos' signed links are long and only the card needs them: each becomes a short reference
+// ("p1") in what the model reads, and the links travel in the result's _meta, which hosts pass to
+// the card and not to the model. The card puts them back (assets/js/mcp-app/widget.js).
+export function photosApart(data) {
+  const photos = {}, refs = new Map();
+  let n = 0;
+  const walk = (v) => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== "object") return v;
+    const o = {};
+    for (const [k, x] of Object.entries(v)) {
+      if ((k === "hero_photo" || k === "url") && typeof x === "string" && /^(https?:|data:)/.test(x)) { if (!refs.has(x)) { refs.set(x, `p${++n}`); photos[`p${n}`] = x; } o[k] = refs.get(x); }
+      else o[k] = walk(x);
+    }
+    return o;
+  };
+  const lean = walk(data);
+  return { data: lean, photos: n ? photos : null };
+}
 
 /** Answers one JSON-RPC message (or null for a notification). */
 export async function rpc(msg, ctx) {
@@ -748,11 +812,11 @@ export async function rpc(msg, ctx) {
   switch (msg.method) {
     case "initialize": {
       const asked = msg.params?.protocolVersion;
-      return ok({ protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0], capabilities: { tools: { listChanged: false }, resources: { listChanged: false } }, serverInfo: { name: "wardrobe", title: "Steve's wardrobe", version: "1.0.0" }, instructions: INSTRUCTIONS });
+      return ok({ protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0], capabilities: { tools: { listChanged: false }, resources: { listChanged: false } }, serverInfo: SERVER, instructions: INSTRUCTIONS });
     }
     case "ping": return ok({});
     case "tools/list": return ok({ tools: TOOLS });
-    case "resources/list": { const { html, ...r } = appResource(ctx); return ok({ resources: [r] }); }
+    case "resources/list": { const { html, _meta, ...r } = appResource(ctx); return ok({ resources: [r] }); }
     case "resources/templates/list": return ok({ resourceTemplates: [] });
     case "resources/read": {
       if (msg.params?.uri !== APP_URI) return fail(-32002, `No resource ${msg.params?.uri}.`);
@@ -761,9 +825,11 @@ export async function rpc(msg, ctx) {
     }
     case "tools/call": {
       const { name, arguments: args } = msg.params || {};
+      if (!TOOLS.some((t) => t.name === name)) return fail(-32602, `There's no tool called ${name}.`);
       try {
         const { text, data } = await call(name, args || {}, ctx);
-        return ok({ content: [{ type: "text", text }], structuredContent: data });
+        const { data: lean, photos } = photosApart(data);
+        return ok({ content: [{ type: "text", text }], structuredContent: lean, ...(photos && { _meta: { photos } }) });
       } catch (e) {
         if (!(e instanceof Invalid)) console.error(e);
         return ok({ content: [{ type: "text", text: e instanceof Invalid ? e.message : "That didn't work; the wardrobe couldn't be reached. Try again." }], isError: true });
