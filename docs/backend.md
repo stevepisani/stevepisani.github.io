@@ -28,6 +28,12 @@ design: row-level security guards every table.
   every function (Supabase CLI, `--use-api`, no Docker). To try a change before merging, run the
   workflow on your branch (Actions → Supabase → Run workflow). Once a week it also asks the API for
   something, because free projects pause after a week without requests.
+- **When a function misbehaves, read its logs:** Actions → Supabase → Run workflow with "logs"
+  ticked. `tools/supabase-logs.mjs` prints the last 3 hours of edge function requests (time,
+  method, path, status) and what the functions logged, through the Management API's `logs`
+  endpoint (one `logs` table, ClickHouse SQL). It changes nothing. It prints paths only, never
+  query strings, headers or bodies, because the Actions log is public; keep anything personal out
+  of `console` calls in the functions for the same reason. The logs arrive a minute or two late.
 
 What's in the database:
 
@@ -50,7 +56,10 @@ picture, price; `_shared/product.js`), called with the member's own session, so 
 stores lands in their folder under their rules. `supabase/functions/mcp`: the wardrobe's MCP
 server for ChatGPT, signed in through Supabase Auth's OAuth server (on in `auth.json`; the consent
 page is `/apps/authorize`). Both are deployed with `--no-verify-jwt` and check the caller
-themselves. No running cost. See `docs/apps.md`.
+themselves, with a supabase-js client made with the caller's token as `Authorization` (spelled
+so: supabase-js adds its own `Authorization`, and a lowercase one alongside is sent as
+"Bearer t, Bearer t", which Supabase Auth refuses with an HTML page). The MCP server logs why it
+refused a token (the error, and the token's non-personal claims). No running cost. See `docs/apps.md`.
 
 ## The bartender (`supabase/functions/bartender`)
 
