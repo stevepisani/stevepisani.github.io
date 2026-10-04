@@ -4,10 +4,14 @@ app: wardrobe
 title: Wardrobe
 lede: Steve's clothes, each with a photo, what it is, and where to buy another; and trips, with what to wear and pack.
 ---
-<div class="seg wardrobe-tabs" id="tabs" role="group" aria-label="Show">
-  <button type="button" data-value="closet" aria-pressed="true">Closet</button>
-  <button type="button" data-value="trips" aria-pressed="false">Trips</button>
-</div>
+<nav class="seg wardrobe-tabs" id="tabs" aria-label="Show">
+  <a href="#today" data-value="today" hidden>Today</a>
+  <a href="#closet" data-value="closet">Closet</a>
+  <a href="#trips" data-value="trips">Trips</a>
+</nav>
+<p class="offline-note" id="offline-note" role="status" hidden></p>
+
+<div id="today-view" hidden></div>
 
 <div id="closet-view">
 <div class="app-bar">
@@ -15,7 +19,9 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
   <button class="btn btn--small" id="add" type="button">Add</button>
 </div>
 <div class="cats" id="cats" role="group" aria-label="Category"></div>
-<div class="closet-filters">
+<details class="closet-filters" id="filters">
+  <summary>Filters <span id="filter-n"></span></summary>
+  <div class="closet-filters__body">
   <select id="season" aria-label="Season">
     <option value="">Any season</option><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option>
   </select>
@@ -25,7 +31,8 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
   <select id="shelf" aria-label="Show">
     <option value="in">In the closet</option><option value="retired">Retired</option>
   </select>
-</div>
+  </div>
+</details>
 
 <ul class="closet" id="grid"></ul>
 <p class="app-empty" id="empty" hidden></p>
@@ -38,7 +45,7 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
     <p class="app-empty" id="trips-empty" hidden></p>
   </div>
   <article class="trip" id="trip" hidden>
-    <button class="link-btn" id="trip-back" type="button">← All trips</button>
+    <a class="link-btn" id="trip-back" href="#trips">‹ All trips</a>
     <header class="trip__head">
       <h2 class="trip__name" id="trip-name"></h2>
       <p class="trip__when" id="trip-when"></p>
@@ -51,12 +58,27 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
       <p class="app-empty" id="days-empty" hidden></p>
     </section>
     <section class="trip__part" aria-labelledby="pack-title">
-      <h3 id="pack-title">Packing <span class="books__count" id="pack-count"></span></h3>
-      <div class="app-progress" id="pack-progress" role="progressbar" aria-label="Packed" aria-valuemin="0"><div></div></div>
-      <ul class="packing" id="packing"></ul>
-      <form class="pack-add" id="pack-add"><label>Add something <input name="label" type="text" maxlength="120" placeholder="Charger, umbrella…"></label><button class="btn btn--ghost btn--small" type="submit">Add</button></form>
+      <h3 id="pack-title">Packing</h3>
+      <p class="pack-sum"><span id="pack-sum"></span> <a class="link-btn" id="pack-open" href="#">Pack ›</a></p>
     </section>
     <p class="trip__notes" id="trip-notes" hidden></p>
+  </article>
+
+  <article class="pack-view" id="pack-view" hidden>
+    <a class="link-btn" id="pack-back" href="#"></a>
+    <header class="pack-view__head">
+      <h2>Packing</h2>
+      <div class="seg" id="pack-show" role="group" aria-label="Show">
+        <button type="button" data-value="left" aria-pressed="true">To pack <span id="pack-left"></span></button>
+        <button type="button" data-value="all" aria-pressed="false">All <span id="pack-all"></span></button>
+      </div>
+    </header>
+    <div class="app-progress pack-progress" id="pack-progress" role="progressbar" aria-label="Packed" aria-valuemin="0"><div></div></div>
+    <p class="pack-view__count" id="pack-count"></p>
+    <button class="btn btn--ghost btn--small" id="pack-from-plan" type="button" hidden>Make the list from the planned outfits</button>
+    <div id="pack-groups"></div>
+    <p class="app-empty" id="pack-empty" hidden></p>
+    <form class="pack-add" id="pack-add"><label>Add something <input name="label" type="text" maxlength="120" placeholder="Charger, umbrella…"></label><button class="btn btn--ghost btn--small" type="submit">Add</button></form>
   </article>
 </div>
 
@@ -88,21 +110,32 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
   </form>
 </dialog>
 
-<dialog class="app-dialog sheet" id="sheet" aria-labelledby="sheet-name-label">
+<dialog class="app-dialog sheet" id="sheet" aria-labelledby="sv-name" data-mode="view">
   <form method="dialog" class="sheet__form">
     <div class="sheet__top">
       <span class="tile__photo sheet__photo"><img alt="" hidden><span class="tile__none" aria-hidden="true"></span></span>
       <div class="sheet__head">
-        <label id="sheet-name-label">Name <input data-is="name" type="text" maxlength="120"></label>
-        <label>Category <select data-is="category"></select></label>
+        <div class="sheet__view">
+          <p class="sheet__cat" id="sv-cat"></p>
+          <h2 class="sheet__name" id="sv-name"></h2>
+          <p id="sv-facts"></p>
+          <p id="sv-fit"></p>
+          <p class="sheet__tags" id="sv-tags"></p>
+          <p id="sv-bought"></p>
+        </div>
+        <div class="sheet__edit sheet__head">
+          <label>Name <input data-is="name" type="text" maxlength="120"></label>
+          <label>Category <select data-is="category"></select></label>
+        </div>
         <div class="sheet__buy">
           <a class="btn btn--small" id="buy" target="_blank" rel="noopener">Buy another</a>
           <a class="link-btn" id="find" target="_blank" rel="noopener">Find another</a>
         </div>
-        <label class="btn btn--ghost btn--small photo-btn" id="sheet-photo"><span>Change the photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
+        <label class="btn btn--ghost btn--small photo-btn sheet__edit" id="sheet-photo"><span>Change the photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
       </div>
     </div>
-    <div class="sheet__grid">
+    <p class="sheet__view sheet__notes" id="sv-notes"></p>
+    <div class="sheet__grid sheet__edit">
       <label>Brand <input data-is="brand" type="text"></label>
       <label>Colour <input data-is="colour" type="text"></label>
       <label>Size <input data-is="size" type="text"></label>
@@ -120,8 +153,9 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
       <label class="sheet__wide">Notes <textarea data-is="notes" rows="3"></textarea></label>
     </div>
     <div class="sheet__foot">
-      <button class="link-btn" id="retire" type="button"></button>
-      <button class="link-btn link-btn--bad" id="remove" type="button">Delete it</button>
+      <button class="link-btn sheet__view" id="sheet-edit" type="button">Edit</button>
+      <button class="link-btn sheet__edit" id="retire" type="button"></button>
+      <button class="link-btn link-btn--bad sheet__edit" id="remove" type="button">Delete it</button>
       <button class="btn btn--small" type="button" data-close>Done</button>
     </div>
   </form>
