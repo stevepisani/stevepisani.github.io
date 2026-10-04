@@ -24,11 +24,14 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return reply({ error: "POST only" }, 405, origin);
 
   // as the member who asked: their session, so row and storage rules are theirs
+  // ("Authorization" as supabase-js spells it, or it's sent twice and refused; and the token passed
+  // to getUser, since a client without a session has no user of its own)
+  const token = /^Bearer (.+)$/i.exec(req.headers.get("authorization") ?? "")?.[1] ?? "";
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-    global: { headers: { authorization: req.headers.get("authorization") ?? "" } },
-    auth: { persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: who } = await db.auth.getUser();
+  const { data: who } = token ? await db.auth.getUser(token) : { data: null };
   const { data: member } = await db.rpc("is_member");
   if (!who?.user || member !== true) return reply({ error: "Members only." }, 401, origin);
 

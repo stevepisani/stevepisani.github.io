@@ -3,6 +3,8 @@
 #   copies ANTHROPIC_API_KEY into the project's function secrets, and deploys the functions
 #   (supabase/functions/*). Needs the SUPABASE_ACCESS_TOKEN and ANTHROPIC_API_KEY repo
 #   secrets; without the first the job says so and passes.
+# - logs: run by hand with "logs" ticked, prints what the edge functions did lately
+#   (tools/supabase-logs.mjs: paths and statuses only) and changes nothing.
 # - keepalive: free projects pause after a week without requests, so once a week it asks the
 #   public API for something (the anon key from _config.yml; no secret needed).
 name: Supabase
@@ -14,13 +16,18 @@ on:
   schedule:
     - cron: '23 14 * * 1'
   workflow_dispatch:
+    inputs:
+      logs:
+        description: Only print the edge functions' recent logs (changes nothing)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && !inputs.logs
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -65,8 +72,21 @@ jobs:
             supabase functions deploy "$name" --project-ref "$ref" --use-api $flags
           done
 
+  logs:
+    if: inputs.logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/supabase-logs.mjs 3
+
   keepalive:
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && !inputs.logs)
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

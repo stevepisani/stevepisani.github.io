@@ -1,7 +1,13 @@
 // The wardrobe (/apps/wardrobe, apps/wardrobe.html): Steve's clothes, each with a photo cut out
-// of its background, what it is, and where to buy another. Private to its owner (table
-// public.wardrobe_items; photos under photos/wardrobe/<owner id>/). ChatGPT reads and edits the
-// same rows through the wardrobe MCP server (docs/apps.md).
+// of its background, what it is, and where to buy another; and his trips, with the weather, what
+// to wear each day and what to pack. Private to its owner (tables public.wardrobe_items and
+// public.trips; photos under photos/wardrobe/<owner id>/). ChatGPT reads and edits the same rows
+// through the wardrobe MCP server (docs/apps.md).
+//
+// It works with no signal (a train, a plane): every load keeps a copy on the phone (the rows, the
+// photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
+// answers from), and with no connection the app opens on that copy. Packing ticks made then are
+// kept and sent when the connection's back.
 import { $, db, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
@@ -9,14 +15,26 @@ const items = rows('wardrobe_items');
 const tripRows = rows('trips');
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
-let list = [], links = new Map(), failed = false, uid = null;
+let list = [], links = new Map(), failed = false, uid = null, offline = false;
 let view = { cat: '', season: '', dress: '', shelf: 'in', tab: 'closet' };
 try { Object.assign(view, JSON.parse(localStorage.getItem('wardrobe-view'))); } catch (e) {}
 const tiles = new Map(); // item id → its tile
 
 const href = (link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
 const folder = () => `wardrobe/${uid}`;
+const keep = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
+const kept = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } };
+const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 for (const sel of ['#add-category', '[data-is="category"]']) $(sel).append(...CATS.map(([v, t]) => new Option(t, v)));
+
+// A photo, small: the cut-out on its soft tile, or the category's letter when there's none
+function thumb(it, cls = 'tile__photo') {
+  const box = el('span', cls), url = it?.photo_path && links.get(it.photo_path);
+  if (url) box.append(Object.assign(document.createElement('img'), { src: url, alt: '', loading: 'lazy', decoding: 'async' }));
+  else box.append(el('span', 'tile__none', it ? catName[it.category]?.[0] || '' : '?'));
+  return box;
+}
 
 // ---------- The closet: category chips, filters, a grid of tiles ----------
 function paintTile(it) {
@@ -48,6 +66,8 @@ function render() {
     b.append(t, Object.assign(document.createElement('span'), { textContent: n }));
     cats.append(b);
   }
+  const on = [view.season, view.dress, view.shelf !== 'in'].filter(Boolean).length;
+  $('#filter-n').textContent = on ? `(${on})` : '';
   const order = (a, b) => CATS.findIndex(([c]) => c === a.category) - CATS.findIndex(([c]) => c === b.category) || a.name.localeCompare(b.name);
   let shown = 0;
   for (const it of [...list].sort(order)) {
@@ -66,13 +86,14 @@ function render() {
 function build(it) {
   const tile = $('#tile').content.firstElementChild.cloneNode(true);
   tiles.set(it.id, tile);
-  $('.tile__open', tile).addEventListener('click', () => openSheet(it));
+  $('.tile__open', tile).addEventListener('click', () => openItem(it));
   paintTile(it);
 }
 
+const saveView = () => keep('wardrobe-view', view);
 const look = (change) => {
   Object.assign(view, change);
-  try { localStorage.setItem('wardrobe-view', JSON.stringify(view)); } catch (e) {}
+  saveView();
   render();
 };
 $('#search').addEventListener('input', render);
@@ -81,6 +102,8 @@ for (const [id, key] of [['#season', 'season'], ['#dress', 'dress'], ['#shelf', 
   $(id).value = view[key];
   $(id).addEventListener('input', (e) => look({ [key]: e.target.value }));
 }
+// the filters fold away on a phone, where the closet is what matters; on a wider screen they're out
+$('#filters').open = matchMedia('(min-width: 561px)').matches;
 
 // ---------- A photo, cut out of its background ----------
 // The cutting out runs in the browser (@imgly/background-removal; its model, about 40 MB, comes
@@ -108,6 +131,7 @@ async function storePhoto(file, status) {
 // ---------- Adding: a photo, or a link to it in a shop ----------
 let pending = null; // what the add dialog has so far: { photo: Promise<path>, preview, from link: brand, price, currency, link }
 $('#add').addEventListener('click', async () => {
+  if (offline) { toast("You're offline. Adding has to wait for a connection.", true); return; }
   pending = {};
   const dialog = $('#add-dialog'), preview = $('#add-preview');
   preview.hidden = true;
@@ -129,7 +153,8 @@ $('#add').addEventListener('click', async () => {
   if (path) links = new Map([...links, ...(await photos.urls([path]))]);
   view.shelf = 'in';
   render();
-  openSheet(added[0]); // the rest of what it is, while it's in hand
+  keepCopy();
+  openItem(added[0], 'edit'); // the rest of what it is, while it's in hand
 });
 const showPreview = (url, text) => {
   const preview = $('#add-preview');
@@ -170,17 +195,21 @@ $('#read-link').addEventListener('click', async () => {
   showPreview(url || null, data.name ? `From ${new URL(data.link).hostname.replace(/^www\./, '')}${data.price != null ? `, ${data.price} ${data.currency || ''}` : ''}.` : "That shop doesn't say much. Name it yourself; the link is kept.");
 });
 
-// ---------- An item's sheet: everything about it, saved as it's typed ----------
+// ---------- An item: what it is first, the fields behind Edit; saved as they're typed ----------
 const sheet = $('#sheet');
 let current = null;
 async function save(patch) {
   const it = current;
-  if (!it || !(await items.set(it.id, patch))) return false;
+  if (!it) return false;
+  if (offline) { toast("You're offline. Changes have to wait for a connection.", true); return false; }
+  if (!(await items.set(it.id, patch))) return false;
   Object.assign(it, patch);
   paintTile(it);
   paintSheet();
+  keepCopy();
   return true;
 }
+const money = (n, cur) => { try { return n.toLocaleString(undefined, { style: 'currency', currency: cur || 'USD', maximumFractionDigits: n % 1 ? 2 : 0 }); } catch (e) { return `${n} ${cur || ''}`; } };
 function paintSheet() {
   const it = current;
   if (!it) return;
@@ -190,6 +219,15 @@ function paintSheet() {
   img.hidden = !url;
   $('.sheet__photo .tile__none', sheet).hidden = !!url;
   $('.sheet__photo .tile__none', sheet).textContent = catName[it.category]?.[0] || '';
+  // what it is, in a few lines
+  $('#sv-cat').textContent = `${catName[it.category] || ''}${it.retired ? ' · retired' : ''}`;
+  $('#sv-name').textContent = it.name;
+  $('#sv-facts').textContent = [it.brand, it.colour, it.material, it.size && `size ${it.size}`].filter(Boolean).join(' · ');
+  $('#sv-fit').textContent = it.fit ? `Fit: ${it.fit}` : '';
+  $('#sv-tags').replaceChildren(...[...(it.seasons || []), { light: 'light', mid: 'mid-weight', warm: 'warm' }[it.warmth], it.dressiness].filter(Boolean).map((t) => el('span', 'pill', t)));
+  const bought = it.bought_on && new Date(`${it.bought_on}T12:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  $('#sv-bought').textContent = [it.price != null && money(Number(it.price), it.currency), bought && `bought ${bought}`].filter(Boolean).join(', ');
+  $('#sv-notes').textContent = it.notes || '';
   $('#buy').hidden = !it.buy_link;
   if (it.buy_link) $('#buy').href = href(it.buy_link);
   $('#find').href = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent([it.brand, it.name, it.colour].filter(Boolean).join(' '))}`;
@@ -197,19 +235,25 @@ function paintSheet() {
   $('#retire').textContent = it.retired ? 'Back in the closet' : 'Retire it (worn out, given away)';
   $('#sheet-photo span').textContent = it.photo_path ? 'Change the photo' : 'Add a photo';
 }
-function openSheet(it) {
+function openSheet(it, mode = 'view') {
   current = it;
-  for (const el of sheet.querySelectorAll('[data-is]')) { el.value = it[el.dataset.is] ?? ''; delete el.dataset.save; }
+  for (const f of sheet.querySelectorAll('[data-is]')) { f.value = it[f.dataset.is] ?? ''; delete f.dataset.save; }
   for (const box of sheet.querySelectorAll('.sheet__seasons input')) box.checked = !!it.seasons?.includes(box.value);
+  sheet.dataset.mode = mode;
   paintSheet();
   sheet.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => sheet.close(); });
-  sheet.showModal();
+  if (!sheet.open) sheet.showModal();
 }
+$('#sheet-edit').addEventListener('click', () => {
+  if (offline) { toast("You're offline. Changes have to wait for a connection.", true); return; }
+  sheet.dataset.mode = 'edit';
+  $('[data-is="name"]', sheet).focus();
+});
 // text saves as it's typed; the rest at once
 const TEXT = ['name', 'brand', 'colour', 'size', 'material', 'fit', 'buy_link', 'notes'];
 for (const field of TEXT) {
-  const el = $(`[data-is="${field}"]`, sheet);
-  saver(el, (value) => (field === 'name' && !value.trim() ? Promise.resolve(false) : save({ [field]: value.trim() || null })));
+  const f = $(`[data-is="${field}"]`, sheet);
+  saver(f, (value) => (field === 'name' && !value.trim() ? Promise.resolve(false) : save({ [field]: value.trim() || null })));
 }
 for (const field of ['category', 'warmth', 'dressiness', 'bought_on']) {
   $(`[data-is="${field}"]`, sheet).addEventListener('change', (e) => save({ [field]: e.target.value || null }).then(() => render()));
@@ -223,11 +267,21 @@ $('[data-is="currency"]', sheet).addEventListener('change', (e) => {
   if (/^[A-Z]{3}$/.test(c)) save({ currency: c }); else e.target.value = current.currency;
 });
 $('.sheet__seasons', sheet).addEventListener('change', () => save({ seasons: [...sheet.querySelectorAll('.sheet__seasons input:checked')].map((b) => b.value) }).then(() => render()));
-// closing saves what's still being typed, before the sheet moves on to another item
-sheet.addEventListener('close', () => { for (const field of TEXT) $(`[data-is="${field}"]`, sheet).dispatchEvent(new Event('change')); setTimeout(() => { current = null; render(); }, 0); });
+// closing saves what's still being typed, before the sheet moves on to another item; then the
+// address goes back to the view underneath
+sheet.addEventListener('close', () => {
+  if (sheet.dataset.mode === 'edit') for (const field of TEXT) $(`[data-is="${field}"]`, sheet).dispatchEvent(new Event('change'));
+  if (here()[0] === 'item') { if (pushedItem) history.back(); else history.replaceState(null, '', `#${shownHash}`); }
+  pushedItem = false;
+  setTimeout(() => { if (!sheet.open) { current = null; redraw(); } }, 0);
+});
 $('#retire').addEventListener('click', async () => {
-  const was = current.retired;
-  if (await save({ retired: !was })) { sheet.close(); toast(was ? 'Back in the closet.' : 'Retired. It\'s under "Retired" if you want it back.'); }
+  const it = current, was = it.retired;
+  if (!(await save({ retired: !was }))) return;
+  sheet.close();
+  toast(was ? 'Back in the closet.' : 'Retired. It\'s under "Retired" in the filters.', false, async () => {
+    if (await items.set(it.id, { retired: was })) { it.retired = was; keepCopy(); render(); }
+  });
 });
 $('#remove').addEventListener('click', async () => {
   const it = current;
@@ -236,6 +290,7 @@ $('#remove').addEventListener('click', async () => {
   list = list.filter((x) => x !== it);
   tiles.get(it.id)?.remove();
   tiles.delete(it.id);
+  keepCopy();
   sheet.close();
 });
 $('#sheet-photo input').addEventListener('change', async (e) => {
@@ -248,51 +303,108 @@ $('#sheet-photo input').addEventListener('change', async (e) => {
   if (path) {
     links.set(path, (await photos.urls([path])).get(path) || URL.createObjectURL(file));
     const ok = await items.set(it.id, { photo_path: path });
-    if (ok) { it.photo_path = path; paintTile(it); if (current === it) paintSheet(); }
+    if (ok) { it.photo_path = path; paintTile(it); keepCopy(); if (current === it) paintSheet(); }
     photos.remove(ok ? old : path);
   }
   slot.classList.remove('is-busy');
   if (current === it) paintSheet();
 });
 
+// ---------- Where you are: the address says, so Back works and any view can be linked ----------
+// #today, #closet, #trips, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over the view)
+let trips = [], openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
+const here = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
+const openItem = (it, mode = 'view') => { nextMode = mode; pushedItem = true; location.hash = `item/${it.id}`; };
+addEventListener('hashchange', route);
+
+function route() {
+  if (!ready) return;
+  const [where, id, part] = here();
+  if (where === 'item') {
+    if (!shown) showView(...home());
+    const it = list.find((x) => x.id === id);
+    if (it && current !== it) openSheet(it, nextMode);
+    nextMode = 'view';
+    return;
+  }
+  if (sheet.open) sheet.close();
+  if (where === 'trip' && trips.some((t) => t.id === id)) return showView(part === 'pack' ? 'pack' : 'trip', id);
+  if (where === 'closet' || where === 'trips' || (where === 'today' && nowTrip())) return showView(where);
+  showView(...home());
+}
+// with a trip on (or about to be), Today; otherwise wherever you were last
+const home = () => [nowTrip() ? 'today' : view.tab === 'trips' ? 'trips' : 'closet'];
+function showView(name, id) {
+  shown = name;
+  shownHash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
+  const tab = name === 'trip' || name === 'pack' ? 'trips' : name;
+  if (tab !== 'today') { view.tab = tab; saveView(); }
+  const now = nowTrip();
+  for (const a of $('#tabs').children) {
+    if (a.dataset.value === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (a.dataset.value === 'today') a.hidden = !now;
+  }
+  $('#today-view').hidden = tab !== 'today';
+  $('#closet-view').hidden = tab !== 'closet';
+  $('#trips-view').hidden = tab !== 'trips';
+  $('#trip-list-view').hidden = name !== 'trips';
+  $('#trip').hidden = name !== 'trip';
+  $('#pack-view').hidden = name !== 'pack';
+  openTrip = id ? trips.find((t) => t.id === id) : name === 'today' ? now : null;
+  redraw();
+}
+function redraw() {
+  if (shown === 'today') drawToday();
+  else if (shown === 'trips') drawTrips();
+  else if (shown === 'trip') drawTrip();
+  else if (shown === 'pack') drawPack();
+  else render();
+}
+
 // ---------- Trips: where and when, the weather, what to wear each day, what to pack ----------
 // Mostly built in ChatGPT (the MCP server's trip tools); here they're shown, the packing is ticked
 // off, and a trip can be started or its places and dates changed.
-let trips = [], openTrip = null;
 const weatherCache = new Map(); // leg key → Promise of its weather
-const fmtDay = (d, opts = {}) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: opts.weekday ? 'short' : undefined, day: 'numeric', month: 'short' });
+const wxKept = kept('wardrobe-wx') || {}; // the last weather each leg had, for when there's no connection
+const pad = (n) => String(n).padStart(2, '0');
+const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00`) - new Date(`${a}T12:00`)) / 864e5);
+const addDays = (d, n) => { const x = new Date(`${d}T12:00`); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`; };
+const fmtDay = (d, opts = {}) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: opts.weekday || undefined, day: 'numeric', month: opts.month || 'short' });
 const span = (t) => (t.legs.length ? [t.legs[0].from, t.legs[t.legs.length - 1].to] : [null, null]);
+const legKey = (l) => `${l.lat},${l.lon},${l.from},${l.to}`;
 const legWeatherCached = (l) => {
-  const key = `${l.lat},${l.lon},${l.from},${l.to}`;
-  if (!weatherCache.has(key)) weatherCache.set(key, legWeather(l).catch(() => null));
+  const key = legKey(l);
+  if (!weatherCache.has(key)) {
+    weatherCache.set(key, (navigator.onLine ? legWeather(l) : Promise.reject(new Error('offline')))
+      .then((w) => { if (w) { wxKept[key] = w; keep('wardrobe-wx', wxKept); } return w; })
+      .catch(() => wxKept[key] || null));
+  }
   return weatherCache.get(key);
 };
-const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});
-
-function showTab(tab) {
-  view.tab = tab;
-  try { localStorage.setItem('wardrobe-view', JSON.stringify(view)); } catch (e) {}
-  for (const b of $('#tabs').children) b.setAttribute('aria-pressed', b.dataset.value === tab);
-  $('#closet-view').hidden = tab !== 'closet';
-  $('#trips-view').hidden = tab !== 'trips';
-  if (tab === 'trips') (openTrip ? drawTrip() : drawTrips());
+// where you are on a date: on a travel day, the place you're going to
+const legOn = (t, date) => [...t.legs].reverse().find((l) => l.from <= date && date <= l.to);
+const wxOn = async (t, date) => { const l = legOn(t, date); return l ? (await legWeatherCached(l))?.days.find((d) => d.date === date) || null : null; };
+// the trip that's on, or else the next one if it starts within two weeks
+function nowTrip() {
+  const today = isoToday(), dated = trips.filter((t) => t.legs.length).map((t) => [t, ...span(t)]);
+  const on = dated.find(([, a, b]) => a <= today && today <= b);
+  if (on) return on[0];
+  return dated.filter(([, a]) => a > today && daysBetween(today, a) <= 14).sort((x, y) => x[1].localeCompare(y[1]))[0]?.[0] || null;
 }
-$('#tabs').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showTab(b.dataset.value); });
+const leaving = (a) => { const d = daysBetween(isoToday(), a); return d > 1 ? `you leave in ${d} days` : d === 1 ? 'you leave tomorrow' : d === 0 ? 'you leave today' : ''; };
 
 function drawTrips() {
-  $('#trip-list-view').hidden = false;
-  $('#trip').hidden = true;
-  const list = $('#trip-list');
-  list.textContent = '';
+  const ul = $('#trip-list');
+  ul.textContent = '';
   const sorted = [...trips].sort((a, b) => (span(b)[0] || '').localeCompare(span(a)[0] || ''));
   for (const t of sorted) {
     const [a, b] = span(t);
-    const li = el('li'), btn = el('button', 'trip-card');
-    btn.type = 'button';
-    btn.append(el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : 'No dates yet'), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
-    btn.addEventListener('click', () => { openTrip = t; drawTrip(); });
-    li.append(btn);
-    list.append(li);
+    const li = el('li'), card = el('a', 'trip-card');
+    card.href = `#trip/${t.id}`;
+    card.append(el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : 'No dates yet'), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
+    li.append(card);
+    ul.append(li);
   }
   $('#trips-empty').hidden = trips.length > 0;
   $('#trips-empty').textContent = 'No trips yet. Start one here, or ask ChatGPT to plan one.';
@@ -300,40 +412,42 @@ function drawTrips() {
 
 function itemChip(id, { opens = true } = {}) {
   const it = list.find((x) => x.id === id), chip = el('span', 'chip-item');
-  const ph = el('span', 'chip-item__photo'), url = it?.photo_path && links.get(it.photo_path);
-  if (url) ph.append(Object.assign(document.createElement('img'), { src: url, alt: '', loading: 'lazy' }));
-  else ph.textContent = it ? catName[it.category]?.[0] || '' : '?';
-  chip.append(ph, el('span', 'chip-item__name', it ? it.name : 'No longer in the wardrobe'));
-  if (it && opens) { chip.tabIndex = 0; chip.role = 'button'; chip.addEventListener('click', () => openSheet(it)); chip.addEventListener('keydown', (e) => { if (e.key === 'Enter') openSheet(it); }); }
+  chip.append(thumb(it, 'chip-item__photo'), el('span', 'chip-item__name', it ? it.name : 'No longer in the wardrobe'));
+  if (it && opens) { chip.tabIndex = 0; chip.role = 'button'; chip.addEventListener('click', () => openItem(it)); chip.addEventListener('keydown', (e) => { if (e.key === 'Enter') openItem(it); }); }
   return chip;
 }
 
+const packSummary = (t) => {
+  const done = t.packing.filter((p) => p.packed).length, n = t.packing.length;
+  return !n ? 'Nothing on the list yet.' : done === n ? `All ${n} packed.` : `${done} of ${n} packed.`;
+};
+
 async function drawTrip() {
   const t = openTrip;
-  if (!t) return drawTrips();
-  $('#trip-list-view').hidden = true;
-  $('#trip').hidden = false;
+  if (!t) return;
   const [a, b] = span(t);
   $('#trip-name').textContent = t.name;
-  $('#trip-when').textContent = a ? `${fmtDay(a)} – ${fmtDay(b)} · ${t.legs.length} place${t.legs.length === 1 ? '' : 's'}` : '';
+  $('#trip-when').textContent = a ? `${fmtDay(a)} – ${fmtDay(b)} · ${plural(t.legs.length, 'place')}` : '';
   $('#trip-notes').hidden = !t.notes;
   $('#trip-notes').textContent = t.notes || '';
+  $('#pack-sum').textContent = packSummary(t);
+  $('#pack-open').href = `#trip/${t.id}/pack`;
   // the legs, each with its weather
+  const weather = await Promise.all(t.legs.map(legWeatherCached));
+  if (openTrip !== t || shown !== 'trip') return;
   const legs = $('#legs');
   legs.textContent = '';
-  const weather = await Promise.all(t.legs.map(legWeatherCached));
-  if (openTrip !== t) return;
   t.legs.forEach((l, i) => {
     const w = weather[i], li = el('li', 'leg');
     li.append(el('h3', 'leg__place', `${l.place}${l.country ? `, ${l.country}` : ''}`), el('p', 'leg__when', `${fmtDay(l.from)} – ${fmtDay(l.to)}`));
     if (w) {
       const s = w.summary;
-      li.append(el('p', 'leg__weather', `${w.kind === 'forecast' ? 'Forecast' : w.kind === 'mixed' ? 'Forecast, then typical' : 'Typically'}: highs ${s.hi}°, lows ${s.lo}°, about ${s.wet} day${s.wet === 1 ? '' : 's'} of rain`));
+      li.append(el('p', 'leg__weather', `${w.kind === 'forecast' ? 'Forecast' : w.kind === 'mixed' ? 'Forecast, then typical' : 'Typically'}: highs ${s.hi}°, lows ${s.lo}°, about ${plural(s.wet, 'day')} of rain`));
       const strip = el('ol', 'leg__days');
       strip.setAttribute('aria-label', `Day by day in ${l.place}`);
       for (const d of w.days) {
         const day = el('li', `wx${d.kind === 'typical' ? ' wx--typical' : ''}`);
-        day.title = `${fmtDay(d.date, { weekday: true })}: ${d.hi}° / ${d.lo}°, ${d.rain}% chance of rain${d.kind === 'typical' ? ' (typical)' : ''}`;
+        day.title = `${fmtDay(d.date, { weekday: 'short' })}: ${d.hi}° / ${d.lo}°, ${d.rain}% chance of rain${d.kind === 'typical' ? ' (typical)' : ''}`;
         day.style.setProperty('--hi', d.hi ?? 0);
         day.style.setProperty('--rain', (d.rain ?? 0) / 100);
         day.append(el('span', 'wx__hi', d.hi != null ? `${Math.round(d.hi)}°` : '–'));
@@ -346,12 +460,11 @@ async function drawTrip() {
   // day by day: the planned days, each with its place, weather and outfit
   const days = $('#days');
   days.textContent = '';
-  const wxOn = (date) => { for (const w of weather) { const d = w?.days.find((x) => x.date === date); if (d) return d; } return null; };
-  const placeOn = (date) => (t.legs.find((l) => l.from <= date && date <= l.to) || {}).place;
+  const wxDay = (date) => { for (const w of weather) { const d = w?.days.find((x) => x.date === date); if (d) return d; } return null; };
   for (const d of [...t.days].sort((x, y) => x.date.localeCompare(y.date))) {
-    const li = el('li', 'day'), w = wxOn(d.date);
+    const li = el('li', 'day'), w = wxDay(d.date);
     const head = el('p', 'day__head');
-    head.append(el('strong', '', fmtDay(d.date, { weekday: true })), ` · ${placeOn(d.date) || ''}${w ? ` · ${Math.round(w.hi)}°/${Math.round(w.lo)}°, ${w.rain}% rain` : ''}`);
+    head.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}${w ? ` · ${Math.round(w.hi)}°/${Math.round(w.lo)}°, ${w.rain}% rain` : ''}`);
     li.append(head);
     if (d.occasion) li.append(el('p', 'day__occasion', d.occasion));
     const outfit = el('div', 'day__outfit');
@@ -360,43 +473,218 @@ async function drawTrip() {
     if (d.note) li.append(el('p', 'day__note', d.note));
     days.append(li);
   }
-  const total = a ? Math.round((new Date(`${b}T12:00`) - new Date(`${a}T12:00`)) / 864e5) + 1 : 0;
+  const total = a ? daysBetween(a, b) + 1 : 0;
   $('#days-empty').hidden = false;
   $('#days-empty').textContent = t.days.length ? `${t.days.length} of ${total} days planned.` : 'No outfits planned yet. Ask ChatGPT: "plan what I wear each day of my trip".';
-  drawPacking();
 }
 
-function drawPacking() {
-  const t = openTrip, ul = $('#packing');
-  ul.textContent = '';
-  const done = t.packing.filter((p) => p.packed).length;
-  $('#pack-count').textContent = t.packing.length ? `${done} of ${t.packing.length}` : '';
-  const bar = $('#pack-progress');
-  bar.hidden = !t.packing.length;
-  bar.firstElementChild.style.setProperty('--p', `${t.packing.length ? (100 * done) / t.packing.length : 0}%`);
-  bar.setAttribute('aria-valuemax', t.packing.length);
-  bar.setAttribute('aria-valuenow', done);
-  // what's from the wardrobe first, by category; then the rest
-  const order = (p) => { const it = p.item_id && list.find((x) => x.id === p.item_id); return it ? CATS.findIndex(([c]) => c === it.category) : 99; };
-  t.packing.map((p, i) => [p, i]).sort((x, y) => order(x[0]) - order(y[0])).forEach(([p, i]) => {
-    const li = el('li', `pack${p.packed ? ' is-packed' : ''}`), label = el('label', 'pack__tick');
-    const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!p.packed });
-    box.addEventListener('change', () => savePacking(t, (list2) => { list2[i] = { ...list2[i], packed: box.checked }; }));
-    label.append(box, p.item_id ? itemChip(p.item_id, { opens: false }) : el('span', 'pack__label', p.label)); // a tap ticks it
-    if (p.qty > 1) label.append(el('span', 'pack__qty', `× ${p.qty}`));
-    const x = el('button', 'link-btn pack__x', '×');
-    x.type = 'button';
-    x.setAttribute('aria-label', `Take ${p.label || 'it'} off the list`);
-    x.addEventListener('click', () => savePacking(t, (list2) => { list2.splice(i, 1); }));
-    li.append(label, x);
-    ul.append(li);
-  });
+// ---------- Today: where you are on the trip, the weather, what you're wearing ----------
+// A line or two of advice when the weather and the outfit don't agree. The words in an item's
+// name, material and notes are all it knows about what's for rain.
+const words = (it) => [it.name, it.material, it.notes].join(' ').toLowerCase();
+function advice(w, outfit) {
+  if (!w) return [];
+  const out = [];
+  if (w.rain >= 50) {
+    const shell = outfit.find((it) => /rain|waterproof|shell|gore-?tex|trench|\bmac\b|umbrella/.test(words(it)));
+    out.push(shell ? `Rain likely (${w.rain}%). ${shell.name} is in the outfit.` : outfit.length ? `Rain likely (${w.rain}%), and nothing in this outfit is for rain.` : `Rain likely (${w.rain}%).`);
+    const suede = outfit.find((it) => /suede/.test(words(it)));
+    if (suede) out.push(`Maybe not ${suede.name} in the rain.`);
+  }
+  if (w.lo != null && w.lo < 8 && outfit.length && !outfit.some((it) => it.category === 'outerwear' || it.warmth === 'warm')) out.push(`Down to ${Math.round(w.lo)}° later, and nothing warm in this outfit.`);
+  if (w.hi != null && w.hi >= 26) { const hot = outfit.find((it) => it.warmth === 'warm'); if (hot) out.push(`Up to ${Math.round(w.hi)}°: warm for ${hot.name}.`); }
+  return out;
 }
+
+let dayOn = null; // the date the Today card shows; it can step through the trip
+async function drawToday() {
+  const t = openTrip, box = $('#today-view');
+  if (!t) return;
+  const [a, b] = span(t), today = isoToday(), underway = a <= today;
+  if (!dayOn || dayOn < a || dayOn > b) dayOn = underway ? today : a;
+  const date = dayOn, total = daysBetween(a, b) + 1;
+  const ahead = Array.from({ length: Math.min(5, daysBetween(date, b)) }, (_, i) => addDays(date, i + 1));
+  const [w, ...wAhead] = await Promise.all([date, ...ahead].map((d) => wxOn(t, d)));
+  if (openTrip !== t || shown !== 'today' || dayOn !== date) return;
+  const planned = (d) => t.days.find((x) => x.date === d);
+  const wearing = (d) => (planned(d)?.items || []).map((id) => list.find((x) => x.id === id)).filter(Boolean);
+
+  // the trip, and where you are on it: a line in legs, the one you're on lit
+  const head = el('header', 'today__trip');
+  head.append(el('h2', 'today__name', t.name), el('p', 'today__when', `${fmtDay(a)} – ${fmtDay(b)} · ${underway ? `day ${daysBetween(a, today) + 1} of ${total}` : leaving(a)}`));
+  const line = el('ol', 'legline');
+  line.setAttribute('aria-label', 'The trip, place by place');
+  t.legs.forEach((l, i) => {
+    const last = i === t.legs.length - 1, end = last ? l.to : t.legs[i + 1].from;
+    const now = underway && l.from <= today && (today < end || (last && today <= end));
+    const li = el('li', `legline__leg${underway && end <= today && !now ? ' is-past' : ''}${now ? ' is-now' : ''}`);
+    li.style.flexGrow = Math.max(1, daysBetween(l.from, end));
+    li.append(el('span', 'legline__place', now ? `${l.place} · ${plural(daysBetween(today, end), 'day')} left` : l.place));
+    line.append(li);
+  });
+  head.append(line);
+
+  // the day: where, the weather, any advice, the outfit
+  const card = el('section', 'today-card'), top = el('div', 'today-card__top'), where = el('div');
+  card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : fmtDay(date, { weekday: 'long' })}`);
+  where.append(el('p', 'today-card__kicker', date === today ? 'Today' : date === a && !underway ? 'First day' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]),
+    el('h3', 'today-card__place', legOn(t, date)?.place || ''), el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
+  const wx = el('div', 'today-card__wx');
+  if (w) {
+    const rain = el('span', `today-card__rain${w.rain >= 50 ? ' is-wet' : ''}`, `${w.rain}% rain`);
+    const low = el('span', 'today-card__low', `low ${Math.round(w.lo)}° · `);
+    low.append(rain);
+    wx.append(el('span', 'today-card__hi', `${Math.round(w.hi)}°`), low);
+    if (w.kind === 'typical') wx.append(el('span', 'today-card__typical', 'typical, not a forecast yet'));
+  } else wx.append(el('span', 'today-card__low', 'No weather yet'));
+  top.append(where, wx);
+  card.append(top);
+  const outfit = wearing(date), plan = planned(date);
+  for (const line of advice(w, outfit)) card.append(el('p', 'today-card__advice', line));
+  card.append(el('p', 'today-card__label', "What you're wearing"));
+  if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
+  if (outfit.length) {
+    const ul = el('ul', 'outfit');
+    for (const it of outfit) {
+      const li = el('li'), btn = el('button', 'outfit__item');
+      btn.type = 'button';
+      btn.append(thumb(it), el('span', 'outfit__name', it.name));
+      btn.addEventListener('click', () => openItem(it));
+      li.append(btn);
+      ul.append(li);
+    }
+    card.append(ul);
+  } else card.append(el('p', 'today-card__none', 'Nothing planned for this day. Ask ChatGPT to plan it.'));
+  if (plan?.note) card.append(el('p', 'today-card__note', plan.note));
+  const step = el('div', 'today-card__step');
+  const go = (d, text) => { const btn = el('button', 'link-btn', text); btn.type = 'button'; btn.disabled = d < a || d > b; btn.addEventListener('click', () => { dayOn = d; drawToday(); }); return btn; };
+  step.append(go(addDays(date, -1), '‹ Day before'), go(addDays(date, 1), date === today ? 'Tomorrow ›' : 'Next day ›'));
+  card.append(step);
+
+  // the next few days, a tap away
+  const next = el('section', 'today__part'), nextHead = el('div', 'today__part-head');
+  const allDays = el('a', 'link-btn', 'All days');
+  allDays.href = `#trip/${t.id}`;
+  nextHead.append(el('h3', '', 'Next few days'), allDays);
+  const strip = el('ol', 'next-days');
+  ahead.forEach((d, i) => {
+    const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = wearing(d);
+    btn.type = 'button';
+    btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), el('span', 'next-day__wx', dw ? `${Math.round(dw.hi)}° · ${dw.rain}%` : '–'));
+    const thumbs = el('span', 'next-day__thumbs');
+    if (on.length) on.slice(0, 3).forEach((it) => thumbs.append(thumb(it, 'next-day__thumb')));
+    else thumbs.append(el('span', 'next-day__none', 'Nothing planned'));
+    btn.append(thumbs);
+    btn.addEventListener('click', () => { dayOn = d; drawToday(); scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); });
+    li.append(btn);
+    strip.append(li);
+  });
+  if (ahead.length) next.append(nextHead, strip);
+
+  // the packing, and the way to it
+  const pack = el('section', 'today__part'), packHead = el('div', 'today__part-head'), packLink = el('a', 'link-btn', 'Pack ›');
+  packLink.href = `#trip/${t.id}/pack`;
+  packHead.append(el('h3', '', 'Packing'), packLink);
+  pack.append(packHead, el('p', 'today__pack', packSummary(t)));
+
+  box.replaceChildren(head, card, ...(ahead.length ? [next] : []), pack);
+}
+
+// ---------- Packing: one row a thing, by category, a tap to tick it ----------
+let packShow = 'left';
+const packKey = (p) => (p.item_id ? `i:${p.item_id}` : `l:${p.label}`);
+function drawPack() {
+  const t = openTrip;
+  if (!t) return;
+  $('#pack-back').textContent = `‹ ${t.name}`;
+  $('#pack-back').href = `#trip/${t.id}`;
+  const n = t.packing.length, done = t.packing.filter((p) => p.packed).length;
+  $('#pack-left').textContent = n - done;
+  $('#pack-all').textContent = n;
+  for (const b of $('#pack-show').children) b.setAttribute('aria-pressed', b.dataset.value === packShow);
+  const bar = $('#pack-progress');
+  bar.hidden = !n;
+  bar.firstElementChild.style.setProperty('--p', `${n ? (100 * done) / n : 0}%`);
+  bar.setAttribute('aria-valuemax', n);
+  bar.setAttribute('aria-valuenow', done);
+  const leave = leaving(span(t)[0] || '');
+  $('#pack-count').textContent = n ? `${done} of ${n} packed${leave ? ` · ${leave}` : ''}` : '';
+  // what the planned outfits wear that isn't on the list yet
+  const onList = new Set(t.packing.map((p) => p.item_id).filter(Boolean));
+  const missing = [...new Set(t.days.flatMap((d) => d.items))].filter((id) => !onList.has(id) && list.some((x) => x.id === id));
+  $('#pack-from-plan').hidden = !missing.length;
+  $('#pack-from-plan').textContent = n ? `Add from the planned outfits (${missing.length})` : 'Make the list from the planned outfits';
+  $('#pack-from-plan').onclick = () => savePacking(t, (l) => { l.push(...missing.map((item_id) => ({ item_id, qty: 1, packed: false }))); });
+  // by category, then the other things
+  const groups = new Map([...CATS.map(([c, name]) => [c, { name, rows: [] }]), ['other', { name: 'Other things', rows: [] }]]);
+  t.packing.forEach((p) => {
+    const it = p.item_id && list.find((x) => x.id === p.item_id);
+    groups.get(it ? it.category : 'other').rows.push({ p, it });
+  });
+  const box = $('#pack-groups');
+  box.textContent = '';
+  for (const g of groups.values()) {
+    const left = g.rows.filter((r) => !r.p.packed).length, rowsShown = g.rows.filter((r) => packShow === 'all' || !r.p.packed);
+    if (!rowsShown.length) continue;
+    const section = el('section', 'pack-group'), h = el('h3', 'pack-group__head');
+    h.append(el('span', '', g.name), el('span', 'pack-group__left', left ? `${left} left` : 'all packed'));
+    const ul = el('ul', 'pack-rows');
+    for (const { p, it } of rowsShown.sort((x, y) => (x.it?.name || x.p.label || '').localeCompare(y.it?.name || y.p.label || ''))) {
+      const name = it ? it.name : p.item_id ? 'No longer in the wardrobe' : p.label;
+      const li = el('li', `pack-row${p.packed ? ' is-packed' : ''}`), label = el('label', 'pack-row__tick');
+      const box2 = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!p.packed, className: 'pack-row__box' });
+      box2.addEventListener('change', () => tick(t, p, box2.checked, name));
+      const text = el('span', 'pack-row__text');
+      text.append(el('span', 'pack-row__name', name));
+      label.append(p.item_id ? thumb(it, 'pack-row__photo') : el('span', 'pack-row__photo pack-row__photo--none', '·'), text);
+      if (p.qty > 1) label.append(el('span', 'pack__qty', `×${p.qty}`));
+      label.append(box2);
+      const x = el('button', 'link-btn pack__x', '×');
+      x.type = 'button';
+      x.setAttribute('aria-label', `Take ${name} off the list`);
+      x.addEventListener('click', () => {
+        const at = t.packing.findIndex((q) => packKey(q) === packKey(p));
+        savePacking(t, (l) => { l.splice(at, 1); }).then((ok) => ok && toast(`Took ${name} off the list.`, false, () => savePacking(t, (l) => { l.splice(Math.min(at, l.length), 0, p); })));
+      });
+      li.append(label, x);
+      ul.append(li);
+    }
+    section.append(h, ul);
+    box.append(section);
+  }
+  const empty = !n ? (missing.length ? '' : 'Nothing on the list yet. Add things below, or ask ChatGPT to make the list.') : 'All packed.';
+  $('#pack-empty').hidden = !!box.childElementCount || !empty;
+  $('#pack-empty').textContent = empty;
+}
+function tick(t, p, packed, name) {
+  const set = (on) => savePacking(t, (l) => { const q = l.find((x) => packKey(x) === packKey(p)); if (q) q.packed = on; });
+  set(packed).then((ok) => ok && toast(`${packed ? 'Packed' : 'Unpacked'} ${name}.`, false, () => set(!packed)));
+}
+$('#pack-show').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { packShow = b.dataset.value; drawPack(); } });
+
+// A change to the packing shows at once. With no connection it's kept on the phone and sent
+// when the connection's back (the whole list, so the last change wins).
+const queue = kept('wardrobe-queue') || {}; // trip id → its packing, waiting to be sent
 async function savePacking(t, change) {
-  const next = t.packing.map((p) => ({ ...p }));
+  const before = t.packing, next = before.map((p) => ({ ...p }));
   change(next);
-  if (await tripRows.set(t.id, { packing: next })) t.packing = next;
-  if (openTrip === t) drawPacking();
+  t.packing = next;
+  redraw();
+  if (offline || !navigator.onLine) {
+    queue[t.id] = next;
+    keep('wardrobe-queue', queue);
+    keepCopy();
+    return true;
+  }
+  if (!(await tripRows.set(t.id, { packing: next }))) { t.packing = before; redraw(); return false; }
+  keepCopy();
+  return true;
+}
+async function sendQueue() {
+  for (const [id, packing] of Object.entries(queue)) {
+    if (await tripRows.set(id, { packing })) delete queue[id];
+  }
+  keep('wardrobe-queue', queue);
 }
 $('#pack-add').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -405,7 +693,6 @@ $('#pack-add').addEventListener('submit', (e) => {
   e.target.reset();
   savePacking(openTrip, (l) => { l.push({ label, qty: 1, packed: false }); });
 });
-$('#trip-back').addEventListener('click', () => { openTrip = null; drawTrips(); });
 
 // Starting a trip, or changing its places and dates (the places are looked up for the weather)
 function legRow(l = {}) {
@@ -419,6 +706,7 @@ $('#add-leg').addEventListener('click', () => {
   legRow({ from: last && $('[data-k="to"]', last).value });
 });
 async function editTrip(t) {
+  if (offline) { toast("You're offline. Trips can be changed when there's a connection.", true); return; }
   const dialog = $('#trip-dialog');
   $('#trip-dialog-title').textContent = t ? 'Edit the trip' : 'New trip';
   $('#trip-remove').hidden = !t;
@@ -431,9 +719,9 @@ async function editTrip(t) {
   $('#trip-remove').onclick = async () => {
     if (!confirm(`Delete "${t.name}" and everything planned for it?`) || !(await tripRows.remove(t.id))) return;
     trips = trips.filter((x) => x !== t);
-    openTrip = null;
+    keepCopy();
     dialog.close('');
-    drawTrips();
+    location.hash = 'trips';
   };
   const v = await opened;
   if (!v) return;
@@ -447,24 +735,77 @@ async function editTrip(t) {
   }
   legs.sort((x, y) => x.from.localeCompare(y.from));
   const values = { name: v.name.trim(), notes: v.notes.trim() || null, legs };
-  if (t) { if (await tripRows.set(t.id, values)) { Object.assign(t, values); drawTrip(); } }
-  else { const added = await tripRows.add([{ ...values, days: [], packing: [] }]); if (added) { trips.push(...added); openTrip = added[0]; drawTrip(); } }
+  if (t) { if (await tripRows.set(t.id, values)) { Object.assign(t, values); keepCopy(); redraw(); } }
+  else { const added = await tripRows.add([{ ...values, days: [], packing: [] }]); if (added) { trips.push(...added); keepCopy(); location.hash = `trip/${added[0].id}`; } }
 }
 $('#new-trip').addEventListener('click', () => editTrip(null));
 $('#trip-edit').addEventListener('click', () => openTrip && editTrip(openTrip));
 
+// ---------- The copy on the phone ----------
+const copyKey = () => `wardrobe-copy:${uid}`;
+const keepCopy = () => { if (uid) keep(copyKey(), { at: Date.now(), list, trips, links: [...links] }); };
+// the photos themselves, for the service worker to answer from with no connection: keyed by the
+// file (a signed link's token changes), fetched once each, and dropped when nothing shows them
+const photoKey = (url) => { const u = new URL(url); return u.origin + u.pathname; };
+async function keepPhotos() {
+  if (!('caches' in window)) return;
+  try {
+    const cache = await caches.open('wardrobe-photos'), want = new Set();
+    for (const url of links.values()) {
+      const key = photoKey(url);
+      want.add(key);
+      if (await cache.match(key)) continue;
+      const res = await fetch(url);
+      if (res.ok) await cache.put(key, res);
+    }
+    for (const req of await cache.keys()) if (!want.has(req.url)) await cache.delete(req);
+  } catch (e) { /* the copy is a nicety: without it, offline shows the letters instead */ }
+}
+const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 2 ? 'just now' : m < 60 ? `${m} minutes ago` : m < 48 * 60 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`; };
+
 // ---------- Loading ----------
 async function load() {
-  const [got, gotTrips] = await Promise.all([items.list('name'), tripRows.list('created_at')]);
-  failed = !got;
-  list = got || [];
-  trips = gotTrips || [];
+  let got = null, gotTrips = null;
+  if (navigator.onLine && (await db.auth.getSession()).data.session) {
+    await sendQueue(); // what was ticked offline goes first, so what comes back has it
+    [got, gotTrips] = await Promise.all([items.list('name'), tripRows.list('created_at')]);
+  }
+  const copy = kept(copyKey());
+  if (got && gotTrips) {
+    offline = failed = false;
+    list = got;
+    trips = gotTrips;
+    links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean));
+    keepCopy();
+    keepPhotos();
+    for (const k of Object.keys(wxKept)) if (!trips.some((t) => t.legs.some((l) => legKey(l) === k))) delete wxKept[k];
+    keep('wardrobe-wx', wxKept);
+  } else if (copy) {
+    offline = true;
+    failed = false;
+    list = copy.list;
+    trips = copy.trips;
+    links = new Map(copy.links);
+    for (const t of trips) if (queue[t.id]) t.packing = queue[t.id];
+  } else {
+    offline = false;
+    failed = true;
+    list = got || [];
+    trips = gotTrips || [];
+  }
+  $('#offline-note').hidden = !offline;
+  if (offline) $('#offline-note').textContent = `Offline: showing the copy saved on this phone ${ago(copy.at)}. Packing ticks are kept and sent when you're back online.`;
   if (openTrip) openTrip = trips.find((t) => t.id === openTrip.id) || null;
-  links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean));
   tiles.clear();
   $('#grid').textContent = '';
-  render();
-  showTab(view.tab);
+  ready = true;
+  route();
 }
-start(async (user) => { uid = user.id; await load(); }, () => { list = []; trips = []; openTrip = null; tiles.clear(); $('#grid').textContent = ''; });
+addEventListener('online', () => { if (uid) load(); });
+start(async (user) => { uid = user.id; await load(); }, () => {
+  list = []; trips = []; openTrip = null; uid = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+}, { offline: true });
 fresh(load);
+
+// The service worker that answers from the copy when there's no connection (apps/offline.js)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/apps/offline.js', { scope: '/apps/' }).catch(() => {});
