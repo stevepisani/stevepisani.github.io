@@ -55,7 +55,13 @@ if (!keys.some((k) => k.algorithm !== 'HS256' && k.status === 'in_use')) {
     if (!keys.some((k) => k.algorithm === 'HS256')) {
       try { await api('POST', '/config/auth/signing-keys/legacy'); } catch (e) { console.log(`  (importing the old secret: ${e.message})`); }
     }
-    const next = keys.find((k) => k.algorithm === 'ES256' && k.status === 'standby') || (await api('POST', '/config/auth/signing-keys', { algorithm: 'ES256', status: 'standby' }));
+    // a standby key may be there already (the project can make one itself): use it, whatever its kind
+    const standby = async () => ((await api('GET', '/config/auth/signing-keys')).keys || []).find((k) => k.status === 'standby' && k.algorithm !== 'HS256');
+    let next = await standby();
+    if (!next) {
+      try { next = await api('POST', '/config/auth/signing-keys', { algorithm: 'ES256', status: 'standby' }); } catch (e) { next = await standby(); if (!next) throw e; }
+    }
+    console.log(`  putting the ${next.algorithm} key ${next.id} in use`);
     await api('PATCH', `/config/auth/signing-keys/${next.id}`, { status: 'in_use' });
   }
 }
