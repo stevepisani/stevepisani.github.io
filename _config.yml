@@ -59,3 +59,4 @@ exclude:
   - assets/js/site.js
   - assets/js/world
   - assets/js/apps
+  - assets/js/mcp-app
