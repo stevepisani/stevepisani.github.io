@@ -305,10 +305,49 @@ person (the `ctx` object, listed at the top of `server.js`).
   shared secret), keeping the old secret trusted so the anon and service keys and existing
   sessions keep working. `wardrobe-link` is deployed with `--no-verify-jwt` too, and checks the
   caller itself, since tokens from the new key may not pass the gateway's old check.
+- **Who it is:** `SERVER` in `server.js` (the `initialize` answer): title, a line on what it
+  does, its home (`websiteUrl`, the app) and its logo (`ICONS`: the site's SJPJr badge,
+  `assets/images/sj-512.png`, `-180`, `-64`). Neither app reads the
+  logo from the server yet (Oct 2026): ChatGPT shows the icon uploaded when the connector is
+  created (and can't change it after), Claude a globe for every custom connector. Each tool also
+  has the status lines ChatGPT shows while it runs (`STATUS`), and the card's resource tells
+  ChatGPT's model what the card already shows (`openai/widgetDescription`), so the answer doesn't
+  repeat it.
+- **Links:** the photos' signed links are long and only the card needs them, so `photosApart`
+  moves them out of what the model reads into the result's `_meta` (hosts give that to the card,
+  not the model), leaving short references (`"hero_photo": "p1"`) that the card fills back in.
+  Results stay small (both apps cap what a tool may return, and the model reads all of it):
+  lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
+  sources drop their dates, the same photo link is sent once, and a trip names each garment once
+  (`trip.garments`) with its days and packing pointing at it by id, and its legs' weather as a
+  summary. A trip with twenty planned days of five garments went from about 25 KB to 11 KB.
+  Results give Steve links into the app instead: `stevenpisani.com/apps/wardrobe#item/<id>`,
+  `#trip/<id>`, `#closet`.
+- **Transport checks** (MCP 2025-11-25, in `index.ts`): a request from a browser page on another
+  site (an `Origin` that isn't ChatGPT's, OpenAI's, Claude's, Anthropic's or this site's) gets a
+  403; an `MCP-Protocol-Version` it doesn't speak, a 400; a 401 names the scopes; an unknown
+  tool is a protocol error (-32602), and everything else that goes wrong is a result with
+  `isError`, worded so the model can fix its call.
+- **Its own address:** `https://mcp.stevenpisani.com`, once it's set up. `proxy/_worker.js` is a
+  Cloudflare Pages worker that passes every request to the function as it came, adding
+  `x-mcp-public-host`; `index.ts` then gives out that address (RFC 9728's `resource` has to be the
+  URL the app used; the authorization server stays Supabase Auth, so sign-ins and tokens don't
+  change). A browser opening it is sent to the app. `.github/workflows/mcp-proxy.yml` deploys it
+  on a merge that changes it, creating the Pages project (`wardrobe-mcp`) and its domain if
+  needed; free (Cloudflare's free plan: 100,000 requests a day). Setting it up is Steve's, once:
+  1. A free Cloudflare account; its account id (the dashboard's URL, or Workers & Pages →
+     overview) goes in the `CLOUDFLARE_ACCOUNT_ID` repo secret, and an API token with "Cloudflare
+     Pages: Edit" (My Profile → API Tokens → Create token) in `CLOUDFLARE_API_TOKEN`.
+  2. Run the "MCP address" workflow (Actions → MCP address → Run workflow).
+  3. At Bluehost, Domains → DNS for stevenpisani.com → add a CNAME record: host `mcp`, points to
+     `wardrobe-mcp.pages.dev`. Cloudflare checks it and issues the certificate (minutes to an hour).
+  4. Connect the apps again with the new URL (below); the old one keeps working meanwhile.
 - **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
-  Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", URL
-  `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`, authentication OAuth → sign in →
-  Allow. ChatGPT asks before each write; that approval lasts the conversation if you tell it to.
+  Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", icon
+  `assets/images/sj-512.png` (only when creating it), URL `https://mcp.stevenpisani.com`
+  (until that's set up, `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`),
+  authentication OAuth → sign in → Allow. ChatGPT asks before each write; that approval lasts the
+  conversation if you tell it to.
 - **Connecting Claude** (Steve, once, on claude.ai or the desktop app, then it's on mobile too):
   Settings → Connectors → Add custom connector → name "Wardrobe", the same URL → Connect → sign in
   → Allow. Claude registers itself with Supabase Auth like ChatGPT does. Claude can't pass a photo

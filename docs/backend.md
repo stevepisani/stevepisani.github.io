@@ -122,6 +122,7 @@ and the bartender.
 |---|---|---|
 | The site | `.github/workflows/site.yml`: bundle (`npm run build`), Jekyll, link check, smoke test, then `actions/deploy-pages` | every push to main; PRs build and test only |
 | Supabase | `.github/workflows/supabase.yml` | merges touching `supabase/` |
+| mcp.stevenpisani.com (the wardrobe MCP server's address, `proxy/`) | `.github/workflows/mcp-proxy.yml`: Cloudflare Pages | merges touching `proxy/`; skipped without the Cloudflare secrets |
 | Audible library | `.github/workflows/audible.yml` (`tools/audible-sync.py`); commits `_data/audible.json` and starts the site workflow | daily |
 | GitHub profile README | the `stevepisani/stevepisani` repo rebuilds its README daily from `https://stevenpisani.com/profile.json` (built from `_data/profile.yml`) | daily |
 
@@ -132,6 +133,8 @@ Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't r
 - `SUPABASE_ACCESS_TOKEN`: the Supabase Management API, for `supabase.yml`.
 - `ANTHROPIC_API_KEY`: copied into the bartender function's secrets on deploy. A monthly spend
   limit is also set in the Anthropic console, as a backstop to the cap in code.
+- `CLOUDFLARE_API_TOKEN` (Cloudflare Pages: Edit) and `CLOUDFLARE_ACCOUNT_ID`: the MCP server's
+  address, for `mcp-proxy.yml` (`docs/apps.md`).
 - `AUDIBLE_AUTH`: the Audible device registration, for `audible.yml` (above).
 - `GITHUB_TOKEN` (automatic): the Jekyll build's GitHub metadata, and the Audible sync's commit.
 
@@ -145,5 +148,6 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | Supabase (free plan: 500 MB database, 200 concurrent Realtime connections, which is the fireflies' cap) | $0 |
 | The bartender (capped at 1,000 replies a month) | up to about $5 |
 | Audible sync (a minute of Actions a day) | $0 |
+| mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.
