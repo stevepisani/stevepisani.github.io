@@ -21,14 +21,20 @@ async function logs(sql) {
   return body.result || [];
 }
 
-// One `logs` table (ClickHouse SQL), each row with its source_name; the edge gateway's lines read
-// "POST | 401 | https://…/functions/v1/mcp", and anything after a "?" is cut off here.
+// One `logs` table (ClickHouse SQL): `source` says whose line it is, `log_attributes` a map of
+// strings. Anything after a "?" in a message is cut off here.
 const clean = (t) => String(t).replace(/\?[^\s|"]*/g, '').replace(/\s+/g, ' ').slice(0, 300);
-const sources = await logs(`select source_name, count() as n from logs group by source_name order by n desc`);
-console.log(`Sources, the last ${hours} h: ${sources.map((r) => `${r.source_name} ${r.n}`).join(', ')}`);
-for (const { source_name: src } of sources.filter((r) => /function/.test(r.source_name))) {
-  console.log(`\n${src} (newest first):`);
-  const rows = await logs(`select timestamp, event_message, mapKeys(log_attributes) as keys from logs where source_name = '${src}' order by timestamp desc limit 60`);
-  if (rows[0]) console.log(`  fields: ${(rows[0].keys || []).join(', ')}`);
-  for (const r of rows) console.log(`  ${new Date(typeof r.timestamp === 'number' ? r.timestamp / 1000 : r.timestamp).toISOString()}  ${clean(r.event_message)}`);
+const when = (t) => new Date(typeof t === 'number' ? t / 1000 : `${String(t).replace(' ', 'T')}Z`).toISOString().slice(0, 19);
+
+console.log(`Edge function requests, the last ${hours} h (newest first):`);
+for (const r of await logs(`select timestamp, log_attributes['response.status_code'] as status,
+    log_attributes['request.method'] as method, log_attributes['request.path'] as path
+  from logs where source = 'function_edge_logs' order by timestamp desc limit 80`)) {
+  console.log(`  ${when(r.timestamp)}  ${r.status}  ${String(r.method).padEnd(7)} ${clean(r.path)}`);
+}
+
+console.log(`\nWhat the functions logged, the last ${hours} h (newest first):`);
+for (const r of await logs(`select timestamp, log_attributes['level'] as level, event_message
+  from logs where source = 'function_logs' order by timestamp desc limit 60`)) {
+  console.log(`  ${when(r.timestamp)}  ${r.level || ''}  ${clean(r.event_message)}`);
 }
