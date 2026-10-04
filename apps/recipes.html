@@ -4,64 +4,63 @@ app: recipes
 title: Recipes
 lede: What we're cooking our way through, with ratings, notes and photos.
 ---
+<section class="app-hero" id="hero" aria-label="Tonight" hidden>
+  <p class="app-hero__label">Tonight's pick</p>
+  <div class="app-hero__row">
+    <button class="app-hero__pick" id="pick" type="button"></button>
+    <button class="btn btn--ghost btn--small" id="another" type="button">Another</button>
+  </div>
+  <p class="app-hero__tally" id="tally"></p>
+  <div class="app-progress" id="progress" role="progressbar" aria-label="Cooked" aria-valuemin="0"><div></div></div>
+</section>
+
 <div class="app-bar">
   <input id="search" type="search" placeholder="Search recipes and notes" aria-label="Search recipes and notes">
-  <select id="filter" aria-label="Show">
-    <option value="all">All</option>
-    <option value="todo">To cook</option>
-    <option value="cooked">Cooked</option>
-  </select>
+  <button class="btn btn--small" id="add" type="button">Add</button>
+  <div class="seg" id="filter" role="group" aria-label="Show">
+    <button type="button" data-value="all" aria-pressed="true">All <span></span></button>
+    <button type="button" data-value="todo" aria-pressed="false">To cook <span></span></button>
+    <button type="button" data-value="cooked" aria-pressed="false">Cooked <span></span></button>
+  </div>
   <select id="sort" aria-label="Sort by">
     <option value="title">By name</option>
     <option value="added">Newest added</option>
     <option value="cooked">Last cooked</option>
     <option value="rating">Best rated</option>
   </select>
-  <button class="btn btn--small" id="add" type="button">Add</button>
-  <button class="btn btn--ghost btn--small" id="import" type="button">Import a list</button>
 </div>
-
-<div class="app-stats" id="stats" hidden>
-  <div class="stat"><strong id="stat-cooked"></strong><span>Cooked</span></div>
-  <div class="stat"><strong id="stat-rating"></strong><span>Average rating</span></div>
-  <div class="stat"><strong id="stat-streak"></strong><span>Week streak</span></div>
-  <div class="stat stat--wide"><strong><button class="link-btn" id="pick" type="button"></button></strong><span>Tonight's pick · <button class="link-btn" id="another" type="button">another</button></span></div>
-</div>
-<div class="app-progress" id="progress" hidden><div></div></div>
 
 <ul class="items" id="cards"></ul>
 <p class="app-empty" id="empty" hidden></p>
+<p class="app-foot"><button class="link-btn" id="import" type="button">Import a list of recipes</button></p>
 
 <template id="card">
   <li class="item">
-    <label class="photo">
-      <span>Add a photo</span>
-      <img alt="" loading="lazy" decoding="async" hidden>
-      <input class="visually-hidden" type="file" accept="image/*">
-    </label>
+    <img class="item__photo" alt="" loading="lazy" decoding="async" hidden>
     <div class="item__body">
-      <h3 class="item__title"></h3>
-      <p class="item__meta"><span class="pill"></span> <span data-is="when"></span></p>
-      <div class="rating" role="group" aria-label="Rating out of 10"><output></output></div>
+      <h2 class="item__title"></h2>
+      <p class="item__meta" data-for="cooked"><span class="pill pill--ok">Cooked</span> <span data-is="when"></span></p>
+      <div class="rating" data-for="cooked" role="group" aria-label="Rating out of 10"><output></output></div>
       <textarea data-is="notes" placeholder="Notes: what you changed, what to do next time" aria-label="Notes"></textarea>
-      <button class="btn btn--small" data-do="cook" type="button">Cooked it</button>
-      <details class="item__more">
-        <summary>Edit</summary>
-        <div class="item__edit">
+      <div class="item__row">
+        <button class="btn btn--small" data-do="cook" type="button">Cooked it</button>
+        <label class="btn btn--ghost btn--small photo-btn" data-for="cooked"><span>Add a photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
+        <button class="link-btn item__toggle" data-do="edit" type="button" aria-expanded="false">Edit</button>
+      </div>
+      <div class="item__edit" hidden>
         <label>Name <input data-is="title" type="text"></label>
         <label>Link <input data-is="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
-        <label>Cooked on <input data-is="date" type="date"></label>
+        <label data-for="cooked">Cooked on <input data-is="date" type="date"></label>
         <button class="link-btn" data-do="uncook" type="button">Not cooked yet</button>
         <button class="link-btn link-btn--bad" data-do="remove" type="button">Remove this recipe</button>
-        </div>
-      </details>
+      </div>
     </div>
   </li>
 </template>
 
-<dialog class="app-dialog" id="add-dialog">
+<dialog class="app-dialog" id="add-dialog" aria-labelledby="add-title">
   <form method="dialog">
-    <h2>Add a recipe</h2>
+    <h2 id="add-title">Add a recipe</h2>
     <label>Name <input name="title" type="text" required></label>
     <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
     <div class="app-dialog__buttons">
@@ -71,9 +70,9 @@ lede: What we're cooking our way through, with ratings, notes and photos.
   </form>
 </dialog>
 
-<dialog class="app-dialog" id="import-dialog">
+<dialog class="app-dialog" id="import-dialog" aria-labelledby="import-title">
   <form method="dialog">
-    <h2>Import a list</h2>
+    <h2 id="import-title">Import a list</h2>
     <p>One recipe a line. To include its link, put it after a bar: <code>Name | https://…</code></p>
     <label>Recipes <textarea name="list" rows="8" required></textarea></label>
     <div class="app-dialog__buttons">
