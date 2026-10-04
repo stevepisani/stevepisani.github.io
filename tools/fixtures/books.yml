@@ -1,0 +1,18 @@
+# Made-up shelves for the smoke test, merged with listening.json (a made-up Audible library) by
+# tools/library.mjs: Dune is on both (one book), two are only here, and the Science & Engineering
+# books are on no shelf's list, so they go to the "*" one.
+- shelf: Science Fiction
+  hue: 185
+  genres: [Science Fiction & Fantasy]
+  books:
+    - { title: Dune, author: Frank Herbert }
+    - { title: Paper Moon, author: A. Writer }
+- shelf: Fiction
+  hue: 42
+  genres: [Literature & Fiction]
+  books:
+    - { title: Ink and Pulp }
+- shelf: Data & Craft
+  hue: 215
+  genres: [Computers & Technology, "*"]
+  books: []

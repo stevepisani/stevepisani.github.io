@@ -262,55 +262,67 @@ pre { background: #1d1f24; color: #e7e3da; padding: 18px 20px; border-radius: 12
 .timeline__item p { margin: 0; color: var(--ink-2); }
 .timeline__dates { font: .78rem var(--font-mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
 
-/* ---------- Bookshelf ---------- */
-.shelf { margin-bottom: 48px; }
+/* ---------- Bookshelf: one list, by shelf (bookshelf.html, _includes/book-card.html) ---------- */
 .shelf__name { font-size: 1.1rem; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
-.shelf__books {
-  --row: 250px; --plank: 12px;
-  list-style: none; margin: 0; padding: 0 10px;
-  display: grid; grid-template-columns: repeat(auto-fill, 54px); grid-auto-rows: var(--row);
-  column-gap: 5px; row-gap: var(--plank); align-items: end;
-  /* a plank under every row */
-  background: repeating-linear-gradient(to bottom, transparent 0 var(--row),
-    color-mix(in srgb, var(--ink) 55%, #8b5a2b) var(--row) calc(var(--row) + var(--plank)));
-  padding-bottom: var(--plank);
+.books__jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 36px; }
+.books__jump a {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); font: .82rem var(--font-mono); text-decoration: none;
+  box-shadow: inset 4px 0 0 hsl(var(--hue, 0) 45% 55% / var(--dot, 1));
 }
-.spine {
-  height: var(--h); width: 100%;
-  background: hsl(var(--hue) 45% 40%);
-  background-image: linear-gradient(90deg, rgb(0 0 0 / .2), transparent 18%, transparent 82%, rgb(0 0 0 / .25));
-  color: #fff; border-radius: 3px 3px 0 0;
-  writing-mode: vertical-rl;
-  display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 12px 6px;
-  cursor: default; transition: transform .2s; overflow: hidden;
-}
-.spine__title { font: 600 .8rem/1.15 var(--font-display); overflow: hidden; }
-.spine__author { font: .62rem/1.1 var(--font-mono); opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.spine:hover, .spine:focus { transform: translateY(-10px) rotate(-2deg); }
-:root[data-theme="terminal"] .spine { background: var(--card); color: var(--ink); border: 1px solid var(--ink-3); }
-
-/* Audible: covers in a grid, newest first (bookshelf.html, _includes/book-card.html) */
-.books { margin-bottom: 40px; }
-.books__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 22px 18px; }
+.books__jump a:first-child:not([style]) { --dot: 0; }
+.books__jump a:hover { border-color: var(--ink-3); }
+.books__jump .books__count { margin-left: 6px; }
+.books { margin-bottom: 36px; scroll-margin-top: 80px; }
+.books__grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 20px 14px; } /* 9, 6 or 3 a row: a shelf shows 9 before its fold */
+@media (max-width: 900px) { .books__grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .books__count { font-size: .8rem; color: var(--ink-3); margin-left: 6px; }
 .books__note { color: var(--ink-3); font-size: .9rem; }
-.books__old { margin-top: 56px; }
+/* the rest of a shelf: one click away */
+.books__more > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; min-height: 44px; font: .85rem var(--font-mono); color: var(--ink-2); }
+.books__more > summary::-webkit-details-marker { display: none; }
+.books__more > summary::before { content: "▸"; font-family: var(--font-body); transition: transform .15s; }
+.books__more[open] > summary::before { transform: rotate(90deg); }
+.books__more { margin-top: 14px; }
+.books__more[open] > summary { margin-bottom: 14px; }
 .book { min-width: 0; }
 .book__cover {
   position: relative; aspect-ratio: 1; border-radius: 6px; overflow: hidden; box-shadow: var(--shadow);
   background: hsl(var(--hue) 40% 32%); color: #fff; display: grid; place-items: center; text-align: center;
 }
 .book__cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.book__cover > span:not(.book__progress) { font: 600 .9rem/1.2 var(--font-display); padding: 12px; }
+.book__cover > span:not(.book__progress) { font: 600 .85rem/1.2 var(--font-display); padding: 10px; overflow-wrap: anywhere; }
 .book__progress { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgb(0 0 0 / .45); }
 .book__progress::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p); background: var(--accent); }
-.book__title { margin: 8px 0 2px; font: 600 .92rem/1.25 var(--font-display); }
-.book__meta { margin: 0; font-size: .8rem; line-height: 1.35; color: var(--ink-2); }
+.book__title {
+  margin: 8px 0 2px; font: 600 .88rem/1.25 var(--font-display);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.book__meta { margin: 0; font-size: .76rem; line-height: 1.35; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; }
+/* the sample: a round play button on the cover's corner (44px to tap, drawn smaller) */
+.book__play {
+  position: absolute; right: 0; bottom: 4px; width: 44px; height: 44px; border: 0; padding: 0; background: none; cursor: pointer;
+}
+.book__play::before {
+  content: ""; position: absolute; inset: 8px; border-radius: 50%; background: rgb(14 16 36 / .78); box-shadow: 0 2px 8px rgb(0 0 0 / .35);
+}
+.book__play::after { /* a triangle; two bars while it plays */
+  content: ""; position: absolute; left: 19px; top: 15px; border-style: solid; border-width: 7px 0 7px 11px; border-color: transparent transparent transparent #fff;
+}
+.book__play[aria-pressed="true"]::before { background: var(--accent); }
+.book__play[aria-pressed="true"]::after { left: 17px; top: 16px; width: 3px; height: 12px; border: 0; border-left: 3px solid #fff; border-right: 3px solid #fff; background: none; padding-right: 4px; }
+.book__play:focus-visible::before { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* the star card on the planet still uses the long form of the button */
 .book__sample {
   margin-top: 6px; min-height: 44px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--card); color: var(--ink); font: .78rem var(--font-mono); cursor: pointer;
 }
 .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 600px) {
+  .books__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; }
+  .book__title { font-size: .78rem; }
+  .book__meta { font-size: .68rem; }
+}
 
 /* ---------- Error pages ---------- */
 .error-page { display: flex; gap: 40px; align-items: center; padding-top: 96px; flex-wrap: wrap; }
