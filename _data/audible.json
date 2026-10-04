@@ -695,7 +695,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1730,7 +1730,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -5798,5 +5798,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-03"
+  "updated": "2026-10-04"
 }
