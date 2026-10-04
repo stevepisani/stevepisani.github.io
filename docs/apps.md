@@ -104,6 +104,24 @@ Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned 
 photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
 wardrobe MCP server, signed in as him (below).
 
+- **The model** (`supabase/migrations/20261005000100_wardrobe_products.sql`): an **owned item**
+  (`wardrobe_items`, the same ids as ever; trips point at these) is a garment Steve has, one row
+  per physical piece. It may belong to a **variant** (`wardrobe_variants`: one colour and size as
+  sold, the maker's colour and size as printed, "38 Dark Brown" / "M", beside plain ones for
+  search, plus SKU, barcode, retail price, measurements), which belongs to a **product**
+  (`wardrobe_products`: brand, name, style number, material, origin, default fit, other codes).
+  A thrifted or unbranded piece is just an item. The item keeps what's its own: category and
+  subcategory, how it dresses (warmth, dressiness plus `dressiness_also`, seasons, style tags),
+  condition, what he paid and when, notes; a product or variant fact set on it overrides that one
+  piece. Every level has `sources`: per field, where the value came from (`user`,
+  `garment_label`, `hang_tag`, `care_label`, `retailer_page`, `manufacturer_page`,
+  `vision_inference`, `derived`), how sure (0 to 1), and the text as found. `wardrobe_photos` has
+  every photo with its role (garment, tag, care_label, detail, other); the item's `photo_path` is
+  the one shown. `wardrobe_closet` is the flat view (the item's own value, else the variant's,
+  else the product's) that the app and `find_items` read. The first three items (one Uniqlo shirt
+  in three colours, added before this) were regrouped by
+  `20261005000200_wardrobe_uniqlo.sql`: one product, three variants, the same three ids, the old
+  values kept in `sources.migrated_from`.
 - **Where you are is in the address** (`#today`, `#closet`, `#trips`, `#trip/<id>`,
   `#trip/<id>/pack`, `#item/<id>` over whatever's underneath), so Back works everywhere and any
   view can be linked. With a trip on, or starting within two weeks, it opens on Today; otherwise
@@ -113,10 +131,14 @@ wardrobe MCP server, signed in as him (below).
   phone). A grid of square tiles: the photo cut out on a soft tile, the name, brand and size.
   Remembered on that phone (`localStorage` `wardrobe-view`).
 - **An item** (tap a tile, or an item anywhere): what it is first: the photo, category, name,
-  brand, colour, material and size, fit, seasons, warmth and dressiness, price and when it was
-  bought, notes, "Buy another" (the replacement link) and "Find another" (a Google Shopping search
+  brand, colour (as printed, if known), material and size, fit, style number, condition, the
+  kind, seasons, warmth and dressiness (and where else it works), price and when it was bought,
+  notes, then every photo with its role, one marked shown (tap one to say what it is, show it, or
+  remove it), "Buy another" (the replacement link) and "Find another" (a Google Shopping search
   for brand, name and colour). "Edit" shows the fields; text saves as it's typed, the rest at
-  once. Something just added opens on the fields. "Retire it" moves it out of the closet (kept,
+  once. Edits are for this piece only (on a piece with a product, it says so); changing the
+  maker's facts for every colour and size is ChatGPT's (`update_item`, scope product or variant).
+  "Add a photo" adds one (cut out), shown if there's no garment photo shown yet. Something just added opens on the fields. "Retire it" moves it out of the closet (kept,
   under Retired, with Undo); "Delete it" is for good, and only here, never from ChatGPT.
 - **Adding:** a photo, or a store link (or both: the link is kept as where to buy another).
   - A photo is cut out of its background in the browser (`@imgly/background-removal`, run on
@@ -167,24 +189,60 @@ wardrobe MCP server, signed in as him (below).
 
 `supabase/functions/mcp`, at `https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable
 HTTP, stateless (each POST gets one JSON answer; no sessions, no stream). `server.js` has the tools
-and the JSON-RPC, in plain JavaScript so the smoke test runs them in Node; `index.ts` serves it and
-checks who's calling.
+and the JSON-RPC, in plain JavaScript so `tools/wardrobe-test.mjs` runs them in Node against the
+real schema (below); `index.ts` serves it, checks who's calling, and gives it the data as that
+person (the `ctx` object, listed at the top of `server.js`).
 
-- **Tools:** `find_items` (search, category, season, dressiness; retired left out unless asked),
-  `get_item`, `read_store_link` (reads a shop page, saves nothing), `list_trips`, `get_trip` (with
-  each leg's weather), all marked read-only; and `add_item`, `set_photo`, `update_item` (only the
-  fields given; wrong values are refused, not guessed), `retire_item` (or back), `create_trip`,
-  `update_trip`, `plan_days` (outfits from what's in the wardrobe, only on the trip's days) and
-  `set_packing` (keeps what's already ticked off). No delete: that's only in the app.
-- **Photos from the chat:** `add_item` and `set_photo` take a photo Steve uploads in ChatGPT
-  (`_meta["openai/fileParams"]`: ChatGPT passes `{ download_url, file_id }`, a short-lived link the
-  server fetches and stores at once, up to 15 MB). ChatGPT sometimes repeats a call, so the
-  upload's `file_id` is kept (`photo_file_id`) and the same upload twice is the same item; and it
-  sometimes drops the file, so a missing photo is said out loud, to re-attach with `set_photo`.
-  Images ChatGPT generates itself can't be passed to a tool (they stay in the chat), which is why
-  generated product shots and outfit pictures will be made on the server instead (next). Results are a line of text an item
-  plus `structuredContent`; ChatGPT can't see images from a connector (Oct 2026), so each item's
-  `photo_url` is there for Steve to open, and the descriptions are what ChatGPT goes on.
+- **Tools** (read-only marked so): `find_items` (start here; one entry per physical piece, flat:
+  product and variant facts filled in; by words, category, season, dressiness, which matches where
+  it mostly belongs or also works, and warmth), `get_item` (the piece whole: flat, product,
+  variant, what's set on it alone, photos with their roles and ids, and every fact's source),
+  `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
+  with no product), `add_photo` (with a role), `set_photo_role` (what a photo is, or which is
+  shown), `update_item` (with a scope, below), `retire_item` (or back), `create_trip`,
+  `update_trip`, `plan_days` and `set_packing`. No delete: that's only in the app. The tool
+  descriptions are written for the AI calling them: which to start with, when to ingest rather
+  than add, what's a fact and what's a judgement, how photos get roles, how duplicates are avoided.
+- **ingest_item** files a garment at every level at once. The caller (ChatGPT) reads the photos or
+  the shop page and passes `product` (brand and name needed; style number, material, origin,
+  default fit, URL, other codes), `variant` (colour and size as printed, plain ones, SKU, barcode,
+  retail price, measurements) and `item` (category needed; subcategory, warmth, dressiness and
+  dressiness_also, seasons, style tags, condition, what was paid, when; a name only when there's
+  no product), each with `sources` per field. The server finds or creates the product (brand +
+  style number, punctuation and case aside; else brand + the exact name where style numbers don't
+  disagree; never fuzzy), then the variant (SKU, else colour and size as printed), creates the
+  owned item (`quantity` for identical pieces, one row each), stores the photos with their roles
+  (`garment_photo` is the one shown; `tag_photo`, `care_label_photo`, `detail_photos` beside it),
+  and returns the whole garment with `product_created`, `variant_created`, `owned_item_created`
+  and warnings (no garment photo, facts without a source, a name-only match, the product found
+  again saying something different, which it keeps). A product found again gets its blanks
+  filled, never its values changed. Seasons are worked out from warmth when not given, and
+  judgements with no source are marked `derived`. `dry_run` shows all that and writes nothing.
+  `client_ref` (the caller's id for the garment) makes a retry return what was made; the same
+  uploaded photo again does too. No brand (thrifted, old, tailored): leave product out.
+- **update_item** says what it changes with `scope`: `item` (default: this piece; a product fact
+  set here overrides it for this piece alone, and `get_item` lists the overrides), `variant` (this
+  colour and size, every piece of it) or `product` (every colour and size), and answers how many
+  garments that touched. A field from another level is refused, with the fields that are allowed.
+- **Photos from the chat:** `ingest_item`, `add_item` and `add_photo` take photos Steve uploads in
+  ChatGPT (`_meta["openai/fileParams"]`: ChatGPT passes `{ download_url, file_id }`, a short-lived
+  link the server fetches and stores at once, up to 15 MB). Each is a row in `wardrobe_photos`
+  with its role and the upload's `file_id`, so the same upload twice is one photo. A tag or label
+  is never what's shown for a garment: when the photo shown stops being a garment photo, another
+  garment photo takes its place, or none. ChatGPT sometimes drops a file; a missing photo is said
+  out loud, to re-attach with `add_photo`. Whether ChatGPT passes a list of files
+  (`detail_photos`) as well as single ones isn't confirmed; `add_photo` always works. Images
+  ChatGPT generates itself can't be passed to a tool (they stay in the chat), which is why
+  generated product shots and outfit pictures will be made on the server instead (next).
+  ChatGPT can't see images from a connector (Oct 2026), so the photo links are there for Steve to
+  open, and the descriptions are what ChatGPT goes on.
+- **Tests:** `tools/wardrobe-test.mjs` (in `npm test` and CI) runs every migration in PGlite
+  (Postgres in WebAssembly, in Node) with stand-ins for what Supabase provides, seeds the first
+  three Uniqlo items as they were and checks their migration, then calls every tool as a signed-in
+  member through row-level security: new product, new colour, second piece, quantity, no brand,
+  photos with roles, retries and duplicates, dry runs, sources, flat and whole reads, each scope of
+  change, retiring, trips, and another member seeing none of it. Its data access is the same
+  `ctx` as `index.ts`, on SQL instead of supabase-js.
 - **Signing in** is OAuth 2.1 with Supabase Auth as the authorization server (its OAuth server,
   beta). A call without a valid token gets a 401 whose `WWW-Authenticate` points at
   `…/functions/v1/mcp/.well-known/oauth-protected-resource` (RFC 9728), which names

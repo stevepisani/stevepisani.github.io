@@ -1,0 +1,22 @@
+[
+ {
+  "id": "f1",
+  "owner": "u1",
+  "item_id": "w1",
+  "role": "garment",
+  "path": "wardrobe/u1/oxford.jpg",
+  "source": "chatgpt_upload",
+  "file_id": "file-oxford",
+  "created_at": "2026-09-01T12:00:00Z"
+ },
+ {
+  "id": "f2",
+  "owner": "u1",
+  "item_id": "w1",
+  "role": "tag",
+  "path": "wardrobe/u1/oxford-tag.jpg",
+  "source": "chatgpt_upload",
+  "file_id": "file-oxford-tag",
+  "created_at": "2026-09-01T12:01:00Z"
+ }
+]
