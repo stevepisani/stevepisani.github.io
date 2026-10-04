@@ -200,9 +200,10 @@ person (the `ctx` object, listed at the top of `server.js`).
   `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
   with no product), `add_photo` (with a role), `set_photo_role` (what a photo is, or which is
   shown), `update_item` (with a scope, below), `retire_item` (or back), `create_trip`,
-  `update_trip`, `plan_days` and `set_packing`. No delete: that's only in the app. The tool
-  descriptions are written for the AI calling them: which to start with, when to ingest rather
-  than add, what's a fact and what's a judgement, how photos get roles, how duplicates are avoided.
+  `update_trip`, `plan_days`, `set_packing` and `tick_packing` (the card's). No delete: that's
+  only in the app. The tool descriptions are written for the AI calling them: which to start
+  with, when to ingest rather than add, what's a fact and what's a judgement, how photos get
+  roles, how duplicates are avoided.
 - **ingest_item** files a garment at every level at once. The caller (ChatGPT) reads the photos or
   the shop page and passes `product` (brand and name needed; style number, material, origin,
   default fit, URL, other codes), `variant` (colour and size as printed, plain ones, SKU, barcode,
@@ -234,8 +235,8 @@ person (the `ctx` object, listed at the top of `server.js`).
   (`detail_photos`) as well as single ones isn't confirmed; `add_photo` always works. Images
   ChatGPT generates itself can't be passed to a tool (they stay in the chat), which is why
   generated product shots and outfit pictures will be made on the server instead (next).
-  ChatGPT can't see images from a connector (Oct 2026), so the photo links are there for Steve to
-  open, and the descriptions are what ChatGPT goes on.
+  ChatGPT can't see images from a connector (Oct 2026), so the photos are shown to Steve in the
+  card (below), and the descriptions are what ChatGPT goes on.
 - **Tests:** `tools/wardrobe-test.mjs` (in `npm test` and CI) runs every migration in PGlite
   (Postgres in WebAssembly, in Node) with stand-ins for what Supabase provides, seeds the first
   three Uniqlo items as they were and checks their migration, then calls every tool as a signed-in
@@ -243,6 +244,31 @@ person (the `ctx` object, listed at the top of `server.js`).
   photos with roles, retries and duplicates, dry runs, sources, flat and whole reads, each scope of
   change, retiring, trips, and another member seeing none of it. Its data access is the same
   `ctx` as `index.ts`, on SQL instead of supabase-js.
+- **The card** (MCP Apps, SEP-1865, which ChatGPT and Claude both render): `find_items`,
+  `get_item`, `get_trip` and `ingest_item` point at one resource, `ui://wardrobe/app.html`
+  (`_meta.ui.resourceUri`, and `openai/outputTemplate` for ChatGPT), and the chat shows it under
+  the answer with the photos. It's one script, `assets/js/mcp-app/widget.js` (bundled to
+  `dist/mcp-app.js`, about 19 KB, no libraries: it speaks the protocol's postMessage JSON-RPC
+  itself), that draws whatever the result's `view` says:
+  - `closet` (`find_items`): a grid of photos; tap one to open it;
+  - `garment` (`get_item`): the photo shown, every other photo with its role, a role picker and
+    "Show this one" (both `set_photo_role`), the facts, and where they came from;
+  - `ingest` (`ingest_item`): a dry run is a preview (product and colour found or new, each fact
+    with its source, the warnings) with a "File it" button that files it; after filing, the garment;
+  - `trip` (`get_trip`): legs and weather, each day's outfit (tap a piece to open it), and the
+    packing list, ticked from the card with `tick_packing`, a tool only the card can call
+    (`_meta.ui.visibility: ["app"]`).
+
+  The server answers `resources/read` with the page and the script inlined (it fetches
+  `dist/mcp-app.js` from the site, cached ten minutes; if that fails, the page loads it by URL), and
+  the resource's CSP allows images from the site and the Supabase project (the signed photo links).
+  The card takes its colours and fonts from the host's style variables, with the site's as
+  fallback, and follows its light or dark theme. After the card changes, the site has to deploy
+  before the function serves it; then refresh the connector (below). The smoke test (`npm test`,
+  the "card in chat" session) runs it inside the official MCP Apps host bridge
+  (`@modelcontextprotocol/ext-apps`, a dev dependency) with every tool call going to `server.js` on
+  PGlite (`tools/wardrobe-db.mjs`, shared with the wardrobe test), and checks that its taps change
+  the database.
 - **Signing in** is OAuth 2.1 with Supabase Auth as the authorization server (its OAuth server,
   beta). A call without a valid token gets a 401 whose `WWW-Authenticate` points at
   `…/functions/v1/mcp/.well-known/oauth-protected-resource` (RFC 9728), which names
