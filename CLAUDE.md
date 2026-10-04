@@ -74,7 +74,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 
 ## Where things are
 
-- `_layouts/`: `default.html` (shell), `world.html` (the homepage: loads `world.css` and the one bundle `dist/world.js`, modulepreloaded, and preloads `props.glb`; the bundle URLs carry the build time as `?v=`, so a cached page never runs another build's script), `page.html` (kicker/heading/lede header + prose; `wide: true` drops the prose width), `post.html`, `app.html` (a private app: the sign-in gate around the page's content). Both shells share `_includes/head.html` (SEO via `{% seo %}`, fonts, site.css, and the page's icon: `icon:` in front matter picks `assets/images/<icon>-64.png` and `-180.png`, default `sj`; the wardrobe's pages use `wardrobe`).
+- `_layouts/`: `default.html` (shell), `world.html` (the homepage: loads `world.css` and the one bundle `dist/world.js`, modulepreloaded, and preloads `props.glb`; the bundle URLs carry the build time as `?v=`, so a cached page never runs another build's script), `page.html` (kicker/heading/lede header + prose; `wide: true` drops the prose width), `post.html`, `app.html` (a private app: the sign-in gate around the page's content). Both shells share `_includes/head.html` (SEO via `{% seo %}`, fonts, site.css).
 - `_includes/`: `nav.html`, `footer.html`, `launch.html` (next-launch card, Launch Library 2 API), `cover.html` (post cover, gradient fallback seeded by title), `post-row.html`, `lab-card.html`, `read_time.html`
 - `_data/`: content lives here, edit these rather than HTML
   - `timeline.yml`: career timeline on /about
