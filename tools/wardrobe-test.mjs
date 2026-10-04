@@ -8,7 +8,8 @@
 // Offline, a few seconds.
 //
 //   node tools/wardrobe-test.mjs
-import { rpc, TOOLS, APP_URI, APP_MIME } from '../supabase/functions/mcp/server.js';
+import { existsSync, readFileSync } from 'node:fs';
+import { rpc, TOOLS, APP_URI, APP_MIME, ICONS } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
 
 let passed = 0;
@@ -42,7 +43,9 @@ const { db, q, run, migrations, signIn, ctx, insert, uploads, steveVariant } = a
 const as = await signIn();
 
 const ask = async (method, params) => (await rpc({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
-const tool = async (name, args) => { const r = await ask('tools/call', { name, arguments: args }); return { ...r.structuredContent, text: r.content[0].text, error: r.isError }; };
+// a tool's data as the card sees it: the photo links, which travel in _meta, put back in place
+const hydrate = (r) => { const photos = r._meta?.photos || {}; const walk = (v) => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, (k === 'hero_photo' || k === 'url') && photos[x] ? photos[x] : walk(x)])) : v; return walk(r.structuredContent); };
+const tool = async (name, args) => { const m = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, ctx); if (m.error) return { error: true, code: m.error.code }; const r = m.result; return { ...hydrate(r), text: r.content[0].text, error: r.isError }; };
 const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id, mime_type: 'image/jpeg' });
 const count = async (table) => (await q(`select count(*)::int as n from public.${table}`))[0].n;
 
@@ -53,7 +56,13 @@ const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
 ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos', 'ingest_item takes uploaded photos');
 ok((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) === null, 'a notification gets no answer');
-ok((await tool('delete_item', { id: IDS.brown })).error, 'there is no way to delete');
+ok((await tool('delete_item', { id: IDS.brown })).code === -32602, 'there is no way to delete (an unknown tool is a protocol error)');
+{
+  const hello = await ask('initialize', { protocolVersion: '2025-11-25' });
+  ok(hello.serverInfo.title === "Steve's wardrobe" && hello.serverInfo.websiteUrl === 'https://stevenpisani.com/apps/wardrobe' && hello.serverInfo.icons.some((i) => i.mimeType === 'image/png' && i.sizes.includes('512x512')) && ICONS.every((i) => existsSync(new URL(`..${new URL(i.src).pathname}`, import.meta.url))), 'the server says who it is, with its logo (files that exist) and its home', hello.serverInfo);
+  ok(Buffer.byteLength(hello.instructions) < 2048 && /find_items/.test(hello.instructions.slice(0, 512)), 'its instructions fit what hosts read (under 2 KB, the start first)');
+  ok(TOOLS.every((t) => [t._meta['openai/toolInvocation/invoking'], t._meta['openai/toolInvocation/invoked']].every((x) => x && x.length <= 64)), 'every tool says what it\'s doing while it runs, briefly');
+}
 
 // ---------- The in-chat card (MCP Apps): its page, which tools show it, what each says to draw ----------
 {
@@ -68,6 +77,7 @@ ok((await tool('delete_item', { id: IDS.brown })).error, 'there is no way to del
   ok(TOOLS.find((t) => t.name === 'tick_packing')._meta.ui.visibility.join() === 'app', 'ticking packing is the card\'s alone');
   ok((await rpc({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'ui://nope' } }, ctx)).error, 'an unknown resource is an error');
   ok((await ask('initialize', {})).capabilities.resources, 'the server says it has resources');
+  ok(page._meta['openai/widgetDescription'] && resources[0].icons?.length, "the card tells ChatGPT's model what it shows, and carries the logo");
 }
 
 // ---------- A. New product, new variant, owned item, with photos ----------
@@ -149,6 +159,15 @@ const darkBrown = all.items.find((i) => i.id === IDS.darkBrown);
 ok(Number.isInteger(all.count) && Array.isArray(all.items) && all.view === 'closet', 'H: find_items answers its outputSchema, and tells the card to draw the closet');
 ok(darkBrown && darkBrown.name === 'Soft Brushed Crew Neck Long Sleeve T' && darkBrown.manufacturer_colour === '38 Dark Brown' && darkBrown.colour === 'dark brown' && darkBrown.product_id && darkBrown.variant_id && darkBrown.style_number === 'HT00189AD-US', 'H: find_items gives each piece flat, no joining needed', darkBrown);
 ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo shown');
+// photos: the card gets the signed links, the model only short references, and links into the app
+{
+  const raw = (await ask('tools/call', { name: 'find_items', arguments: {} }));
+  const lean = JSON.stringify(raw.structuredContent);
+  ok(!/https?:\/\//.test(lean) && Object.values(raw._meta.photos).every((u) => /^https?:/.test(u)) && raw.structuredContent.items.some((i) => raw._meta.photos[i.hero_photo]), 'photo links travel in _meta for the card, not in what the model reads', raw._meta);
+  const one = await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } });
+  ok(one.content[0].text.includes(`In the app: https://stevenpisani.com/apps/wardrobe#item/${IDS.darkGray}`), 'a garment comes with its link in the app', one.content[0].text);
+}
+
 const smart = await tool('find_items', { category: 'tops', dressiness: 'smart casual' });
 ok(smart.items.some((i) => i.id === crewItem) && !smart.items.some((i) => i.id === IDS.darkBrown), 'H: "smart casual tops" finds a casual tee that also works smart casual', smart.items.map((i) => i.name));
 ok((await tool('find_items', { query: 'HT00189AD' })).count === 4, 'H: a style number finds every piece of that product');
@@ -207,6 +226,22 @@ ok((await tool('add_item', { name: 'x', category: 'tops', dressiness: 'black tie
 await as(OTHER, 'other@example.com');
 ok((await tool('find_items', { include_retired: true })).count === 0 && (await tool('get_item', { id: IDS.darkBrown })).error, 'someone else sees none of Steve\'s clothes');
 ok((await tool('ingest_item', { product: { brand: 'Uniqlo', name: 'Soft Brushed Crew Neck Long Sleeve T', style_number: 'HT00189AD-US' }, variant: { manufacturer_colour: '38 Dark Brown', manufacturer_size: 'M' }, item: { category: 'tops' } })).product_created, 'and their own Uniqlo shirt is their own product');
+// mcp.stevenpisani.com (proxy/_worker.js): everything passes through as it came, saying which address was used
+{
+  const src = readFileSync(new URL('../proxy/_worker.js', import.meta.url), 'utf8').replace('__SUPABASE_URL__', 'https://ref.supabase.co');
+  const { default: worker } = await import(`data:text/javascript,${encodeURIComponent(src)}`);
+  const real = globalThis.fetch; const seen = [];
+  globalThis.fetch = async (url, init) => { seen.push({ url, init }); return new Response('{"ok":1}', { status: 401, headers: { 'www-authenticate': 'Bearer x' } }); };
+  try {
+    const res = await worker.fetch(new Request('https://mcp.stevenpisani.com/', { method: 'POST', headers: { authorization: 'Bearer t', 'mcp-protocol-version': '2025-11-25', 'content-type': 'application/json' }, body: '{"jsonrpc":"2.0"}' }));
+    const meta = await worker.fetch(new Request('https://mcp.stevenpisani.com/.well-known/oauth-protected-resource'));
+    const browser = await worker.fetch(new Request('https://mcp.stevenpisani.com/', { headers: { accept: 'text/html' } }));
+    const [a, b] = seen;
+    ok(a.url === 'https://ref.supabase.co/functions/v1/mcp' && a.init.headers.get('x-mcp-public-host') === 'mcp.stevenpisani.com' && a.init.headers.get('authorization') === 'Bearer t' && a.init.headers.get('mcp-protocol-version') === '2025-11-25' && new TextDecoder().decode(a.init.body) === '{"jsonrpc":"2.0"}' && res.status === 401 && res.headers.get('www-authenticate') === 'Bearer x', 'the proxy passes a call through whole, and the answer back', a);
+    ok(b.url === 'https://ref.supabase.co/functions/v1/mcp/.well-known/oauth-protected-resource' && meta.status === 401 && browser.status === 302 && browser.headers.get('location') === 'https://stevenpisani.com/apps/wardrobe' && seen.length === 2, 'and its metadata; a browser is sent to the app');
+  } finally { globalThis.fetch = real; }
+}
+
 let refused = false;
 try { await insert('wardrobe_items', { name: 'x', category: 'tops', variant_id: steveVariant }); } catch (e) { refused = e.code === '42501'; }
 ok(refused, 'and can\'t point an item at Steve\'s variant');

@@ -52,10 +52,17 @@ function context(ctx = {}) {
     if (ctx.displayMode === 'fullscreen') draw(current, false); else start(root);
   }
 }
+// A result's data with its photos back in: the server sends the signed photo links in the
+// result's _meta (for the card only, not the model) and short references ("p1") in their place
+function hydrate(r) {
+  const photos = r?._meta?.photos || {};
+  const walk = (v) => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, (k === 'hero_photo' || k === 'url') && typeof x === 'string' ? photos[x] || (/^(https?:|data:)/.test(x) ? x : null) : walk(x)])) : v;
+  return walk(r?.structuredContent);
+}
 const callTool = async (name, args) => {
   const r = await request('tools/call', { name, arguments: args });
   if (r?.isError) throw new Error(r.content?.[0]?.text || "That didn't work.");
-  return r;
+  return hydrate(r);
 };
 // what Steve is looking at, so "what goes with this?" in the chat knows
 const tell = (text) => request('ui/update-model-context', { content: [{ type: 'text', text }] }).catch(() => {});
@@ -107,15 +114,15 @@ async function openItem(id, from) {
   try {
     const r = await callTool('get_item', { id });
     if (from) stack.push(from);
-    draw(r.structuredContent, false);
-    tell(`Steve opened ${r.structuredContent.item?.name || 'a garment'} (item ${id}) in the wardrobe card.`);
+    draw(r, false);
+    tell(`Steve opened ${r.item?.name || 'a garment'} (item ${id}) in the wardrobe card.`);
   } catch (e) { say(e.message, true); }
 }
 
 // ---------- Views ----------
 function show(result) {
   if (result?.isError || !result?.structuredContent) { app.textContent = ''; return; } // the text answer says it
-  start(result.structuredContent);
+  start(hydrate(result));
 }
 function start(data) { root = data; stack = []; ui = {}; draw(data, false); }
 function draw(data, keep = true) {
@@ -224,7 +231,7 @@ function garment(data, receipt) {
   const setRole = async (x, change) => {
     try {
       const r = await callTool('set_photo_role', { photo_id: x.id, ...change });
-      const next = { ...r.structuredContent, view: 'garment' };
+      const next = { ...r, view: 'garment' };
       const keep = (next.photos || []).find((y) => y.id === x.id);
       current = next; app.textContent = ''; garment(next, receipt);
       if (keep && !keep.hero) app.querySelector(`.w-thumb:nth-child(${next.photos.indexOf(keep) + 1})`)?.click(); // stay on the photo you were fixing
@@ -336,7 +343,7 @@ function ingest(data) {
     if (!toolInput) { say('Ask in the chat to add it.'); return; }
     go.disabled = true; go.textContent = 'Adding…';
     const { dry_run, ...args } = toolInput;
-    try { const r = await callTool('ingest_item', args); start(r.structuredContent); }
+    try { start(await callTool('ingest_item', args)); }
     catch (e) { go.disabled = false; go.textContent = 'Add to wardrobe'; say(e.message, true); }
   });
   const actions = el('div', 'w-actions'); actions.append(go); app.append(actions);

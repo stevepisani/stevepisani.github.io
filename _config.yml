@@ -51,6 +51,7 @@ exclude:
   - .jekyll-cache
   - tools
   - supabase
+  - proxy
   - docs
   - package.json
   - package-lock.json
