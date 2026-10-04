@@ -185,7 +185,7 @@ wardrobe MCP server, signed in as him (below).
   the rest the same dates over the last three years, the temperatures averaged and the chance of
   rain being how many of those years it rained. Leg summaries count the expected days of rain.
 
-## ChatGPT: the wardrobe's MCP server
+## ChatGPT and Claude: the wardrobe's MCP server
 
 `supabase/functions/mcp`, at `https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable
 HTTP, stateless (each POST gets one JSON answer; no sessions, no stream). `server.js` has the tools
@@ -254,7 +254,9 @@ person (the `ctx` object, listed at the top of `server.js`).
 - **The consent page** is `/apps/authorize` (`apps/authorize.html`, `assets/js/apps/authorize.js`;
   not listed on /apps): Auth sends you there with `?authorization_id=`; signed in as usual, it
   says which app is asking and where it'll send you back, and Allow or Don't allow answers it.
-  Only ChatGPT's own addresses (`chatgpt.com`, `chat.openai.com`) can be allowed. Its address is
+  Only ChatGPT's and Claude's own addresses can be allowed: `chatgpt.com`, `chat.openai.com`,
+  `claude.ai` (Claude's callback is `https://claude.ai/api/mcp/auth_callback`) and `claude.com`
+  (where Anthropic says it may move). Claude Code's localhost callbacks aren't allowed. Its address is
   `site_url` + `oauth_server_authorization_path` in `supabase/auth.json`, joined as text, which is
   why `site_url` is the bare `https://stevenpisani.com`.
 - **As code:** `supabase/auth.json` turns the OAuth server on; `tools/supabase.mjs` also switches the
@@ -266,7 +268,17 @@ person (the `ctx` object, listed at the top of `server.js`).
   Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", URL
   `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`, authentication OAuth → sign in →
   Allow. ChatGPT asks before each write; that approval lasts the conversation if you tell it to.
-  After a tool changes, refresh the plugin and start a new chat.
+- **Connecting Claude** (Steve, once, on claude.ai or the desktop app, then it's on mobile too):
+  Settings → Connectors → Add custom connector → name "Wardrobe", the same URL → Connect → sign in
+  → Allow. Claude registers itself with Supabase Auth like ChatGPT does. Claude can't pass a photo
+  from the chat to a tool, so adding garments from photos is ChatGPT's (or the app's) for now.
+- **After the tools change**, the apps keep the old list until told: in ChatGPT, Settings → Plugins
+  → Wardrobe → Refresh, then a new chat; in Claude, Settings → Connectors → Wardrobe → disconnect
+  and connect again, then a new chat (Claude caches the list, so it can take a while).
+- Both hosts read the tool descriptions and annotations: each tool has a title and read-only or
+  write hints, and every write says plainly that it changes only Steve's private wardrobe and
+  sends and deletes nothing (ChatGPT's safety checks have blocked writes to custom connectors).
+  The protocol versions it speaks are `PROTOCOLS` in `server.js`.
 - **Known risk:** since late September 2026 some people report ChatGPT's safety checks blocking
   write calls to custom connectors before they reach the server (reads work; OpenAI hasn't said
   why). If writes never arrive, that's it: the function's logs show nothing for them.

@@ -1,4 +1,4 @@
-// The wardrobe's MCP server, without the transport: the tools ChatGPT gets and what each does,
+// The wardrobe's MCP server, without the transport: the tools ChatGPT and Claude get, what each does,
 // and the JSON-RPC it speaks (MCP over Streamable HTTP, stateless: each POST is answered with
 // one JSON response, no session, no server-sent stream). index.ts serves it and signs people in;
 // this file is plain JavaScript so tools/wardrobe-test.mjs can run it in Node against the real
@@ -20,7 +20,7 @@
 //   ctx.storeUpload(file) → path | null (a file ChatGPT passes: { download_url, file_id, mime_type })
 //   ctx.trips.list(); get(id); add(row) → row; set(id, patch) → row | null
 //   ctx.locate(place) → { name, country, lat, lon } | null; ctx.weather(leg) → _shared/weather.js legWeather
-export const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
+export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
 const SEASONS = ["spring", "summer", "autumn", "winter"];
@@ -95,6 +95,7 @@ export const TOOLS = [
     title: "Find clothes in Steve's wardrobe",
     description: "Start here. Lists what Steve owns, one entry per physical garment, flat (product and variant facts filled in), optionally narrowed by words, category, season, dressiness (matches where it mostly belongs or also works) or warmth. Retired things are left out unless asked for. Use it before suggesting outfits or packing, and before ingesting, to see if a garment or its product is already here.",
     inputSchema: { type: "object", properties: { query: { type: "string", description: "Words to look for in the name, brand, colour (plain or as printed), material, style number or notes." }, category: ITEM.category, season: { type: "string", enum: SEASONS }, dressiness: ITEM.dressiness, warmth: ITEM.warmth, include_retired: { type: "boolean" } }, additionalProperties: false },
+    outputSchema: { type: "object", properties: { count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo, product_id, variant_id…" } } }, required: ["count", "items"] },
     annotations: read,
   },
   {
@@ -102,6 +103,7 @@ export const TOOLS = [
     title: "Get one garment, whole",
     description: "Everything about one owned garment: the flat view, then its product and variant (if it has them), what's set on this piece alone, every photo with its role, and where each fact came from. Photo ids here are what set_photo_role takes.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+    outputSchema: { type: "object", properties: { item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url, source." } } }, required: ["item", "owned_item", "photos"] },
     annotations: read,
   },
   {
@@ -226,6 +228,10 @@ export const TOOLS = [
     annotations: { ...write, idempotentHint: true },
   },
 ];
+
+// Every tool that writes says plainly what it touches (hosts' safety checks read descriptions too)
+const PRIVATE = "It changes only Steve's private wardrobe on stevenpisani.com; it sends nothing anywhere and deletes nothing.";
+for (const t of TOOLS) if (!t.annotations.readOnlyHint) t.description = `${t.description}\n${PRIVATE}`;
 
 class Invalid extends Error {}
 
@@ -677,7 +683,7 @@ async function trips(name, args, ctx) {
 const INSTRUCTIONS = [
   "Steve's wardrobe: every garment he owns. Start with find_items (one entry per physical piece, flat) and refer to things by name.",
   "To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.",
-  "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). Photos can't be shown to you; their roles are in get_item.",
+  "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). Results give photo links (for Steve to open) and their roles, not the images; go by the descriptions.",
   "Trips: get_trip has the weather for each leg; plan outfits day by day with plan_days from what he owns (item ids), and the packing list with set_packing. Deleting is his to do in the app.",
 ].join(" ");
 

@@ -295,8 +295,8 @@ async function member(page, target) {
     const auth = /\/auth\/v1\/oauth\/authorizations\/([^/]+)(\/consent)?$/.exec(url.pathname);
     if (auth) {
       if (auth[2]) return json({ redirect_url: `https://chatgpt.com/connector_platform_oauth_redirect?code=c&state=s` });
-      const from = auth[1] === 'gpt' ? 'https://chatgpt.com/connector_platform_oauth_redirect' : 'https://evil.example/callback';
-      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: auth[1] === 'gpt' ? 'ChatGPT' : 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
+      const from = { gpt: 'https://chatgpt.com/connector_platform_oauth_redirect', claude: 'https://claude.ai/api/mcp/auth_callback' }[auth[1]] || 'https://evil.example/callback';
+      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: { gpt: 'ChatGPT', claude: 'Claude' }[auth[1]] || 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
     }
     if (url.pathname.endsWith('/functions/v1/wardrobe-link')) return json({ name: 'The Organic Cotton Crew | White', brand: 'Everlane', price: 30, currency: 'USD', link: 'https://www.everlane.com/products/crew', photo_path: null });
     return json([]); // signed links for photos: none
@@ -507,6 +507,9 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/authorize?authorization_id=other');
   await until(page, () => !document.getElementById('consent').hidden);
   if (await page.isVisible('#consent-allow') || !(await page.isVisible('#consent-warn'))) throw new Error('the consent page would let a non-ChatGPT client in');
+  await page.goto(base + '/apps/authorize?authorization_id=claude');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (!(await page.isVisible('#consent-allow')) || (await page.textContent('#consent-host')) !== 'claude.ai') throw new Error("the consent page won't let Claude in");
   await page.goto(base + '/apps/authorize?authorization_id=gpt');
   await until(page, () => !document.getElementById('consent').hidden);
   if (!(await page.textContent('#consent-client')).includes('ChatGPT') || (await page.textContent('#consent-host')) !== 'chatgpt.com') throw new Error("the consent page doesn't say who's asking");
@@ -516,7 +519,7 @@ async function apps(page, shot) {
   await page.waitForURL(/^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect\?code=c/);
   if (!asked.some((a) => a.method === 'POST' && a.path.endsWith('/oauth/authorizations/gpt/consent') && a.body?.action === 'approve')) throw new Error("Allow didn't approve the request");
   await page.unroute('https://chatgpt.com/**');
-  step('consent page: ChatGPT can be allowed (and you go back to it), anyone else can\'t');
+  step('consent page: ChatGPT and Claude can be allowed (and you go back), anyone else can\'t');
 
   await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
