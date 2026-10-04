@@ -155,3 +155,10 @@
   .sheet__photo { max-width: 240px; }
   .sheet__grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ---------- The consent page for apps like ChatGPT (apps/authorize.html) ---------- */
+.consent { max-width: 34rem; display: grid; gap: 12px; }
+.consent p { margin: 0; }
+.consent__where { color: var(--ink-2); font-size: .95rem; }
+.consent__warn { color: var(--bad); font-weight: 600; }
+.consent__buttons { justify-content: flex-start; }

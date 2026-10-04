@@ -73,7 +73,7 @@ export function start(open = () => {}, close = () => {}) {
     note.textContent = 'Sending…';
     const { error } = await db.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: location.origin + location.pathname, shouldCreateUser: false }, // sign-ups are off
+      options: { emailRedirectTo: location.origin + location.pathname + location.search, shouldCreateUser: false }, // sign-ups are off; the query keeps the consent page's request
     });
     note.textContent = error
       ? "That didn't send. Only members can sign in; check the address."

@@ -14,6 +14,7 @@ import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, extname, resolve, relative } from 'node:path';
 import { buildLibrary } from './library.mjs';
+import { rpc as mcp, TOOLS } from '../supabase/functions/mcp/server.js';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -32,6 +33,42 @@ const library = buildLibrary(JSON.parse(readFileSync(new URL('./fixtures/listeni
   if (library.read.find((b) => b.title === 'The Signal and the Noise').shelf !== 'data-and-craft') throw new Error('library: a genre no shelf lists should land on the "*" shelf');
   if (library.read.length !== 25 || library.now.length !== 2 || library.shelves.reduce((n, s) => n + s.count, 0) !== 25) throw new Error(`library: counts don't add up (${library.read.length} read, ${library.now.length} now)`);
   console.log(`library: ${library.read.length} read on ${library.shelves.length} shelves, ${library.now.length} reading now, merged as expected`);
+}
+
+// The wardrobe's MCP server (what ChatGPT talks to), its tools run against a made-up store: the
+// handshake, the list of tools, finding, adding from a store link, refusing a wrong value,
+// retiring, and a notification getting no answer.
+{
+  const store = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
+  let n = 0;
+  const ctx = {
+    items: {
+      list: async () => store,
+      get: async (id) => store.find((r) => r.id === id) || null,
+      add: async (row) => { const r = { id: `m${++n}`, retired: false, seasons: [], currency: 'USD', ...row }; store.push(r); return r; },
+      set: async (id, patch) => { const r = store.find((x) => x.id === id); return r ? Object.assign(r, patch) : null; },
+    },
+    photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
+    readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
+    storeImage: async () => 'wardrobe/u1/linen.jpg',
+  };
+  const ask = async (method, params) => (await mcp({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
+  const callTool = (name, args) => ask('tools/call', { name, arguments: args });
+  const fail = (what) => { throw new Error(`mcp: ${what}`); };
+  if ((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion !== '2025-06-18') fail('the handshake picked the wrong protocol');
+  const { tools } = await ask('tools/list');
+  if (tools.length !== TOOLS.length || !tools.find((t) => t.name === 'find_items').annotations.readOnlyHint || tools.find((t) => t.name === 'add_item').annotations.readOnlyHint) fail('the tools or their read-only hints are wrong');
+  const found = await callTool('find_items', { category: 'tops' });
+  if (found.structuredContent.count !== 2 || !/Navy oxford shirt/.test(found.content[0].text)) fail(`find_items(tops) gave ${JSON.stringify(found.structuredContent)}`); // the retired hoodie is left out
+  const added = await callTool('add_item', { name: 'Linen shirt', category: 'tops', buy_link: 'shopco.example/linen', seasons: ['summer'] });
+  const it = added.structuredContent.item;
+  if (it.brand !== 'Shopco' || it.price !== 60 || it.currency !== 'EUR' || !it.photo_url) fail(`add_item from a link gave ${JSON.stringify(it)}`);
+  if (!(await callTool('update_item', { id: it.id, dressiness: 'black tie' })).isError) fail('update_item took a dressiness that isn\'t one');
+  if ((await callTool('update_item', { id: it.id, fit: 'boxy' })).structuredContent.item.fit !== 'boxy') fail('update_item didn\'t change the fit');
+  if (!(await callTool('retire_item', { id: it.id })).structuredContent.retired || (await callTool('find_items', {})).structuredContent.items.some((x) => x.id === it.id)) fail('a retired item is still in the wardrobe');
+  if (!(await callTool('delete_item', { id: it.id })).isError) fail('there\'s a way to delete');
+  if ((await mcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) !== null) fail('a notification got an answer');
+  console.log(`mcp: ${tools.length} tools, found, added from a link, refused a wrong value, retired`);
 }
 
 // A static server for the build (what Pages does: /x serves x.html or x/index.html)
@@ -284,6 +321,13 @@ async function apps(page, shot) {
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
     }
     // a store link, read: what the edge function answers for a page it can read
+    // the consent page: one request from ChatGPT, one from somewhere else
+    const auth = /\/auth\/v1\/oauth\/authorizations\/([^/]+)(\/consent)?$/.exec(url.pathname);
+    if (auth) {
+      if (auth[2]) return json({ redirect_url: `https://chatgpt.com/connector_platform_oauth_redirect?code=c&state=s` });
+      const from = auth[1] === 'gpt' ? 'https://chatgpt.com/connector_platform_oauth_redirect' : 'https://evil.example/callback';
+      return json({ authorization_id: auth[1], redirect_uri: from, client: { id: 'c1', name: auth[1] === 'gpt' ? 'ChatGPT' : 'Someone', uri: '', logo_uri: '' }, user: { id: 'u1', email: 'member@example.com' }, scope: 'openid email' });
+    }
     if (url.pathname.endsWith('/functions/v1/wardrobe-link')) return json({ name: 'The Organic Cotton Crew | White', brand: 'Everlane', price: 30, currency: 'USD', link: 'https://www.everlane.com/products/crew', photo_path: null });
     return json([]); // signed links for photos: none
   });
@@ -384,6 +428,22 @@ async function apps(page, shot) {
   if (!asked.some((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items') && a.body?.retired === true)) throw new Error("retiring didn't save");
   await shot('wardrobe-added');
   step('added one from a photo, into its own folder; retired it');
+
+  // the consent page ChatGPT sends you to: it can be allowed; a request that would send you
+  // anywhere but ChatGPT can't
+  await page.goto(base + '/apps/authorize?authorization_id=other');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (await page.isVisible('#consent-allow') || !(await page.isVisible('#consent-warn'))) throw new Error('the consent page would let a non-ChatGPT client in');
+  await page.goto(base + '/apps/authorize?authorization_id=gpt');
+  await until(page, () => !document.getElementById('consent').hidden);
+  if (!(await page.textContent('#consent-client')).includes('ChatGPT') || (await page.textContent('#consent-host')) !== 'chatgpt.com') throw new Error("the consent page doesn't say who's asking");
+  await shot('consent');
+  await page.route('https://chatgpt.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>ChatGPT, standing in</p>' }));
+  await page.click('#consent-allow');
+  await page.waitForURL(/^https:\/\/chatgpt\.com\/connector_platform_oauth_redirect\?code=c/);
+  if (!asked.some((a) => a.method === 'POST' && a.path.endsWith('/oauth/authorizations/gpt/consent') && a.body?.action === 'approve')) throw new Error("Allow didn't approve the request");
+  await page.unroute('https://chatgpt.com/**');
+  step('consent page: ChatGPT can be allowed (and you go back to it), anyone else can\'t');
 
   await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');

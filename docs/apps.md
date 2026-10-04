@@ -101,7 +101,7 @@ function.
 
 Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned by `auth.uid()`;
 photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
-wardrobe MCP server, signed in as him (next).
+wardrobe MCP server, signed in as him (below).
 
 - **The closet:** search and Add, category chips (All, then each category with something in it,
   with counts), season, dressiness and "In the closet / Retired". A grid of square tiles: the
@@ -118,8 +118,52 @@ wardrobe MCP server, signed in as him (next).
     about 15 s on a laptop). If it can't be cut out it's kept as taken. The library is AGPL-3.0,
     which this site, whose source is public, already meets.
   - A store link goes to the `wardrobe-link` edge function, which reads the page's JSON-LD or
-    Open Graph tags (`supabase/functions/_shared/product.ts`: name, brand, picture, price) and
+    Open Graph tags (`supabase/functions/_shared/product.js`: name, brand, picture, price) and
     copies the picture into the person's folder, as them. Some shops (Patagonia, J.Crew) refuse
     anything that isn't a browser; then only the link is kept and the name is typed.
 - Categories: tops, bottoms, outerwear, suits, shoes, accessories, workout, swim (a check in the
   table, and `CATS` in `wardrobe.js`).
+
+## ChatGPT: the wardrobe's MCP server
+
+`supabase/functions/mcp`, at `https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable
+HTTP, stateless (each POST gets one JSON answer; no sessions, no stream). `server.js` has the tools
+and the JSON-RPC, in plain JavaScript so the smoke test runs them in Node; `index.ts` serves it and
+checks who's calling.
+
+- **Tools:** `find_items` (search, category, season, dressiness; retired left out unless asked),
+  `get_item`, `read_store_link` (reads a shop page, saves nothing), all marked read-only; and
+  `add_item` (with a `buy_link`, the shop's picture is copied in and blank fields filled from the
+  page), `update_item` (only the fields given; wrong values are refused, not guessed),
+  `retire_item` (or back). No delete: that's only in the app. Results are a line of text an item
+  plus `structuredContent`; ChatGPT can't see images from a connector (Oct 2026), so each item's
+  `photo_url` is there for Steve to open, and the descriptions are what ChatGPT goes on.
+- **Signing in** is OAuth 2.1 with Supabase Auth as the authorization server (its OAuth server,
+  beta). A call without a valid token gets a 401 whose `WWW-Authenticate` points at
+  `…/functions/v1/mcp/.well-known/oauth-protected-resource` (RFC 9728), which names
+  `https://<ref>.supabase.co/auth/v1` as the authorization server. ChatGPT registers itself there
+  (dynamic client registration is on), sends you to the consent page, and gets a token for you.
+  Every query then runs as you: `getUser` checks the token, `is_member()` must say yes, and the
+  tables' row-level security does the rest. Deployed with `--no-verify-jwt` (the workflow's
+  list), since the discovery request has no token and tokens are checked here.
+- **The consent page** is `/apps/authorize` (`apps/authorize.html`, `assets/js/apps/authorize.js`;
+  not listed on /apps): Auth sends you there with `?authorization_id=`; signed in as usual, it
+  says which app is asking and where it'll send you back, and Allow or Don't allow answers it.
+  Only ChatGPT's own addresses (`chatgpt.com`, `chat.openai.com`) can be allowed. Its address is
+  `site_url` + `oauth_server_authorization_path` in `supabase/auth.json`, joined as text, which is
+  why `site_url` is the bare `https://stevenpisani.com`.
+- **As code:** `supabase/auth.json` turns the OAuth server on; `tools/supabase.mjs` also switches the
+  project's JWT signing to an ES256 key once (the OAuth server can't sign ID tokens with the old
+  shared secret), keeping the old secret trusted so the anon and service keys and existing
+  sessions keep working. `wardrobe-link` is deployed with `--no-verify-jwt` too, and checks the
+  caller itself, since tokens from the new key may not pass the gateway's old check.
+- **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
+  Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", URL
+  `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`, authentication OAuth → sign in →
+  Allow. ChatGPT asks before each write; that approval lasts the conversation if you tell it to.
+  After a tool changes, refresh the plugin and start a new chat.
+- **Known risk:** since late September 2026 some people report ChatGPT's safety checks blocking
+  write calls to custom connectors before they reach the server (reads work; OpenAI hasn't said
+  why). If writes never arrive, that's it: the function's logs show nothing for them.
+- To revoke ChatGPT's access: delete the plugin in ChatGPT, or remove its grant from your account
+  (Supabase Auth's OAuth grants).

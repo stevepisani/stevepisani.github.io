@@ -2,14 +2,14 @@
 // Shops say these for search engines and link previews, in JSON-LD (schema.org Product) or
 // Open Graph tags, so no shop-specific code. Some shops refuse anything that isn't a browser;
 // then there's nothing to read, and the caller keeps just the link.
-export type Product = { url: string; name?: string; brand?: string; image?: string; price?: number; currency?: string };
+/** @typedef {{ url: string, name?: string, brand?: string, image?: string, price?: number, currency?: string }} Product */
 
 const MAX_HTML = 2_000_000, TIMEOUT = 8000;
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36";
 
 /** An http(s) address on the open internet, or null (no local or private hosts: this runs on a server). */
-export function publicUrl(raw: string): URL | null {
-  let u: URL;
+export function publicUrl(raw) {
+  let u;
   try { u = new URL(/^https?:\/\//i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`); } catch { return null; }
   if (!/^https?:$/.test(u.protocol) || u.username || u.password) return null;
   const h = u.hostname.toLowerCase();
@@ -18,10 +18,11 @@ export function publicUrl(raw: string): URL | null {
   return u;
 }
 
-export async function fetchLimited(url: URL, accept: string, max: number): Promise<Response & { bytes?: Uint8Array }> {
+/** Fetches `url`, reading at most `max` bytes of it (as `.bytes`). */
+export async function fetchLimited(url, accept, max) {
   const res = await fetch(url, { headers: { "user-agent": UA, accept, "accept-language": "en-US,en;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(TIMEOUT) });
   const reader = res.body?.getReader();
-  const parts: Uint8Array[] = [];
+  const parts = [];
   let n = 0;
   while (reader) {
     const { done, value } = await reader.read();
@@ -36,13 +37,14 @@ export async function fetchLimited(url: URL, accept: string, max: number): Promi
   return Object.assign(res, { bytes });
 }
 
-const decode = (s: string) => s.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d)).replace(/&amp;/g, "&").trim();
-const first = <T>(v: T | T[] | undefined): T | undefined => (Array.isArray(v) ? v[0] : v);
+const decode = (s) => s.replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#(\d+);/g, (_, d) => String.fromCharCode(+d)).replace(/&amp;/g, "&").trim();
+const first = (v) => (Array.isArray(v) ? v[0] : v);
 
-export async function readProduct(raw: string): Promise<Product> {
+/** @returns {Promise<Product>} */
+export async function readProduct(raw) {
   const url = publicUrl(raw);
   if (!url) throw new Error("That isn't a web address.");
-  const out: Product = { url: url.href };
+  const out = { url: url.href };
   let html = "";
   try {
     const res = await fetchLimited(url, "text/html,application/xhtml+xml", MAX_HTML);
@@ -53,12 +55,12 @@ export async function readProduct(raw: string): Promise<Product> {
 
   // JSON-LD: a Product, maybe inside an array or an @graph
   for (const m of html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
-    let data: unknown;
+    let data;
     try { data = JSON.parse(m[1].trim()); } catch { continue; }
-    const all: any[] = [];
-    const walk = (x: any) => { if (!x || typeof x !== "object") return; if (Array.isArray(x)) return x.forEach(walk); all.push(x); if (x["@graph"]) walk(x["@graph"]); };
+    const all = [];
+    const walk = (x) => { if (!x || typeof x !== "object") return; if (Array.isArray(x)) return x.forEach(walk); all.push(x); if (x["@graph"]) walk(x["@graph"]); };
     walk(data);
-    const p = all.find((x) => [].concat(x["@type"]).some((t: string) => /^(Product|ProductGroup)$/i.test(t)));
+    const p = all.find((x) => [].concat(x["@type"]).some((t) => /^(Product|ProductGroup)$/i.test(t)));
     if (!p) continue;
     out.name ??= p.name && decode(String(p.name));
     const brand = first(p.brand);
@@ -72,7 +74,7 @@ export async function readProduct(raw: string): Promise<Product> {
     break;
   }
   // Open Graph and friends
-  const meta = (key: string) => {
+  const meta = (key) => {
     const re = new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${key}["'][^>]*>`, "i");
     const tag = re.exec(html)?.[0];
     return tag ? decode(/content=["']([^"']*)["']/i.exec(tag)?.[1] || "") || undefined : undefined;
@@ -86,4 +88,21 @@ export async function readProduct(raw: string): Promise<Product> {
   if (out.currency) out.currency = /^[A-Za-z]{3}$/.test(out.currency) ? out.currency.toUpperCase() : undefined;
   if (out.name) out.name = out.name.slice(0, 120);
   return out;
+}
+
+const TYPES = { "image/png": "png", "image/webp": "webp", "image/avif": "avif", "image/gif": "gif", "image/jpeg": "jpg" };
+/** Copies the picture at `image` into `photos/wardrobe/<uid>/`, through `db` (a Supabase client
+ * signed in as that person, so the storage rules apply). Returns its path, or null. */
+export async function storeImage(db, uid, image) {
+  const url = image && publicUrl(image);
+  if (!url) return null;
+  try {
+    const res = await fetchLimited(url, "image/avif,image/webp,image/png,image/jpeg,image/*", 5 * 1024 * 1024 + 1);
+    const type = (res.headers.get("content-type") || "").split(";")[0];
+    if (!res.ok || !TYPES[type] || !res.bytes || res.bytes.length > 5 * 1024 * 1024) return null;
+    const path = `wardrobe/${uid}/${Date.now()}-${crypto.randomUUID().slice(0, 4)}.${TYPES[type]}`;
+    const { error } = await db.storage.from("photos").upload(path, res.bytes, { contentType: type });
+    if (error) { console.error(error); return null; }
+    return path;
+  } catch (e) { console.error(e); return null; }
 }
