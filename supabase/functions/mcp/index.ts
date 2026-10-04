@@ -35,21 +35,15 @@ Deno.serve(async (req) => {
 
   const token = /^Bearer (.+)$/i.exec(req.headers.get("authorization") ?? "")?.[1];
   if (!token) return unauthorized("Sign in first.");
-  const db = createClient(SUPABASE, ANON, { global: { headers: { authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
+  // "Authorization", spelled as supabase-js spells it: another spelling is sent alongside its own,
+  // as "Bearer t, Bearer t", which Supabase Auth refuses
+  const db = createClient(SUPABASE, ANON, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: who, error } = await db.auth.getUser(token);
   if (error || !who?.user) {
     // why, for the logs (tools/supabase-logs.mjs): the error and the token's non-personal claims
     let claims: Record<string, unknown> = {};
     try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
     const { aud, iss, role, scope, exp, client_id } = claims as Record<string, unknown>;
-    // what the function's own requests to Supabase get back (status, type, the start of the body)
-    const probe = async (path: string, auth = true) => {
-      try {
-        const r = await fetch(`${SUPABASE}${path}`, { headers: { apikey: ANON, ...(auth ? { authorization: `Bearer ${token}` } : {}) } });
-        return `${path} ${r.status} ${r.headers.get("content-type")} ${(await r.text()).replace(/\s+/g, " ").slice(0, 120)}`;
-      } catch (e) { return `${path} threw ${e}`; }
-    };
-    console.warn("mcp: probes:", new URL(SUPABASE).host, `anon key starts ${ANON.slice(0, 8)}`, await probe("/auth/v1/user"), "|", await probe("/auth/v1/.well-known/jwks.json", false), "|", await probe("/rest/v1/", false));
     console.warn("mcp: token refused:", error?.message, JSON.stringify({ aud, iss, role, scope, client: !!client_id, email: "email" in claims, expired: typeof exp === "number" && exp * 1000 < Date.now() }));
     return unauthorized("That sign-in has expired or isn't valid.");
   }
