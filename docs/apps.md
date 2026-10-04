@@ -248,16 +248,31 @@ person (the `ctx` object, listed at the top of `server.js`).
   `get_item`, `get_trip` and `ingest_item` point at one resource, `ui://wardrobe/app.html`
   (`_meta.ui.resourceUri`, and `openai/outputTemplate` for ChatGPT), and the chat shows it under
   the answer with the photos. It's one script, `assets/js/mcp-app/widget.js` (bundled to
-  `dist/mcp-app.js`, about 19 KB, no libraries: it speaks the protocol's postMessage JSON-RPC
-  itself), that draws whatever the result's `view` says:
-  - `closet` (`find_items`): a grid of photos; tap one to open it;
-  - `garment` (`get_item`): the photo shown, every other photo with its role, a role picker and
-    "Show this one" (both `set_photo_role`), the facts, and where they came from;
-  - `ingest` (`ingest_item`): a dry run is a preview (product and colour found or new, each fact
-    with its source, the warnings) with a "File it" button that files it; after filing, the garment;
-  - `trip` (`get_trip`): legs and weather, each day's outfit (tap a piece to open it), and the
-    packing list, ticked from the card with `tick_packing`, a tool only the card can call
-    (`_meta.ui.visibility: ["app"]`).
+  `dist/mcp-app.js`, about 25 KB, no libraries: it speaks the protocol's postMessage JSON-RPC
+  itself), that draws whatever the result's `view` says. It follows both hosts' guidelines and
+  Krug: two levels, a glance inline (at most two buttons, nothing the model will say anyway, no
+  drilling down inside the chat) and the detail full screen; the same shirt in three colours is
+  told apart by colour, not three cut-off copies of its name; a fact says where it came from only
+  when it was guessed (any fact shows its source when tapped); rare tools appear when they're
+  needed.
+  - `closet` (`find_items`): a row of photos that scrolls sideways, then "See all". Full screen:
+    every garment, with a filter by kind. Tapping a garment opens it full screen.
+  - `garment` (`get_item`): the main photo, the others with a badge (Tag, Care, Detail), what it
+    is, four facts (the ones Steve asked about first: `get_item`'s `focus`), the rest under "More
+    details". Tap a photo to say what it is or make it the main one (`set_photo_role`); a photo
+    whose role isn't known asks.
+  - `ingest` (`ingest_item`): a dry run is a preview: what it is and whether it's new (a new
+    garment, a new colour or size, another one), only the guessed facts up front, the facts read
+    off a tag folded, one line of what's missing (the warnings meant for the model stay out), and
+    "Add to wardrobe". After adding, the garment.
+  - `trip` (`get_trip`): the legs, the next planned outfit as photos, packing so far; "Open trip"
+    and "Packing list" go full screen, with Days (each outfit as photos; names on tap) and
+    Packing (ticked with `tick_packing`, a tool only the card can call,
+    `_meta.ui.visibility: ["app"]`; twins by colour, how often each is worn).
+
+  When Steve opens a garment in the card, the card tells the model (`ui/update-model-context`),
+  so "what goes with this?" in the chat knows what "this" is. Without full screen (a host that
+  doesn't offer it), the same detail opens inline with a Back link.
 
   The server answers `resources/read` with the page and the script inlined (it fetches
   `dist/mcp-app.js` from the site, cached ten minutes; if that fails, the page loads it by URL), and
@@ -267,8 +282,8 @@ person (the `ctx` object, listed at the top of `server.js`).
   before the function serves it; then refresh the connector (below). The smoke test (`npm test`,
   the "card in chat" session) runs it inside the official MCP Apps host bridge
   (`@modelcontextprotocol/ext-apps`, a dev dependency) with every tool call going to `server.js` on
-  PGlite (`tools/wardrobe-db.mjs`, shared with the wardrobe test), and checks that its taps change
-  the database.
+  PGlite (`tools/wardrobe-db.mjs`, shared with the wardrobe test): full screen in and out, and
+  that its taps change the database.
 - **Signing in** is OAuth 2.1 with Supabase Auth as the authorization server (its OAuth server,
   beta). A call without a valid token gets a 401 whose `WWW-Authenticate` points at
   `…/functions/v1/mcp/.well-known/oauth-protected-resource` (RFC 9728), which names
