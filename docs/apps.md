@@ -185,13 +185,49 @@ wardrobe MCP server, signed in as him (below).
   the rest the same dates over the last three years, the temperatures averaged and the chance of
   rain being how many of those years it rained. Leg summaries count the expected days of rain.
 
-## ChatGPT and Claude: the wardrobe's MCP server
+## ChatGPT and Claude: SJPJr, the MCP server
 
-`supabase/functions/mcp`, at `https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable
-HTTP, stateless (each POST gets one JSON answer; no sessions, no stream). `server.js` has the tools
-and the JSON-RPC, in plain JavaScript so `tools/wardrobe-test.mjs` runs them in Node against the
-real schema (below); `index.ts` serves it, checks who's calling, and gives it the data as that
-person (the `ctx` object, listed at the top of `server.js`).
+SJPJr (after the site's badge) is Steve's own things on this site, for ChatGPT and Claude: today
+his wardrobe and trips, more later. `supabase/functions/mcp`, at
+`https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable HTTP, stateless (each POST gets
+one JSON answer; no sessions, no stream). In plain JavaScript, so `tools/wardrobe-test.mjs` runs
+it in Node against the real schema (below):
+
+- `server.js`: the protocol, who the server is, the card's resource, and the rules;
+- `areas/`: one file per area (`wardrobe.js`, `trips.js`), each `{ name, records, tools,
+  status, instructions, call }`: its tools, the status lines ChatGPT shows while each runs, what
+  the model is told about it, and the code;
+- `kit.js`: what the areas share (the card's keys, tool hints, `Invalid` for a call's mistakes);
+- `index.ts`: serves it, checks who's calling, and gives it the data as that person (the `ctx`
+  object, listed at the top of `server.js`).
+
+### The rules
+
+The same for every area, kept in one place (`RULES` in `server.js`), checked when the server
+starts (an area that breaks them doesn't load, and the test checks them too), told to the model in
+its instructions, and said on every tool that writes:
+
+1. Steve's own records (an area with `records: true`: the wardrobe, trips) can be read and changed
+   from a chat. The site's content (drinks, books, what he's written) is read-only there: it
+   changes in the repo.
+2. Nothing is deleted from a chat: no tool deletes, and none is marked destructive. Deleting is
+   Steve's, in the apps; retiring or clearing is the most a tool does.
+3. Everything runs as the signed-in member, through row-level security, and stays on
+   stevenpisani.com.
+
+### Adding an area
+
+1. `supabase/functions/mcp/areas/<area>.js`: its tools (each with a title, read-only or write
+   hints, and a description written for the AI calling it), `status` for each, `instructions`
+   (a sentence or two), `call`, and `records` (true only for Steve's own records).
+2. A line in `AREAS` in `server.js`, and its words in `RULES` and the first instruction if it's
+   records.
+3. If it shows the card: `_meta: showsCard` on its tools, a `view` in its results, and
+   `assets/js/mcp-app/views/<area>.js` with the view (added to `views`) and its styles (`css`),
+   imported in `widget.js`.
+4. Its data in `ctx` (`index.ts`, and `tools/wardrobe-db.mjs` for the tests), and its checks in
+   `tools/wardrobe-test.mjs` (and the smoke test's card session for a view).
+5. The tool list below, and the consent page's line (`apps/authorize.html`) if it's records.
 
 - **Tools** (read-only marked so): `find_items` (start here; one entry per physical piece, flat:
   product and variant facts filled in; by words, category, season, dressiness, which matches where
@@ -245,11 +281,13 @@ person (the `ctx` object, listed at the top of `server.js`).
   change, retiring, trips, and another member seeing none of it. Its data access is the same
   `ctx` as `index.ts`, on SQL instead of supabase-js.
 - **The card** (MCP Apps, SEP-1865, which ChatGPT and Claude both render): `find_items`,
-  `get_item`, `get_trip` and `ingest_item` point at one resource, `ui://wardrobe/app.html`
+  `get_item`, `get_trip` and `ingest_item` point at one resource, `ui://sjpjr/card.html`
   (`_meta.ui.resourceUri`, and `openai/outputTemplate` for ChatGPT), and the chat shows it under
-  the answer with the photos. It's one script, `assets/js/mcp-app/widget.js` (bundled to
+  the answer with the photos. It's one script (`assets/js/mcp-app/`, bundled to
   `dist/mcp-app.js`, about 25 KB, no libraries: it speaks the protocol's postMessage JSON-RPC
-  itself), that draws whatever the result's `view` says. It follows both hosts' guidelines and
+  itself): `card.js`, the shell (the bridge, the parts, the way between views, the shared look),
+  and a file per area in `views/` that adds its views and styles; it draws whatever the result's
+  `view` says. It follows both hosts' guidelines and
   Krug: two levels, a glance inline (at most two buttons, nothing the model will say anyway, no
   drilling down inside the chat) and the detail full screen; the same shirt in three colours is
   told apart by colour, not three cut-off copies of its name; a fact says where it came from only
@@ -305,8 +343,8 @@ person (the `ctx` object, listed at the top of `server.js`).
   shared secret), keeping the old secret trusted so the anon and service keys and existing
   sessions keep working. `wardrobe-link` is deployed with `--no-verify-jwt` too, and checks the
   caller itself, since tokens from the new key may not pass the gateway's old check.
-- **Who it is:** `SERVER` in `server.js` (the `initialize` answer): title, a line on what it
-  does, its home (`websiteUrl`, the app) and its logo (`ICONS`: the site's SJPJr badge,
+- **Who it is:** `SERVER` in `server.js` (the `initialize` answer): "SJPJr", a line on what it
+  does, its home (`websiteUrl`, the site) and its logo (`ICONS`: the site's SJPJr badge,
   `assets/images/sj-512.png`, `-180`, `-64`). Neither app reads the
   logo from the server yet (Oct 2026): ChatGPT shows the icon uploaded when the connector is
   created (and can't change it after), Claude a globe for every custom connector. Each tool also
@@ -343,13 +381,13 @@ person (the `ctx` object, listed at the top of `server.js`).
      `wardrobe-mcp.pages.dev`. Cloudflare checks it and issues the certificate (minutes to an hour).
   4. Connect the apps again with the new URL (below); the old one keeps working meanwhile.
 - **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
-  Developer mode; then Plugins (once called Connectors, then Apps) → + → name "Wardrobe", icon
+  Developer mode; then Plugins (once called Connectors, then Apps) → + → name "SJPJr", icon
   `assets/images/sj-512.png` (only when creating it), URL `https://mcp.stevenpisani.com`
   (until that's set up, `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`),
   authentication OAuth → sign in → Allow. ChatGPT asks before each write; that approval lasts the
   conversation if you tell it to.
 - **Connecting Claude** (Steve, once, on claude.ai or the desktop app, then it's on mobile too):
-  Settings → Connectors → Add custom connector → name "Wardrobe", the same URL → Connect → sign in
+  Settings → Connectors → Add custom connector → name "SJPJr", the same URL → Connect → sign in
   → Allow. Claude registers itself with Supabase Auth like ChatGPT does. Claude can't pass a photo
   from the chat to a tool, so adding garments from photos is ChatGPT's (or the app's) for now.
 - **After the tools change**, the apps keep the old list until told: in ChatGPT, Settings → Plugins
