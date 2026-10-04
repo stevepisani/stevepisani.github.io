@@ -8,7 +8,9 @@ create table if not exists public.wardrobe_items (
   name text not null check (char_length(name) between 1 and 120),
   category text not null default 'tops'
     check (category in ('tops', 'bottoms', 'outerwear', 'suits', 'shoes', 'accessories', 'workout', 'swim')),
-  photo_path text,
+  photo_path text,          -- the photo shown
+  photo_original text,      -- the photo as taken, when photo_path is a generated product shot
+  photo_file_id text,       -- the ChatGPT upload it came from (ChatGPT sometimes sends one twice)
   brand text,
   colour text,
   size text,

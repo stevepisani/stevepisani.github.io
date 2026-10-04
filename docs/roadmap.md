@@ -7,8 +7,10 @@ rather than leaving it in a chat.
 ## Next up (ready to build, nothing needed from Steve)
 
 0. **The wardrobe** (`docs/apps.md`), in three steps: the closet and ChatGPT through an MCP
-   server with read and write tools (OAuth on the site's sign-in) (done), then trips (London, Florence,
-   Paris first: weather, day-by-day outfits, a packing list).
+   server with read and write tools (OAuth on the site's sign-in), and trips (weather, day-by-day
+   outfits, a packing list): done. Next: generated product shots and outfit pictures (flat, or on
+   Steve), made on the server with OpenAI's image API under a $10 a month cap, and a ChatGPT widget
+   that shows them; needs an `OPENAI_API_KEY` repo secret from Steve.
 
 0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
    saved to the home screen (which keeps its own storage on iOS) never gets signed in. Put the

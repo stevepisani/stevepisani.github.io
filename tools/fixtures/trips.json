@@ -1,0 +1,72 @@
+[
+ {
+  "id": "t1",
+  "owner": "u1",
+  "name": "Europe, autumn",
+  "notes": "Two dinners out in Florence.",
+  "legs": [
+   {
+    "place": "London",
+    "country": "United Kingdom",
+    "lat": 51.5,
+    "lon": -0.12,
+    "from": "2026-10-07",
+    "to": "2026-10-14"
+   },
+   {
+    "place": "Florence",
+    "country": "Italy",
+    "lat": 43.78,
+    "lon": 11.25,
+    "from": "2026-10-14",
+    "to": "2026-11-14"
+   },
+   {
+    "place": "Paris",
+    "country": "France",
+    "lat": 48.85,
+    "lon": 2.35,
+    "from": "2026-11-14",
+    "to": "2026-11-17"
+   }
+  ],
+  "days": [
+   {
+    "date": "2026-10-07",
+    "occasion": "Flight, then a walk on the South Bank",
+    "items": [
+     "w2",
+     "w3"
+    ]
+   },
+   {
+    "date": "2026-10-15",
+    "occasion": "Uffizi, then dinner out",
+    "items": [
+     "w1",
+     "w3"
+    ],
+    "note": "Bring the jacket for the evening."
+   }
+  ],
+  "packing": [
+   {
+    "item_id": "w1",
+    "qty": 1,
+    "packed": true
+   },
+   {
+    "item_id": "w2",
+    "qty": 3,
+    "packed": false
+   },
+   {
+    "label": "Plug adapter",
+    "qty": 2,
+    "packed": false
+   }
+  ],
+  "created_at": "2026-10-04T12:00:00Z",
+  "updated_at": "2026-10-04T12:00:00Z"
+ }
+]

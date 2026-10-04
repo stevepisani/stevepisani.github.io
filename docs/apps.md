@@ -123,6 +123,18 @@ wardrobe MCP server, signed in as him (below).
     anything that isn't a browser; then only the link is kept and the name is typed.
 - Categories: tops, bottoms, outerwear, suits, shoes, accessories, workout, swim (a check in the
   table, and `CATS` in `wardrobe.js`).
+- **Trips** (the Closet / Trips switch; table `trips`, private like the clothes): a trip is its
+  legs (a place, looked up for its latitude and longitude, and dates), its days (the wardrobe
+  items worn, what the day holds, a note) and its packing list (wardrobe items or plain labels,
+  how many, packed or not), kept on the row as JSON. A trip shows each leg with its weather (a
+  bar a day: its height the high, its blue the chance of rain; dashed for typical days), the
+  planned days with their outfits (tap an item for its sheet), and the packing list to tick off
+  and add to. Trips are mostly made in ChatGPT; "New trip" and "Edit" here take a name, places
+  and dates, and notes.
+- **Weather** comes from Open-Meteo (free, no key; `supabase/functions/_shared/weather.js`, which
+  the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
+  the rest the same dates over the last three years, the temperatures averaged and the chance of
+  rain being how many of those years it rained. Leg summaries count the expected days of rain.
 
 ## ChatGPT: the wardrobe's MCP server
 
@@ -132,10 +144,18 @@ and the JSON-RPC, in plain JavaScript so the smoke test runs them in Node; `inde
 checks who's calling.
 
 - **Tools:** `find_items` (search, category, season, dressiness; retired left out unless asked),
-  `get_item`, `read_store_link` (reads a shop page, saves nothing), all marked read-only; and
-  `add_item` (with a `buy_link`, the shop's picture is copied in and blank fields filled from the
-  page), `update_item` (only the fields given; wrong values are refused, not guessed),
-  `retire_item` (or back). No delete: that's only in the app. Results are a line of text an item
+  `get_item`, `read_store_link` (reads a shop page, saves nothing), `list_trips`, `get_trip` (with
+  each leg's weather), all marked read-only; and `add_item`, `set_photo`, `update_item` (only the
+  fields given; wrong values are refused, not guessed), `retire_item` (or back), `create_trip`,
+  `update_trip`, `plan_days` (outfits from what's in the wardrobe, only on the trip's days) and
+  `set_packing` (keeps what's already ticked off). No delete: that's only in the app.
+- **Photos from the chat:** `add_item` and `set_photo` take a photo Steve uploads in ChatGPT
+  (`_meta["openai/fileParams"]`: ChatGPT passes `{ download_url, file_id }`, a short-lived link the
+  server fetches and stores at once, up to 15 MB). ChatGPT sometimes repeats a call, so the
+  upload's `file_id` is kept (`photo_file_id`) and the same upload twice is the same item; and it
+  sometimes drops the file, so a missing photo is said out loud, to re-attach with `set_photo`.
+  Images ChatGPT generates itself can't be passed to a tool (they stay in the chat), which is why
+  generated product shots and outfit pictures will be made on the server instead (next). Results are a line of text an item
   plus `structuredContent`; ChatGPT can't see images from a connector (Oct 2026), so each item's
   `photo_url` is there for Steve to open, and the descriptions are what ChatGPT goes on.
 - **Signing in** is OAuth 2.1 with Supabase Auth as the authorization server (its OAuth server,
