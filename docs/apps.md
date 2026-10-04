@@ -317,6 +317,11 @@ person (the `ctx` object, listed at the top of `server.js`).
 - **Links:** the photos' signed links are long and only the card needs them, so `photosApart`
   moves them out of what the model reads into the result's `_meta` (hosts give that to the card,
   not the model), leaving short references (`"hero_photo": "p1"`) that the card fills back in.
+  Results stay small (both apps cap what a tool may return, and the model reads all of it):
+  lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
+  sources drop their dates, the same photo link is sent once, and a trip names each garment once
+  (`trip.garments`) with its days and packing pointing at it by id, and its legs' weather as a
+  summary. A trip with twenty planned days of five garments went from about 25 KB to 11 KB.
   Results give Steve links into the app instead: `stevenpisani.com/apps/wardrobe#item/<id>`,
   `#trip/<id>`, `#closet`.
 - **Transport checks** (MCP 2025-11-25, in `index.ts`): a request from a browser page on another

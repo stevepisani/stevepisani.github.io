@@ -353,6 +353,13 @@ function ingest(data) {
 // day's outfit as photos (the names are one tap away, not repeated down the page) and packing.
 function trip(data) {
   const t = data.trip, big = full() || ui.open;
+  // each garment comes once, in t.garments; days and packing name them by id: fill them in, once
+  if (t.garments && !t.filled) {
+    const g = (id) => ({ id, name: '(no longer in the wardrobe)', ...t.garments[id] });
+    for (const d of t.days) d.items = d.items.map((i) => (typeof i === 'string' ? g(i) : i));
+    for (const p of t.packing) Object.assign(p, p.item_id ? { ...g(p.item_id), id: undefined } : { name: p.label });
+    t.filled = true;
+  }
   const head = el('header', 'w-head'); const b = back(); if (b) head.append(b);
   const titles = el('div'); titles.append(el('h2', 'w-title', t.name));
   if (t.legs.length) titles.append(el('p', 'w-sub', span(t.legs[0].from, t.legs[t.legs.length - 1].to)));

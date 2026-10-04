@@ -157,7 +157,8 @@ ok((await tool('ingest_item', { product: { brand: 'Acme', name: 'x', sources: { 
 const all = await tool('find_items', {});
 const darkBrown = all.items.find((i) => i.id === IDS.darkBrown);
 ok(Number.isInteger(all.count) && Array.isArray(all.items) && all.view === 'closet', 'H: find_items answers its outputSchema, and tells the card to draw the closet');
-ok(darkBrown && darkBrown.name === 'Soft Brushed Crew Neck Long Sleeve T' && darkBrown.manufacturer_colour === '38 Dark Brown' && darkBrown.colour === 'dark brown' && darkBrown.product_id && darkBrown.variant_id && darkBrown.style_number === 'HT00189AD-US', 'H: find_items gives each piece flat, no joining needed', darkBrown);
+ok(darkBrown && darkBrown.name === 'Soft Brushed Crew Neck Long Sleeve T' && darkBrown.manufacturer_colour === '38 Dark Brown' && darkBrown.colour === 'dark brown' && darkBrown.material === '100% cotton' && darkBrown.product_id === undefined, 'H: find_items gives each piece flat, no joining needed, and only what lists need (the rest is get_item\'s)', darkBrown);
+{ const whole = await tool('get_item', { id: darkBrown.id }); ok(whole.item.product_id && whole.item.variant_id && whole.item.style_number === 'HT00189AD-US', 'H: get_item has the ids and style number', whole.item); }
 ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo shown');
 // photos: the card gets the signed links, the model only short references, and links into the app
 {
@@ -208,7 +209,8 @@ ok(/Museums: Soft Brushed Crew Neck Long Sleeve T, Brown suede loafers/.test(tr.
 const planned = await tool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-09', items: [crewItem, IDS.brown], occasion: 'Walk' }] });
 ok(!planned.error && planned.planned === 2, 'M: planning with the new ids works');
 const board = await tool('get_trip', { id: trip.id });
-ok(board.view === 'trip' && board.trip.days.find((d) => d.date === '2026-10-09').items.find((x) => x.id === crewItem)?.hero_photo, 'M: a trip tells the card to draw its board, with each outfit\'s photos', board.trip.days);
+ok(board.view === 'trip' && board.trip.days.find((d) => d.date === '2026-10-09').items.includes(crewItem) && board.trip.garments[crewItem]?.hero_photo && board.trip.garments[crewItem].name, 'M: a trip tells the card to draw its board: each garment once, with its photo, and the days by id', board.trip);
+ok(board.trip.legs.every((l) => !l.weather || (l.weather.summary && !l.weather.days)), 'M: the legs carry a weather summary, not every day of it', board.trip.legs);
 const ticked = await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: false });
 ok(ticked.packed === 0 && (await q(`select packing from public.trips`))[0].packing[0].packed === false, 'M: the card ticks one thing off (or back on)', ticked);
 await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: true });
