@@ -60,7 +60,7 @@ jobs:
           status=$(curl -s -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$api/$DOMAIN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log((JSON.parse(s).result||{}).status||"unknown"))')
           {
             echo "### mcp.stevenpisani.com"
-            echo "At Bluehost (Domains → DNS for stevenpisani.com), one record: **CNAME**, host **mcp**, points to **${sub:-the project's pages.dev address}**."
-            echo "Cloudflare's view of the domain: **$status** (active means it's live; pending means it's still waiting for the record or the certificate)."
+            echo "At Bluehost (Domains → DNS for stevenpisani.com), one record: **CNAME**, host **mcp**, points to **${sub:-the pages.dev address in the Deploy step}**."
+            echo "Cloudflare sees the domain as: **$status** (active: live; pending: still waiting for the record or the certificate)."
           } >> "$GITHUB_STEP_SUMMARY"
           echo "CNAME mcp -> $sub; $DOMAIN: $status"
