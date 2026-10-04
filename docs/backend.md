@@ -15,11 +15,13 @@ design: row-level security guards every table.
   `supabase_migrations.schema_migrations` as the Supabase CLI does. Write them idempotent
   (`create … if not exists`, `drop policy if exists` before `create policy`), so a re-run is safe.
   To change the schema, add a new migration; never edit one that has run.
-- `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off).
+- `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off, the OAuth server for
+  ChatGPT and its consent page).
 - `functions/<name>/index.ts`: edge functions, Deno TypeScript. Type-check with
   `deno check --node-modules-dir=none supabase/functions/<name>/index.ts` (the flag keeps Deno from
   looking for the site's own `node_modules`).
-- `tools/supabase.mjs` applies the migrations and `auth.json` through the Management API with
+- `tools/supabase.mjs` applies the migrations, the JWT signing keys (one ES256 key in use, the old
+  secret still trusted) and `auth.json` through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
   copies the `ANTHROPIC_API_KEY` repo secret into the project's function secrets, and deploys
@@ -44,8 +46,11 @@ Approving a bottle is, for now, setting `approved = true` on its row (as a membe
 ## The wardrobe's functions
 
 `supabase/functions/wardrobe-link`: reads a shop's product page for the wardrobe (name, brand,
-picture, price; `_shared/product.ts`), called with the member's own session, so the picture it
-stores lands in their folder under their rules. No running cost. See `docs/apps.md`.
+picture, price; `_shared/product.js`), called with the member's own session, so the picture it
+stores lands in their folder under their rules. `supabase/functions/mcp`: the wardrobe's MCP
+server for ChatGPT, signed in through Supabase Auth's OAuth server (on in `auth.json`; the consent
+page is `/apps/authorize`). Both are deployed with `--no-verify-jwt` and check the caller
+themselves. No running cost. See `docs/apps.md`.
 
 ## The bartender (`supabase/functions/bartender`)
 

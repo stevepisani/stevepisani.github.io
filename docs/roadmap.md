@@ -6,8 +6,8 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **The wardrobe** (`docs/apps.md`), in three steps: the closet (done), ChatGPT through an MCP
-   server with read and write tools (OAuth on the site's sign-in), then trips (London, Florence,
+0. **The wardrobe** (`docs/apps.md`), in three steps: the closet and ChatGPT through an MCP
+   server with read and write tools (OAuth on the site's sign-in) (done), then trips (London, Florence,
    Paris first: weather, day-by-day outfits, a packing list).
 
 0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
