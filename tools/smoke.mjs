@@ -579,6 +579,8 @@ async function card(page, shot) {
     window.showCard = async (html, input, result, theme) => {
       const frame = document.getElementById('card');
       const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {} }, { hostContext: { theme, displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US' } });
+      window.bridge = bridge;
+      bridge.onrequestdisplaymode = async ({ mode }) => { bridge.setHostContext({ theme, displayMode: mode, availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US' }); return { mode }; }; // a host that has full screen gives it
       bridge.oncalltool = (params) => window.callTool(params.name, params.arguments || {});
       bridge.onsizechange = ({ height }) => { if (height) frame.style.height = height + 'px'; };
       bridge.oninitialized = () => { bridge.sendToolInput({ arguments: input }); bridge.sendToolResult(result); };
@@ -591,60 +593,76 @@ async function card(page, shot) {
   const show = async (input, result, theme = 'light') => { await page.goto(`${base}/__host`); await page.evaluate(([h, i, r, t]) => window.showCard(h, i, r, t), [html, input, result, theme]); };
   const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id, mime_type: 'image/jpeg' });
 
-  // the closet: a grid, photos first; a garment opens in the card, with its photos and their roles
-  await call('ingest_item', { product: { brand: 'Everlane', name: 'The Organic Cotton Crew', style_number: 'EV-1042', material: '100% organic cotton', sources: { brand: 'garment_label', name: 'hang_tag', style_number: 'hang_tag', material: { source: 'care_label', raw: '100% ORGANIC COTTON' } } }, variant: { manufacturer_colour: 'White', manufacturer_size: 'M', price: 30, currency: 'USD', sources: { manufacturer_colour: 'hang_tag', price: 'hang_tag' } }, item: { category: 'tops', subcategory: 't_shirt', warmth: 'light', dressiness: 'casual', dressiness_also: ['smart casual'] }, garment_photo: file('crew-front'), tag_photo: file('crew-tag'), care_label_photo: file('crew-care'), client_ref: 'smoke-crew' });
+  // the closet: a row of photos; the same shirt in three colours is told apart by colour
+  await call('ingest_item', { product: { brand: 'Everlane', name: 'The Organic Cotton Crew', style_number: 'EV-1042', material: '100% organic cotton', sources: { brand: 'garment_label', name: 'hang_tag', style_number: 'hang_tag', material: { source: 'care_label', raw: '100% ORGANIC COTTON' } } }, variant: { manufacturer_colour: 'White', manufacturer_size: 'M', price: 30, currency: 'USD', sources: { manufacturer_colour: 'hang_tag', price: 'hang_tag' } }, item: { category: 'tops', subcategory: 't_shirt', warmth: 'light', dressiness: 'casual', dressiness_also: ['smart casual'], sources: { warmth: { source: 'vision_inference', confidence: 0.7 } } }, garment_photo: file('crew-front'), tag_photo: file('crew-tag'), care_label_photo: file('crew-care'), client_ref: 'smoke-crew' });
   const closet = await call('find_items', {});
   await show({}, closet);
-  await frame.locator('.w-card').first().waitFor();
-  if ((await frame.locator('.w-card').count()) !== closet.structuredContent.count) throw new Error("the card's closet doesn't show every garment");
+  await frame.locator('.w-row .w-tile').first().waitFor();
+  if ((await frame.locator('.w-tile').count()) !== closet.structuredContent.count) throw new Error("the card's closet row doesn't show every garment");
+  const names = await frame.locator('.w-tile__name').allTextContents();
+  if (!names.includes('Dark Brown') || names.filter((n) => /Soft Brushed/.test(n)).length) throw new Error(`garments sharing a name aren't told apart by colour: ${names.join(', ')}`);
   await shot('closet');
-  step(`the closet: ${closet.structuredContent.count} garments in a grid, in the official MCP Apps host`);
-  await frame.locator('.w-card', { hasText: 'Organic Cotton Crew' }).click();
+  step(`the closet: a row of ${closet.structuredContent.count} photos, twins named by colour, in the official MCP Apps host`);
+
+  // a garment opens full screen: photo, what it is, the facts; provenance only where guessed, and on tap
+  await frame.locator('.w-tile', { hasText: 'Organic Cotton Crew' }).click();
   await frame.locator('.w-garment').waitFor();
-  if ((await frame.locator('.w-thumb').count()) !== 3 || !/Garment · shown/.test(await frame.locator('.w-thumbs').textContent()) || !/care label/.test(await frame.locator('.w-sources').textContent())) throw new Error("a garment in the card doesn't show its photos and roles, or where its facts came from");
+  if (!(await frame.locator('html.is-full').count())) throw new Error("opening a garment didn't go full screen");
+  if ((await frame.locator('.w-thumb').count()) !== 3 || (await frame.locator('.w-seg').count()) || !(await frame.locator('.w-badge', { hasText: 'Care' }).count())) throw new Error("a garment's photos: three, badged, and no role picker until asked");
+  if ((await frame.locator('.w-guess').count()) || /hang tag|care label/i.test(await frame.locator('.w-facts').first().innerText())) throw new Error('facts read off a label should carry no source until tapped');
+  await frame.locator('.w-fact', { hasText: '100% organic cotton' }).click();
+  await frame.locator('.w-why', { hasText: 'Care label: “100% ORGANIC COTTON”' }).waitFor();
   await shot('garment');
-  await frame.locator('.w-thumb', { hasText: 'Tag' }).click();
-  await frame.getByRole('button', { name: 'Show this one' }).click();
-  await frame.locator('.w-thumb', { hasText: 'Tag · shown' }).waitFor();
-  const [crew] = await w.q(`select photo_path from public.wardrobe_items where ingest_key = 'smoke-crew'`);
-  if (!/crew-tag/.test(crew.photo_path)) throw new Error(`"Show this one" in the card didn't change the photo shown: ${crew.photo_path}`);
-  await frame.locator('.w-thumb', { hasText: 'Tag' }).click();
+  // saying what a photo is comes up when you tap one: the tag is really the garment, and the main one
+  await frame.locator('.w-thumb[data-role="tag"]').click();
+  await frame.getByRole('button', { name: 'Change' }).click();
   await frame.locator('.w-seg__b', { hasText: /^Garment$/ }).click();
-  await frame.locator('.w-thumb', { hasText: 'Garment · shown' }).waitFor({ timeout: 10000 }).catch(() => {}); // the tag back to being a garment photo, if Steve says so
+  await frame.getByRole('button', { name: 'Make it the main photo' }).click();
+  await frame.locator('.w-tools:empty').waitFor({ state: 'attached' });
+  const [crew] = await w.q(`select photo_path from public.wardrobe_items where ingest_key = 'smoke-crew'`);
+  if (!/crew-tag/.test(crew.photo_path)) throw new Error(`the role and "Make it the main photo" in the card didn't save: ${crew.photo_path}`);
   await frame.getByRole('button', { name: '‹ Back' }).click();
   await frame.locator('.w-grid').waitFor();
-  step('a garment opens in the card: photos with roles, facts and their sources; "Show this one" and the roles save; Back');
+  await page.evaluate(() => window.bridge.setHostContext({ theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US' }));
+  await frame.locator('.w-row').waitFor();
+  step('a garment opens full screen: guessed facts marked, a source on tap; a photo\'s role and the main photo save; Back; closing full screen returns to the row');
 
-  // filing: a dry run's preview, then "File it" from the card
+  // filing: what it is and that it's new, only the guesses up front, then Add
   const input = { product: { brand: 'Uniqlo', name: 'Soft Brushed Crew Neck Long Sleeve T', style_number: 'HT00189AD-US', sources: { style_number: 'hang_tag' } }, variant: { manufacturer_colour: '09 Black', manufacturer_size: 'M', price: 29.9, currency: 'USD', sources: { manufacturer_colour: 'hang_tag', manufacturer_size: 'hang_tag', price: 'hang_tag' } }, item: { category: 'tops', subcategory: 'long_sleeve_t_shirt', warmth: 'mid', dressiness: 'casual', sources: { warmth: { source: 'vision_inference', confidence: 0.8 } } }, client_ref: 'smoke-black', dry_run: true };
   await show(input, await call('ingest_item', input));
-  await frame.getByRole('button', { name: 'File it' }).waitFor();
+  await frame.getByRole('button', { name: 'Add to wardrobe' }).waitFor();
   const preview = await frame.locator('#app').textContent();
-  if (!/Ready to file/.test(preview) || !/Product: already here \(matched on brand and style number\)/.test(preview) || !/09 Black \/ M: new/.test(preview) || !/hang tag/.test(preview)) throw new Error(`the card's dry run preview: ${preview.slice(0, 300)}`);
+  if (!/New colour or size/.test(preview) || !/Long sleeve t shirt · Black · M/.test(preview) || !/Warmth.*from the photo/.test(preview) || /product\.|No source given/.test(preview) || !/No photo yet/.test(preview)) throw new Error(`the card's dry run preview: ${preview.slice(0, 400)}`);
   await shot('ingest-preview');
-  await frame.getByRole('button', { name: 'File it' }).click();
-  await frame.locator('.w-banner', { hasText: 'Filed: existing product · new variant · 1 new item' }).waitFor();
-  if (!(await w.q(`select id from public.wardrobe_items where ingest_key = 'smoke-black'`)).length) throw new Error('"File it" in the card filed nothing');
+  await frame.getByRole('button', { name: 'Add to wardrobe' }).click();
+  await frame.locator('.w-done', { hasText: 'Added to your wardrobe' }).waitFor();
+  if (!(await w.q(`select id from public.wardrobe_items where ingest_key = 'smoke-black'`)).length) throw new Error('"Add to wardrobe" in the card filed nothing');
   await shot('ingest-filed');
-  step('filing: the dry run\'s preview (each level, every value\'s source, warnings), then "File it" files it');
+  step('filing: what it is and that it\'s a new colour, only the guesses up front, the tag\'s facts folded, then "Add to wardrobe" files it');
 
-  // a trip: legs and weather, each day's outfit with photos, packing ticked off from the card
+  // a trip: a glance (legs, next outfit, packing so far); Open trip for the days and packing
   const t = (await call('create_trip', { name: 'Europe, autumn', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence', from: '2026-10-14', to: '2026-11-14' }] })).structuredContent;
   const ids = (await call('find_items', {})).structuredContent.items.map((i) => i.id);
   await call('plan_days', { trip_id: t.id, days: [{ date: '2026-10-08', items: ids.slice(0, 3), occasion: 'Tate Modern, then dinner' }, { date: '2026-10-15', items: ids.slice(2, 5), occasion: 'Uffizi' }] });
   await call('set_packing', { trip_id: t.id, items: [...ids.slice(0, 4).map((item_id) => ({ item_id })), { label: 'Plug adapter', qty: 2 }] });
   await show({ id: t.id }, await call('get_trip', { id: t.id }));
-  await frame.locator('.w-day').first().waitFor();
-  if ((await frame.locator('.w-day').count()) !== 2 || (await frame.locator('.w-fit__item').count()) !== 6 || !/0 of 5 packed/.test(await frame.locator('.w-count').textContent())) throw new Error("the card's trip board doesn't show the days, outfits and packing");
+  await frame.locator('.w-next .w-sq').first().waitFor();
+  if ((await frame.locator('.w-next .w-sq').count()) !== 3 || !/0 of 5 packed/.test(await frame.locator('.w-count').textContent()) || (await frame.locator('.w-day').count())) throw new Error("the trip's glance: the next outfit and packing so far, no day list");
   await shot('trip');
+  await frame.getByRole('button', { name: 'Packing list' }).click();
   await frame.locator('.w-pack input').first().check();
   await frame.locator('.w-count', { hasText: '1 of 5 packed' }).waitFor();
+  if (!/Dark Brown/.test(await frame.locator('.w-pack').textContent())) throw new Error('the packing list should tell the same shirt in different colours apart');
   const [{ packing }] = await w.q(`select packing from public.trips where id = $1`, [t.id]);
   if (packing.filter((p) => p.packed).length !== 1) throw new Error(`ticking in the card saved ${JSON.stringify(packing)}`);
-  step('a trip: legs, each day\'s outfit with photos, and packing ticked off from the card (saved)');
+  await shot('trip-packing');
+  await frame.getByRole('tab', { name: /^Days/ }).click();
+  if ((await frame.locator('.w-day').count()) !== 2 || (await frame.locator('.w-day .w-sq').count()) !== 6) throw new Error("the trip's days: each outfit as photos");
+  await shot('trip-days');
+  step('a trip: a glance, then full screen: packing ticked off (saved) and each day\'s outfit as photos');
 
   await show({}, closet, 'dark');
-  await frame.locator('.w-card').first().waitFor();
+  await frame.locator('.w-tile').first().waitFor();
   await shot('closet-dark');
   step('in the host\'s dark theme');
 }
