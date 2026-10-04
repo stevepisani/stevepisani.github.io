@@ -24,6 +24,16 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 const unauthorized = (why: string) =>
   json({ error: "unauthorized", error_description: why }, 401, { "www-authenticate": `Bearer resource_metadata="${METADATA}", error="invalid_token"` });
 
+// the in-chat card's script, from the site (server.js puts it in the card's page); kept ten minutes
+let card: { at: number; js: string } | null = null;
+const cardScript = async () => {
+  if (card && Date.now() - card.at < 600_000) return card.js;
+  const res = await fetch("https://stevenpisani.com/assets/js/dist/mcp-app.js", { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`card script: HTTP ${res.status}`);
+  card = { at: Date.now(), js: await res.text() };
+  return card.js;
+};
+
 Deno.serve(async (req) => {
   const path = new URL(req.url).pathname;
   // RFC 9728: who guards this server, and how to ask for a token
@@ -103,6 +113,8 @@ Deno.serve(async (req) => {
       add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("trips").insert(row).select().single(); if (error) throw error; return data; },
       set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("trips").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
     },
+    cardScript,
+    storageOrigin: SUPABASE, // where the photos load from, for the card's allowed sources
     locate,
     weather: (leg: { lat: number; lon: number; from: string; to: string }) => legWeather(leg),
   };

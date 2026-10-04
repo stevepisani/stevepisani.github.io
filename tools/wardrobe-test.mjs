@@ -1,56 +1,19 @@
-// The wardrobe's data and its MCP server, tested against the real schema: every migration in
-// supabase/migrations/ runs in PGlite (Postgres in WebAssembly, in this process), with a few
-// stand-ins for what Supabase provides (auth.uid(), auth.users, storage, the roles). The three
+// The wardrobe's data and its MCP server, tested against the real schema (tools/wardrobe-db.mjs):
+// every migration in supabase/migrations/ runs in PGlite (Postgres in WebAssembly, in this
+// process), with a few stand-ins for what Supabase provides (auth.uid(), auth.users, storage,
+// the roles). The three
 // garments from the first ChatGPT test are seeded as they were, before the migration that
 // regroups them, so that migration is tested on what it'll really meet. Then the MCP tools run
 // as Steve, signed in, through row-level security, with the photos and the weather made up.
 // Offline, a few seconds.
 //
 //   node tools/wardrobe-test.mjs
-import { PGlite } from '@electric-sql/pglite';
-import { readFileSync, readdirSync } from 'node:fs';
-import { rpc, TOOLS } from '../supabase/functions/mcp/server.js';
+import { rpc, TOOLS, APP_URI, APP_MIME } from '../supabase/functions/mcp/server.js';
+import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
 
-const dir = new URL('../supabase/migrations/', import.meta.url);
-const STEVE = '11111111-1111-4111-8111-111111111111', OTHER = '22222222-2222-4222-8222-222222222222';
-const IDS = { darkBrown: 'a2f51ba0-6d53-4ab9-8e14-0975d338b22d', darkGray: '7e457d30-877c-4c2a-97ac-36b02abfeffd', brown: '240e0d92-7fe5-4433-8bbf-3af32519224b' };
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`wardrobe: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 600)}` : ''}`); passed++; };
-
-// numbers as numbers, times and dates as text, as PostgREST gives them
-const db = new PGlite({ parsers: { 1700: Number, 1184: String, 1114: String, 1082: String } });
-const q = async (sql, params = []) => (await db.query(sql, params)).rows;
-await db.exec(`
-  create role anon nologin; create role authenticated nologin; create role service_role nologin;
-  create schema auth; create table auth.users (id uuid primary key, email text);
-  create function auth.jwt() returns jsonb language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
-  create function auth.uid() returns uuid language sql stable as $$ select nullif(auth.jwt() ->> 'sub', '')::uuid $$;
-  create schema storage; create table storage.buckets (id text primary key, name text, public boolean);
-  create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text, name text, owner uuid);
-  alter table storage.objects enable row level security;
-`);
-const migrations = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-const run = async (f) => db.exec(readFileSync(new URL(f, dir), 'utf8'));
-for (const f of migrations.filter((f) => f < '20261005')) await run(f);
-
-// as the first ChatGPT test left them: three unrelated items, the tag's facts in the notes, the
-// garment type in fit, and a trip that already points at one of them
-await db.exec(`
-  insert into auth.users values ('${STEVE}', 'steve@example.com'), ('${OTHER}', 'other@example.com');
-  insert into public.members (email) values ('steve@example.com'), ('other@example.com');
-  insert into public.wardrobe_items (id, owner, name, category, photo_path, photo_file_id, brand, colour, size, fit, material, seasons, warmth, dressiness, price, currency, notes) values
-    ('${IDS.darkBrown}', '${STEVE}', 'Uniqlo Soft Brushed Crew Neck Long Sleeve T (Dark Brown)', 'tops', 'wardrobe/${STEVE}/tag-38.jpg', 'file-tag-38', 'Uniqlo', '38 Dark Brown', 'M', 'regular crew-neck long-sleeve tee', '100% cotton', '{spring,autumn,winter}', 'mid', 'casual', 29.90, 'USD',
-      'Soft Brushed Crew Neck Long Sleeve T. Product code RN139864 / HT00189AD-US. Chest 38-41 in. Bought at the SoHo store.'),
-    ('${IDS.darkGray}', '${STEVE}', 'Uniqlo Soft Brushed Crew Neck Long Sleeve T (Dark Gray)', 'tops', 'wardrobe/${STEVE}/shirt-08.jpg', null, 'Uniqlo', '08 Dark Gray', 'M', 'regular crew-neck long-sleeve tee', '100% cotton', '{spring,autumn,winter}', 'mid', 'casual', 29.90, 'USD',
-      'Soft Brushed Crew Neck Long Sleeve T. Product code RN139864 / HT00189AD-US. Chest 38-41 in.'),
-    ('${IDS.brown}', '${STEVE}', 'Uniqlo Soft Brushed Crew Neck Long Sleeve T (Brown)', 'tops', null, null, 'Uniqlo', '34 Brown', 'M', 'regular crew-neck long-sleeve tee', '100% cotton', '{spring,autumn,winter}', 'mid', 'casual', 29.90, 'USD', null),
-    ('33333333-3333-4333-8333-333333333333', '${STEVE}', 'Brown suede loafers', 'shoes', null, null, null, 'brown', '10', null, 'suede', '{spring,summer,autumn}', null, 'smart', null, 'USD', null);
-  insert into public.trips (owner, name, legs, days, packing) values ('${STEVE}', 'Europe, autumn',
-    '[{"place":"London","country":"United Kingdom","lat":51.5,"lon":-0.12,"from":"2026-10-07","to":"2026-10-14"}]',
-    '[{"date":"2026-10-08","items":["${IDS.darkGray}","33333333-3333-4333-8333-333333333333"],"occasion":"Museums"}]',
-    '[{"item_id":"${IDS.darkBrown}","qty":1,"packed":true}]');
-`);
-for (const f of migrations.filter((f) => f >= '20261005')) await run(f);
+const { db, q, run, migrations, signIn, ctx, insert, uploads, steveVariant } = await wardrobeDb();
 
 // ---------- J. The migration of the three Uniqlo shirts ----------
 {
@@ -75,70 +38,9 @@ for (const f of migrations.filter((f) => f >= '20261005')) await run(f);
   ok((await q(`select count(*)::int as n from public.wardrobe_products`))[0].n === 1 && (await q(`select count(*)::int as n from public.wardrobe_variants`))[0].n === 3 && (await q(`select count(*)::int as n from public.wardrobe_photos`))[0].n === 2, 'migration: running it twice changes nothing');
 }
 
-const steveVariant = (await q(`select id from public.wardrobe_variants limit 1`))[0].id;
 
-// what Supabase grants by default, then everything below as a signed-in member
-await db.exec(`
-  grant usage on schema public, auth, storage to authenticated;
-  grant all on all tables in schema public to authenticated;
-  grant execute on all functions in schema public, auth to authenticated;
-  set role authenticated;
-`);
-const as = (uid, email) => db.exec(`set request.jwt.claims = '${JSON.stringify({ sub: uid, email, role: 'authenticated' })}'`);
-await as(STEVE, 'steve@example.com');
+const as = await signIn();
 
-// ---------- The ctx index.ts builds on supabase-js, here on SQL ----------
-const insert = async (table, row) => {
-  const cols = Object.keys(row).map((c) => `"${c}"`).join(', ');
-  return (await q(`insert into public.${table} (${cols}) select ${cols} from jsonb_populate_record(null::public.${table}, $1::jsonb) returning *`, [JSON.stringify(row)]))[0];
-};
-const update = async (table, id, patch) => {
-  const cols = Object.keys(patch).map((c) => `"${c}"`).join(', ');
-  return (await q(`update public.${table} set (${cols}) = (select ${cols} from jsonb_populate_record(null::public.${table}, $1::jsonb)) where id = $2 returning *`, [JSON.stringify(patch), id]))[0] || null;
-};
-const byId = async (sql, id) => { try { return (await q(sql, [id]))[0] || null; } catch (e) { if (e.code === '22P02') return null; throw e; } };
-const closetRow = (id) => byId(`select * from public.wardrobe_closet where id = $1`, id);
-const uploads = [];
-const ctx = {
-  items: {
-    list: () => q(`select * from public.wardrobe_closet`),
-    get: closetRow,
-    own: (id) => byId(`select * from public.wardrobe_items where id = $1`, id),
-    add: async (row) => closetRow((await insert('wardrobe_items', row)).id),
-    set: async (id, patch) => { const r = await update('wardrobe_items', id, patch).catch((e) => { if (e.code === '22P02') return null; throw e; }); return r && closetRow(id); },
-  },
-  products: {
-    list: () => q(`select * from public.wardrobe_products`),
-    get: (id) => byId(`select * from public.wardrobe_products where id = $1`, id),
-    add: (row) => insert('wardrobe_products', row),
-    set: (id, patch) => update('wardrobe_products', id, patch),
-  },
-  variants: {
-    list: (productId) => q(`select * from public.wardrobe_variants where product_id = $1`, [productId]),
-    get: (id) => byId(`select * from public.wardrobe_variants where id = $1`, id),
-    add: (row) => insert('wardrobe_variants', row),
-    set: (id, patch) => update('wardrobe_variants', id, patch),
-  },
-  photos: {
-    list: (itemId) => q(`select * from public.wardrobe_photos where item_id = $1 order by created_at, id`, [itemId]),
-    get: (id) => byId(`select * from public.wardrobe_photos where id = $1`, id),
-    byFile: async (fileId) => (await q(`select * from public.wardrobe_photos where file_id = $1 limit 1`, [fileId]))[0] || null,
-    add: async (rows) => { for (const r of rows) await insert('wardrobe_photos', r); },
-    set: (id, patch) => update('wardrobe_photos', id, patch),
-  },
-  photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
-  readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
-  storeImage: async () => `wardrobe/${STEVE}/linen.jpg`,
-  storeUpload: async (file) => { if (/broken/.test(file.download_url)) return null; uploads.push(file.file_id); return `wardrobe/${STEVE}/${file.file_id}.jpg`; },
-  trips: {
-    list: () => q(`select * from public.trips`),
-    get: (id) => byId(`select * from public.trips where id = $1`, id),
-    add: (row) => insert('trips', row),
-    set: (id, patch) => update('trips', id, patch),
-  },
-  locate: async (place) => ({ name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
-  weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
-};
 const ask = async (method, params) => (await rpc({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
 const tool = async (name, args) => { const r = await ask('tools/call', { name, arguments: args }); return { ...r.structuredContent, text: r.content[0].text, error: r.isError }; };
 const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id, mime_type: 'image/jpeg' });
@@ -153,6 +55,21 @@ ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join()
 ok((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) === null, 'a notification gets no answer');
 ok((await tool('delete_item', { id: IDS.brown })).error, 'there is no way to delete');
 
+// ---------- The in-chat card (MCP Apps): its page, which tools show it, what each says to draw ----------
+{
+  const { resources } = await ask('resources/list');
+  ok(resources.length === 1 && resources[0].uri === APP_URI && resources[0].mimeType === APP_MIME, 'the card is listed as an MCP Apps resource', resources);
+  const { contents: [page] } = await ask('resources/read', { uri: APP_URI });
+  ok(page.mimeType === 'text/html;profile=mcp-app' && /<script src="https:\/\/stevenpisani\.com\/assets\/js\/dist\/mcp-app\.js"><\/script>/.test(page.text) && page._meta.ui.csp.resourceDomains.includes('https://stevenpisani.com'), 'with no copy of the script to hand, its page loads the site\'s, which its CSP allows', page);
+  const inlined = (await rpc({ jsonrpc: '2.0', id: 3, method: 'resources/read', params: { uri: APP_URI } }, { ...ctx, cardScript: async () => 'window.x = "</script><b>";' })).result.contents[0].text;
+  ok(inlined.includes('<script>window.x = "<\\/script><b>";</script>') && !inlined.includes('src='), 'with the script to hand, the page carries it, safely', inlined);
+  const shows = TOOLS.filter((t) => t._meta?.ui?.resourceUri === APP_URI).map((t) => t.name).sort().join();
+  ok(shows === 'find_items,get_item,get_trip,ingest_item' && TOOLS.find((t) => t.name === 'find_items')._meta['openai/outputTemplate'] === APP_URI, 'the closet, a garment, filing and a trip show the card (in both hosts\' keys)', shows);
+  ok(TOOLS.find((t) => t.name === 'tick_packing')._meta.ui.visibility.join() === 'app', 'ticking packing is the card\'s alone');
+  ok((await rpc({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'ui://nope' } }, ctx)).error, 'an unknown resource is an error');
+  ok((await ask('initialize', {})).capabilities.resources, 'the server says it has resources');
+}
+
 // ---------- A. New product, new variant, owned item, with photos ----------
 const crew = {
   product: { brand: 'Everlane', name: 'The Organic Cotton Crew', style_number: 'EV-1042', material: '100% organic cotton', country_of_origin: 'Peru', sources: { brand: 'garment_label', name: 'hang_tag', style_number: 'hang_tag', material: { source: 'care_label', confidence: 1, raw: '100% ORGANIC COTTON' }, country_of_origin: 'care_label' } },
@@ -160,7 +77,7 @@ const crew = {
   item: { category: 'tops', subcategory: 'T-shirt', warmth: 'light', dressiness: 'casual', dressiness_also: ['smart casual'], bought_on: '2026-05-01', sources: { warmth: { source: 'vision_inference', confidence: 0.85 } } },
 };
 const a = await tool('ingest_item', { ...crew, garment_photo: file('crew-front'), tag_photo: file('crew-tag'), care_label_photo: file('crew-care'), client_ref: 'crew-white-1' });
-ok(!a.error && a.product_created && a.variant_created && a.owned_item_created && a.item_ids.length === 1, 'A: a new product, variant and owned item', a);
+ok(!a.error && a.product_created && a.variant_created && a.owned_item_created && a.item_ids.length === 1 && a.view === 'ingest', 'A: a new product, variant and owned item', a);
 ok(a.item.name === 'The Organic Cotton Crew' && a.item.brand === 'Everlane' && a.item.colour === 'white' && a.item.size === 'M' && a.item.subcategory === 't_shirt' && a.item.hero_photo.endsWith('crew-front.jpg'), 'A: the flat item resolves, and the garment photo is the one shown', a.item);
 ok(a.item.seasons?.join() === 'spring,summer' && a.owned_item.sources.seasons.source === 'derived' && a.owned_item.sources.warmth.source === 'vision_inference' && a.owned_item.sources.dressiness.source === 'derived', 'A: seasons worked out from warmth, and every judgement sourced', a.owned_item);
 const crewItem = a.item.id;
@@ -207,6 +124,7 @@ ok(twinRetry.item_ids.length === 2 && !twinRetry.owned_item_created, 'F: a retry
 const uni = await tool('ingest_item', { product: { brand: 'uniqlo', name: 'Soft Brushed Crew Neck Long Sleeve T', style_number: 'ht00189ad-us', sources: { style_number: 'hang_tag' } }, variant: { manufacturer_colour: '09 Black', manufacturer_size: 'M', sources: { manufacturer_colour: 'hang_tag', manufacturer_size: 'hang_tag' } }, item: { category: 'tops', subcategory: 'long_sleeve_t_shirt' }, garment_photo: file('uni-black'), client_ref: 'uni-black' });
 ok(!uni.product_created && uni.variant_created && uni.variant.colour === 'black', 'F: a fourth Uniqlo colour lands on the migrated product (style number, any case)', uni);
 const byName = await tool('ingest_item', { product: { brand: 'Uniqlo', name: 'soft brushed crew-neck long sleeve t' }, variant: { manufacturer_colour: '38 Dark Brown', manufacturer_size: 'M' }, item: { category: 'tops' }, dry_run: true });
+ok(byName.view === 'ingest' && byName.preview.product.existing?.style_number === 'HT00189AD-US' && byName.preview.variant.existing && byName.preview.item.fields.category === 'tops', 'F: a dry run carries a preview for the card: each level, what\'s already here', byName.preview);
 ok(byName.dry_run && !byName.product_created && !byName.variant_created && byName.product_matched_by === 'brand and name' && byName.warnings.some((w) => /check it's the same garment/.test(w)), 'F: brand and the exact name (punctuation aside) match too, with a warning; dry run', byName);
 const fuzzy = await tool('ingest_item', { product: { brand: 'Uniqlo', name: 'Soft Brushed Crew Neck Tee' }, item: { category: 'tops' }, dry_run: true });
 ok(fuzzy.product_created, 'F: a merely similar name is a different product (no fuzzy matching)');
@@ -228,7 +146,7 @@ ok((await tool('ingest_item', { product: { brand: 'Acme', name: 'x', sources: { 
 // ---------- H. find_items, flat ----------
 const all = await tool('find_items', {});
 const darkBrown = all.items.find((i) => i.id === IDS.darkBrown);
-ok(Number.isInteger(all.count) && Array.isArray(all.items), 'H: find_items answers its outputSchema');
+ok(Number.isInteger(all.count) && Array.isArray(all.items) && all.view === 'closet', 'H: find_items answers its outputSchema, and tells the card to draw the closet');
 ok(darkBrown && darkBrown.name === 'Soft Brushed Crew Neck Long Sleeve T' && darkBrown.manufacturer_colour === '38 Dark Brown' && darkBrown.colour === 'dark brown' && darkBrown.product_id && darkBrown.variant_id && darkBrown.style_number === 'HT00189AD-US', 'H: find_items gives each piece flat, no joining needed', darkBrown);
 ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo shown');
 const smart = await tool('find_items', { category: 'tops', dressiness: 'smart casual' });
@@ -239,6 +157,7 @@ ok((await tool('find_items', { warmth: 'warm' })).items.every((i) => i.warmth ==
 
 // ---------- I. get_item, whole ----------
 const i = await tool('get_item', { id: IDS.darkBrown });
+ok(i.view === 'garment', 'I: get_item tells the card to draw a garment');
 ok(i.product.style_number === 'HT00189AD-US' && i.variant.manufacturer_colour === '38 Dark Brown' && i.variant.measurements.chest === '38–41 in' && i.owned_item.status === 'active' && i.owned_item.sources.migrated_from && i.photos.length === 1 && /Variant: 38 Dark Brown \/ M/.test(i.text), 'I: get_item has the product, variant, the piece itself and its photos', i);
 ok((await tool('get_item', { id: 'not-a-uuid' })).error, 'I: an id that isn\'t one is "no item"');
 
@@ -269,6 +188,12 @@ const tr = await tool('get_trip', { id: trip.id });
 ok(/Museums: Soft Brushed Crew Neck Long Sleeve T, Brown suede loafers/.test(tr.text) && /Soft Brushed Crew Neck Long Sleeve T ✓/.test(tr.text), 'M: a trip planned before the migration still names the same pieces', tr.text);
 const planned = await tool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-09', items: [crewItem, IDS.brown], occasion: 'Walk' }] });
 ok(!planned.error && planned.planned === 2, 'M: planning with the new ids works');
+const board = await tool('get_trip', { id: trip.id });
+ok(board.view === 'trip' && board.trip.days.find((d) => d.date === '2026-10-09').items.find((x) => x.id === crewItem)?.hero_photo, 'M: a trip tells the card to draw its board, with each outfit\'s photos', board.trip.days);
+const ticked = await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: false });
+ok(ticked.packed === 0 && (await q(`select packing from public.trips`))[0].packing[0].packed === false, 'M: the card ticks one thing off (or back on)', ticked);
+await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: true });
+ok((await tool('tick_packing', { trip_id: trip.id, label: 'nothing like it', packed: true })).error, 'M: ticking something not on the list is refused');
 ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select packing from public.trips`))[0].packing[0].packed === true, 'M: packing keeps what was ticked');
 
 // ---------- add_item, the quick way ----------

@@ -22,6 +22,27 @@
 //   ctx.locate(place) → { name, country, lat, lon } | null; ctx.weather(leg) → _shared/weather.js legWeather
 export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
+// The in-chat card (MCP Apps, SEP-1865, which ChatGPT and Claude both render): one small HTML
+// page, served as the resource APP_URI, that shows whatever a tool returned by its
+// structuredContent.view (closet, garment, ingest, trip) and can call tools itself (open a
+// garment, file a dry run, say what a photo is, tick packing). Its script is the site's
+// (assets/js/mcp-app/, built to /assets/js/dist/mcp-app.js), fetched by the server and put in the
+// page (ctx.cardScript), so the page needs nothing from elsewhere but the photos; if the site
+// can't be reached, the page loads the script itself. Hosts keep the page until the connector is
+// refreshed. Hosts without cards use each result's text.
+export const APP_URI = "ui://wardrobe/app.html";
+export const APP_MIME = "text/html;profile=mcp-app";
+const SITE = "https://stevenpisani.com";
+const showsCard = { ui: { resourceUri: APP_URI }, "openai/outputTemplate": APP_URI };
+export function appResource(ctx, script) {
+  const site = ctx.siteOrigin || SITE;
+  const js = script ? `<script>${script.replace(/<\/(script)/gi, "<\\/$1")}</script>` : `<script src="${site}/assets/js/dist/mcp-app.js"></script>`;
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Wardrobe</title></head><body><div id="app"></div>${js}</body></html>`;
+  // what the card may load: its script from the site, and the photos (signed links to Storage)
+  const _meta = { ui: { csp: { resourceDomains: [site, ...(ctx.storageOrigin ? [ctx.storageOrigin] : [])] }, prefersBorder: true } };
+  return { uri: APP_URI, name: "Wardrobe", title: "Steve's wardrobe", mimeType: APP_MIME, html, _meta };
+}
+
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
 const SEASONS = ["spring", "summer", "autumn", "winter"];
 const WARMTH = ["light", "mid", "warm"];
@@ -95,16 +116,18 @@ export const TOOLS = [
     title: "Find clothes in Steve's wardrobe",
     description: "Start here. Lists what Steve owns, one entry per physical garment, flat (product and variant facts filled in), optionally narrowed by words, category, season, dressiness (matches where it mostly belongs or also works) or warmth. Retired things are left out unless asked for. Use it before suggesting outfits or packing, and before ingesting, to see if a garment or its product is already here.",
     inputSchema: { type: "object", properties: { query: { type: "string", description: "Words to look for in the name, brand, colour (plain or as printed), material, style number or notes." }, category: ITEM.category, season: { type: "string", enum: SEASONS }, dressiness: ITEM.dressiness, warmth: ITEM.warmth, include_retired: { type: "boolean" } }, additionalProperties: false },
-    outputSchema: { type: "object", properties: { count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo, product_id, variant_id…" } } }, required: ["count", "items"] },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo, product_id, variant_id…" } } }, required: ["count", "items"] },
     annotations: read,
+    _meta: showsCard,
   },
   {
     name: "get_item",
     title: "Get one garment, whole",
     description: "Everything about one owned garment: the flat view, then its product and variant (if it has them), what's set on this piece alone, every photo with its role, and where each fact came from. Photo ids here are what set_photo_role takes.",
-    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
-    outputSchema: { type: "object", properties: { item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url, source." } } }, required: ["item", "owned_item", "photos"] },
+    inputSchema: { type: "object", properties: { id: { type: "string" }, focus: { type: "array", items: { type: "string", enum: ["size", "colour", "material", "fit", "price", "bought", "condition", "style_number", "origin", "measurements", "notes"] }, description: "Optional: what Steve asked about, so the card shows those facts first." } }, required: ["id"], additionalProperties: false },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url, source." } } }, required: ["item", "owned_item", "photos"] },
     annotations: read,
+    _meta: { ...showsCard, "openai/widgetAccessible": true },
   },
   {
     name: "ingest_item",
@@ -133,7 +156,7 @@ export const TOOLS = [
       additionalProperties: false,
     },
     annotations: { ...write, idempotentHint: true },
-    _meta: { "openai/fileParams": Object.keys(PHOTO_ARGS) },
+    _meta: { "openai/fileParams": Object.keys(PHOTO_ARGS), ...showsCard, "openai/widgetAccessible": true },
   },
   {
     name: "read_store_link",
@@ -164,6 +187,7 @@ export const TOOLS = [
     description: "Says what a photo is (garment, tag, care_label, detail, other), or makes it the one shown (make_hero). Photo ids come from get_item. A photo that stops being a garment photo stops being shown.",
     inputSchema: { type: "object", properties: { photo_id: { type: "string" }, role: { type: "string", enum: ROLES }, make_hero: { type: "boolean" } }, required: ["photo_id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
+    _meta: { "openai/widgetAccessible": true },
   },
   {
     name: "update_item",
@@ -198,6 +222,7 @@ export const TOOLS = [
     description: "One trip: its legs with the weather for each (the forecast where it reaches, otherwise what those dates were like the last three years), the outfit planned for each day, and the packing list. Read this before planning outfits or packing.",
     inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
     annotations: { ...read, openWorldHint: true },
+    _meta: showsCard,
   },
   {
     name: "create_trip",
@@ -226,6 +251,14 @@ export const TOOLS = [
     description: "Sets what to pack for a trip: wardrobe items (by id) and other things by label (\"charger\", \"umbrella\"), with how many. replace (the default) makes this the whole list; add appends. Whatever was already ticked off as packed stays ticked.",
     inputSchema: { type: "object", properties: { trip_id: { type: "string" }, items: { type: "array", minItems: 1, items: { type: "object", properties: { item_id: { type: "string" }, label: { type: "string" }, qty: { type: "integer", minimum: 1 } }, additionalProperties: false } }, mode: { type: "string", enum: ["replace", "add"] } }, required: ["trip_id", "items"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
+  },
+  {
+    name: "tick_packing",
+    title: "Tick something off a trip's packing list",
+    description: "For the wardrobe card's packing checklist: marks one thing on a trip's packing list (by item_id, or label) packed or not.",
+    inputSchema: { type: "object", properties: { trip_id: { type: "string" }, item_id: { type: "string" }, label: { type: "string" }, packed: { type: "boolean" } }, required: ["trip_id", "packed"], additionalProperties: false },
+    annotations: { ...write, idempotentHint: true },
+    _meta: { ui: { visibility: ["app"] }, "openai/widgetAccessible": true },
   },
 ];
 
@@ -369,6 +402,7 @@ async function whole(id, ctx) {
   const links = await ctx.photoUrls(photos.map((p) => p.path));
   const overrides = own && row.variant_id ? pick(own, ["name", "brand", "colour", "size", "material", "fit", "price", "buy_link"]) : {};
   return {
+    view: "garment",
     item,
     owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at", "created_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: own?.sources || {} },
     variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: variant.sources },
@@ -388,7 +422,7 @@ async function ingest(args, ctx) {
   for (const [arg, role] of Object.entries(PHOTO_ARGS)) for (const file of [args[arg]].flat().filter(Boolean)) photos.push({ file, role });
   const done = async (rows, how) => {
     const w = await whole(rows[0].id, ctx);
-    return { text: `Already filed (${how}): ${line(w.item)}`, data: { product_created: false, variant_created: false, owned_item_created: false, item_ids: rows.map((r) => r.id), ...w, warnings: [] } };
+    return { text: `Already filed (${how}): ${line(w.item)}`, data: { ...w, view: "ingest", product_created: false, variant_created: false, owned_item_created: false, item_ids: rows.map((r) => r.id), warnings: [] } };
   };
   // a retry: the same client_ref, or a photo already filed
   if (ref) { const rows = (await ctx.items.list()).filter((r) => r.ingest_key === ref || r.ingest_key?.startsWith(`${ref}#`)); if (rows.length) return done(rows, "same client_ref"); }
@@ -430,7 +464,15 @@ async function ingest(args, ctx) {
     CLASSIFIED.filter((k) => present(I.fields[k])).map((k) => `  ${k}: ${[I.fields[k]].flat().join("/")} [${I.sources[k].source}]`).join("\n"),
     warnings.length ? `Warnings:\n${warnings.map((w) => `  - ${w}`).join("\n")}` : "",
   ].filter(Boolean).join("\n");
-  if (args.dry_run) return { text: `Dry run, nothing written.\n${plan}`, data: { dry_run: true, product_created: P ? !product : false, variant_created: P ? !variant : false, owned_item_created: false, product_matched_by: found.by || null, warnings } };
+  // what the card shows before anything's written: each level, what's already here, every value with its source
+  const preview = {
+    product: P ? { existing: product ? pick(product, ["id", "brand", "name", "style_number"]) : null, matched_by: found.by || null, fields: P.fields, sources: P.sources } : null,
+    variant: P ? { existing: variant ? pick(variant, ["id", "manufacturer_colour", "manufacturer_size"]) : null, fields: VF.fields, sources: VF.sources } : null,
+    item: { fields: I.fields, sources: I.sources },
+    quantity: qty,
+    photos: photos.map((p) => p.role),
+  };
+  if (args.dry_run) return { text: `Dry run, nothing written.\n${plan}`, data: { view: "ingest", dry_run: true, product_created: P ? !product : false, variant_created: P ? !variant : false, owned_item_created: false, product_matched_by: found.by || null, preview, warnings } };
 
   // write: product, variant, photos, then the owned items
   let productCreated = false, variantCreated = false;
@@ -458,7 +500,7 @@ async function ingest(args, ctx) {
   }
   const w = await whole(ids[0], ctx);
   const how = [productCreated ? "new product" : P ? "existing product" : null, P ? (variantCreated ? "new variant" : "existing variant") : null, plural(ids.length, "new item")].filter(Boolean).join(", ");
-  return { text: `Filed (${how}): ${line(w.item)}${warnings.length ? `\nWarnings:\n${warnings.map((x) => `  - ${x}`).join("\n")}` : ""}`, data: { product_created: productCreated, variant_created: variantCreated, owned_item_created: true, item_ids: ids, ...w, warnings } };
+  return { text: `Filed (${how}): ${line(w.item)}${warnings.length ? `\nWarnings:\n${warnings.map((x) => `  - ${x}`).join("\n")}` : ""}`, data: { ...w, view: "ingest", product_created: productCreated, variant_created: variantCreated, owned_item_created: true, item_ids: ids, warnings } };
 }
 
 // ---------- Changing ----------
@@ -540,7 +582,7 @@ async function call(name, args = {}, ctx) {
       && (!q || key([r.name, r.brand, r.colour, r.manufacturer_colour, r.material, r.notes, r.category, r.subcategory, r.style_number].join(" ")).includes(q)));
     rows.sort((a, b) => CATEGORIES.indexOf(a.category) - CATEGORIES.indexOf(b.category) || String(a.name).localeCompare(String(b.name)));
     const items = await flat(rows, ctx);
-    return { text: items.length ? `${plural(items.length, "garment")}:\n${items.map(line).join("\n")}` : "Nothing in the wardrobe matches that.", data: { count: items.length, items } };
+    return { text: items.length ? `${plural(items.length, "garment")}:\n${items.map(line).join("\n")}` : "Nothing in the wardrobe matches that.", data: { view: "closet", count: items.length, items } };
   }
   if (name === "get_item") {
     const w = await whole(String(args.id || ""), ctx);
@@ -589,7 +631,7 @@ async function call(name, args = {}, ctx) {
     if (!row) throw new Invalid("There's no item with that id.");
     return { text: `${row.name} is ${retired ? "retired (kept, out of the wardrobe)" : "back in the wardrobe"}.`, data: { id: row.id, retired } };
   }
-  if (name.endsWith("_trip") || name === "list_trips" || name === "plan_days" || name === "set_packing") return trips(name, args, ctx);
+  if (name.endsWith("_trip") || name === "list_trips" || name === "plan_days" || name === "set_packing" || name === "tick_packing") return trips(name, args, ctx);
   throw new Invalid(`There's no tool called ${name}.`);
 }
 
@@ -629,8 +671,11 @@ async function trips(name, args, ctx) {
     const legs = await Promise.all(t.legs.map(async (l) => ({ ...l, weather: await ctx.weather(l).catch(() => null) })));
     const weatherOn = (date) => { for (const l of legs) { const d = l.weather?.days.find((x) => x.date === date); if (d) return d; } return null; };
     const placeOn = (date) => (legs.find((l) => l.from <= date && date <= l.to) || {}).place;
-    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ ...d, place: placeOn(d.date), weather: weatherOn(d.date), items: d.items.map((i) => ({ id: i, name: byId.get(i)?.name || "(no longer in the wardrobe)" })) }));
-    const packing = t.packing.map((p) => ({ ...p, name: p.item_id ? byId.get(p.item_id)?.name || "(no longer in the wardrobe)" : p.label }));
+    const links = await ctx.photoUrls([...new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id)].map((i) => byId.get(i)?.photo_path).filter(Boolean))]);
+    // what the card shows for a garment: its photo, and what tells it apart from its twins
+    const look = (i) => { const r = byId.get(i), u = links.get(r?.photo_path); return r ? Object.fromEntries(Object.entries({ category: r.category, colour: r.colour, manufacturer_colour: r.manufacturer_colour, hero_photo: u }).filter(([, v]) => v)) : {}; };
+    const days = [...t.days].sort((a, b) => a.date.localeCompare(b.date)).map((d) => ({ ...d, place: placeOn(d.date), weather: weatherOn(d.date), items: d.items.map((i) => ({ id: i, name: byId.get(i)?.name || "(no longer in the wardrobe)", ...look(i) })) }));
+    const packing = t.packing.map((p) => ({ ...p, name: p.item_id ? byId.get(p.item_id)?.name || "(no longer in the wardrobe)" : p.label, ...(p.item_id && look(p.item_id)) }));
     const text = [
       tripLine(t),
       ...legs.map((l) => `${l.place}, ${l.country} (${l.from} to ${l.to}): ${l.weather ? `${l.weather.kind === "typical" ? "typically" : l.weather.kind === "mixed" ? "forecast then typical:" : "forecast:"} highs ${l.weather.summary.hi}°C, lows ${l.weather.summary.lo}°C, about ${l.weather.summary.wet} day${l.weather.summary.wet === 1 ? "" : "s"} of rain` : "weather unavailable"}`),
@@ -638,7 +683,7 @@ async function trips(name, args, ctx) {
       packing.length ? `Packing (${packing.filter((p) => p.packed).length} of ${packing.length} packed): ${packing.map((p) => `${p.qty > 1 ? `${p.qty}× ` : ""}${p.name}${p.packed ? " ✓" : ""}`).join(", ")}` : "No packing list yet.",
       t.notes ? `Notes: ${t.notes}` : "",
     ].filter(Boolean).join("\n");
-    return { text, data: { trip: { id: t.id, name: t.name, notes: t.notes, legs, days, packing } } };
+    return { text, data: { view: "trip", trip: { id: t.id, name: t.name, notes: t.notes, legs, days, packing } } };
   }
   if (name === "update_trip") {
     const patch = {};
@@ -662,6 +707,13 @@ async function trips(name, args, ctx) {
     }
     const u = await ctx.trips.set(t.id, { days: [...days.values()].sort((x, y) => x.date.localeCompare(y.date)) });
     return { text: `Planned ${args.days.length} day${args.days.length === 1 ? "" : "s"} of ${u.name}; ${u.days.length} planned in all.`, data: { id: u.id, planned: u.days.length } };
+  }
+  if (name === "tick_packing") {
+    const which = (p) => (args.item_id ? p.item_id === args.item_id : !p.item_id && String(p.label).trim().toLowerCase() === String(args.label || "").trim().toLowerCase());
+    if (!t.packing.some(which)) throw new Invalid("That isn't on this trip's packing list.");
+    const u = await ctx.trips.set(t.id, { packing: t.packing.map((p) => (which(p) ? { ...p, packed: !!args.packed } : p)) });
+    const done = u.packing.filter((p) => p.packed).length;
+    return { text: `Packing for ${u.name}: ${done} of ${u.packing.length} packed.`, data: { trip_id: u.id, packed: done, total: u.packing.length } };
   }
   if (name === "set_packing") {
     const key = (p) => (p.item_id ? `i:${p.item_id}` : `l:${String(p.label || "").trim().toLowerCase()}`);
@@ -696,10 +748,17 @@ export async function rpc(msg, ctx) {
   switch (msg.method) {
     case "initialize": {
       const asked = msg.params?.protocolVersion;
-      return ok({ protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "wardrobe", title: "Steve's wardrobe", version: "1.0.0" }, instructions: INSTRUCTIONS });
+      return ok({ protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0], capabilities: { tools: { listChanged: false }, resources: { listChanged: false } }, serverInfo: { name: "wardrobe", title: "Steve's wardrobe", version: "1.0.0" }, instructions: INSTRUCTIONS });
     }
     case "ping": return ok({});
     case "tools/list": return ok({ tools: TOOLS });
+    case "resources/list": { const { html, ...r } = appResource(ctx); return ok({ resources: [r] }); }
+    case "resources/templates/list": return ok({ resourceTemplates: [] });
+    case "resources/read": {
+      if (msg.params?.uri !== APP_URI) return fail(-32002, `No resource ${msg.params?.uri}.`);
+      const r = appResource(ctx, await ctx.cardScript?.().catch(() => null));
+      return ok({ contents: [{ uri: r.uri, mimeType: r.mimeType, text: r.html, _meta: r._meta }] });
+    }
     case "tools/call": {
       const { name, arguments: args } = msg.params || {};
       try {
