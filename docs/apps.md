@@ -371,14 +371,16 @@ its instructions, and said on every tool that writes:
   `x-mcp-public-host`; `index.ts` then gives out that address (RFC 9728's `resource` has to be the
   URL the app used; the authorization server stays Supabase Auth, so sign-ins and tokens don't
   change). A browser opening it is sent to the app. `.github/workflows/mcp-proxy.yml` deploys it
-  on a merge that changes it, creating the Pages project (`wardrobe-mcp`) and its domain if
+  on a merge that changes it, creating the Pages project (`sjpjr-mcp`) and its domain if
   needed; free (Cloudflare's free plan: 100,000 requests a day). Setting it up is Steve's, once:
   1. A free Cloudflare account; its account id (the dashboard's URL, or Workers & Pages →
      overview) goes in the `CLOUDFLARE_ACCOUNT_ID` repo secret, and an API token with "Cloudflare
      Pages: Edit" (My Profile → API Tokens → Create token) in `CLOUDFLARE_API_TOKEN`.
   2. Run the "MCP address" workflow (Actions → MCP address → Run workflow).
   3. At Bluehost, Domains → DNS for stevenpisani.com → add a CNAME record: host `mcp`, points to
-     `wardrobe-mcp.pages.dev`. Cloudflare checks it and issues the certificate (minutes to an hour).
+     the address the workflow's run names in its summary (`sjpjr-mcp.pages.dev`, unless
+     Cloudflare had to pick another). Cloudflare checks it and issues the certificate (minutes to
+     an hour); run the workflow again to see it say "active".
   4. Connect the apps again with the new URL (below); the old one keeps working meanwhile.
 - **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
   Developer mode; then Plugins (once called Connectors, then Apps) → + → name "SJPJr", icon
