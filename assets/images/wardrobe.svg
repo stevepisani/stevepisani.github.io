@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Steve's wardrobe</title>
+  <rect width="512" height="512" rx="116" fill="#0044aa"/>
+  <g fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M224 152a32 32 0 1 1 32 32v28"/>
+    <path d="M256 212 98 318c-12 8-8 24 7 24h302c15 0 19-16 7-24z"/>
+  </g>
+  <path d="M352 342 368 378" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+  <g transform="rotate(-14 384 404)">
+    <path d="M344 380h70a10 10 0 0 1 10 10v28a10 10 0 0 1-10 10h-70l-18-24z" fill="#e0531f"/>
+    <circle cx="350" cy="404" r="6" fill="#0044aa"/>
+  </g>
+</svg>

@@ -6,23 +6,28 @@
 // (/apps/authorize), and comes back with an access token for him. Every query then runs as him,
 // so row-level security decides what it sees, as in the app. Deployed with --no-verify-jwt
 // (.github/workflows/supabase.yml): the discovery request carries no token, and tokens are
-// checked here.
+// checked here. It also answers at https://mcp.stevenpisani.com, through the proxy in proxy/
+// (Cloudflare Pages), which says so with an x-mcp-public-host header: then the addresses it
+// gives out (RFC 9728's resource, the 401's metadata link) are that one.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import { rpc } from "./server.js";
+import { PROTOCOLS, rpc } from "./server.js";
 import { fetchLimited, readProduct, storeImage } from "../_shared/product.js";
 import { legWeather, locate } from "../_shared/weather.js";
 
 const SUPABASE = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 const RESOURCE = `${SUPABASE}/functions/v1/mcp`;
-const METADATA = `${RESOURCE}/.well-known/oauth-protected-resource`;
+const PUBLIC_HOSTS = ["mcp.stevenpisani.com"];
+const SCOPES = ["openid", "email", "profile"];
+// who may call from a browser page (ChatGPT and Claude call from their servers, with no Origin)
+const ORIGINS = /^https:\/\/([a-z0-9-]+\.)*(chatgpt\.com|openai\.com|claude\.ai|claude\.com|anthropic\.com|stevenpisani\.com)$/;
 const DAY = 60 * 60 * 24;
 const PHOTO_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif", "image/gif": "gif" };
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
-const unauthorized = (why: string) =>
-  json({ error: "unauthorized", error_description: why }, 401, { "www-authenticate": `Bearer resource_metadata="${METADATA}", error="invalid_token"` });
+const unauthorized = (why: string, resource: string) =>
+  json({ error: "unauthorized", error_description: why }, 401, { "www-authenticate": `Bearer resource_metadata="${resource}/.well-known/oauth-protected-resource", scope="${SCOPES.join(" ")}", error="invalid_token"` });
 
 // the in-chat card's script, from the site (server.js puts it in the card's page); kept ten minutes
 let card: { at: number; js: string } | null = null;
@@ -36,15 +41,23 @@ const cardScript = async () => {
 
 Deno.serve(async (req) => {
   const path = new URL(req.url).pathname;
+  const host = req.headers.get("x-mcp-public-host");
+  const resource = host && PUBLIC_HOSTS.includes(host) ? `https://${host}` : RESOURCE; // the address the app used
   // RFC 9728: who guards this server, and how to ask for a token
   if (path.endsWith("/.well-known/oauth-protected-resource")) {
-    return json({ resource: RESOURCE, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: ["openid", "email", "profile"], resource_name: "Steve's wardrobe" }, 200, { "access-control-allow-origin": "*" });
+    return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "Steve's wardrobe", resource_documentation: "https://stevenpisani.com/apps/wardrobe" }, 200, { "access-control-allow-origin": "*" });
   }
+  // the transport's checks (MCP 2025-11-25): a page elsewhere can't use a browser's way in, and
+  // a protocol this server doesn't speak is said plainly
+  const origin = req.headers.get("origin");
+  if (origin && !ORIGINS.test(origin)) return json({ error: "forbidden", error_description: "Not from an app this server works with." }, 403);
+  const version = req.headers.get("mcp-protocol-version");
+  if (version && !PROTOCOLS.includes(version)) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: `Unsupported MCP-Protocol-Version ${version}; this server speaks ${PROTOCOLS.join(", ")}.` } }, 400);
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, mcp-protocol-version, mcp-session-id", "access-control-allow-methods": "POST, OPTIONS" } });
   if (req.method !== "POST") return json({ error: "POST only: this server keeps no stream open." }, 405, { allow: "POST" });
 
   const token = /^Bearer (.+)$/i.exec(req.headers.get("authorization") ?? "")?.[1];
-  if (!token) return unauthorized("Sign in first.");
+  if (!token) return unauthorized("Sign in first.", resource);
   // "Authorization", spelled as supabase-js spells it: another spelling is sent alongside its own,
   // as "Bearer t, Bearer t", which Supabase Auth refuses
   const db = createClient(SUPABASE, ANON, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
@@ -55,7 +68,7 @@ Deno.serve(async (req) => {
     try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
     const { aud, iss, role, scope, exp, client_id } = claims as Record<string, unknown>;
     console.warn("mcp: token refused:", error?.message, JSON.stringify({ aud, iss, role, scope, client: !!client_id, email: "email" in claims, expired: typeof exp === "number" && exp * 1000 < Date.now() }));
-    return unauthorized("That sign-in has expired or isn't valid.");
+    return unauthorized("That sign-in has expired or isn't valid.", resource);
   }
   const { data: member } = await db.rpc("is_member");
   if (member !== true) { console.warn("mcp: not a member"); return json({ error: "forbidden", error_description: "Members only." }, 403); }

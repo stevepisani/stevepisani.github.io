@@ -598,6 +598,7 @@ async function card(page, shot) {
   const closet = await call('find_items', {});
   await show({}, closet);
   await frame.locator('.w-row .w-tile').first().waitFor();
+  if (!(await frame.locator('.w-row img[src^="data:image"]').count())) throw new Error("the card's photos (sent in the result's _meta) don't show");
   if ((await frame.locator('.w-tile').count()) !== closet.structuredContent.count) throw new Error("the card's closet row doesn't show every garment");
   const names = await frame.locator('.w-tile__name').allTextContents();
   if (!names.includes('Dark Brown') || names.filter((n) => /Soft Brushed/.test(n)).length) throw new Error(`garments sharing a name aren't told apart by colour: ${names.join(', ')}`);

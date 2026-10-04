@@ -15,5 +15,6 @@
 <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
 {% if page.layout == 'app' %}<link rel="stylesheet" href="{{ '/assets/css/apps.css' | relative_url }}?v={{ site.time | date: '%s' }}">
 <meta name="robots" content="noindex">{% endif %}
-<link rel="icon" href="{{ '/assets/images/sj-64.png' | relative_url }}">
-<link rel="apple-touch-icon" href="{{ '/assets/images/sj-180.png' | relative_url }}">
+{%- assign icon = page.icon | default: 'sj' %}
+<link rel="icon" href="{{ '/assets/images/' | append: icon | append: '-64.png' | relative_url }}">
+<link rel="apple-touch-icon" href="{{ '/assets/images/' | append: icon | append: '-180.png' | relative_url }}">
