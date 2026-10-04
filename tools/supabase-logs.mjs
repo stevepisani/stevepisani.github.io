@@ -1,7 +1,7 @@
 // What the edge functions did lately, from the Supabase project's logs (Management API), for
-// finding out why a function failed: each request's time, function, method, path and status, and
-// what the functions wrote to the console. Only paths, never query strings, headers or bodies: the
-// Actions log this prints to is public.
+// finding out why a function failed: each request's time, method, path and status, and what the
+// functions wrote to the console. Never query strings, headers or bodies: the Actions log this
+// prints to is public.
 //
 //   SUPABASE_ACCESS_TOKEN=... node tools/supabase-logs.mjs [hours=2]
 import { readFileSync } from 'node:fs';
@@ -21,18 +21,14 @@ async function logs(sql) {
   return body.result || [];
 }
 
-console.log(`Edge function requests, the last ${hours} h (newest first):`);
-for (const r of await logs(`select timestamp, request.method, request.pathname, response.status_code
-  from function_edge_logs
-  cross join unnest(metadata) as m cross join unnest(m.request) as request cross join unnest(m.response) as response
-  order by timestamp desc limit 80`)) {
-  console.log(`  ${new Date(r.timestamp / 1000).toISOString()}  ${r.status_code}  ${r.method.padEnd(7)} ${r.pathname}`);
-}
-
-console.log(`\nErrors and warnings the functions logged, the last ${hours} h (newest first):`);
-for (const r of await logs(`select timestamp, m.function_id, m.level, event_message
-  from function_logs cross join unnest(metadata) as m
-  where m.level in ('error', 'warning')
-  order by timestamp desc limit 60`)) {
-  console.log(`  ${new Date(r.timestamp / 1000).toISOString()}  ${r.level}  ${String(r.event_message).replace(/\s+/g, ' ').slice(0, 300)}`);
+// One `logs` table (ClickHouse SQL), each row with its source_name; the edge gateway's lines read
+// "POST | 401 | https://…/functions/v1/mcp", and anything after a "?" is cut off here.
+const clean = (t) => String(t).replace(/\?[^\s|"]*/g, '').replace(/\s+/g, ' ').slice(0, 300);
+const sources = await logs(`select source_name, count() as n from logs group by source_name order by n desc`);
+console.log(`Sources, the last ${hours} h: ${sources.map((r) => `${r.source_name} ${r.n}`).join(', ')}`);
+for (const { source_name: src } of sources.filter((r) => /function/.test(r.source_name))) {
+  console.log(`\n${src} (newest first):`);
+  const rows = await logs(`select timestamp, event_message, mapKeys(log_attributes) as keys from logs where source_name = '${src}' order by timestamp desc limit 60`);
+  if (rows[0]) console.log(`  fields: ${(rows[0].keys || []).join(', ')}`);
+  for (const r of rows) console.log(`  ${new Date(typeof r.timestamp === 'number' ? r.timestamp / 1000 : r.timestamp).toISOString()}  ${clean(r.event_message)}`);
 }
