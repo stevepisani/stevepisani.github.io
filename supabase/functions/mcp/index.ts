@@ -1,4 +1,4 @@
-// The wardrobe's MCP server, for ChatGPT and Claude (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
+// SJPJr's MCP server, for ChatGPT and Claude (docs/apps.md): https://<ref>.supabase.co/functions/v1/mcp
 // MCP over Streamable HTTP, stateless (server.js has the tools and the JSON-RPC). Signing in is
 // OAuth 2.1 through Supabase Auth's OAuth server: a request without a valid token gets a 401
 // pointing at this server's protected-resource metadata, which names Supabase Auth as the
@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
   const resource = host && PUBLIC_HOSTS.includes(host) ? `https://${host}` : RESOURCE; // the address the app used
   // RFC 9728: who guards this server, and how to ask for a token
   if (path.endsWith("/.well-known/oauth-protected-resource")) {
-    return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "Steve's wardrobe", resource_documentation: "https://stevenpisani.com/apps/wardrobe" }, 200, { "access-control-allow-origin": "*" });
+    return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "SJPJr", resource_documentation: "https://stevenpisani.com/apps/wardrobe" }, 200, { "access-control-allow-origin": "*" });
   }
   // the transport's checks (MCP 2025-11-25): a page elsewhere can't use a browser's way in, and
   // a protocol this server doesn't speak is said plainly

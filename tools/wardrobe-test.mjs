@@ -9,7 +9,7 @@
 //
 //   node tools/wardrobe-test.mjs
 import { existsSync, readFileSync } from 'node:fs';
-import { rpc, TOOLS, APP_URI, APP_MIME, ICONS } from '../supabase/functions/mcp/server.js';
+import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
 
 let passed = 0;
@@ -51,7 +51,7 @@ const count = async (table) => (await q(`select count(*)::int as n from public.$
 
 // ---------- The protocol ----------
 ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion === '2025-06-18' && (await ask('initialize', { protocolVersion: '2025-11-25' })).protocolVersion === '2025-11-25', 'the handshake picks the asked protocol (ChatGPT\'s and Claude\'s)');
-ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's private wardrobe/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
+ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
 const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
 ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos', 'ingest_item takes uploaded photos');
@@ -59,7 +59,9 @@ ok((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) ===
 ok((await tool('delete_item', { id: IDS.brown })).code === -32602, 'there is no way to delete (an unknown tool is a protocol error)');
 {
   const hello = await ask('initialize', { protocolVersion: '2025-11-25' });
-  ok(hello.serverInfo.title === "Steve's wardrobe" && hello.serverInfo.websiteUrl === 'https://stevenpisani.com/apps/wardrobe' && hello.serverInfo.icons.some((i) => i.mimeType === 'image/png' && i.sizes.includes('512x512')) && ICONS.every((i) => existsSync(new URL(`..${new URL(i.src).pathname}`, import.meta.url))), 'the server says who it is, with its logo (files that exist) and its home', hello.serverInfo);
+  ok(hello.serverInfo.title === 'SJPJr' && hello.serverInfo.websiteUrl === 'https://stevenpisani.com' && hello.serverInfo.icons.some((i) => i.mimeType === 'image/png' && i.sizes.includes('512x512')) && ICONS.every((i) => existsSync(new URL(`..${new URL(i.src).pathname}`, import.meta.url))), 'the server says who it is, with its logo (files that exist) and its home', hello.serverInfo);
+  ok(hello.instructions.includes(RULES) && AREAS.every((a) => hello.instructions.includes(a.instructions)), 'the model is told the rules, and how to use each area');
+  ok(TOOLS.every((t) => !t.annotations.destructiveHint && !/^(delete|remove|destroy)_/.test(t.name)) && AREAS.every((a) => a.records || a.tools.every((t) => t.annotations.readOnlyHint)), 'the rules hold: nothing deletes, and only areas of Steve\'s own records write');
   ok(Buffer.byteLength(hello.instructions) < 2048 && /find_items/.test(hello.instructions.slice(0, 512)), 'its instructions fit what hosts read (under 2 KB, the start first)');
   ok(TOOLS.every((t) => [t._meta['openai/toolInvocation/invoking'], t._meta['openai/toolInvocation/invoked']].every((x) => x && x.length <= 64)), 'every tool says what it\'s doing while it runs, briefly');
 }

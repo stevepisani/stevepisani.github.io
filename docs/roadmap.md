@@ -6,6 +6,12 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **SJPJr, the MCP server, grows by area** (`docs/apps.md`, "Adding an area"). First the
+   wardrobe and trips working end to end in ChatGPT (the card, packing for the Europe trip), then,
+   in order: recipes (read and write: find, add, mark cooked, rate, notes; a card with photos), then
+   the site's content, read-only (favorite drinks, books, profile, career, posts, lab). Ideas
+   welcome for anything else Steve logs.
+
 0. **The wardrobe** (`docs/apps.md`): the closet, ChatGPT through an MCP server, trips, and
    then Today, pack mode, offline, the item view and the in-chat card (closet, garment, ingest
    preview, trip board): done. Next, in order:
