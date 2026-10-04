@@ -1,0 +1,92 @@
+---
+layout: app
+app: wardrobe
+title: Wardrobe
+lede: Steve's clothes, each with a photo, what it is, and where to buy another.
+---
+<div class="app-bar">
+  <input id="search" type="search" placeholder="Search the wardrobe" aria-label="Search the wardrobe">
+  <button class="btn btn--small" id="add" type="button">Add</button>
+</div>
+<div class="chips" id="cats" role="group" aria-label="Category"></div>
+<div class="closet-filters">
+  <select id="season" aria-label="Season">
+    <option value="">Any season</option><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option>
+  </select>
+  <select id="dress" aria-label="How dressy">
+    <option value="">Any dressiness</option><option value="casual">Casual</option><option value="smart casual">Smart casual</option><option value="smart">Smart</option><option value="formal">Formal</option>
+  </select>
+  <select id="shelf" aria-label="Show">
+    <option value="in">In the closet</option><option value="retired">Retired</option>
+  </select>
+</div>
+
+<ul class="closet" id="grid"></ul>
+<p class="app-empty" id="empty" hidden></p>
+
+<template id="tile">
+  <li class="tile">
+    <button class="tile__open" type="button">
+      <span class="tile__photo"><img alt="" loading="lazy" decoding="async" hidden><span class="tile__none" aria-hidden="true"></span></span>
+      <span class="tile__name"></span>
+      <span class="tile__meta"></span>
+    </button>
+  </li>
+</template>
+
+<dialog class="app-dialog" id="add-dialog" aria-labelledby="add-title">
+  <form method="dialog">
+    <h2 id="add-title">Add to the wardrobe</h2>
+    <label class="btn btn--ghost btn--small photo-btn" id="add-photo"><span>Take or choose a photo</span><input class="visually-hidden" name="photo" type="file" accept="image/*"></label>
+    <div class="add-link">
+      <label>Or a store link <input name="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
+      <button class="btn btn--ghost btn--small" id="read-link" type="button">Read it</button>
+    </div>
+    <figure class="add-preview" id="add-preview" hidden><span class="tile__photo"><img alt=""></span><figcaption id="add-status" role="status"></figcaption></figure>
+    <label>Name <input name="name" type="text" required maxlength="120"></label>
+    <label>Category <select name="category" id="add-category"></select></label>
+    <div class="app-dialog__buttons">
+      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
+      <button class="btn btn--small" type="submit" value="ok" id="add-ok">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog sheet" id="sheet" aria-labelledby="sheet-name-label">
+  <form method="dialog" class="sheet__form">
+    <div class="sheet__top">
+      <span class="tile__photo sheet__photo"><img alt="" hidden><span class="tile__none" aria-hidden="true"></span></span>
+      <div class="sheet__head">
+        <label id="sheet-name-label">Name <input data-is="name" type="text" maxlength="120"></label>
+        <label>Category <select data-is="category"></select></label>
+        <div class="sheet__buy">
+          <a class="btn btn--small" id="buy" target="_blank" rel="noopener">Buy another</a>
+          <a class="link-btn" id="find" target="_blank" rel="noopener">Find another</a>
+        </div>
+        <label class="btn btn--ghost btn--small photo-btn" id="sheet-photo"><span>Change the photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
+      </div>
+    </div>
+    <div class="sheet__grid">
+      <label>Brand <input data-is="brand" type="text"></label>
+      <label>Colour <input data-is="colour" type="text"></label>
+      <label>Size <input data-is="size" type="text"></label>
+      <label>Material <input data-is="material" type="text"></label>
+      <label class="sheet__wide">Fit <input data-is="fit" type="text" placeholder="Runs small, size up"></label>
+      <fieldset class="sheet__wide sheet__seasons"><legend>Seasons</legend>
+        <label><input type="checkbox" value="spring"> Spring</label><label><input type="checkbox" value="summer"> Summer</label><label><input type="checkbox" value="autumn"> Autumn</label><label><input type="checkbox" value="winter"> Winter</label>
+      </fieldset>
+      <label>Warmth <select data-is="warmth"><option value="">Not set</option><option value="light">Light</option><option value="mid">Mid</option><option value="warm">Warm</option></select></label>
+      <label>Dressiness <select data-is="dressiness"><option value="">Not set</option><option value="casual">Casual</option><option value="smart casual">Smart casual</option><option value="smart">Smart</option><option value="formal">Formal</option></select></label>
+      <label>Price <input data-is="price" type="text" inputmode="decimal"></label>
+      <label>Currency <input data-is="currency" type="text" maxlength="3" autocapitalize="characters"></label>
+      <label>Bought on <input data-is="bought_on" type="date"></label>
+      <label class="sheet__wide">Where to buy another <input data-is="buy_link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
+      <label class="sheet__wide">Notes <textarea data-is="notes" rows="3"></textarea></label>
+    </div>
+    <div class="sheet__foot">
+      <button class="link-btn" id="retire" type="button"></button>
+      <button class="link-btn link-btn--bad" id="remove" type="button">Delete it</button>
+      <button class="btn btn--small" type="button" data-close>Done</button>
+    </div>
+  </form>
+</dialog>

@@ -41,6 +41,12 @@ What's in the database:
 
 Approving a bottle is, for now, setting `approved = true` on its row (as a member).
 
+## The wardrobe's functions
+
+`supabase/functions/wardrobe-link`: reads a shop's product page for the wardrobe (name, brand,
+picture, price; `_shared/product.ts`), called with the member's own session, so the picture it
+stores lands in their folder under their rules. No running cost. See `docs/apps.md`.
+
 ## The bartender (`supabase/functions/bartender`)
 
 The robot answers questions at the bar. The browser posts the conversation (last 12 turns) with
