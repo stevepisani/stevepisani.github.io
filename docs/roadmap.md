@@ -6,11 +6,18 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **The wardrobe** (`docs/apps.md`), in three steps: the closet and ChatGPT through an MCP
-   server with read and write tools (OAuth on the site's sign-in), and trips (weather, day-by-day
-   outfits, a packing list): done. Next: generated product shots and outfit pictures (flat, or on
-   Steve), made on the server with OpenAI's image API under a $10 a month cap, and a ChatGPT widget
-   that shows them; needs an `OPENAI_API_KEY` repo secret from Steve.
+0. **The wardrobe** (`docs/apps.md`): the closet, ChatGPT through an MCP server, trips, and
+   then Today, pack mode, offline and the item view: done. Next, in order:
+   - generated product shots and outfit pictures (flat, or on Steve), made on the server with
+     OpenAI's image API under a $10 a month cap, and a ChatGPT widget that shows them; needs an
+     `OPENAI_API_KEY` repo secret from Steve;
+   - the capsule card ("16 pieces, 64 outfits", counting only what goes together) and a laundry
+     planner (when each leg runs out of clean clothes);
+   - a gap finder per leg (a formal dinner in Paris and nothing smart packed);
+   - a wore-it log with cost per wear (the planned outfit counts as worn unless changed), and
+     packed versus worn on the packing list;
+   - Dress Me (shuffle an outfit, pin the pieces you like), a warning when the same thing is in
+     too many photos, and Trip Wrapped at the end (most worn, never worn, a picture per city).
 
 0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
    saved to the home screen (which keeps its own storage on iOS) never gets signed in. Put the
@@ -52,6 +59,9 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the wardrobe (/apps/wardrobe): the closet with cut-out photos, ChatGPT through an MCP
+  server (OAuth on the site's sign-in), trips with weather, outfits and packing; then Today, pack
+  mode with Undo, opening with no connection, and an item view that shows what it is first.
 - Oct 2026: the private apps at /apps: one sign-in, the site's look and themes, a shared kit; the
   recipe tracker rebuilt on it (it was a standalone page), with a browser test.
 

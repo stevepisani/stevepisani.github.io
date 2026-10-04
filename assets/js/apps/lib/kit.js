@@ -8,22 +8,32 @@ const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content |
 export const db = createClient(meta('supabase-url'), meta('supabase-key'));
 export const $ = (sel, el = document) => el.querySelector(sel);
 
-// One line at the bottom of the screen, gone in a few seconds (longer when it's bad news).
+// One line at the bottom of the screen, gone in a few seconds (longer when it's bad news, or
+// when it offers a way back: `undo` runs if its Undo button is pressed in time).
 let toastTimer;
-export function toast(text, bad = false) {
+export function toast(text, bad = false, undo = null) {
   const el = $('#app-toast');
   el.textContent = text;
+  if (undo) {
+    const b = Object.assign(document.createElement('button'), { type: 'button', className: 'app-toast__undo', textContent: 'Undo' });
+    b.addEventListener('click', () => { el.hidden = true; undo(); }, { once: true });
+    el.append(b);
+  }
   el.classList.toggle('is-bad', bad);
   el.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, bad ? 6000 : 3000);
+  toastTimer = setTimeout(() => { el.hidden = true; }, bad || undo ? 6000 : 3000);
 }
 
 // The gate: the sign-in form until a member is signed in, then the app. Who's a member is the
 // database's call (public.members, through is_member()); row-level security enforces it, this
 // only decides what to show. `open(user)` runs each time a member arrives, `close()` when they
-// sign out (so nothing of theirs is left in the page).
-export function start(open = () => {}, close = () => {}) {
+// sign out (so nothing of theirs is left in the page). An app that keeps a copy of its data on
+// the phone passes `{ offline: true }`: then with no connection it opens for whoever was last
+// signed in on this browser (the database can't be asked, and its token may have run out), with
+// `user.offline` set, and shows what it kept. (Row-level security still decides what any change
+// it sends later may touch.)
+export function start(open = () => {}, close = () => {}, { offline = false } = {}) {
   const app = $('#app'), note = $('#gate-note');
   let current; // the address the page is showing things for (null: nobody; undefined: not asked yet)
   const show = (state) => {
@@ -35,13 +45,23 @@ export function start(open = () => {}, close = () => {}) {
     if (nav) nav.hidden = state !== 'in';
   };
 
+  const kept = () => { // the person last signed in here, from supabase-js's own copy of the session
+    try { return JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k))))?.user || null; } catch (e) { return null; }
+  };
+  const cut = (error) => !navigator.onLine || /fetch|network|load failed/i.test(error?.message || '');
   async function arrive(session) {
+    if (!session && offline && !navigator.onLine && kept()) session = { user: { ...kept(), offline: true } };
     const email = session?.user?.email || null;
     if (email === current) return; // a refreshed token, not a new person
     current = email;
     if (!email) { close(); return show('out'); }
-    const { data, error } = await db.rpc('is_member');
+    const { data, error } = session.user.offline ? { error: { message: 'offline' } } : await db.rpc('is_member');
     if (current !== email) return; // someone else arrived while it was asking
+    if (offline && error && (session.user.offline || cut(error))) {
+      $('#app-email').textContent = email;
+      show('in');
+      return open({ ...session.user, offline: true });
+    }
     if (error || data !== true) {
       current = null;
       if (!error) await db.auth.signOut();
