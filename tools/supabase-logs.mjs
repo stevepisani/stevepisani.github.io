@@ -15,7 +15,7 @@ const hours = Number(process.argv[2]) || 2;
 
 async function logs(sql) {
   const q = new URLSearchParams({ sql, iso_timestamp_start: new Date(Date.now() - hours * 36e5).toISOString(), iso_timestamp_end: new Date().toISOString() });
-  const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all?${q}`, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(`https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs?${q}`, { headers: { Authorization: `Bearer ${token}` } });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || body.error) throw new Error(`HTTP ${res.status} ${JSON.stringify(body.error || body).slice(0, 300)}`);
   return body.result || [];
