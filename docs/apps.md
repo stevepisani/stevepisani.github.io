@@ -177,18 +177,29 @@ wardrobe MCP server, signed in as him (below).
   or more asks for something whose name, material or notes say rain, waterproof, shell, Gore-Tex,
   trench, mac or umbrella, and warns off suede; a low under 8° with nothing from outerwear or
   warm; a high of 26° or more with something warm.
-- **Packing** (`#trip/<id>/pack`): "To pack" (what's left) or "All", how many are packed and how
-  long until you leave, then a row a thing by category (other things last), each with its photo,
-  how many, and a round tick. Ticking says so with Undo; × takes it off the list (with Undo).
-  "Make the list from the planned outfits" (or "Add from the planned outfits") adds what the
-  planned days wear that isn't on it yet.
+- **The trip page** adds, when there are any: Who's going, Getting there (transport in date and
+  time order, times as given, never converted: an arrival on another day says its date), Staying
+  (lodging) and Links; each day shows its activities under its summary, in time order (Today's
+  card too).
+- **The Packing Board** (`#trip/<id>/pack`): the status as a bar with counts (To pack, the
+  default: everything not packed; Need, To buy, Ready, Packed, All), how many are packed and how
+  long until you leave, then whose (Everyone, each traveler, Shared: "shared" or nobody's), a
+  category and a bag (the filters kept per trip in `wardrobe-pack`). Rows by category (Clothes,
+  Shoes, Baby, Toiletries, Medicine, Electronics, Documents, Work, Accessories, Gear, Misc): a
+  garment with its photo, brand and colour, the days it's planned and its bag; anything else with
+  whose it is. One tap on the status moves it on (needed → ready → packed; to buy → ready), with
+  Undo; the status reads as a word and a ring, not colour alone. Tapping the row opens it: status,
+  whose, bag, how many, essential, notes, "Take it off the list" (the entry only, with Undo), and
+  the garment. Each change is one PATCH of that entry's row, never the whole list. "Add from the
+  planned outfits" adds the planned garments not on the list (Steve's, if the trip has a "steve");
+  the add form takes a label, whose and a category.
 - **With no connection** (a plane, a train abroad): every load keeps a copy on the phone
-  (`localStorage` `wardrobe-copy:<user id>`: the rows and the photo links; `wardrobe-wx`: the last
+  (`localStorage` `wardrobe-copy:<user id>`: the rows, the trips' parts and the photo links; `wardrobe-wx`: the last
   weather for each leg; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
   the page and its scripts. Offline, the app opens on that copy and says how old it is. Packing
-  ticks work and wait in `wardrobe-queue`; they're sent (the whole list per trip, the last one
-  wins) when the connection's back, before anything is loaded. Adding and editing wait for a
-  connection, and say so.
+  changes work and wait in `wardrobe-packing-queue`, by entry (the patches merged); they're sent,
+  one PATCH an entry, when the connection's back, before anything is loaded. Adding, taking off
+  and editing a trip wait for a connection, and say so.
 - **Weather** comes from Open-Meteo (free, no key; `supabase/functions/_shared/weather.js`, which
   the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
   the rest the same dates over the last three years, the temperatures averaged and the chance of

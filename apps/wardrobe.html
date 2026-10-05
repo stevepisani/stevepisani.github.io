@@ -51,7 +51,19 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
       <p class="trip__when" id="trip-when"></p>
       <button class="link-btn" id="trip-edit" type="button">Edit</button>
     </header>
+    <section class="trip__part" id="trip-who-part" aria-labelledby="who-title" hidden>
+      <h3 id="who-title">Who's going</h3>
+      <p class="trip-who" id="trip-who"></p>
+    </section>
     <ol class="legs" id="legs"></ol>
+    <section class="trip__part" id="trip-go-part" aria-labelledby="go-title" hidden>
+      <h3 id="go-title">Getting there</h3>
+      <ol class="info-rows" id="trip-go"></ol>
+    </section>
+    <section class="trip__part" id="trip-stay-part" aria-labelledby="stay-title" hidden>
+      <h3 id="stay-title">Staying</h3>
+      <ul class="info-rows" id="trip-stay"></ul>
+    </section>
     <section class="trip__part" aria-labelledby="days-title">
       <h3 id="days-title">Day by day</h3>
       <ol class="days" id="days"></ol>
@@ -61,6 +73,10 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
       <h3 id="pack-title">Packing</h3>
       <p class="pack-sum"><span id="pack-sum"></span> <a class="link-btn" id="pack-open" href="#">Pack ›</a></p>
     </section>
+    <section class="trip__part" id="trip-links-part" aria-labelledby="links-title" hidden>
+      <h3 id="links-title">Links</h3>
+      <ul class="info-rows" id="trip-links"></ul>
+    </section>
     <p class="trip__notes" id="trip-notes" hidden></p>
   </article>
 
@@ -68,17 +84,26 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
     <a class="link-btn" id="pack-back" href="#"></a>
     <header class="pack-view__head">
       <h2>Packing</h2>
-      <div class="seg" id="pack-show" role="group" aria-label="Show">
-        <button type="button" data-value="left" aria-pressed="true">To pack <span id="pack-left"></span></button>
-        <button type="button" data-value="all" aria-pressed="false">All <span id="pack-all"></span></button>
-      </div>
+      <p class="pack-view__count" id="pack-count"></p>
     </header>
     <div class="app-progress pack-progress" id="pack-progress" role="progressbar" aria-label="Packed" aria-valuemin="0"><div></div></div>
-    <p class="pack-view__count" id="pack-count"></p>
+    <div class="seg pack-status" id="pack-status" role="group" aria-label="Show"></div>
+    <div class="pack-filters" id="pack-filters">
+      <div class="cats pack-who" id="pack-who" role="group" aria-label="Whose"></div>
+      <div class="pack-filters__pick">
+        <select id="pack-cat" aria-label="Category"></select>
+        <select id="pack-bag" aria-label="Bag"></select>
+      </div>
+    </div>
     <button class="btn btn--ghost btn--small" id="pack-from-plan" type="button" hidden>Make the list from the planned outfits</button>
     <div id="pack-groups"></div>
     <p class="app-empty" id="pack-empty" hidden></p>
-    <form class="pack-add" id="pack-add"><label>Add something <input name="label" type="text" maxlength="120" placeholder="Charger, umbrella…"></label><button class="btn btn--ghost btn--small" type="submit">Add</button></form>
+    <form class="pack-add" id="pack-add">
+      <label class="pack-add__label">Add something <input name="label" type="text" maxlength="120" placeholder="Charger, sunscreen…"></label>
+      <select name="traveler" id="pack-add-who" aria-label="Whose"></select>
+      <select name="category" id="pack-add-cat" aria-label="Category"></select>
+      <button class="btn btn--ghost btn--small" type="submit">Add</button>
+    </form>
   </article>
 </div>
 
@@ -164,6 +189,34 @@ lede: Steve's clothes, each with a photo, what it is, and where to buy another; 
       <button class="link-btn sheet__view" id="sheet-edit" type="button">Edit</button>
       <button class="link-btn sheet__edit" id="retire" type="button"></button>
       <button class="link-btn link-btn--bad sheet__edit" id="remove" type="button">Delete it</button>
+      <button class="btn btn--small" type="button" data-close>Done</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog pack-sheet" id="pack-sheet" aria-labelledby="ps-name">
+  <form method="dialog">
+    <div class="pack-sheet__top">
+      <span id="ps-photo"></span>
+      <div>
+        <p class="sheet__cat" id="ps-cat"></p>
+        <h2 id="ps-name"></h2>
+        <button class="link-btn" id="ps-garment" type="button">See the garment</button>
+      </div>
+    </div>
+    <div class="seg pack-sheet__status" id="ps-status" role="group" aria-label="Status"></div>
+    <div class="pack-sheet__grid">
+      <label>Whose <select id="ps-who"></select></label>
+      <label>Bag <select id="ps-bag"></select></label>
+      <div class="pack-sheet__qty" role="group" aria-labelledby="ps-qty-label">
+        <span class="pack-sheet__label" id="ps-qty-label">How many</span>
+        <div class="stepper"><button class="btn btn--ghost btn--small" id="ps-less" type="button" aria-label="One fewer">−</button><output id="ps-qty" aria-live="polite"></output><button class="btn btn--ghost btn--small" id="ps-more" type="button" aria-label="One more">+</button></div>
+      </div>
+      <label class="pack-sheet__check"><input id="ps-essential" type="checkbox"> Essential</label>
+      <label class="sheet__wide">Notes <textarea id="ps-notes" rows="2"></textarea></label>
+    </div>
+    <div class="sheet__foot">
+      <button class="link-btn link-btn--bad" id="ps-remove" type="button">Take it off the list</button>
       <button class="btn btn--small" type="button" data-close>Done</button>
     </div>
   </form>
