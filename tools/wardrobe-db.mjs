@@ -100,6 +100,7 @@ export async function wardrobeDb() {
     },
     photos: {
       list: (itemId) => q(`select * from public.wardrobe_photos where item_id = $1 order by created_at, id`, [itemId]),
+      forItems: (itemIds) => q(`select * from public.wardrobe_photos where item_id = any($1::uuid[]) order by created_at, id`, [itemIds]),
       get: (id) => byId(`select * from public.wardrobe_photos where id = $1`, id),
       byFile: async (fileId) => (await q(`select * from public.wardrobe_photos where file_id = $1 limit 1`, [fileId]))[0] || null,
       add: async (rows) => { for (const r of rows) await insert('wardrobe_photos', r); },
@@ -107,7 +108,7 @@ export async function wardrobeDb() {
     },
     photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
     readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
-    storeImage: async () => `wardrobe/${STEVE}/linen.jpg`,
+    storeImage: async (url) => (/\.(jpe?g|png|webp)$/i.test(url) ? `wardrobe/${STEVE}/${url.split('/').pop()}` : null), // a picture's address, not a page's
     storeUpload: async (file) => { if (/broken/.test(file.download_url)) return null; uploads.push(file.file_id); return `wardrobe/${STEVE}/${file.file_id}.jpg`; },
     trips: {
       list: () => q(`select * from public.trips`),

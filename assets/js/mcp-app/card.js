@@ -50,11 +50,18 @@ function context(ctx = {}) {
     if (ctx.displayMode === 'fullscreen') draw(current, false); else start(root);
   }
 }
-// A result's data with its photos back in: the server sends the signed photo links in the
-// result's _meta (for the card only, not the model) and short references ("p1") in their place
+// A result's data with its photos back in: what the model reads names photos by id (an item's
+// hero_photo_id, each photo's id), and the result's _meta carries their links, by id, for the card
 function hydrate(r) {
   const photos = r?._meta?.photos || {};
-  const walk = (v) => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, (k === 'hero_photo' || k === 'url') && typeof x === 'string' ? photos[x] || (/^(https?:|data:)/.test(x) ? x : null) : walk(x)])) : v;
+  const walk = (v) => {
+    if (Array.isArray(v)) return v.map(walk);
+    if (!v || typeof v !== 'object') return v;
+    const o = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+    if (o.hero_photo_id && photos[o.hero_photo_id]) o.hero_photo = photos[o.hero_photo_id];
+    if (o.role && o.id && photos[o.id]) o.url = photos[o.id];
+    return o;
+  };
   return walk(r?.structuredContent);
 }
 export const callTool = async (name, args) => {

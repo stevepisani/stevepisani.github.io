@@ -78,7 +78,8 @@ function garment(data, receipt) {
       t.setAttribute('aria-pressed', x === looking);
       t.setAttribute('aria-label', `${ROLES[x.role]} photo${x.hero ? ', the main one' : ''}`);
       t.append(photo(x.url, it, 'w-thumb__img'));
-      if (BADGE[x.role]) t.append(el('span', 'w-badge', BADGE[x.role]));
+      const badge = x.origin === 'reference' ? 'Shop' : BADGE[x.role]; // a shop's picture says so; so does a tag or label
+      if (badge) t.append(el('span', 'w-badge', badge));
       return t;
     }));
     thumbs.hidden = photos.length < 2;
@@ -96,7 +97,8 @@ function garment(data, receipt) {
       tools.append(el('span', 'w-cap', unknown && !editing ? 'What is this photo?' : 'This photo is'), seg);
       return;
     }
-    tools.append(el('span', 'w-cap', `${ROLES[looking.role]} photo`), button('w-link', 'Change', () => { editing = true; paint(); }));
+    const from = { catalog: 'Catalog image', reference: 'Shop picture', own: 'Your photo' }[looking.origin || 'own'];
+    tools.append(el('span', 'w-cap', `${from}${looking.role !== 'garment' ? ` · ${ROLES[looking.role]}` : ''}`), button('w-link', 'Change', () => { editing = true; paint(); }));
     if (looking.role === 'garment') tools.append(button('w-btn', 'Make it the main photo', () => setRole(looking, { make_hero: true })));
   };
   const setRole = async (x, change) => {
