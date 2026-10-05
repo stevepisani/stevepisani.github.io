@@ -74,6 +74,11 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: trips in detail, for the five-week Europe trip: travelers, a packing list for everyone
+  (by traveler, category, bag and status, each entry its own row), bags, transport, lodging,
+  links, each day's activities, `get_trip` whole and `analyze_trip_packing` (facts by fixed
+  rules); the app's Packing Board. Next there: laundry per leg or stay (today it's one for the
+  trip, and the app doesn't show it yet), and links and laundry in the card.
 - Oct 2026: a 30-day trash for garments, photos and trips, from a chat or the app (SJPJr can
   delete, list the trash and restore); a weekly job empties it. A trash view in the app is next.
 - Oct 2026: the wardrobe (/apps/wardrobe): the closet with cut-out photos, ChatGPT through an MCP

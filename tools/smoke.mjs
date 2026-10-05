@@ -256,14 +256,42 @@ async function planet(page, shot, { phone = false } = {}) {
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
 // context so the service worker's requests are caught too) and a made-up Open-Meteo where every
-// day is 18° / 9° with a 40% chance of rain (70% on 15 October). Returns what was asked of it.
+// day is 18° / 9° with a 40% chance of rain (70% on 15 October). The trip has three travelers,
+// two bags, a packing list (a garment, a baby's thing, a shared one, one nobody's, one of Lexi's,
+// and one on a trip that isn't loaded, never shown), two journeys, a hotel and a link. Returns what was asked of it.
 async function member(page, target) {
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
   await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: 4102444800, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
   const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
-  const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url)));
+  // the trip's own row lost its packing list to trip_packing, and has who's going and each day's plans
+  const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url))).map(({ packing, ...t }) => ({
+    ...t, laundry: null,
+    travelers: [{ id: 'v1', key: 'steve', name: 'Steve', type: 'adult' }, { id: 'v2', key: 'lexi', name: 'Lexi', type: 'adult' }, { id: 'v3', key: 'dominic', name: 'Dominic', type: 'child' }],
+    days: t.days.map((d) => (d.date === '2026-10-15' ? { ...d, activities: [{ id: 'a2', title: 'Dinner at Buca Mario', type: 'dining', start_time: '20:00' }, { id: 'a1', title: 'Uffizi', type: 'sightseeing', start_time: '09:30', end_time: '12:00' }] } : d)),
+  }));
+  const mine = { trip_id: 't1', owner: 'u1' };
+  const tripParts = {
+    trip_bags: [{ id: 'b1', key: 'steve_carry_on', label: "Steve's carry-on", type: 'carry_on', traveler_key: 'steve' }, { id: 'b2', key: 'checked_1', label: 'Checked bag', type: 'checked' }],
+    trip_packing: [
+      { id: 'p1', item_id: 'w1', category: 'clothing', traveler_key: 'steve', qty: 1, status: 'packed', bag_id: 'b1' },
+      { id: 'p2', item_id: 'w2', category: 'clothing', traveler_key: 'steve', qty: 3, status: 'needed' },
+      { id: 'p3', label: 'Diapers', category: 'baby', traveler_key: 'dominic', qty: 1, status: 'to_buy', essential: true, notes: 'Size 4' },
+      { id: 'p4', label: 'Plug adapter', category: 'electronics', traveler_key: 'shared', qty: 2, status: 'ready', bag_id: 'b2' },
+      { id: 'p5', label: 'Passports', category: 'documents', traveler_key: null, qty: 1, status: 'needed', essential: true },
+      { id: 'p6', label: 'Sunscreen', category: 'toiletries', traveler_key: 'lexi', qty: 1, status: 'needed' },
+      { id: 'p9', label: 'From a trip in the trash', category: 'misc', qty: 1, status: 'needed', trip_id: 'gone' },
+    ],
+    trip_transport: [
+      { id: 'g2', type: 'train', date: '2026-10-14', origin: 'London', destination: 'Florence', departure_time: '2026-10-14T07:01:00+01:00', arrival_time: '2026-10-14T19:30:00+02:00', carrier: 'Eurostar', number: '9010' },
+      { id: 'g1', type: 'flight', date: '2026-10-06', origin: 'Philadelphia', destination: 'London', origin_code: 'PHL', destination_code: 'LHR', departure_time: '2026-10-06T18:30:00-04:00', arrival_time: '2026-10-07T06:45:00+01:00', carrier: 'British Airways', number: 'BA 66', confirmation: 'XK7Q2B' },
+    ],
+    trip_lodging: [{ id: 'l1', name: 'Hotel Bloomsbury', place: 'London', check_in: '2026-10-07', check_out: '2026-10-14' }],
+    trip_resources: [{ id: 'r1', type: 'insurance', label: 'Travel insurance', url: 'https://insurance.example/policy' }],
+  };
+  for (const [k, rows] of Object.entries(tripParts)) tripParts[k] = rows.map((r, i) => ({ ...mine, created_at: `2026-10-01T12:00:0${i}Z`, ...r }));
+  let made = 0;
   const photoTable = JSON.parse(readFileSync(new URL('./fixtures/wardrobe-photos.json', import.meta.url)));
   const asked = [];
   await target.route(`${db.origin}/**`, (route) => {
@@ -291,6 +319,12 @@ async function member(page, target) {
     if (url.pathname.endsWith('/rest/v1/trips')) {
       if (method === 'GET') return json(tripTable);
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-t${i}`, owner: 'u1', created_at: new Date().toISOString(), ...r })), 201);
+      return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
+    const part = /\/rest\/v1\/(trip_(?:packing|bags|transport|lodging|resources))$/.exec(url.pathname);
+    if (part) {
+      if (method === 'GET') return json(tripParts[part[1]]);
+      if (method === 'POST') return json(req.postDataJSON().map((r) => ({ id: `new-p${++made}`, owner: 'u1', created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
     }
     // a store link, read: what the edge function answers for a page it can read
@@ -447,33 +481,101 @@ async function apps(page, shot) {
   await shot('wardrobe-added');
   step('added one from a photo, into its own folder; retired it');
 
-  // trips: the list, a trip with its legs and weather, its days; packing: ticking something off
-  // (and undoing it) and adding to the list save; a new trip looks its places up
+  // trips: the list, a trip with its legs and weather, who's going, getting there (in order),
+  // staying, links, its days and their plans; then the Packing Board (below); a new trip looks its
+  // places up
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   await page.click('#tabs a[data-value="trips"]');
   await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
   await page.click('#trip-list .trip-card');
   await until(page, () => document.querySelectorAll('#legs .leg__days li').length > 30);
-  if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 3')) throw new Error("the trip doesn't show its legs, days and packing");
+  if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 6 packed')) throw new Error(`the trip doesn't show its legs, days and packing (the entries, the one on a trip in the trash left out): ${JSON.stringify([await page.locator('#legs .leg').count(), await page.locator('#days .day').count(), await page.textContent('#pack-sum')])}`);
   if (!/highs 18°, lows 9°/.test(await page.textContent('#legs'))) throw new Error("the trip's weather isn't shown");
+  if ((await page.textContent('#trip-who')) !== 'Steve, Lexi, Dominic (child)') throw new Error(`who's going: ${await page.textContent('#trip-who')}`);
+  const goes = await page.locator('#trip-go .info-row').allTextContents();
+  if (goes.length !== 2 || !/^Philadelphia PHL → London LHR.*British Airways BA 66.*18:30 – 06:45 \(.*7.*\).*ref XK7Q2B/.test(goes[0]) || !/London → Florence.*07:01 – 19:30/.test(goes[1])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
+  if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
+  if (!/09:30–12:00\s*Uffizi\s*sightseeing\s*20:00\s*Dinner at Buca Mario/.test(await page.textContent('#days'))) throw new Error(`a day's plans, in time order: ${await page.textContent('#days')}`);
+  await page.locator('#trip-go-part').scrollIntoViewIfNeeded();
   await shot('trip');
+  step('a trip: legs with weather, who\'s going, getting there in order with times as given, staying, links, each day\'s plans');
+
+  // the Packing Board: status counts, filters that narrow it (and stay), a tap that moves one on
+  // (one PATCH of that entry) with Undo, an entry's sheet (a bag, how many), adding from the planned
+  // outfits and by hand (POSTs), taking one off and putting it back
   await page.click('#pack-open');
-  await until(page, () => location.hash === '#trip/t1/pack' && document.querySelectorAll('#pack-groups .pack-row').length === 2);
-  if (!(await page.textContent('#pack-left')).includes('2') || !(await page.isVisible('#pack-from-plan'))) throw new Error("the packing list doesn't show what's left, or the planned outfits' things");
-  await page.locator('#pack-groups .pack-row__box').first().click();
-  await until(page, () => document.getElementById('pack-count').textContent.startsWith('2 of 3') && document.querySelector('.app-toast__undo'));
+  const rowsShown = () => page.locator('#pack-groups .pack-row').count();
+  const packPatches = () => asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trip_packing'));
+  await until(page, () => location.hash === '#trip/t1/pack' && document.querySelectorAll('#pack-groups .pack-row').length === 5);
+  const statusText = await page.textContent('#pack-status');
+  if (!/To pack5/.test(statusText) || !/Need3/.test(statusText) || !/To buy1/.test(statusText) || !/Packed1/.test(statusText) || !/All6/.test(statusText)) throw new Error(`the status counts: ${statusText}`);
+  const heads = await page.locator('#pack-groups .pack-group__head span:first-child').allTextContents();
+  if (heads.join() !== 'Clothes,Baby,Toiletries,Electronics,Documents') throw new Error(`the board's categories, in order: ${heads}`);
+  if (!/Planned: (Oct 7|7 Oct)/.test(await page.textContent('#pack-groups .pack-row'))) throw new Error("a garment's row doesn't say when it's planned");
+  if ((await page.locator('#pack-groups .pack-row__must').count()) !== 2) throw new Error('the essential entries carry no marker');
+  if (!(await page.isVisible('#pack-from-plan'))) throw new Error("the planned outfits' things aren't offered");
+  await page.click('#pack-who button[data-value="lexi"]');
+  if ((await rowsShown()) !== 1 || !/Sunscreen/.test(await page.textContent('#pack-groups'))) throw new Error("Lexi's filter didn't narrow the board to her things");
+  await page.click('#pack-who button[data-value="shared"]');
+  if ((await rowsShown()) !== 2 || !/Plug adapter/.test(await page.textContent('#pack-groups')) || !/Passports/.test(await page.textContent('#pack-groups'))) throw new Error('Shared should be what\'s shared and what\'s nobody\'s');
+  await page.click('#pack-who button[data-value=""]');
+  await page.selectOption('#pack-cat', 'baby');
+  if ((await rowsShown()) !== 1 || !/Diapers/.test(await page.textContent('#pack-groups'))) throw new Error("the category picker didn't narrow the board");
+  await page.selectOption('#pack-cat', '');
+  await page.selectOption('#pack-bag', 'b2');
+  await page.reload();
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 1 && document.getElementById('pack-bag').value === 'b2');
+  await page.selectOption('#pack-bag', '');
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 5);
+  step('the board: status counts, categories in order, Planned dates, essentials marked; whose, category and bag narrow it, and stay after a reload');
+  const tee = page.locator('#pack-groups .pack-row', { hasText: 'White crew tee' });
+  await tee.locator('.pack-row__status').click();
+  await until(page, () => /Ready/.test([...document.querySelectorAll('#pack-groups .pack-row')].find((r) => /White crew tee/.test(r.textContent))?.querySelector('.pack-row__status').textContent) && document.querySelector('.app-toast__undo'));
+  if (packPatches().length !== 1 || !/^\/rest\/v1\/trip_packing\?(.*&)?id=eq\.p2(&|$)/.test(packPatches()[0].path) || JSON.stringify(packPatches()[0].body) !== '{"status":"ready"}') throw new Error(`a status tap sent ${JSON.stringify(packPatches())}`);
+  if (asked.some((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips'))) throw new Error('a status tap rewrote the trip');
   await page.click('.app-toast__undo');
-  await until(page, () => document.getElementById('pack-count').textContent.startsWith('1 of 3'));
-  await page.locator('#pack-groups .pack-row__box').first().click();
+  await until(page, () => /Need/.test([...document.querySelectorAll('#pack-groups .pack-row')].find((r) => /White crew tee/.test(r.textContent))?.querySelector('.pack-row__status').textContent));
+  if (packPatches().length !== 2 || packPatches()[1].body.status !== 'needed') throw new Error(`Undo sent ${JSON.stringify(packPatches().slice(1))}`);
+  step('one tap moves a thing on, as one PATCH of that entry; Undo puts it back');
+  await tee.locator('.pack-row__open').click();
+  await until(page, () => document.getElementById('pack-sheet').open);
+  await page.selectOption('#ps-bag', 'b1');
+  await page.click('#ps-more');
+  await until(page, () => document.getElementById('ps-qty').textContent === '4');
+  await shot('pack-entry');
+  const sheetSaves = packPatches().slice(2).map((a) => JSON.stringify(a.body));
+  if (sheetSaves.join() !== '{"bag_id":"b1"},{"qty":4}') throw new Error(`the entry's sheet sent ${sheetSaves}`);
+  await page.click('#pack-sheet [data-close]');
+  if (!/Steve's carry-on/.test(await tee.textContent())) throw new Error("the row doesn't show its new bag");
+  step("an entry's sheet: a bag and how many, each saved at once as a PATCH of that entry");
+  await page.click('#pack-from-plan');
+  await until(page, () => /^1 of 7/.test(document.getElementById('pack-count').textContent));
+  const fromPlan = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trip_packing'));
+  if (JSON.stringify(fromPlan?.body) !== '[{"trip_id":"t1","qty":1,"status":"needed","item_id":"w3","category":"shoes","traveler_key":"steve"}]') throw new Error(`adding from the planned outfits sent ${JSON.stringify(fromPlan?.body)}`);
+  await page.click('#pack-who button[data-value="lexi"]');
+  if ((await page.inputValue('#pack-add-who')) !== 'lexi') throw new Error("the add form doesn't start from the filters");
   await page.fill('#pack-add [name="label"]', 'Charger');
+  await page.selectOption('#pack-add-cat', 'electronics');
   await page.click('#pack-add button');
-  await until(page, () => /^2 of 4/.test(document.getElementById('pack-count').textContent));
-  await page.click('#pack-show button[data-value="all"]');
-  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 4);
+  await until(page, () => /^1 of 8/.test(document.getElementById('pack-count').textContent) && !document.querySelector('#pack-add [name="label"]').value);
+  const byHand = asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/trip_packing')).pop().body[0];
+  if (byHand.label !== 'Charger' || byHand.traveler_key !== 'lexi' || byHand.category !== 'electronics' || byHand.status !== 'needed') throw new Error(`the add form sent ${JSON.stringify(byHand)}`);
+  await page.locator('#pack-groups .pack-row', { hasText: 'Charger' }).locator('.pack-row__open').click();
+  await page.click('#ps-remove');
+  await until(page, () => /^1 of 7/.test(document.getElementById('pack-count').textContent) && document.querySelector('.app-toast__undo'));
+  if (!asked.some((a) => a.method === 'DELETE' && /trip_packing\?id=eq\.new-p2/.test(a.path)) || asked.some((a) => a.method !== 'GET' && a.path.includes('wardrobe_items') && a.body?.deleted_at)) throw new Error('taking one off the list should delete the entry, and only that');
+  await page.click('.app-toast__undo');
+  await until(page, () => /^1 of 8/.test(document.getElementById('pack-count').textContent));
+  if (asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/trip_packing')).pop().body[0].id !== 'new-p2') throw new Error('Undo should put the same entry back');
+  await page.click('#pack-who button[data-value=""]');
+  await page.click('#pack-status button[data-value="all"]');
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 8);
   await shot('packing');
-  const packs = asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips')).map((a) => a.body.packing.filter((x) => x.packed).length);
-  if (packs.join() !== '2,1,2,2' || !asked.some((a) => a.body?.packing?.some((x) => x.label === 'Charger'))) throw new Error(`packing saved ${JSON.stringify(packs)}`);
+  await page.setViewportSize({ width: 1100, height: 900 });
+  await shot('packing-wide');
+  await page.setViewportSize({ width: 390, height: 844 });
+  step('adding from the planned outfits and by hand (from the filters) POST entries; one taken off and put back');
   await page.goBack();
   await until(page, () => location.hash === '#trip/t1' && !document.getElementById('trip').hidden);
   await page.click('#trip-back');
@@ -485,14 +587,14 @@ async function apps(page, shot) {
   await page.click('#trip-dialog [type="submit"]');
   await until(page, () => document.getElementById('trip-name').textContent === 'Smoke weekend');
   const made = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trips'));
-  if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
+  if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45 || 'packing' in made.body[0]) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
   // deleting it moves it to the trash (an update, never a delete)
   page.once('dialog', (d) => d.accept());
   await page.click('#trip-edit');
   await page.click('#trip-remove');
   await until(page, () => location.hash === '#trips');
   if (asked.some((a) => a.method === 'DELETE' && a.path.includes('/rest/v1/trips')) || !asked.some((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips') && a.body?.deleted_at)) throw new Error('deleting a trip didn\'t move it to the trash');
-  step('trips: legs with weather, days; packing ticked, undone and added to; Back goes back; a new trip, then to the trash');
+  step('Back goes back; a new trip (no packing column sent), then to the trash');
 
   // Today, mid-trip: where you are, the weather and what you're wearing, with a word about the rain
   // (and the suede); the next day is a tap away; an item opens over it and Back closes it
@@ -539,7 +641,7 @@ async function apps(page, shot) {
 }
 
 // With no connection: the wardrobe opens on the copy it kept (through its service worker), a
-// packing tick is kept, and it's sent when the connection's back
+// change to a packing entry is kept, and it's sent when the connection's back
 async function offline(page, shot) {
   await page.clock.setFixedTime(new Date('2026-10-15T09:00:00'));
   await page.goto(base + '/apps/wardrobe');
@@ -556,16 +658,24 @@ async function offline(page, shot) {
   await shot('offline');
   step('offline: the page, its scripts and the data come from the copy on the phone');
   await page.click('.today__part a[href$="/pack"]');
-  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 2);
+  await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 5);
   const before = asked.length;
-  await page.locator('#pack-groups .pack-row__box').first().click();
-  await until(page, () => document.getElementById('pack-count').textContent.startsWith('2 of 3'));
-  if (asked.slice(before).some((a) => a.method === 'PATCH')) throw new Error('a tick went out with no connection');
+  // two taps on the tee: needed → ready → packed, kept as one change to that entry
+  const tee = page.locator('#pack-groups .pack-row', { hasText: 'White crew tee' }).locator('.pack-row__status');
+  await tee.click();
+  await until(page, () => /Ready/.test([...document.querySelectorAll('#pack-groups .pack-row')].find((r) => /White crew tee/.test(r.textContent))?.textContent));
+  await tee.click();
+  await until(page, () => document.getElementById('pack-count').textContent.startsWith('2 of 6'));
+  if (asked.slice(before).some((a) => a.method === 'PATCH')) throw new Error('a change went out with no connection');
+  await page.click('#pack-from-plan');
+  await until(page, () => /offline/i.test(document.getElementById('app-toast').textContent));
+  if (asked.slice(before).some((a) => a.method === 'POST')) throw new Error('adding went out with no connection');
+  await shot('offline-packing');
   await page.context().setOffline(false);
   await until(page, () => document.getElementById('offline-note').hidden);
-  const sent = asked.slice(before).find((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips'));
-  if (!sent || sent.body.packing.filter((x) => x.packed).length !== 2) throw new Error(`the tick made offline sent ${JSON.stringify(sent)}`);
-  step('a tick made offline is kept, and sent when the connection is back');
+  const sent = asked.slice(before).filter((a) => a.method === 'PATCH');
+  if (sent.length !== 1 || !/trip_packing\?(.*&)?id=eq\.p2(&|$)/.test(sent[0].path) || JSON.stringify(sent[0].body) !== '{"status":"packed"}') throw new Error(`the change made offline sent ${JSON.stringify(sent)}`);
+  step('a status change made offline is kept (adding says it has to wait), and sent as one PATCH of that entry when the connection is back');
 }
 
 // The wardrobe's in-chat card, the way ChatGPT and Claude show it: the page the MCP server serves
@@ -655,26 +765,30 @@ async function card(page, shot) {
   await shot('ingest-filed');
   step('filing: what it is and that it\'s a new colour, only the guesses up front, the tag\'s facts folded, then "Add to wardrobe" files it');
 
-  // a trip: a glance (legs, next outfit, packing so far); Open trip for the days and packing
-  const t = (await call('create_trip', { name: 'Europe, autumn', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence', from: '2026-10-14', to: '2026-11-14' }] })).structuredContent;
+  // a trip: a glance (legs, who, next outfit, packing so far); Open trip for the days and packing, by who it's for
+  const t = (await call('create_trip', { name: 'Europe, autumn', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence', from: '2026-10-14', to: '2026-11-14' }], travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'dominic', name: 'Dominic', type: 'child' }] })).structuredContent;
   const ids = (await call('find_items', {})).structuredContent.items.map((i) => i.id);
-  await call('plan_days', { trip_id: t.id, days: [{ date: '2026-10-08', items: ids.slice(0, 3), occasion: 'Tate Modern, then dinner' }, { date: '2026-10-15', items: ids.slice(2, 5), occasion: 'Uffizi' }] });
-  await call('set_packing', { trip_id: t.id, items: [...ids.slice(0, 4).map((item_id) => ({ item_id })), { label: 'Plug adapter', qty: 2 }] });
+  await call('plan_days', { trip_id: t.id, days: [{ date: '2026-10-08', items: ids.slice(0, 3), occasion: 'Tate Modern, then dinner' }, { date: '2026-10-15', items: ids.slice(2, 5), occasion: 'Uffizi', activities: [{ title: 'Uffizi', type: 'sightseeing', start_time: '10:00' }] }] });
+  await call('set_packing', { trip_id: t.id, items: [...ids.slice(0, 4).map((item_id) => ({ item_id, traveler: 'steve' })), { label: 'Plug adapter', qty: 2, traveler: 'shared' }] });
+  await call('add_packing_items', { trip_id: t.id, items: [{ label: 'Sleep sack', traveler: 'dominic', category: 'baby' }] });
   await show({ id: t.id }, await call('get_trip', { id: t.id }));
   await frame.locator('.w-next .w-sq').first().waitFor();
-  if ((await frame.locator('.w-next .w-sq').count()) !== 3 || !/0 of 5 packed/.test(await frame.locator('.w-count').textContent()) || (await frame.locator('.w-day').count())) throw new Error("the trip's glance: the next outfit and packing so far, no day list");
+  if ((await frame.locator('.w-next .w-sq').count()) !== 3 || !/0 of 6 packed/.test(await frame.locator('.w-count').textContent()) || (await frame.locator('.w-day').count())) throw new Error("the trip's glance: the next outfit and packing so far, no day list");
   await shot('trip');
   await frame.getByRole('button', { name: 'Packing list' }).click();
   await frame.locator('.w-pack input').first().check();
-  await frame.locator('.w-count', { hasText: '1 of 5 packed' }).waitFor();
+  await frame.locator('.w-count', { hasText: '1 of 6 packed' }).waitFor();
+  await frame.getByRole('button', { name: 'Dominic' }).click();
+  if ((await frame.locator('.w-pack li').count()) !== 1 || !/Sleep sack/.test(await frame.locator('.w-pack').textContent())) throw new Error('the packing list should narrow to one traveler');
+  await frame.getByRole('button', { name: 'Everyone' }).click();
   if (!/Dark Brown/.test(await frame.locator('.w-pack').textContent())) throw new Error('the packing list should tell the same shirt in different colours apart');
-  const [{ packing }] = await w.q(`select packing from public.trips where id = $1`, [t.id]);
-  if (packing.filter((p) => p.packed).length !== 1) throw new Error(`ticking in the card saved ${JSON.stringify(packing)}`);
+  const packing = await w.q(`select status from public.trip_packing where trip_id = $1`, [t.id]);
+  if (packing.filter((p) => p.status === 'packed').length !== 1) throw new Error(`ticking in the card saved ${JSON.stringify(packing)}`);
   await shot('trip-packing');
   await frame.getByRole('tab', { name: /^Days/ }).click();
-  if ((await frame.locator('.w-day').count()) !== 2 || (await frame.locator('.w-day .w-sq').count()) !== 6) throw new Error("the trip's days: each outfit as photos");
+  if ((await frame.locator('.w-day').count()) !== 2 || (await frame.locator('.w-day .w-sq').count()) !== 6 || !/10:00 Uffizi/.test(await frame.locator('.w-acts').textContent())) throw new Error("the trip's days: activities, and each outfit as photos");
   await shot('trip-days');
-  step('a trip: a glance, then full screen: packing ticked off (saved) and each day\'s outfit as photos');
+  step('a trip: a glance, then full screen: packing by traveler, ticked off (saved), and each day\'s activities and outfit as photos');
 
   await show({}, closet, 'dark');
   await frame.locator('.w-tile').first().waitFor();

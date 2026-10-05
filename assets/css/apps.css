@@ -294,30 +294,87 @@
 .next-day__thumb .tile__none { font-size: .85rem; }
 .next-day__none { color: var(--ink-2); font-size: .85rem; font-style: italic; }
 
-/* ---------- Packing: a row a thing, by category, a round tick on the right ---------- */
+/* ---------- The trip's short lists: who's going, getting there, staying, links; a day's plans ---------- */
+.trip-who { margin: 0; }
+.info-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.info-row { display: grid; gap: 2px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); }
+.info-row__title { font-weight: 600; color: var(--ink); }
+a.info-row__title { color: var(--link); text-underline-offset: .18em; }
+.info-row__more { color: var(--ink-2); font-size: .9rem; }
+.acts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.act { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); column-gap: 8px; font-size: .92rem; }
+.act__time { color: var(--ink-2); font: .85rem/1.6 var(--font-mono); font-variant-numeric: tabular-nums; }
+.act__title { font-weight: 600; }
+.act__more { grid-column: 2; color: var(--ink-2); font-size: .85rem; }
+.act__more:empty { display: none; }
+
+/* ---------- The Packing Board: status, whose, then a row a thing by category, its status on the right ---------- */
 .pack-view { display: grid; gap: 14px; }
 .pack-view > .link-btn { justify-self: start; }
-.pack-view__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pack-view__head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; }
 .pack-view__head h2 { margin: 0; }
-.pack-view__head .seg button[aria-pressed="true"] span { opacity: 1; }
 .pack-progress > div { background: var(--ok); }
-.pack-view__count { margin: -4px 0 0; color: var(--ink-2); font-size: .92rem; }
+.pack-view__count { margin: 0; color: var(--ink-2); font-size: .92rem; }
+/* six choices: one row where they fit, three and three on a phone */
+.pack-status { justify-self: start; }
+.pack-status button[aria-pressed="true"] span { opacity: 1; }
+@media (max-width: 560px) {
+  .pack-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); justify-self: stretch; border-radius: 14px; }
+  .pack-status button { padding: 0 6px; }
+  .pack-status > * + * { border-left: 0; }
+  .pack-status > :not(:nth-child(3n + 1)) { border-left: 1px solid var(--line); }
+  .pack-status > :nth-child(n + 4) { border-top: 1px solid var(--line); }
+}
+.pack-filters { display: grid; gap: 8px; }
+.pack-filters .cats { margin: 0; }
+.pack-filters__pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.pack-filters__pick select { width: auto; min-width: 0; max-width: 22rem; flex: 1 1 8rem; }
 #pack-from-plan { justify-self: start; }
 .pack-group { margin-top: 6px; }
 .pack-group__head { display: flex; justify-content: space-between; margin: 0 0 4px; font: 600 .75rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
 .pack-rows { list-style: none; margin: 0; padding: 0; }
-.pack-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
-.app .pack-row__tick { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; min-height: 64px; padding: 8px 0; font: 400 1.05rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); cursor: pointer; }
+.pack-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
+.pack-row__open { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; min-height: 64px; padding: 8px 0; border: 0; background: none; color: var(--ink); font: 400 1.05rem var(--font-body); text-align: left; cursor: pointer; }
+.pack-row__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
 .pack-row__photo { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 10px; background: var(--bg-2); overflow: hidden; }
 .pack-row__photo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
 .pack-row__photo .tile__none, .pack-row__photo--none { font: 600 1rem var(--font-display); color: var(--ink-2); }
-.pack-row__text { flex: 1; min-width: 0; }
-.pack-row__name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pack-row__text { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.pack-row__name, .pack-row__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pack-row__meta { color: var(--ink-2); font-size: .85rem; }
+.pack__qty { color: var(--ink-2); font-size: .9rem; }
+.pack-row__must { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--ink); font: 600 .62rem/1.5 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; vertical-align: .15em; }
 .pack-row.is-packed .pack-row__name { color: var(--ink-2); }
 .pack-row.is-packed .pack-row__photo { opacity: .6; }
-/* the tick: a ring, filled with a check once it's packed (a shape, not only a colour) */
-.app input.pack-row__box { appearance: none; flex: none; width: 30px; height: 30px; min-height: 0; margin: 0 4px 0 0; padding: 0; border: 2px solid var(--ink-3); border-radius: 50%; background: var(--card); display: grid; place-items: center; cursor: pointer; }
-.app input.pack-row__box::after { content: ""; width: 8px; height: 14px; margin-top: -3px; border: solid var(--bg); border-width: 0 3px 3px 0; transform: rotate(45deg); opacity: 0; }
-.app input.pack-row__box:checked { background: var(--ok); border-color: var(--ok); }
-.app input.pack-row__box:checked::after { opacity: 1; }
-.app input.pack-row__box:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
+/* the status: a word and a ring that fills as it moves on (a shape, not only a colour) */
+.pack-row__status { flex: none; display: inline-flex; align-items: center; gap: 7px; width: 6.4rem; min-height: 44px; padding: 0 10px; border: 1px solid var(--ink-3); border-radius: 999px; background: var(--card); color: var(--ink); font: 500 .88rem var(--font-body); white-space: nowrap; cursor: pointer; }
+.pack-row__status::before { content: ""; flex: none; width: 14px; height: 14px; border: 2px solid var(--ink-3); border-radius: 50%; box-sizing: border-box; }
+.pack-row.is-to_buy .pack-row__status::before { border-style: dashed; border-color: var(--accent); }
+.pack-row.is-ready .pack-row__status::before { border-color: var(--ok); background: radial-gradient(circle, var(--ok) 0 3px, transparent 3.5px); }
+.pack-row.is-packed .pack-row__status { background: var(--ok); border-color: var(--ok); color: var(--bg); font-weight: 600; }
+.pack-row.is-packed .pack-row__status::before { width: 6px; height: 11px; margin: -3px 3px 0 4px; border: solid var(--bg); border-width: 0 2px 2px 0; border-radius: 0; transform: rotate(45deg); }
+.pack-row__status:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pack-add { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 8px; align-items: end; }
+.pack-add select { width: auto; }
+@media (max-width: 560px) {
+  .pack-add { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+  .pack-add__label { grid-column: 1 / -1; }
+  .pack-add select { width: 100%; }
+  .pack-add:has(#pack-add-who[hidden]) select { grid-column: span 2; }
+}
+
+/* an entry's sheet */
+.pack-sheet__top { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.pack-sheet__top .pack-row__photo { width: 72px; height: 72px; }
+.pack-sheet h2 { font-size: 1.35rem; line-height: 1.2; }
+.pack-sheet #ps-garment { min-height: 32px; font-size: .9rem; }
+.pack-sheet__status { display: flex; justify-self: stretch; }
+.pack-sheet__status button { flex: 1; padding: 0 6px; }
+.pack-sheet__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: end; }
+.pack-sheet__qty { display: grid; gap: 4px; }
+.pack-sheet__label { font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.stepper { display: flex; align-items: center; gap: 6px; }
+.app .stepper .btn { min-width: 44px; padding: 0; justify-content: center; font-size: 1.2rem; }
+.stepper output { min-width: 2.5ch; text-align: center; font: 600 1.1rem var(--font-body); font-variant-numeric: tabular-nums; }
+.app .pack-sheet__check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
+.app .pack-sheet__check input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--accent); }

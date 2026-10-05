@@ -80,6 +80,8 @@ Deno.serve(async (req) => {
   // deno-lint-ignore no-explicit-any
   const one = async (q: any) => { const { data, error } = await q; if (error && error.code !== "22P02") throw error; return data ?? null; }; // 22P02: not an id at all
   const closet = (id: string) => one(db.from("wardrobe_closet").select("*").eq("id", id).maybeSingle()); // the view leaves the trash out
+  const PARTS = ["trip_packing", "trip_bags", "trip_transport", "trip_lodging", "trip_resources"];
+  const part = (name: string) => { if (!PARTS.includes(name)) throw new Error(`not a trip part: ${name}`); return name; };
   const table = (name: string) => ({
     get: (id: string) => one(db.from(name).select("*").eq("id", id).maybeSingle()),
     add: (row: Record<string, unknown>) => rows(db.from(name).insert(row).select().single()),
@@ -127,6 +129,14 @@ Deno.serve(async (req) => {
       get: async (id: string) => { const { data, error } = await db.from("trips").select("*").eq("id", id).is("deleted_at", null).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
       add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("trips").insert(row).select().single(); if (error) throw error; return data; },
       set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("trips").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+    },
+    // a trip's parts, each its own row: packing entries, bags, transport, lodging, resources
+    parts: {
+      get: (table: string, id: string) => one(db.from(part(table)).select("*").eq("id", id).maybeSingle()),
+      list: (table: string, tripId: string) => rows(db.from(part(table)).select("*").eq("trip_id", tripId).order("created_at").order("id")),
+      add: (table: string, list: Record<string, unknown>[]) => rows(db.from(part(table)).insert(list).select()),
+      set: (table: string, id: string, patch: Record<string, unknown>) => one(db.from(part(table)).update(patch).eq("id", id).select().maybeSingle()),
+      remove: async (table: string, id: string) => (await rows(db.from(part(table)).delete().eq("id", id).select("id"))).length > 0,
     },
     // what's in the trash, and putting things in or taking them out (table: one of the three)
     trash: {

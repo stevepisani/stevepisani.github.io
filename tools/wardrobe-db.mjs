@@ -77,6 +77,8 @@ export async function wardrobeDb() {
   };
   const byId = async (sql, id) => { try { return (await q(sql, [id]))[0] || null; } catch (e) { if (e.code === '22P02') return null; throw e; } };
   const closetRow = (id) => byId(`select * from public.wardrobe_closet where id = $1`, id);
+  const PARTS = ['trip_packing', 'trip_bags', 'trip_transport', 'trip_lodging', 'trip_resources'];
+  const part = (name) => { if (!PARTS.includes(name)) throw new Error(`not a trip part: ${name}`); return name; };
   const uploads = []; // what the made-up storage was given
   const ctx = {
     items: {
@@ -115,6 +117,13 @@ export async function wardrobeDb() {
       get: (id) => byId(`select * from public.trips where id = $1 and deleted_at is null`, id),
       add: (row) => insert('trips', row),
       set: (id, patch) => update('trips', id, patch),
+    },
+    parts: {
+      get: (table, id) => byId(`select * from public.${part(table)} where id = $1`, id),
+      list: (table, tripId) => q(`select * from public.${part(table)} where trip_id = $1 order by created_at, id`, [tripId]),
+      add: async (table, list) => { const out = []; for (const r of list) out.push(await insert(part(table), r)); return out; },
+      set: (table, id, patch) => update(part(table), id, patch).catch((e) => { if (e.code === '22P02') return null; throw e; }),
+      remove: async (table, id) => (await q(`delete from public.${part(table)} where id = $1 returning id`, [id]).catch((e) => { if (e.code === '22P02') return []; throw e; })).length > 0,
     },
     trash: {
       list: async () => ({
