@@ -15,7 +15,9 @@ rather than leaving it in a chat.
 0. **The wardrobe** (`docs/apps.md`): the closet, ChatGPT through an MCP server, trips, and
    then Today, pack mode, offline, the item view and the in-chat card (closet, garment, ingest
    preview, trip board): done. Next, in order:
-   - generated product shots and outfit pictures (flat, or on Steve), made on the server with
+   - catalog images made on the server (today ChatGPT makes them and adds them with
+     `origin: catalog`), in `CATALOG_STYLE`, from the references and Steve's photos; outfit pictures
+     (flat, or on Steve) the same way; made on the server with
      OpenAI's image API under a $10 a month cap, and a widget that shows them; needs an
      `OPENAI_API_KEY` repo secret from Steve;
    - in-chat for ChatGPT and Claude alike (research, Oct 2026: both render MCP Apps, SEP-1865,

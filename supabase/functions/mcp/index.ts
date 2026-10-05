@@ -97,7 +97,8 @@ Deno.serve(async (req) => {
     variants: { ...table("wardrobe_variants"), list: (productId: string) => rows(db.from("wardrobe_variants").select("*").eq("product_id", productId)) },
     photos: {
       ...table("wardrobe_photos"),
-      list: (itemId: string) => rows(db.from("wardrobe_photos").select("*").eq("item_id", itemId).order("created_at")),
+      list: (itemId: string) => rows(db.from("wardrobe_photos").select("*").eq("item_id", itemId).order("created_at").order("id")),
+      forItems: (itemIds: string[]) => rows(db.from("wardrobe_photos").select("*").in("item_id", itemIds).order("created_at").order("id")),
       byFile: (fileId: string) => one(db.from("wardrobe_photos").select("*").eq("file_id", fileId).limit(1).maybeSingle()),
       add: async (list: Record<string, unknown>[]) => { await rows(db.from("wardrobe_photos").insert(list)); },
     },
