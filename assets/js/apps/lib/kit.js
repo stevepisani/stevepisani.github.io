@@ -103,8 +103,10 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
   $('#app-signout').addEventListener('click', () => db.auth.signOut());
 }
 
-// A table. Every call says so (a toast) when it fails, and returns null or false.
-export function rows(table) {
+// A table. Every call says so (a toast) when it fails, and returns null or false. With trash,
+// remove moves a row to the trash (deleted_at; restorable for 30 days, docs/apps.md) and list leaves
+// the trash out.
+export function rows(table, { trash = false } = {}) {
   const done = ({ data, error }, doing) => {
     if (!error) return data ?? true;
     console.error(error);
@@ -112,7 +114,7 @@ export function rows(table) {
     return null;
   };
   return {
-    list: async (order = 'created_at') => done(await db.from(table).select('*').order(order), 'Loading'),
+    list: async (order = 'created_at') => { let r = db.from(table).select('*'); if (trash) r = r.is('deleted_at', null); return done(await r.order(order), 'Loading'); },
     add: async (values) => done(await db.from(table).insert(values).select(), 'Adding'), // rows in, rows out
     // asks for the row back: an update that matches nothing (removed on another phone) isn't an error
     set: async (id, patch) => {
@@ -120,7 +122,7 @@ export function rows(table) {
       if (changed && !changed.length) toast("That didn't save: it's been removed somewhere else. Reload the page.", true);
       return !!changed && changed.length > 0;
     },
-    remove: async (id) => done(await db.from(table).delete().eq('id', id), 'Removing') !== null,
+    remove: async (id) => done(await (trash ? db.from(table).update({ deleted_at: new Date().toISOString() }) : db.from(table).delete()).eq('id', id), 'Deleting') !== null,
   };
 }
 

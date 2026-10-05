@@ -74,6 +74,8 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: a 30-day trash for garments, photos and trips, from a chat or the app (SJPJr can
+  delete, list the trash and restore); a weekly job empties it. A trash view in the app is next.
 - Oct 2026: the wardrobe (/apps/wardrobe): the closet with cut-out photos, ChatGPT through an MCP
   server (OAuth on the site's sign-in), trips with weather, outfits and packing; then Today, pack
   mode with Undo, opening with no connection, and an item view that shows what it is first.
