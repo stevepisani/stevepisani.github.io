@@ -101,12 +101,14 @@ Deno.serve(async (req) => {
       forItems: (itemIds: string[]) => rows(db.from("wardrobe_photos").select("*").in("item_id", itemIds).order("created_at").order("id")),
       byFile: (fileId: string) => one(db.from("wardrobe_photos").select("*").eq("file_id", fileId).limit(1).maybeSingle()),
       add: async (list: Record<string, unknown>[]) => { await rows(db.from("wardrobe_photos").insert(list)); },
+      remove: async (id: string) => { await rows(db.from("wardrobe_photos").delete().eq("id", id)); },
     },
     photoUrls: async (paths: string[]) => {
       if (!paths.length) return new Map();
       const { data } = await db.storage.from("photos").createSignedUrls(paths, DAY);
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     },
+    removeFile: async (path: string) => { const { error } = await db.storage.from("photos").remove([path]); if (error) throw error; },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),
     // a photo uploaded in the chat: fetched from ChatGPT's short-lived link and kept in the person's folder

@@ -76,6 +76,7 @@ const PHOTO_ARGS = { garment_photo: "garment", tag_photo: "tag", care_label_phot
 export const ORIGINS = ["own", "reference", "catalog"];
 const RANK = { catalog: 0, own: 1, reference: 2 };
 // The one look every catalog image has, whatever the brand, so the closet reads as one set
+const SHOWS = { type: "object", description: "For a catalog image: what it shows, checked against the garment before it's kept. subcategory as the garment's (\"long_sleeve_t_shirt\"), colour in plain words.", properties: { subcategory: { type: "string" }, colour: { type: "string" } }, required: ["subcategory", "colour"], additionalProperties: false };
 export const CATALOG_STYLE = "the garment alone, front on, laid flat or on an invisible mannequin, centred and filling most of a square frame, on a plain light grey background (#F2F2F2), soft even light, true colour, no model, no props, no added text or logos";
 
 const TOOLS = [
@@ -146,9 +147,10 @@ const TOOLS = [
     title: "Add a photo to a garment",
     description: [
       "Adds a photo to a garment: one uploaded in this chat (photo), or a shop's or maker's picture from a link (url: the picture itself, or the product page, whose main picture is taken; its page is noted on the garment). Says what it is (role) and where it came from (origin).",
-      `origin: own (Steve's photo of his piece, the default for uploads), reference (a shop's or maker's picture, the default for links: kept to make a catalog image from, shown only when there's nothing better), catalog (the wardrobe's own image of the garment, made from the references and his photos in one style for every brand: ${CATALOG_STYLE}; give made_from, the ids of the photos it was made from). A new catalog image is the one shown; others only with make_hero, or when there's no better one. Every photo is kept.`,
+      `origin: own (Steve's photo of his piece, the default for uploads), reference (a shop's or maker's picture, the default for links: kept to make a catalog image from, shown only when there's nothing better), catalog (the wardrobe's own image of the garment, made from the references and his photos in one style for every brand: ${CATALOG_STYLE}; give made_from, the ids of the photos it was made from). A new catalog image is the one shown; others only with make_hero, or when there's no better one.`,
+      "Before adding a catalog image, look at it against the garment: the same kind (long or short sleeves, collar, length), colour and details as Steve's photos and the shop's. Say what it shows in shows; one of another kind is refused. A catalog image or shop picture that's wrong can be taken away with remove_photo.",
     ].join("\n"),
-    inputSchema: { type: "object", properties: { id: { type: "string", description: "The owned item." }, photo: FILE, url: { type: "string", description: "A shop's or maker's page or picture." }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, made_from: { type: "array", items: { type: "string" }, description: "For a catalog image: the photo ids it was made from." }, make_hero: { type: "boolean" } }, required: ["id"], additionalProperties: false },
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The owned item." }, photo: FILE, url: { type: "string", description: "A shop's or maker's page or picture." }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, made_from: { type: "array", items: { type: "string" }, description: "For a catalog image: the photo ids it was made from." }, shows: SHOWS, make_hero: { type: "boolean" } }, required: ["id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
     _meta: { "openai/fileParams": ["photo"] },
   },
@@ -156,8 +158,16 @@ const TOOLS = [
     name: "set_photo_role",
     title: "Change a photo's role",
     description: "Says what a photo is (role: garment, tag, care_label, detail, other) and where it came from (origin: own, reference, catalog), or makes it the one shown (make_hero). Photo ids come from get_item. A photo that stops being a garment photo stops being shown; one newly marked catalog is shown.",
-    inputSchema: { type: "object", properties: { photo_id: { type: "string" }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, make_hero: { type: "boolean" } }, required: ["photo_id"], additionalProperties: false },
+    inputSchema: { type: "object", properties: { photo_id: { type: "string" }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, shows: SHOWS, make_hero: { type: "boolean" } }, required: ["photo_id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
+    _meta: { "openai/widgetAccessible": true },
+  },
+  {
+    name: "remove_photo",
+    title: "Remove a wrong catalog image or shop picture",
+    description: "Removes a photo a chat added by mistake: a catalog image or a shop picture (origin catalog or reference), for good. Steve's own photos are evidence of what he has, so they can't be removed here; set their role to other to stop showing one, and he can remove it in the app. If it was the one shown, the next best is.",
+    inputSchema: { type: "object", properties: { photo_id: { type: "string" } }, required: ["photo_id"], additionalProperties: false },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: { "openai/widgetAccessible": true },
   },
   {
@@ -467,6 +477,16 @@ async function settleHero(id, ctx, choose) {
   }
   if ((next?.path ?? null) !== (item.photo_path ?? null)) await ctx.items.set(id, { photo_path: next?.path ?? null, photo_file_id: next?.file_id ?? null });
 }
+// A catalog image is checked against the garment before it's kept: the kind it shows has to be the
+// garment's (a short-sleeve picture for a long-sleeve shirt is refused); a colour that reads
+// differently is said, not refused (names for colours vary)
+function checkShows(row, shows) {
+  if (!shows?.subcategory || !shows?.colour) throw new Invalid("A catalog image needs shows: the subcategory and colour it shows, checked against the garment first.");
+  const sub = key(row.subcategory), said = key(shows.subcategory);
+  if (sub && said !== sub) throw new Invalid(`This garment is a ${row.subcategory.replace(/_/g, " ")}; that image shows a ${String(shows.subcategory).replace(/_/g, " ")}. Make one that matches, or correct the garment first with update_item.`);
+  const c = key(row.colour), sc = key(shows.colour);
+  return c && sc && !c.includes(sc) && !sc.includes(c) ? ` Check the colour: the garment is ${row.colour}; the image is ${shows.colour}.` : "";
+}
 async function addPhoto(args, ctx) {
   const row = await ctx.items.get(String(args.id || ""));
   if (!row) throw new Invalid("There's no item with that id.");
@@ -477,6 +497,7 @@ async function addPhoto(args, ctx) {
   const origin = args.origin ?? (url ? "reference" : "own");
   if (!ORIGINS.includes(origin)) throw new Invalid(`origin is one of: ${ORIGINS.join(", ")}.`);
   if (origin === "catalog" && role !== "garment") throw new Invalid("A catalog image is of the garment: role garment.");
+  const colourNote = origin === "catalog" ? checkShows(row, args.shows) : "";
   const mine = await ctx.photos.list(row.id);
   const made_from = [...new Set(args.made_from || [])];
   if (made_from.some((m) => !mine.some((p) => p.id === m))) throw new Invalid("made_from names photos of this garment (their ids from get_item).");
@@ -506,7 +527,7 @@ async function addPhoto(args, ctx) {
   // a new catalog image is the one shown (unless make_hero: false); anything else only if asked, or if it's the best there is
   await settleHero(row.id, ctx, args.make_hero || (origin === "catalog" && args.make_hero !== false) ? photo.id : null);
   const w = await whole(row.id, ctx);
-  return { text: `Photo added (${origin}, ${role}) [photo ${photo.id}]${w.item.hero_photo_id === photo.id ? ", and it's the one shown" : ""}:${noted} ${line(w.item)}`, data: { ...w, photo_id: photo.id } };
+  return { text: `Photo added (${origin}, ${role}) [photo ${photo.id}]${w.item.hero_photo_id === photo.id ? ", and it's the one shown" : ""}:${noted}${colourNote} ${line(w.item)}`, data: { ...w, photo_id: photo.id } };
 }
 async function setPhotoRole(args, ctx) {
   const p = await ctx.photos.get(String(args.photo_id || ""));
@@ -515,14 +536,27 @@ async function setPhotoRole(args, ctx) {
   if (args.origin !== undefined && !ORIGINS.includes(args.origin)) throw new Invalid(`origin is one of: ${ORIGINS.join(", ")}.`);
   const role = args.role || p.role, origin = args.origin || p.origin || "own";
   if (origin === "catalog" && role !== "garment") throw new Invalid("A catalog image is of the garment: role garment.");
-  if (role !== p.role || origin !== (p.origin || "own")) await ctx.photos.set(p.id, { role, origin });
   const item = await ctx.items.get(p.item_id);
+  if (origin === "catalog" && (p.origin || "own") !== "catalog") checkShows(item, args.shows);
+  if (role !== p.role || origin !== (p.origin || "own")) await ctx.photos.set(p.id, { role, origin });
   const wasShown = item.photo_path === p.path, nowCatalog = origin === "catalog" && (p.origin || "own") !== "catalog";
   // asked for, or newly the wardrobe's own image: shown; changed while shown: the best there is
   if (args.make_hero || nowCatalog) await settleHero(p.item_id, ctx, p.id);
   else if (wasShown) await settleHero(p.item_id, ctx);
   const w = await whole(p.item_id, ctx);
   return { text: `Photo ${p.id} is now ${origin}, ${role}${w.item.hero_photo_id === p.id ? ", and the one shown" : ""}: ${line(w.item)}`, data: w };
+}
+
+async function removePhoto(args, ctx) {
+  const p = await ctx.photos.get(String(args.photo_id || ""));
+  if (!p) throw new Invalid("There's no photo with that id (it may be gone already). get_item lists them.");
+  if ((p.origin || "own") === "own") throw new Invalid(`That's one of Steve's own photos, which a chat can't remove. Set its role to other to stop it being shown; he can remove it in the app: ${APP}#item/${p.item_id}`);
+  await ctx.photos.remove(p.id);
+  // the file goes too, unless something else still uses it
+  if (!(await ctx.photos.list(p.item_id)).some((x) => x.path === p.path)) await ctx.removeFile(p.path).catch(() => {});
+  await settleHero(p.item_id, ctx);
+  const w = await whole(p.item_id, ctx);
+  return { text: `Removed the ${p.origin} ${p.role === "garment" ? "image" : `${p.role} photo`} [photo ${p.id}]: ${line(w.item)}`, data: w };
 }
 
 async function call(name, args = {}, ctx) {
@@ -577,6 +611,7 @@ async function call(name, args = {}, ctx) {
   }
   if (name === "add_photo") return addPhoto(args, ctx);
   if (name === "set_photo_role") return setPhotoRole(args, ctx);
+  if (name === "remove_photo") return removePhoto(args, ctx);
   if (name === "update_item") return update(args, ctx);
   if (name === "retire_item") {
     const retired = args.retired !== false;
@@ -599,6 +634,7 @@ export default {
   add_item: ["Adding it…", "Added"],
   add_photo: ["Adding the photo…", "Added the photo"],
   set_photo_role: ["Updating the photo…", "Updated the photo"],
+  remove_photo: ["Removing the photo…", "Removed the photo"],
   update_item: ["Making the change…", "Changed"],
   retire_item: ["Updating…", "Updated"],
   },

@@ -77,7 +77,7 @@ export async function wardrobeDb() {
   };
   const byId = async (sql, id) => { try { return (await q(sql, [id]))[0] || null; } catch (e) { if (e.code === '22P02') return null; throw e; } };
   const closetRow = (id) => byId(`select * from public.wardrobe_closet where id = $1`, id);
-  const uploads = [];
+  const uploads = [], removed = []; // what the made-up storage was given, and had taken away
   const ctx = {
     items: {
       list: () => q(`select * from public.wardrobe_closet`),
@@ -105,8 +105,10 @@ export async function wardrobeDb() {
       byFile: async (fileId) => (await q(`select * from public.wardrobe_photos where file_id = $1 limit 1`, [fileId]))[0] || null,
       add: async (rows) => { for (const r of rows) await insert('wardrobe_photos', r); },
       set: (id, patch) => update('wardrobe_photos', id, patch),
+      remove: (id) => q(`delete from public.wardrobe_photos where id = $1`, [id]),
     },
     photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
+    removeFile: async (path) => { removed.push(path); },
     readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
     storeImage: async (url) => (/\.(jpe?g|png|webp)$/i.test(url) ? `wardrobe/${STEVE}/${url.split('/').pop()}` : null), // a picture's address, not a page's
     storeUpload: async (file) => { if (/broken/.test(file.download_url)) return null; uploads.push(file.file_id); return `wardrobe/${STEVE}/${file.file_id}.jpg`; },
@@ -119,5 +121,5 @@ export async function wardrobeDb() {
     locate: async (place) => ({ name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
     weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
   };
-  return { db, q, run, migrations, signIn, ctx, insert, uploads, steveVariant };
+  return { db, q, run, migrations, signIn, ctx, insert, uploads, removed, steveVariant };
 }

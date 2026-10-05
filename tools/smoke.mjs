@@ -595,6 +595,8 @@ async function card(page, shot) {
 
   // the closet: a row of photos; the same shirt in three colours is told apart by colour
   await call('ingest_item', { product: { brand: 'Everlane', name: 'The Organic Cotton Crew', style_number: 'EV-1042', material: '100% organic cotton', sources: { brand: 'garment_label', name: 'hang_tag', style_number: 'hang_tag', material: { source: 'care_label', raw: '100% ORGANIC COTTON' } } }, variant: { manufacturer_colour: 'White', manufacturer_size: 'M', price: 30, currency: 'USD', sources: { manufacturer_colour: 'hang_tag', price: 'hang_tag' } }, item: { category: 'tops', subcategory: 't_shirt', warmth: 'light', dressiness: 'casual', dressiness_also: ['smart casual'], sources: { warmth: { source: 'vision_inference', confidence: 0.7 } } }, garment_photo: file('crew-front'), tag_photo: file('crew-tag'), care_label_photo: file('crew-care'), client_ref: 'smoke-crew' });
+  const crewId = (await call('find_items', { query: 'organic cotton crew' })).structuredContent.items[0].id;
+  await call('add_photo', { id: crewId, url: 'https://shop.example/crew-shop.jpg' }); // a shop's picture, kept as a reference
   const closet = await call('find_items', {});
   await show({}, closet);
   await frame.locator('.w-row .w-tile').first().waitFor();
@@ -609,7 +611,7 @@ async function card(page, shot) {
   await frame.locator('.w-tile', { hasText: 'Organic Cotton Crew' }).click();
   await frame.locator('.w-garment').waitFor();
   if (!(await frame.locator('html.is-full').count())) throw new Error("opening a garment didn't go full screen");
-  if ((await frame.locator('.w-thumb').count()) !== 3 || (await frame.locator('.w-seg').count()) || !(await frame.locator('.w-badge', { hasText: 'Care' }).count())) throw new Error("a garment's photos: three, badged, and no role picker until asked");
+  if ((await frame.locator('.w-thumb').count()) !== 4 || (await frame.locator('.w-seg').count()) || !(await frame.locator('.w-badge', { hasText: 'Care' }).count()) || !(await frame.locator('.w-badge', { hasText: 'Shop' }).count())) throw new Error("a garment's photos: four, badged (the shop's says so), and no role picker until asked");
   if ((await frame.locator('.w-guess').count()) || /hang tag|care label/i.test(await frame.locator('.w-facts').first().innerText())) throw new Error('facts read off a label should carry no source until tapped');
   await frame.locator('.w-fact', { hasText: '100% organic cotton' }).click();
   await frame.locator('.w-why', { hasText: 'Care label: “100% ORGANIC COTTON”' }).waitFor();
@@ -622,6 +624,14 @@ async function card(page, shot) {
   await frame.locator('.w-tools:empty').waitFor({ state: 'attached' });
   const [crew] = await w.q(`select photo_path from public.wardrobe_items where ingest_key = 'smoke-crew'`);
   if (!/crew-tag/.test(crew.photo_path)) throw new Error(`the role and "Make it the main photo" in the card didn't save: ${crew.photo_path}`);
+  // the shop's picture, wrong: two taps take it away (Steve's own photos have no Remove)
+  await frame.locator('.w-thumb', { has: frame.locator('.w-badge', { hasText: 'Shop' }) }).click();
+  await frame.getByRole('button', { name: 'Remove' }).click();
+  await frame.getByRole('button', { name: 'Remove for good?' }).click();
+  await frame.locator('.w-thumb').nth(2).waitFor();
+  if ((await frame.locator('.w-thumb').count()) !== 3 || (await w.q(`select count(*)::int as n from public.wardrobe_photos where item_id = $1 and origin = 'reference'`, [crewId]))[0].n) throw new Error('removing the shop picture in the card left it behind');
+  await frame.locator('.w-thumb[data-role="garment"]').first().click();
+  if (await frame.getByRole('button', { name: 'Remove' }).count()) throw new Error("Steve's own photo offered Remove");
   await frame.getByRole('button', { name: '‹ Back' }).click();
   await frame.locator('.w-grid').waitFor();
   await page.evaluate(() => window.bridge.setHostContext({ theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US' }));

@@ -68,12 +68,12 @@ function garment(data, receipt) {
   // the photos: the main one big; the rest small, a badge on any that isn't the garment itself.
   // Saying what a photo is only comes up when you tap one (or one's role isn't known).
   const photos = data.photos || [];
-  let looking = photos.find((x) => x.hero) || photos[0] || null, editing = false;
+  let looking = photos.find((x) => x.hero) || photos[0] || null, editing = false, touched = false;
   const fig = el('figure', 'w-hero'), thumbs = el('div', 'w-thumbs'), tools = el('div', 'w-tools');
   const paint = () => {
     fig.replaceChildren(photo(looking?.url || it.hero_photo, it, 'w-hero__img'));
     thumbs.replaceChildren(...photos.map((x) => {
-      const t = button('w-thumb', null, () => { looking = x; editing = false; paint(); });
+      const t = button('w-thumb', null, () => { looking = x; editing = false; touched = true; paint(); });
       t.dataset.role = x.role;
       t.setAttribute('aria-pressed', x === looking);
       t.setAttribute('aria-label', `${ROLES[x.role]} photo${x.hero ? ', the main one' : ''}`);
@@ -86,7 +86,7 @@ function garment(data, receipt) {
     tools.replaceChildren();
     if (!looking) return;
     const unknown = looking.role === 'other';
-    if (looking.hero && !editing && !unknown) return; // the main photo is a garment photo: nothing to ask
+    if (looking.hero && !editing && !unknown && !touched) return; // the main photo, untouched: nothing to ask
     if (editing || unknown) {
       const seg = el('div', 'w-seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'This photo is');
       for (const [r, name] of Object.entries(ROLES)) {
@@ -99,14 +99,23 @@ function garment(data, receipt) {
     }
     const from = { catalog: 'Catalog image', reference: 'Shop picture', own: 'Your photo' }[looking.origin || 'own'];
     tools.append(el('span', 'w-cap', `${from}${looking.role !== 'garment' ? ` · ${ROLES[looking.role]}` : ''}`), button('w-link', 'Change', () => { editing = true; paint(); }));
-    if (looking.role === 'garment') tools.append(button('w-btn', 'Make it the main photo', () => setRole(looking, { make_hero: true })));
+    if (looking.role === 'garment' && !looking.hero) tools.append(button('w-btn', 'Make it the main photo', () => setRole(looking, { make_hero: true })));
+    // a catalog image or shop picture that's wrong can go (Steve's own photos stay): two taps
+    if ((looking.origin || 'own') !== 'own') {
+      const gone = button('w-link w-link--bad', 'Remove', async () => {
+        if (!gone.dataset.sure) { gone.dataset.sure = '1'; gone.textContent = 'Remove for good?'; return; }
+        try { draw({ ...(await callTool('remove_photo', { photo_id: looking.id })), view: 'garment' }, false); }
+        catch (e) { say(e.message, true); }
+      });
+      tools.append(gone);
+    }
   };
   const setRole = async (x, change) => {
     try {
       const r = await callTool('set_photo_role', { photo_id: x.id, ...change });
       const next = { ...r, view: 'garment' };
       const keep = (next.photos || []).find((y) => y.id === x.id);
-      current = next; app.textContent = ''; garment(next, receipt);
+      draw(next, false);
       if (keep && !keep.hero) app.querySelector(`.w-thumb:nth-child(${next.photos.indexOf(keep) + 1})`)?.click(); // stay on the photo you were fixing
     } catch (e) { say(e.message, true); }
   };
@@ -254,6 +263,7 @@ css(`
 .w-tools .w-cap { width: 100%; }
 .w-tools .w-cap + .w-link { margin-left: -6px; }
 .w-tools .w-cap:has(+ .w-link) { width: auto; }
+.w-link--bad { color: var(--color-text-danger, #b3261e); }
 .w-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin: 0; }
 .w-facts dt { color: var(--w-ink2); min-height: 28px; display: flex; align-items: center; }
 .w-facts dd { margin: 0; display: flex; flex-wrap: wrap; gap: 0 8px; align-items: center; min-height: 28px; }

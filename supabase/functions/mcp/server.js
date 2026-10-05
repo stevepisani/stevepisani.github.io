@@ -30,24 +30,28 @@ export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
 export const AREAS = [wardrobe, trips];
 // 1. Steve's own records (an area with records: true) can be read and changed from a chat. The
 //    site's content (drinks, books, what he's written) is read-only here: it changes in the repo.
-// 2. Nothing is deleted from a chat: no tool deletes, and none is marked destructive. Deleting is
-//    Steve's, in the apps. Retiring or clearing is the most a tool does.
+// 2. Nothing of Steve's is deleted from a chat: no garment, trip or photo he took. Retiring or
+//    clearing is the most a tool does to those; deleting them is his, in the apps. The one
+//    exception is what a chat added and got wrong (REMOVES: a catalog image or a shop picture).
 // 3. Everything runs as the signed-in member (row-level security), and stays on stevenpisani.com.
 // Checked here when the server starts, so an area that breaks them doesn't load; said to the model
 // in RULES, and on every tool that writes.
-export const RULES = "Rules: Steve's own records (wardrobe, trips) can be read and changed; the site's content is read-only; nothing is ever deleted from here (that's his to do in the apps).";
+export const RULES = "Rules: Steve's own records (wardrobe, trips) can be read and changed; the site's content is read-only; nothing of his is deleted from here (no garment, trip or photo he took): only a catalog image or shop picture added by mistake can be removed.";
+// the only tools that remove anything, and what they may remove
+export const REMOVES = { remove_photo: "a catalog image or shop picture added by mistake, never Steve's own photos" };
 const WRITES = "It changes only Steve's own records on stevenpisani.com; it sends nothing anywhere and deletes nothing.";
+const REMOVING = "It removes only that, from Steve's private wardrobe on stevenpisani.com, and sends nothing anywhere.";
 export const TOOLS = [];
 const OWNER = new Map();
 for (const area of AREAS) for (const t of area.tools) {
   if (OWNER.has(t.name)) throw new Error(`${t.name} is in two areas`);
   if (!area.records && !t.annotations.readOnlyHint) throw new Error(`${t.name}: ${area.name} is read-only (the rules)`);
-  if (t.annotations.destructiveHint || /^(delete|remove|destroy)_/.test(t.name)) throw new Error(`${t.name}: nothing is deleted from a chat (the rules)`);
+  if ((t.annotations.destructiveHint || /^(delete|remove|destroy)_/.test(t.name)) && !REMOVES[t.name]) throw new Error(`${t.name}: nothing of Steve's is deleted from a chat (the rules, REMOVES)`);
   const [invoking, invoked] = area.status[t.name] || [];
   if (!invoking) throw new Error(`${t.name} has no status lines`);
   OWNER.set(t.name, area);
   // what ChatGPT shows while it runs, and once it's done (64 characters at most)
-  TOOLS.push({ ...t, ...(!t.annotations.readOnlyHint && { description: `${t.description}\n${WRITES}` }), _meta: { ...t._meta, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked } });
+  TOOLS.push({ ...t, ...(!t.annotations.readOnlyHint && { description: `${t.description}\n${REMOVES[t.name] ? REMOVING : WRITES}` }), _meta: { ...t._meta, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked } });
 }
 const INSTRUCTIONS = [
   "SJPJr: Steve Pisani's own things, private to him: his wardrobe and his trips. Start with find_items (one entry per garment he owns, flat) and refer to things by name.",

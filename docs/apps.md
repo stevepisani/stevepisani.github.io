@@ -219,8 +219,11 @@ its instructions, and said on every tool that writes:
 1. Steve's own records (an area with `records: true`: the wardrobe, trips) can be read and changed
    from a chat. The site's content (drinks, books, what he's written) is read-only there: it
    changes in the repo.
-2. Nothing is deleted from a chat: no tool deletes, and none is marked destructive. Deleting is
-   Steve's, in the apps; retiring or clearing is the most a tool does.
+2. Nothing of Steve's is deleted from a chat: no garment, trip or photo he took; retiring or
+   clearing is the most a tool does to those, and deleting them is his, in the apps. The one
+   exception is a chat's own mistake: `remove_photo` takes away a catalog image or a shop picture
+   (`REMOVES` in `server.js` lists the only tools that remove anything, and the server won't load
+   another).
 3. Everything runs as the signed-in member, through row-level security, and stays on
    stevenpisani.com.
 
@@ -245,8 +248,8 @@ its instructions, and said on every tool that writes:
   `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
   with no product), `add_photo` (with a role), `set_photo_role` (what a photo is, or which is
   shown), `update_item` (with a scope, below), `retire_item` (or back), `create_trip`,
-  `update_trip`, `plan_days`, `set_packing` and `tick_packing` (the card's). No delete: that's
-  only in the app. The tool descriptions are written for the AI calling them: which to start
+  `update_trip`, `plan_days`, `set_packing`, `tick_packing` (the card's) and `remove_photo` (a
+  catalog image or shop picture added by mistake). Nothing else is deleted from a chat. The tool descriptions are written for the AI calling them: which to start
   with, when to ingest rather than add, what's a fact and what's a judgement, how photos get
   roles, how duplicates are avoided.
 - **ingest_item** files a garment at every level at once. The caller (ChatGPT) reads the photos or
@@ -369,7 +372,10 @@ its instructions, and said on every tool that writes:
   the card and not the model (`kit.js`, `sign`); the card puts them in place. `add_photo` takes an
   upload (`photo`) or a link (`url`: a picture, or a product page whose main picture is taken; the
   page is noted on the product, or the garment, where nothing's noted yet), with its `role`,
-  `origin` and, for a catalog image, `made_from`; `set_photo_role` corrects either.
+  `origin` and, for a catalog image, `made_from` and `shows` (the subcategory and colour it shows:
+  one of another kind than the garment is refused before anything is kept, a different colour is
+  said); `set_photo_role` corrects either; `remove_photo` takes away a catalog image or shop picture
+  that's wrong (the card has a two-tap Remove on those, never on Steve's own).
   Results stay small (both apps cap what a tool may return, and the model reads all of it):
   lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
   sources drop their dates, the same photo link is sent once, and a trip names each garment once
