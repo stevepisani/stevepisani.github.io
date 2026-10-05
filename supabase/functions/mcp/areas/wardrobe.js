@@ -5,7 +5,7 @@
 // Steve has, one row per physical piece; it may belong to a variant (one colour and size as sold),
 // which belongs to a product (brand, name, style number). Every fact keeps its source. Reads come
 // flat (find_items) or whole (get_item); ingest_item files a garment at all three levels at once.
-import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural } from "../kit.js";
+import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural, heroPhotos, sign } from "../kit.js";
 
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
 const SEASONS = ["spring", "summer", "autumn", "winter"];
@@ -68,7 +68,15 @@ const LEVELS = { item: ITEM, product: PRODUCT, variant: VARIANT };
 // A photo uploaded in the chat: ChatGPT hands it over as a short-lived link (the tool says which
 // arguments with _meta "openai/fileParams"), which is fetched and stored at once.
 const FILE = { type: "object", description: "A photo the user uploaded in this chat.", properties: { download_url: { type: "string" }, file_id: { type: "string" }, mime_type: { type: "string" }, file_name: { type: "string" } }, required: ["download_url", "file_id"] };
-const PHOTO_ARGS = { garment_photo: "garment", tag_photo: "tag", care_label_photo: "care_label", detail_photos: "detail" };
+const PHOTO_ARGS = { garment_photo: "garment", tag_photo: "tag", care_label_photo: "care_label", detail_photos: "detail", catalog_photo: "garment" };
+// Where a photo came from (supabase/migrations/20261005000300_wardrobe_photo_origin.sql): Steve's own
+// photo of his piece, a shop's or maker's picture (a reference, to make a catalog image from), or the
+// wardrobe's own catalog image. The one shown is the best there is: catalog, then his own, then a
+// reference only as a stand-in.
+export const ORIGINS = ["own", "reference", "catalog"];
+const RANK = { catalog: 0, own: 1, reference: 2 };
+// The one look every catalog image has, whatever the brand, so the closet reads as one set
+export const CATALOG_STYLE = "the garment alone, front on, laid flat or on an invisible mannequin, centred and filling most of a square frame, on a plain light grey background (#F2F2F2), soft even light, true colour, no model, no props, no added text or logos";
 
 const TOOLS = [
   {
@@ -76,7 +84,7 @@ const TOOLS = [
     title: "Find clothes in Steve's wardrobe",
     description: "Start here. Lists what Steve owns, one entry per physical garment, flat (product and variant facts filled in), optionally narrowed by words, category, season, dressiness (matches where it mostly belongs or also works) or warmth. Retired things are left out unless asked for. Use it before suggesting outfits or packing, and before ingesting, to see if a garment or its product is already here.",
     inputSchema: { type: "object", properties: { query: { type: "string", description: "Words to look for in the name, brand, colour (plain or as printed), material, style number or notes." }, category: ITEM.category, season: { type: "string", enum: SEASONS }, dressiness: ITEM.dressiness, warmth: ITEM.warmth, include_retired: { type: "boolean" } }, additionalProperties: false },
-    outputSchema: { type: "object", properties: { view: { type: "string" }, count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo (a photo reference for the card), product_id, variant_id…" } } }, required: ["count", "items"] },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, count: { type: "integer" }, items: { type: "array", items: { type: "object", description: "One garment, flat: id, name, brand, category, subcategory, colour, manufacturer_colour, size, material, fit, warmth, seasons, dressiness, dressiness_also, price, hero_photo_id (the photo shown: get_item lists it with hero: true)…" } } }, required: ["count", "items"] },
     annotations: read,
     _meta: showsCard,
   },
@@ -85,7 +93,7 @@ const TOOLS = [
     title: "Get one garment, whole",
     description: "Everything about one owned garment: the flat view, then its product and variant (if it has them), what's set on this piece alone, every photo with its role, and where each fact came from. Photo ids here are what set_photo_role takes.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, focus: { type: "array", items: { type: "string", enum: ["size", "colour", "material", "fit", "price", "bought", "condition", "style_number", "origin", "measurements", "notes"] }, description: "Optional: what Steve asked about, so the card shows those facts first." } }, required: ["id"], additionalProperties: false },
-    outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, hero, url (a photo reference for the card), source." } } }, required: ["item", "owned_item", "photos"] },
+    outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, origin (own, reference, catalog), hero, source, source_url, made_from." } } }, required: ["item", "owned_item", "photos"] },
     annotations: read,
     _meta: { ...showsCard, "openai/widgetAccessible": true },
   },
@@ -97,7 +105,7 @@ const TOOLS = [
       "product: the garment as sold (brand and name needed; style_number when printed). variant: this colour and size, as printed (manufacturer_colour \"38 Dark Brown\", manufacturer_size \"M\") plus SKU, barcode, retail price, measurements. item: this physical piece: category (needed), subcategory, warmth, dressiness (+ dressiness_also), seasons, style_tags, condition, what he paid, bought_on, notes; name only when there's no product.",
       "Facts printed on a tag or label go in product or variant, with sources (hang_tag, garment_label, care_label, retailer_page...). Judgements (warmth, dressiness, seasons, style, fit when not printed) go in item, sourced vision_inference or derived. Never put structured facts in notes.",
       "No brand or tag (thrifted, old, tailored): leave product and variant out and describe it in item. Same shirt in another colour: same product, new variant; it's matched by brand + style number, else brand + exact name. A second identical piece: quantity, or ingest again.",
-      "Photos: garment_photo is the one shown; tag_photo, care_label_photo and detail_photos are kept beside it. A tag is never shown as the garment.",
+      `Photos: garment_photo, tag_photo, care_label_photo and detail_photos are Steve's own, kept as evidence; catalog_photo is the wardrobe's own image of it (${CATALOG_STYLE}), made from those or the shop's picture, and is the one shown. Without one, the garment photo is shown. A tag is never shown as the garment.`,
       "dry_run: true shows what would happen and any warnings, writing nothing; commit straightforward ones directly. Pass client_ref (any id you make up for this garment) so a retry adds nothing twice.",
     ].join("\n"),
     inputSchema: {
@@ -107,7 +115,7 @@ const TOOLS = [
         variant: section(VARIANT, "This colour and size of the product."),
         item: section(ITEM, "This physical piece, and how it dresses."),
         quantity: { type: "integer", minimum: 1, maximum: 10, description: "Identical pieces owned (default 1); each becomes its own item." },
-        garment_photo: FILE, tag_photo: FILE, care_label_photo: FILE,
+        garment_photo: FILE, tag_photo: FILE, care_label_photo: FILE, catalog_photo: FILE,
         detail_photos: { type: "array", items: FILE },
         client_ref: { type: "string", description: "Your id for this ingestion; the same one again returns what was made the first time." },
         dry_run: { type: "boolean" },
@@ -136,16 +144,19 @@ const TOOLS = [
   {
     name: "add_photo",
     title: "Add a photo to a garment",
-    description: "Adds a photo uploaded in this chat to a garment, with its role (garment, tag, care_label, detail, other). A garment photo becomes the one shown if the garment has none yet, or if make_hero.",
-    inputSchema: { type: "object", properties: { id: { type: "string", description: "The owned item." }, photo: FILE, role: { type: "string", enum: ROLES }, make_hero: { type: "boolean" } }, required: ["id", "photo"], additionalProperties: false },
+    description: [
+      "Adds a photo to a garment: one uploaded in this chat (photo), or a shop's or maker's picture from a link (url: the picture itself, or the product page, whose main picture is taken; its page is noted on the garment). Says what it is (role) and where it came from (origin).",
+      `origin: own (Steve's photo of his piece, the default for uploads), reference (a shop's or maker's picture, the default for links: kept to make a catalog image from, shown only when there's nothing better), catalog (the wardrobe's own image of the garment, made from the references and his photos in one style for every brand: ${CATALOG_STYLE}; give made_from, the ids of the photos it was made from). A new catalog image is the one shown; others only with make_hero, or when there's no better one. Every photo is kept.`,
+    ].join("\n"),
+    inputSchema: { type: "object", properties: { id: { type: "string", description: "The owned item." }, photo: FILE, url: { type: "string", description: "A shop's or maker's page or picture." }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, made_from: { type: "array", items: { type: "string" }, description: "For a catalog image: the photo ids it was made from." }, make_hero: { type: "boolean" } }, required: ["id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
     _meta: { "openai/fileParams": ["photo"] },
   },
   {
     name: "set_photo_role",
     title: "Change a photo's role",
-    description: "Says what a photo is (garment, tag, care_label, detail, other), or makes it the one shown (make_hero). Photo ids come from get_item. A photo that stops being a garment photo stops being shown.",
-    inputSchema: { type: "object", properties: { photo_id: { type: "string" }, role: { type: "string", enum: ROLES }, make_hero: { type: "boolean" } }, required: ["photo_id"], additionalProperties: false },
+    description: "Says what a photo is (role: garment, tag, care_label, detail, other) and where it came from (origin: own, reference, catalog), or makes it the one shown (make_hero). Photo ids come from get_item. A photo that stops being a garment photo stops being shown; one newly marked catalog is shown.",
+    inputSchema: { type: "object", properties: { photo_id: { type: "string" }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, make_hero: { type: "boolean" } }, required: ["photo_id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
     _meta: { "openai/widgetAccessible": true },
   },
@@ -284,11 +295,11 @@ async function addOrFind(add, find) {
 const FLAT = ["id", "name", "brand", "category", "subcategory", "colour", "manufacturer_colour", "size", "material", "fit", "warmth", "seasons", "dressiness", "dressiness_also", "style_tags", "notes", "retired"];
 const FLAT_WHOLE = [...FLAT, "manufacturer_size", "condition", "price", "currency", "bought_on", "buy_link", "style_number", "product_id", "variant_id"];
 async function flat(rows, ctx, keys = FLAT) {
-  const links = await ctx.photoUrls(rows.map((r) => r.photo_path).filter(Boolean));
+  const heroes = await heroPhotos(rows, ctx);
   return rows.map((r) => {
     const o = pick(r, keys);
     if (!o.retired) delete o.retired;
-    if (r.photo_path && links.get(r.photo_path)) o.hero_photo = links.get(r.photo_path); // for the card (photosApart)
+    if (heroes.get(r.id)) o.hero_photo_id = heroes.get(r.id).id; // the photo shown, by its id (get_item's photos)
     return o;
   });
 }
@@ -302,7 +313,10 @@ async function whole(id, ctx) {
     row.variant_id ? ctx.variants.get(row.variant_id) : null,
     ctx.photos.list(id),
   ]);
-  const links = await ctx.photoUrls(photos.map((p) => p.path));
+  await sign(ctx, photos);
+  // the photo shown, the same one everywhere: item.hero_photo_id is the photo with hero: true
+  const heroId = photos.find((p) => p.path === row.photo_path)?.id;
+  if (heroId) item.hero_photo_id = heroId; else delete item.hero_photo_id;
   const facts = (src) => Object.fromEntries(Object.entries(src || {}).map(([k, v]) => { if (!v || typeof v !== "object" || Array.isArray(v)) return [k, v]; const { at, ...rest } = v; return [k, rest]; }));
   const overrides = own && row.variant_id ? pick(own, ["name", "brand", "colour", "size", "material", "fit", "price", "buy_link"]) : {};
   return {
@@ -311,7 +325,7 @@ async function whole(id, ctx) {
     owned_item: { ...pick(own || {}, ["id", "category", "subcategory", "warmth", "dressiness", "dressiness_also", "seasons", "style_tags", "condition", "price", "currency", "bought_on", "notes", "retired", "retired_at"]), status: own?.retired ? "retired" : "active", ...(present(overrides) && { overrides }), sources: facts(own?.sources) },
     variant: variant && { ...pick(variant, ["id", "manufacturer_colour", "colour", "manufacturer_size", "size", "sku", "barcode", "price", "currency", "measurements", "identifiers"]), sources: facts(variant.sources) },
     product: product && { ...pick(product, ["id", "brand", "name", "style_number", "description", "material", "country_of_origin", "default_fit", "product_url", "identifiers"]), sources: facts(product.sources) },
-    photos: photos.map((p) => ({ id: p.id, role: p.role, hero: p.path === row.photo_path, ...(links.get(p.path) && { url: links.get(p.path) }), ...(p.source && { source: p.source }) })),
+    photos: photos.map((p) => ({ id: p.id, role: p.role, origin: p.origin || "own", hero: p.id === heroId, ...(p.source && { source: p.source }), ...(p.source_url && { source_url: p.source_url }), ...(p.made_from?.length && { made_from: p.made_from }) })),
   };
 }
 // one line a garment, for the text half of a result
@@ -322,7 +336,7 @@ async function ingest(args, ctx) {
   const ref = args.client_ref ? String(args.client_ref).trim().slice(0, 120) : null;
   const qty = Math.max(1, Math.min(10, parseInt(args.quantity, 10) || 1));
   const photos = [];
-  for (const [arg, role] of Object.entries(PHOTO_ARGS)) for (const file of [args[arg]].flat().filter(Boolean)) photos.push({ file, role });
+  for (const [arg, role] of Object.entries(PHOTO_ARGS)) for (const file of [args[arg]].flat().filter(Boolean)) photos.push({ file, role, origin: arg === "catalog_photo" ? "catalog" : "own" });
   const done = async (rows, how) => {
     const w = await whole(rows[0].id, ctx);
     return { text: `Already filed (${how}): ${line(w.item)}`, data: { ...w, view: "ingest", product_created: false, variant_created: false, owned_item_created: false, item_ids: rows.map((r) => r.id), warnings: [] } };
@@ -390,7 +404,7 @@ async function ingest(args, ctx) {
     const path = p.file?.download_url ? await ctx.storeUpload(p.file) : null;
     if (path) stored.push({ ...p, path }); else warnings.push(`The ${p.role} photo didn't come through; ask Steve to attach it again and use add_photo.`);
   }
-  const hero = stored.find((p) => p.role === "garment") || null;
+  const hero = stored.find((p) => p.origin === "catalog") || stored.find((p) => p.role === "garment") || null;
   const ids = [];
   for (let i = 0; i < qty; i++) {
     const row = await ctx.items.add({
@@ -399,7 +413,7 @@ async function ingest(args, ctx) {
       photo_path: hero?.path ?? null, photo_file_id: hero?.file.file_id ?? null,
     });
     ids.push(row.id);
-    if (stored.length) await ctx.photos.add(stored.map((p) => ({ item_id: row.id, role: p.role, path: p.path, source: "chatgpt_upload", file_id: p.file.file_id || null })));
+    if (stored.length) await ctx.photos.add(stored.map((p) => ({ item_id: row.id, role: p.role, origin: p.origin, path: p.path, source: "chatgpt_upload", file_id: p.file.file_id || null })));
   }
   const w = await whole(ids[0], ctx);
   const how = [productCreated ? "new product" : P ? "existing product" : null, P ? (variantCreated ? "new variant" : "existing variant") : null, plural(ids.length, "new item")].filter(Boolean).join(", ");
@@ -441,38 +455,74 @@ async function update(args, ctx) {
 }
 
 // ---------- Photos ----------
+// Which photo is shown: the one asked for, else the best garment photo there is (catalog, then
+// Steve's own, then a reference), keeping the one shown unless something outranks it
+async function settleHero(id, ctx, choose) {
+  const [item, photos] = await Promise.all([ctx.items.get(id), ctx.photos.list(id)]);
+  const shown = photos.find((p) => p.path === item.photo_path);
+  let next = choose ? photos.find((p) => p.id === choose) : shown && shown.role === "garment" ? shown : null;
+  if (!choose) {
+    const best = photos.filter((p) => p.role === "garment").sort((a, b) => RANK[a.origin || "own"] - RANK[b.origin || "own"] || String(b.created_at).localeCompare(String(a.created_at)))[0];
+    if (best && (!next || RANK[best.origin || "own"] < RANK[next.origin || "own"])) next = best;
+  }
+  if ((next?.path ?? null) !== (item.photo_path ?? null)) await ctx.items.set(id, { photo_path: next?.path ?? null, photo_file_id: next?.file_id ?? null });
+}
 async function addPhoto(args, ctx) {
   const row = await ctx.items.get(String(args.id || ""));
   if (!row) throw new Invalid("There's no item with that id.");
-  if (!args.photo?.download_url) throw new Invalid("The photo didn't come through. Ask Steve to attach it again.");
+  const url = args.url ? String(args.url).trim() : null;
+  if (!args.photo?.download_url && !url) throw new Invalid("Give a photo uploaded in this chat (photo), or a link to a shop's page or picture (url). If a photo didn't come through, ask Steve to attach it again.");
   const role = args.role === undefined ? "garment" : args.role;
   if (!ROLES.includes(role)) throw new Invalid(`role is one of: ${ROLES.join(", ")}.`);
+  const origin = args.origin ?? (url ? "reference" : "own");
+  if (!ORIGINS.includes(origin)) throw new Invalid(`origin is one of: ${ORIGINS.join(", ")}.`);
+  if (origin === "catalog" && role !== "garment") throw new Invalid("A catalog image is of the garment: role garment.");
   const mine = await ctx.photos.list(row.id);
-  if (!mine.some((p) => p.file_id && p.file_id === args.photo.file_id)) {
-    const path = await ctx.storeUpload(args.photo);
-    if (!path) throw new Invalid("The photo couldn't be fetched from the chat. Ask Steve to attach it again.");
-    await ctx.photos.add([{ item_id: row.id, role, path, source: "chatgpt_upload", file_id: args.photo.file_id || null }]);
-    const shown = mine.find((p) => p.path === row.photo_path);
-    if (args.make_hero || (role === "garment" && (!row.photo_path || (shown && shown.role !== "garment")))) await ctx.items.set(row.id, { photo_path: path, photo_file_id: args.photo.file_id || null });
+  const made_from = [...new Set(args.made_from || [])];
+  if (made_from.some((m) => !mine.some((p) => p.id === m))) throw new Invalid("made_from names photos of this garment (their ids from get_item).");
+  let photo = args.photo?.file_id ? mine.find((p) => p.file_id === args.photo.file_id) : url ? mine.find((p) => p.source_url === url && p.origin === origin) : null;
+  let noted = "";
+  if (!photo) {
+    let path = null, page = null, source = "chatgpt_upload";
+    if (args.photo?.download_url) {
+      path = await ctx.storeUpload(args.photo);
+      if (!path) throw new Invalid("The photo couldn't be fetched from the chat. Ask Steve to attach it again.");
+    } else {
+      // a picture's own address, or a page whose main picture is taken
+      path = await ctx.storeImage(url);
+      if (!path) { page = await ctx.readProduct(url).catch(() => null); path = page?.image ? await ctx.storeImage(page.image) : null; }
+      if (!path) throw new Invalid("No picture could be taken from that link (some shops don't allow it). Ask Steve to save the picture and attach it.");
+      source = "retailer_page";
+      // the shop's page, noted on the garment where nothing's noted yet
+      if (page) {
+        const product = row.product_id ? await ctx.products.get(row.product_id) : null;
+        if (product && !product.product_url) { await ctx.products.set(product.id, { product_url: page.url || url }); noted = " Noted the shop's page on the product."; }
+        else if (!product && !row.buy_link) { await ctx.items.set(row.id, { buy_link: page.url || url }); noted = " Noted the shop's page on the garment."; }
+      }
+    }
+    await ctx.photos.add([{ item_id: row.id, role, origin, path, source, file_id: args.photo?.file_id || null, source_url: url, made_from }]);
+    photo = (await ctx.photos.list(row.id)).find((p) => p.path === path);
   }
+  // a new catalog image is the one shown (unless make_hero: false); anything else only if asked, or if it's the best there is
+  await settleHero(row.id, ctx, args.make_hero || (origin === "catalog" && args.make_hero !== false) ? photo.id : null);
   const w = await whole(row.id, ctx);
-  return { text: `Photo added (${role}): ${line(w.item)}`, data: w };
+  return { text: `Photo added (${origin}, ${role}) [photo ${photo.id}]${w.item.hero_photo_id === photo.id ? ", and it's the one shown" : ""}:${noted} ${line(w.item)}`, data: { ...w, photo_id: photo.id } };
 }
 async function setPhotoRole(args, ctx) {
   const p = await ctx.photos.get(String(args.photo_id || ""));
   if (!p) throw new Invalid("There's no photo with that id. get_item lists them.");
   if (args.role !== undefined && !ROLES.includes(args.role)) throw new Invalid(`role is one of: ${ROLES.join(", ")}.`);
-  const role = args.role || p.role;
-  if (role !== p.role) await ctx.photos.set(p.id, { role });
+  if (args.origin !== undefined && !ORIGINS.includes(args.origin)) throw new Invalid(`origin is one of: ${ORIGINS.join(", ")}.`);
+  const role = args.role || p.role, origin = args.origin || p.origin || "own";
+  if (origin === "catalog" && role !== "garment") throw new Invalid("A catalog image is of the garment: role garment.");
+  if (role !== p.role || origin !== (p.origin || "own")) await ctx.photos.set(p.id, { role, origin });
   const item = await ctx.items.get(p.item_id);
-  if (args.make_hero) await ctx.items.set(p.item_id, { photo_path: p.path, photo_file_id: p.file_id });
-  else if (item.photo_path === p.path && role !== "garment") {
-    // a tag or label isn't shown as the garment: another garment photo is, or none
-    const next = (await ctx.photos.list(p.item_id)).find((x) => x.id !== p.id && x.role === "garment");
-    await ctx.items.set(p.item_id, { photo_path: next?.path ?? null, photo_file_id: next?.file_id ?? null });
-  }
+  const wasShown = item.photo_path === p.path, nowCatalog = origin === "catalog" && (p.origin || "own") !== "catalog";
+  // asked for, or newly the wardrobe's own image: shown; changed while shown: the best there is
+  if (args.make_hero || nowCatalog) await settleHero(p.item_id, ctx, p.id);
+  else if (wasShown) await settleHero(p.item_id, ctx);
   const w = await whole(p.item_id, ctx);
-  return { text: `Photo is now ${role}${args.make_hero ? ", and the one shown" : ""}: ${line(w.item)}`, data: w };
+  return { text: `Photo ${p.id} is now ${origin}, ${role}${w.item.hero_photo_id === p.id ? ", and the one shown" : ""}: ${line(w.item)}`, data: w };
 }
 
 async function call(name, args = {}, ctx) {
@@ -509,14 +559,14 @@ async function call(name, args = {}, ctx) {
     }
     const row = { ...I.fields, sources: I.sources };
     const pics = [];
-    if (photo) { const path = await ctx.storeUpload(photo); if (path) { pics.push({ role: "garment", path, source: "chatgpt_upload", file_id: photo.file_id }); Object.assign(row, { photo_path: path, photo_file_id: photo.file_id }); } }
+    if (photo) { const path = await ctx.storeUpload(photo); if (path) { pics.push({ role: "garment", origin: "own", path, source: "chatgpt_upload", file_id: photo.file_id }); Object.assign(row, { photo_path: path, photo_file_id: photo.file_id }); } }
     if (row.buy_link) {
       const p = await ctx.readProduct(row.buy_link).catch(() => null);
       if (p) {
         row.buy_link = p.url;
         if (!row.brand && p.brand) { row.brand = p.brand; row.sources.brand = { source: "retailer_page", at: today() }; }
         if (row.price === undefined && p.price != null) { row.price = p.price; row.currency ??= p.currency; row.sources.price = { source: "retailer_page", at: today() }; }
-        if (!row.photo_path && photo_from_link !== false && p.image) { const path = await ctx.storeImage(p.image); if (path) { row.photo_path = path; pics.push({ role: "garment", path, source: "retailer_page" }); } }
+        if (!row.photo_path && photo_from_link !== false && p.image) { const path = await ctx.storeImage(p.image); if (path) { row.photo_path = path; pics.push({ role: "garment", origin: "reference", path, source: "retailer_page", source_url: row.buy_link }); } }
       }
     }
     const added = await ctx.items.add(row);
@@ -552,6 +602,6 @@ export default {
   update_item: ["Making the change…", "Changed"],
   retire_item: ["Updating…", "Updated"],
   },
-  instructions: ["To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.", "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). You get each photo's role, not the image; go by the descriptions. Steve sees the photos in the card under your answer, so don't list what it shows; to send him to the app, use the \"In the app\" link a result gives."].join(" "),
+  instructions: ["Photos: Steve's own are evidence; a shop's picture is a reference (add_photo with its url); the one shown should be the wardrobe's catalog image, in one style for every brand, made from those and added with origin catalog. Photos are named by id: hero_photo_id is the one shown.", "To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.", "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). You get each photo's role, not the image; go by the descriptions. Steve sees the photos in the card under your answer, so don't list what it shows; to send him to the app, use the \"In the app\" link a result gives."].join(" "),
   call,
 };

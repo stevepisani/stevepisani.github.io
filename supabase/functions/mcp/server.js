@@ -11,7 +11,7 @@
 //     itself; add(row) → closet row; set(id, patch) → closet row | null
 //   ctx.products.list(); get(id); add(row) → row; set(id, patch) → row
 //   ctx.variants.list(productId); get(id); add(row) → row; set(id, patch) → row
-//   ctx.photos.list(itemId); get(id); byFile(fileId) → row | null; add(rows); set(id, patch)
+//   ctx.photos.list(itemId); forItems(itemIds); get(id); byFile(fileId) → row | null; add(rows); set(id, patch)
 //   ctx.photoUrls(paths) → Map(path → signed link); ctx.readProduct(url); ctx.storeImage(url) → path | null
 //   ctx.storeUpload(file) → path | null (a file ChatGPT passes: { download_url, file_id, mime_type })
 //   ctx.trips.list(); get(id); add(row) → row; set(id, patch) → row | null
@@ -59,6 +59,7 @@ const INSTRUCTIONS = [
 // its name, logo (the site's SJPJr badge) and home, as both apps show them
 export const ICONS = [
   { src: `${SITE}/assets/images/sj-512.png`, mimeType: "image/png", sizes: ["512x512"] },
+  { src: `${SITE}/assets/images/sj-256.png`, mimeType: "image/png", sizes: ["256x256"] }, // 7 KB: the one to upload where an app wants a small icon
   { src: `${SITE}/assets/images/sj-180.png`, mimeType: "image/png", sizes: ["180x180"] },
   { src: `${SITE}/assets/images/sj-64.png`, mimeType: "image/png", sizes: ["64x64"] },
 ];
@@ -86,26 +87,6 @@ export function appResource(ctx, script) {
   return { uri: APP_URI, name: "SJPJr", title: "SJPJr", mimeType: APP_MIME, icons: ICONS, html, _meta };
 }
 
-// The photos' signed links are long and only the card needs them: each becomes a short reference
-// ("p1") in what the model reads, and the links travel in the result's _meta, which hosts pass to
-// the card and not to the model. The card puts them back (assets/js/mcp-app/card.js).
-export function photosApart(data) {
-  const photos = {}, refs = new Map();
-  let n = 0;
-  const walk = (v) => {
-    if (Array.isArray(v)) return v.map(walk);
-    if (!v || typeof v !== "object") return v;
-    const o = {};
-    for (const [k, x] of Object.entries(v)) {
-      if ((k === "hero_photo" || k === "url") && typeof x === "string" && /^(https?:|data:)/.test(x)) { if (!refs.has(x)) { refs.set(x, `p${++n}`); photos[`p${n}`] = x; } o[k] = refs.get(x); }
-      else o[k] = walk(x);
-    }
-    return o;
-  };
-  const lean = walk(data);
-  return { data: lean, photos: n ? photos : null };
-}
-
 /** Answers one JSON-RPC message (or null for a notification). */
 export async function rpc(msg, ctx) {
   const ok = (result) => ({ jsonrpc: "2.0", id: msg.id, result });
@@ -131,9 +112,10 @@ export async function rpc(msg, ctx) {
       const area = OWNER.get(name);
       if (!area) return fail(-32602, `There's no tool called ${name}.`);
       try {
-        const { text, data } = await area.call(name, args || {}, ctx);
-        const { data: lean, photos } = photosApart(data);
-        return ok({ content: [{ type: "text", text }], structuredContent: lean, ...(photos && { _meta: { photos } }) });
+        // the photos' links, by photo id, for the card alone (kit.js, sign)
+        const links = {};
+        const { text, data } = await area.call(name, args || {}, { ...ctx, links });
+        return ok({ content: [{ type: "text", text }], structuredContent: data, ...(Object.keys(links).length && { _meta: { photos: links } }) });
       } catch (e) {
         if (!(e instanceof Invalid)) console.error(e);
         return ok({ content: [{ type: "text", text: e instanceof Invalid ? e.message : "That didn't work; SJPJr couldn't be reached. Try again." }], isError: true });

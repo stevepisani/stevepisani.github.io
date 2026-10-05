@@ -44,7 +44,7 @@ const as = await signIn();
 
 const ask = async (method, params) => (await rpc({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
 // a tool's data as the card sees it: the photo links, which travel in _meta, put back in place
-const hydrate = (r) => { const photos = r._meta?.photos || {}; const walk = (v) => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, (k === 'hero_photo' || k === 'url') && photos[x] ? photos[x] : walk(x)])) : v; return walk(r.structuredContent); };
+const hydrate = (r) => { const photos = r._meta?.photos || {}; const walk = (v) => { if (Array.isArray(v)) return v.map(walk); if (!v || typeof v !== 'object') return v; const o = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)])); if (o.hero_photo_id && photos[o.hero_photo_id]) o.hero_photo = photos[o.hero_photo_id]; if (o.role && o.id && photos[o.id]) o.url = photos[o.id]; return o; }; return walk(r.structuredContent); };
 const tool = async (name, args) => { const m = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, ctx); if (m.error) return { error: true, code: m.error.code }; const r = m.result; return { ...hydrate(r), text: r.content[0].text, error: r.isError }; };
 const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id, mime_type: 'image/jpeg' });
 const count = async (table) => (await q(`select count(*)::int as n from public.${table}`))[0].n;
@@ -54,7 +54,7 @@ ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion 
 ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
 const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
-ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos', 'ingest_item takes uploaded photos');
+ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos,catalog_photo', 'ingest_item takes uploaded photos, and a catalog image');
 ok((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) === null, 'a notification gets no answer');
 ok((await tool('delete_item', { id: IDS.brown })).code === -32602, 'there is no way to delete (an unknown tool is a protocol error)');
 {
@@ -166,7 +166,12 @@ ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo s
 {
   const raw = (await ask('tools/call', { name: 'find_items', arguments: {} }));
   const lean = JSON.stringify(raw.structuredContent);
-  ok(!/https?:\/\//.test(lean) && Object.values(raw._meta.photos).every((u) => /^https?:/.test(u)) && raw.structuredContent.items.some((i) => raw._meta.photos[i.hero_photo]), 'photo links travel in _meta for the card, not in what the model reads', raw._meta);
+  ok(!/https?:\/\//.test(lean) && Object.values(raw._meta.photos).every((u) => /^https?:/.test(u)) && raw.structuredContent.items.some((i) => raw._meta.photos[i.hero_photo_id]), 'photo links travel in _meta for the card, by photo id, not in what the model reads', raw._meta);
+  // the photo shown is the same photo everywhere, by its own id, however often it's asked for
+  const listed = raw.structuredContent.items.find((i) => i.id === IDS.darkGray).hero_photo_id;
+  const whole1 = (await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } })).structuredContent;
+  const whole2 = (await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } })).structuredContent;
+  ok(/^[0-9a-f-]{36}$/.test(listed) && whole1.item.hero_photo_id === listed && whole1.photos.find((p) => p.hero).id === listed && whole2.item.hero_photo_id === listed && whole1.photos.filter((p) => p.hero).length === 1, 'the photo shown has one id in find_items and get_item, which is the photo with hero: true', { listed, item: whole1.item.hero_photo_id, photos: whole1.photos });
   const one = await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } });
   ok(one.content[0].text.includes(`In the app: https://stevenpisani.com/apps/wardrobe#item/${IDS.darkGray}`), 'a garment comes with its link in the app', one.content[0].text);
 }
@@ -219,9 +224,43 @@ await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: t
 ok((await tool('tick_packing', { trip_id: trip.id, label: 'nothing like it', packed: true })).error, 'M: ticking something not on the list is refused');
 ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select packing from public.trips`))[0].packing[0].packed === true, 'M: packing keeps what was ticked');
 
+// ---------- Photos: where each came from, and the one shown ----------
+{
+  const tee = await tool('add_item', { name: 'Plain white tee', category: 'tops' });
+  // a shop's page: its main picture kept as a reference, the page noted on the garment, a stand-in while there's nothing better
+  const ref = await tool('add_photo', { id: tee.item.id, url: 'https://shop.example/products/white-tee' });
+  const refPhoto = ref.photos.find((p) => p.id === ref.photo_id);
+  ok(refPhoto.origin === 'reference' && refPhoto.source_url === 'https://shop.example/products/white-tee' && ref.item.buy_link === 'https://shop.example/products/white-tee' && ref.item.hero_photo_id === refPhoto.id, 'a shop page gives a reference picture, notes the page on the garment, and stands in as the one shown', ref);
+  const again = await tool('add_photo', { id: tee.item.id, url: 'https://shop.example/products/white-tee' });
+  ok(again.photos.length === 1, 'the same link twice is one photo');
+  // Steve's own photo outranks the shop's
+  const own = await tool('add_photo', { id: tee.item.id, photo: file('tee-front') });
+  ok(own.photos.find((p) => p.id === own.photo_id).origin === 'own' && own.item.hero_photo_id === own.photo_id, "his own photo outranks a shop's picture", own.item);
+  // the wardrobe's catalog image, made from both, is the one shown; nothing is dropped
+  const cat = await tool('add_photo', { id: tee.item.id, photo: file('tee-catalog'), origin: 'catalog', made_from: [refPhoto.id, own.photo_id] });
+  const catPhoto = cat.photos.find((p) => p.id === cat.photo_id);
+  ok(catPhoto.origin === 'catalog' && catPhoto.made_from.join() === [refPhoto.id, own.photo_id].join() && cat.item.hero_photo_id === catPhoto.id && cat.photos.length === 3, 'a catalog image, made from the reference and his photo, is the one shown; every photo is kept', cat.photos);
+  const later = await tool('add_photo', { id: tee.item.id, photo: file('tee-back') });
+  ok(later.item.hero_photo_id === catPhoto.id, "another of his photos doesn't replace the catalog image");
+  // add_photo → get_item → find_items: the same photo shown
+  const found = (await tool('find_items', { query: 'plain white tee' })).items[0];
+  const got = await tool('get_item', { id: tee.item.id });
+  ok(found.hero_photo_id === catPhoto.id && got.item.hero_photo_id === catPhoto.id && got.photos.find((p) => p.hero).id === catPhoto.id && found.hero_photo === got.item.hero_photo, 'add_photo, get_item and find_items agree on the photo shown', { found: found.hero_photo_id, got: got.item.hero_photo_id });
+  ok((await tool('add_photo', { id: tee.item.id, photo: file('tee-tag'), role: 'tag', origin: 'catalog' })).error && (await tool('add_photo', { id: tee.item.id, photo: file('x'), made_from: [IDS.brown] })).error, "a catalog image is of the garment, made from this garment's photos");
+  // correcting where a photo came from
+  const fixed = await tool('set_photo_role', { photo_id: catPhoto.id, origin: 'own' });
+  ok(fixed.photos.find((p) => p.id === catPhoto.id).origin === 'own' && fixed.item.hero_photo_id === catPhoto.id, 'set_photo_role corrects where a photo came from');
+  const recat = await tool('set_photo_role', { photo_id: own.photo_id, origin: 'catalog' });
+  ok(recat.item.hero_photo_id === own.photo_id, 'a photo newly marked catalog is the one shown');
+  // filing with a catalog image
+  const filed = await tool('ingest_item', { product: { brand: 'Arket', name: 'Heavyweight Tee', sources: { brand: 'garment_label', name: 'hang_tag' } }, item: { category: 'tops' }, garment_photo: file('arket-front'), catalog_photo: file('arket-catalog'), client_ref: 'arket-tee' });
+  const shown = filed.photos.find((p) => p.hero);
+  ok(shown.origin === 'catalog' && filed.photos.find((p) => p.origin === 'own' && p.role === 'garment'), 'ingest_item: the catalog image is shown, the garment photo kept as his own', filed.photos);
+}
+
 // ---------- add_item, the quick way ----------
 const quick = await tool('add_item', { name: 'Linen shirt', category: 'tops', buy_link: 'shopco.example/linen' });
-ok(quick.item.brand === 'Shopco' && quick.item.price === 60 && quick.owned_item.sources.brand.source === 'retailer_page' && quick.photos[0].source === 'retailer_page', 'add_item: a quick item from a link, with sources and the shop\'s picture', quick);
+ok(quick.item.brand === 'Shopco' && quick.item.price === 60 && quick.owned_item.sources.brand.source === 'retailer_page' && quick.photos[0].source === 'retailer_page' && quick.photos[0].origin === 'reference', 'add_item: a quick item from a link, with sources and the shop\'s picture', quick);
 const up = await tool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: file('overshirt') });
 ok((await tool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: file('overshirt') })).item.id === up.item.id, 'add_item: the same upload twice is one item');
 ok((await tool('add_item', { name: 'x', category: 'tops', dressiness: 'black tie' })).error, 'add_item: a value that isn\'t one is refused');
