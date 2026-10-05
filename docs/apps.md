@@ -326,7 +326,7 @@ sent.
   product and variant facts filled in; by words, category, season, dressiness, which matches where
   it mostly belongs or also works, and warmth), `get_item` (the piece whole: flat, product,
   variant, what's set on it alone, photos with their roles and ids, and every fact's source),
-  `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
+  `get_photo` and `get_photos` (the photos themselves, below), `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
   with no product), `add_photo` (with a role), `set_photo_role` (what a photo is, or which is
   shown), `update_item` (with a scope, below), `retire_item` (or back), `create_trip`,
   `update_trip`, `plan_days`, `analyze_trip_packing` (read-only), the packing and trip-part tools
@@ -459,6 +459,15 @@ sent.
   one of another kind than the garment is refused before anything is kept, a different colour is
   said); `set_photo_role` corrects either; `delete_photo` moves any photo to the trash, a wrong catalog
   image included (the card has a two-tap Delete on every photo; the next best is shown).
+- **Seeing a photo:** the model reads ids and facts, never pixels, unless it asks:
+  `get_photo` (one) and `get_photos` (up to six, an outfit) return each stored photo as MCP image
+  content (`type: "image"`, base64 and its MIME type, read from the file's first bytes), the file
+  exactly as stored, nothing described, resized or redrawn on the server, with its facts beside
+  it (photo_id, item_id, role, origin, hero, made_from) and its place among the images.
+  `get_item` with `include_images: true` adds the photo shown, the one `hero_photo_id` names. One
+  answer carries 15 MB of files at most; a photo past that is said, to ask for alone. So the way
+  to picture an outfit is item → `hero_photo_id` → the image → look → then draw, never the text
+  alone. Claude shows images from tools to its model; whether ChatGPT does is up to ChatGPT.
   Results stay small (both apps cap what a tool may return, and the model reads all of it):
   lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
   sources drop their dates, the same photo link is sent once, and a trip names each garment once

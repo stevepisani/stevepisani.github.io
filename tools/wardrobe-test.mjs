@@ -45,7 +45,7 @@ const as = await signIn();
 const ask = async (method, params) => (await rpc({ jsonrpc: '2.0', id: 1, method, params }, ctx)).result;
 // a tool's data as the card sees it: the photo links, which travel in _meta, put back in place
 const hydrate = (r) => { const photos = r._meta?.photos || {}; const walk = (v) => { if (Array.isArray(v)) return v.map(walk); if (!v || typeof v !== 'object') return v; const o = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)])); if (o.hero_photo_id && photos[o.hero_photo_id]) o.hero_photo = photos[o.hero_photo_id]; if (o.role && o.id && photos[o.id]) o.url = photos[o.id]; return o; }; return walk(r.structuredContent); };
-const tool = async (name, args) => { const m = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, ctx); if (m.error) return { error: true, code: m.error.code }; const r = m.result; return { ...hydrate(r), text: r.content[0].text, error: r.isError }; };
+const tool = async (name, args) => { const m = await rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }, ctx); if (m.error) return { error: true, code: m.error.code }; const r = m.result; return { ...hydrate(r), text: r.content[0].text, images: r.content.slice(1), error: r.isError }; };
 const file = (id) => ({ download_url: `https://files.example/${id}`, file_id: id, mime_type: 'image/jpeg' });
 const count = async (table) => (await q(`select count(*)::int as n from public.${table}`))[0].n;
 
@@ -224,6 +224,33 @@ ok(ticked.summary.packed === 0 && (await q(`select status from public.trip_packi
 await tool('set_packing_status', { packing_item_ids: [entry.id], status: 'packed' });
 ok((await tool('set_packing_status', { packing_item_ids: ['nothing-like-it'], status: 'packed' })).error, 'M: ticking something not on the list is refused');
 ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select status from public.trip_packing where item_id = $1`, [IDS.darkBrown]))[0].status === 'packed', 'M: packing keeps what was ticked');
+
+// ---------- Photos as images: the stored file itself, for the model to see ----------
+{
+  const tee = await tool('add_item', { name: 'Photo test tee', category: 'tops', subcategory: 't_shirt', colour: 'white' });
+  const front = await tool('add_photo', { id: tee.item.id, photo: file('see-front') });
+  const tag = await tool('add_photo', { id: tee.item.id, photo: file('see-tag'), role: 'tag' });
+  const cat = await tool('add_photo', { id: tee.item.id, photo: file('see-catalog'), origin: 'catalog', made_from: [front.photo_id], shows: { subcategory: 't_shirt', colour: 'white' } });
+  const hero = (await tool('find_items', { query: 'photo test tee' })).items[0].hero_photo_id;
+  ok(hero === cat.photo_id, 'photos: find_items gives the catalog image as the one shown');
+  const path = (await q(`select path from public.wardrobe_photos where id = $1`, [hero]))[0].path;
+  const stored = await ctx.photoFile(path);
+  const one = await tool('get_photo', { photo_id: hero });
+  ok(!one.error && one.images.length === 1 && one.images[0].type === 'image' && one.images[0].mimeType === 'image/jpeg' && Buffer.from(one.images[0].data, 'base64').equals(Buffer.from(stored)), 'get_photo: the image itself, as MCP image content, byte for byte the stored file, its type from its bytes', one.images[0]?.mimeType);
+  const m = one.photos[0];
+  ok(m.photo_id === hero && m.item_id === tee.item.id && m.role === 'garment' && m.origin === 'catalog' && m.hero === true && m.made_from.join() === front.photo_id && /the one shown/.test(one.text), 'get_photo: with what it is (photo_id, item_id, role, origin, hero, made_from)', m);
+  const many = await tool('get_photos', { photo_ids: [front.photo_id, hero, tag.photo_id] });
+  ok(many.images.length === 3 && many.photos.map((x) => x.photo_id).join() === [front.photo_id, hero, tag.photo_id].join() && many.photos.map((x) => x.image).join() === '1,2,3' && many.photos[2].role === 'tag' && !many.photos[0].hero, 'get_photos: several at once, in the order asked, each numbered to its image', many.photos);
+  const mixed = await tool('get_photos', { photo_ids: [hero, '99999999-9999-4999-8999-999999999999'] });
+  ok(!mixed.error && mixed.images.length === 1 && mixed.not_sent[0].photo_id.startsWith('9999') && /Not sent/.test(mixed.text), 'get_photos: one that isn\'t there is said, the rest still sent', mixed);
+  ok((await tool('get_photo', { photo_id: 'nope' })).error && (await tool('get_photos', { photo_ids: Array.from({ length: 7 }, (_, i) => `p${i}`) })).error, 'get_photo: an id that isn\'t a photo is refused; get_photos takes six at most');
+  const withImage = await tool('get_item', { id: tee.item.id, include_images: true });
+  ok(withImage.images.length === 1 && Buffer.from(withImage.images[0].data, 'base64').equals(Buffer.from(stored)) && withImage.item.hero_photo_id === hero && withImage.images_meta === undefined && withImage.photos.length === 3, 'get_item include_images: the garment as before, plus the photo shown, the same one hero_photo_id names', withImage.text);
+  ok(!(await tool('get_item', { id: tee.item.id })).images.length, 'get_item: no image unless asked');
+  await tool('delete_photo', { photo_id: tag.photo_id });
+  ok((await tool('get_photo', { photo_id: tag.photo_id })).error, 'get_photo: a photo in the trash isn\'t sent');
+  ok(TOOLS.filter((t) => /^get_photos?$/.test(t.name)).every((t) => t.annotations.readOnlyHint), 'get_photo and get_photos only read');
+}
 
 // ---------- The trash: deleting hides, restore brings back, 30 days later it's gone ----------
 {

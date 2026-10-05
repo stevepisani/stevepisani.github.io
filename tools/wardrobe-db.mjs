@@ -108,6 +108,8 @@ export async function wardrobeDb() {
       add: async (rows) => { for (const r of rows) await insert('wardrobe_photos', r); },
       set: (id, patch) => update('wardrobe_photos', id, patch),
     },
+    // a made-up file per path, its first bytes saying what it is (as a real one's would)
+    photoFile: async (path) => (/broken/.test(path) ? null : new Uint8Array([...(/\.png$/i.test(path) ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : [0xff, 0xd8, 0xff, 0xe0]), ...new TextEncoder().encode(`photo:${path}`)])),
     photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
     readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
     storeImage: async (url) => (/\.(jpe?g|png|webp)$/i.test(url) ? `wardrobe/${STEVE}/${url.split('/').pop()}` : null), // a picture's address, not a page's

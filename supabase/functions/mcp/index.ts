@@ -110,6 +110,8 @@ Deno.serve(async (req) => {
       const { data } = await db.storage.from("photos").createSignedUrls(paths, DAY);
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     },
+    // a photo's file as stored, for the model to see (get_photo)
+    photoFile: async (path: string) => { const { data, error } = await db.storage.from("photos").download(path); if (error || !data) return null; return new Uint8Array(await data.arrayBuffer()); },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),
     // a photo uploaded in the chat: fetched from ChatGPT's short-lived link and kept in the person's folder

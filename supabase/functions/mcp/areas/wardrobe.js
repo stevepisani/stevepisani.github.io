@@ -7,6 +7,7 @@
 // flat (find_items) or whole (get_item); ingest_item files a garment at all three levels at once.
 import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural, heroPhotos, sign, trashed, goneOn } from "../kit.js";
 
+export const PHOTOS_MAX = 6; // get_photos, at once
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
 const SEASONS = ["spring", "summer", "autumn", "winter"];
 const WARMTH = ["light", "mid", "warm"];
@@ -81,6 +82,20 @@ export const CATALOG_STYLE = "the garment alone, front on, laid flat or on an in
 
 const TOOLS = [
   {
+    name: "get_photo",
+    title: "See a garment's photo",
+    description: "Returns one stored photo as the image itself (MCP image content: the stored file, unchanged, not described or redrawn), with what it is: photo_id, item_id, role, origin (own, reference, catalog), hero (whether it's the one shown) and made_from. Look at a garment this way before describing it, comparing it or picturing an outfit with it; never go by its text alone. The ids are hero_photo_id (find_items, get_item) and get_item's photos.",
+    inputSchema: { type: "object", properties: { photo_id: { type: "string" } }, required: ["photo_id"], additionalProperties: false },
+    annotations: read,
+  },
+  {
+    name: "get_photos",
+    title: "See several garments' photos",
+    description: `Returns up to ${PHOTOS_MAX} stored photos at once, as the images themselves (the stored files, unchanged), each with its photo_id, item_id, role, origin, hero and made_from, in the order asked: an outfit's garments in one call. A photo that can't be sent says why.`,
+    inputSchema: { type: "object", properties: { photo_ids: { type: "array", minItems: 1, maxItems: PHOTOS_MAX, items: { type: "string" } } }, required: ["photo_ids"], additionalProperties: false },
+    annotations: read,
+  },
+  {
     name: "find_items",
     title: "Find clothes in Steve's wardrobe",
     description: "Start here. Lists what Steve owns, one entry per physical garment, flat (product and variant facts filled in), optionally narrowed by words, category, season, dressiness (matches where it mostly belongs or also works) or warmth. Retired things are left out unless asked for. Use it before suggesting outfits or packing, and before ingesting, to see if a garment or its product is already here.",
@@ -93,7 +108,7 @@ const TOOLS = [
     name: "get_item",
     title: "Get one garment, whole",
     description: "Everything about one owned garment: the flat view, then its product and variant (if it has them), what's set on this piece alone, every photo with its role, and where each fact came from. Photo ids here are what set_photo_role takes.",
-    inputSchema: { type: "object", properties: { id: { type: "string" }, focus: { type: "array", items: { type: "string", enum: ["size", "colour", "material", "fit", "price", "bought", "condition", "style_number", "origin", "measurements", "notes"] }, description: "Optional: what Steve asked about, so the card shows those facts first." } }, required: ["id"], additionalProperties: false },
+    inputSchema: { type: "object", properties: { id: { type: "string" }, focus: { type: "array", items: { type: "string", enum: ["size", "colour", "material", "fit", "price", "bought", "condition", "style_number", "origin", "measurements", "notes"] }, description: "Optional: what Steve asked about, so the card shows those facts first." }, include_images: { type: "boolean", description: "Also return the photo shown (hero_photo_id) as the image itself, so you can see the garment." } }, required: ["id"], additionalProperties: false },
     outputSchema: { type: "object", properties: { view: { type: "string" }, item: { type: "object", description: "Flat, as find_items gives it." }, owned_item: { type: "object", description: "What's set on this piece alone, its status, overrides and sources." }, variant: { type: ["object", "null"] }, product: { type: ["object", "null"] }, photos: { type: "array", items: { type: "object", description: "id, role, origin (own, reference, catalog), hero, source, source_url, made_from." } } }, required: ["item", "owned_item", "photos"] },
     annotations: read,
     _meta: { ...showsCard, "openai/widgetAccessible": true },
@@ -345,6 +360,41 @@ async function whole(id, ctx) {
     photos: photos.map((p) => ({ id: p.id, role: p.role, origin: p.origin || "own", hero: p.id === heroId, ...(p.source && { source: p.source }), ...(p.source_url && { source_url: p.source_url }), ...(p.made_from?.length && { made_from: p.made_from }) })),
   };
 }
+// ---------- Photos as images: the stored file, unchanged, for the model to see ----------
+// One answer carries at most this much (the files as stored; base64 adds a third on the way)
+const SEND_MAX = 15 * 1024 * 1024;
+// what a file is, from its first bytes (not its name)
+function sniff(b) {
+  const at = (i, s) => [...s].every((c, j) => b[i + j] === c.charCodeAt(0));
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  if (b[0] === 0x89 && at(1, "PNG")) return "image/png";
+  if (at(0, "RIFF") && at(8, "WEBP")) return "image/webp";
+  if (at(0, "GIF8")) return "image/gif";
+  if (at(4, "ftypavif") || at(4, "ftypavis")) return "image/avif";
+  return null;
+}
+const base64 = (bytes) => { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
+const photoLine = (m) => `${m.item_name}, ${m.origin} ${m.role} photo${m.hero ? " (the one shown)" : ""} [photo ${m.photo_id}, item ${m.item_id}]`;
+// The photos asked for, in order: each one's facts (meta, with its place among the images) and
+// the image; what can't be sent, with why
+async function photoImages(ids, ctx) {
+  const meta = [], images = [], skipped = [];
+  let total = 0;
+  for (const id of ids) {
+    const p = await ctx.photos.get(id);
+    const item = p && (await ctx.items.get(p.item_id));
+    if (!p || !item) { skipped.push({ photo_id: id, reason: "There's no photo with that id (it may be in the trash). get_item lists a garment's photos." }); continue; }
+    const bytes = await ctx.photoFile(p.path).catch(() => null);
+    const mimeType = bytes && sniff(bytes);
+    if (!bytes || !mimeType) { skipped.push({ photo_id: id, reason: "Its file couldn't be read as an image." }); continue; }
+    if (total + bytes.length > SEND_MAX) { skipped.push({ photo_id: id, reason: `Too big to send with the others (${Math.round(bytes.length / 1024)} KB); ask for it alone with get_photo.` }); continue; }
+    total += bytes.length;
+    images.push({ data: base64(bytes), mimeType });
+    meta.push({ image: images.length, photo_id: p.id, item_id: p.item_id, item_name: item.name, role: p.role, origin: p.origin || "own", hero: item.photo_path === p.path, made_from: p.made_from || [], mime_type: mimeType, bytes: bytes.length });
+  }
+  return { meta, images, skipped };
+}
+
 // one line a garment, for the text half of a result
 const line = (o) => `${o.name} (${[o.category, o.subcategory?.replace(/_/g, " ")].filter(Boolean).join(", ")}${o.retired ? ", retired" : ""}): ${[o.brand, o.manufacturer_colour || o.colour, o.size && `size ${o.size}`, o.fit, o.material, o.dressiness && `${o.dressiness}${o.dressiness_also?.length ? ` (also ${o.dressiness_also.join(", ")})` : ""}`, o.warmth && `${o.warmth} warmth`, o.seasons?.join("/")].filter(Boolean).join(", ") || "no details yet"} [id ${o.id}]`;
 
@@ -586,7 +636,18 @@ async function call(name, args = {}, ctx) {
   if (name === "get_item") {
     const w = await whole(String(args.id || ""), ctx);
     if (!w) throw new Invalid("There's no item with that id.");
-    return { text: [line(w.item), w.product && `Product: ${w.product.brand} ${w.product.name}${w.product.style_number ? ` (style ${w.product.style_number})` : ""}`, w.variant && `Variant: ${[w.variant.manufacturer_colour, w.variant.manufacturer_size].filter(Boolean).join(" / ")}`, w.photos.length ? `Photos: ${w.photos.map((p) => `${p.role}${p.hero ? " (shown)" : ""} [photo ${p.id}]`).join(", ")}` : "No photos.", w.item.notes && `Notes: ${w.item.notes}`, `In the app: ${APP}#item/${w.item.id}`].filter(Boolean).join("\n"), data: w };
+    const shown = args.include_images && w.item.hero_photo_id ? await photoImages([w.item.hero_photo_id], ctx) : null;
+    if (shown) w.images = shown.meta;
+    return { ...(shown && { images: shown.images }), text: [shown && (shown.meta.length ? `The photo shown is attached: ${photoLine(shown.meta[0])}` : `The photo shown couldn't be sent: ${shown.skipped[0]?.reason}`), args.include_images && !w.item.hero_photo_id && "It has no photo to show.",line(w.item), w.product && `Product: ${w.product.brand} ${w.product.name}${w.product.style_number ? ` (style ${w.product.style_number})` : ""}`, w.variant && `Variant: ${[w.variant.manufacturer_colour, w.variant.manufacturer_size].filter(Boolean).join(" / ")}`, w.photos.length ? `Photos: ${w.photos.map((p) => `${p.role}${p.hero ? " (shown)" : ""} [photo ${p.id}]`).join(", ")}` : "No photos.", w.item.notes && `Notes: ${w.item.notes}`, `In the app: ${APP}#item/${w.item.id}`].filter(Boolean).join("\n"), data: w };
+  }
+  if (name === "get_photo" || name === "get_photos") {
+    const ids = name === "get_photo" ? [String(args.photo_id || "")] : [...new Set((args.photo_ids || []).map(String))];
+    if (!ids.length || !ids[0]) throw new Invalid("Give the photo id (hero_photo_id from find_items, or one of get_item's photos).");
+    if (ids.length > PHOTOS_MAX) throw new Invalid(`Up to ${PHOTOS_MAX} photos at once.`);
+    const r = await photoImages(ids, ctx);
+    if (name === "get_photo" && !r.meta.length) throw new Invalid(r.skipped[0].reason);
+    const text = [...r.meta.map((m) => `Image ${m.image}: ${photoLine(m)}`), ...r.skipped.map((s) => `Not sent, ${s.photo_id}: ${s.reason}`)].join("\n");
+    return { text, images: r.images, data: { photos: r.meta, ...(r.skipped.length && { not_sent: r.skipped }) } };
   }
   if (name === "read_store_link") {
     const p = await ctx.readProduct(String(args.url || ""));
@@ -642,6 +703,8 @@ export default {
   status: {
   find_items: ["Looking through the wardrobe…", "Looked through the wardrobe"],
   get_item: ["Getting the garment…", "Got the garment"],
+  get_photo: ["Getting the photo…", "Got the photo"],
+  get_photos: ["Getting the photos…", "Got the photos"],
   ingest_item: ["Filing it…", "Filed"],
   read_store_link: ["Reading the shop's page…", "Read the shop's page"],
   add_item: ["Adding it…", "Added"],
@@ -652,6 +715,6 @@ export default {
   update_item: ["Making the change…", "Changed"],
   retire_item: ["Updating…", "Updated"],
   },
-  instructions: ["Photos: Steve's own are evidence; a shop's picture is a reference (add_photo with its url); the one shown should be the wardrobe's catalog image, in one style for every brand, made from those and added with origin catalog. Photos are named by id: hero_photo_id is the one shown.", "To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.", "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). You get each photo's role, not the image; go by the descriptions. Steve sees the photos in the card under your answer, so don't list what it shows; to send him to the app, use the \"In the app\" link a result gives."].join(" "),
+  instructions: ["Photos: Steve's own are evidence; a shop's picture is a reference (add_photo with its url); the one shown should be the wardrobe's catalog image, in one style for every brand, made from those and added with origin catalog. Photos are named by id: hero_photo_id is the one shown.", "To add clothes, use ingest_item: you read the photos (garment, hang tag, care label) or the shop page, and pass facts at the right level with where each came from. Printed facts go in product (brand, name, style number, material, origin) and variant (colour and size as printed, SKU, price, measurements); your judgements (warmth, dressiness, seasons, style, fit) go in item. Pass every photo with its role. A garment with no brand is just an item. Use dry_run when unsure, client_ref always.", "Correct mistakes with update_item and the right scope: item (this piece), variant (this colour and size) or product (every colour and size). To see a garment, get_photo or get_photos (an outfit at once) return the stored image itself: look before describing, comparing or picturing it. Steve sees the photos in the card under your answer, so don't list what it shows; to send him to the app, use the \"In the app\" link a result gives."].join(" "),
   call,
 };
