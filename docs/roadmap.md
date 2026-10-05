@@ -21,8 +21,7 @@ rather than leaving it in a chat.
      OpenAI's image API under a $10 a month cap, and a widget that shows them; needs an
      `OPENAI_API_KEY` repo secret from Steve;
    - in-chat for ChatGPT and Claude alike (research, Oct 2026: both render MCP Apps, SEP-1865,
-     `ui://` resources): a text description of each photo at ingest plus a read-only `view_photo`
-     returning a small image (Claude sees it; ChatGPT gets the text); an upload link that doesn't
+     `ui://` resources): a text description of each photo at ingest (`get_photo` and `get_photos`, the images themselves, are done); an upload link that doesn't
      depend on ChatGPT's fileParams (the only way Claude can take a photo, and ChatGPT mobile's
      fallback); checking Supabase's OAuth server for `iss` in redirects (RFC 9207), refresh-token
      rotation, and tokens bound to this server;
@@ -74,6 +73,8 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: `get_photo` and `get_photos`: the model sees a garment's stored photo itself, not its
+  description; `get_item` can add the photo shown.
 - Oct 2026: trips in detail, for the five-week Europe trip: travelers, a packing list for everyone
   (by traveler, category, bag and status, each entry its own row), bags, transport, lodging,
   links, each day's activities, `get_trip` whole and `analyze_trip_packing` (facts by fixed
