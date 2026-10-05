@@ -634,7 +634,7 @@ async function card(page, shot) {
   await frame.locator('.w-thumb', { has: frame.locator('.w-badge', { hasText: 'Shop' }) }).click();
   await frame.getByRole('button', { name: 'Delete' }).click();
   await frame.getByRole('button', { name: 'Move to trash?' }).click();
-  await frame.locator('.w-thumb').nth(2).waitFor();
+  await frame.locator('.w-thumb').nth(3).waitFor({ state: 'detached' }); // four thumbs until the card redraws
   if ((await frame.locator('.w-thumb').count()) !== 3 || (await w.q(`select count(*)::int as n from public.wardrobe_photos where item_id = $1 and origin = 'reference' and deleted_at is null`, [crewId]))[0].n) throw new Error('deleting the shop picture in the card left it showing');
   await frame.getByRole('button', { name: '‹ Back' }).click();
   await frame.locator('.w-grid').waitFor();
