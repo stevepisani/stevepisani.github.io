@@ -1,7 +1,7 @@
 // Trips: where Steve's going, the weather there, what he'll wear each day and what to pack; one of
 // SJPJr's areas (server.js has the protocol and the rules). Outfits and packing are wardrobe items,
 // by id; the weather comes from _shared/weather.js (ctx.weather).
-import { WARDROBE_APP as APP, showsCard, read, write, Invalid } from "../kit.js";
+import { WARDROBE_APP as APP, showsCard, read, write, Invalid, heroPhotos } from "../kit.js";
 
 const DATE = { type: "string", description: "YYYY-MM-DD." };
 const LEG = { type: "object", properties: { place: { type: "string", description: "A city, with its country if it's ambiguous: \"Florence, Italy\"." }, from: DATE, to: DATE }, required: ["place", "from", "to"], additionalProperties: false };
@@ -95,9 +95,9 @@ async function call(name, args, ctx) {
     const legs = await Promise.all(t.legs.map(async (l) => ({ ...l, weather: await ctx.weather(l).catch(() => null) })));
     const weatherOn = (date) => { for (const l of legs) { const d = l.weather?.days.find((x) => x.date === date); if (d) return d; } return null; };
     const placeOn = (date) => (legs.find((l) => l.from <= date && date <= l.to) || {}).place;
-    const links = await ctx.photoUrls([...new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id)].map((i) => byId.get(i)?.photo_path).filter(Boolean))]);
-    // what the card shows for a garment: its photo, and what tells it apart from its twins
-    const look = (i) => { const r = byId.get(i), u = links.get(r?.photo_path); return r ? Object.fromEntries(Object.entries({ category: r.category, colour: r.colour, manufacturer_colour: r.manufacturer_colour, hero_photo: u }).filter(([, v]) => v)) : {}; };
+    const heroes = await heroPhotos([...new Set([...t.days.flatMap((d) => d.items), ...t.packing.map((p) => p.item_id)])].map((i) => byId.get(i)).filter(Boolean), ctx);
+    // what the card shows for a garment: its photo (by id), and what tells it apart from its twins
+    const look = (i) => { const r = byId.get(i); return r ? Object.fromEntries(Object.entries({ category: r.category, colour: r.colour, manufacturer_colour: r.manufacturer_colour, hero_photo_id: heroes.get(i)?.id }).filter(([, v]) => v)) : {}; };
     // each garment on the trip once; days and packing name them by id (a garment worn on twenty
     // days is one entry, not twenty)
     const garments = {};

@@ -116,8 +116,17 @@ wardrobe MCP server, signed in as him (below).
   piece. Every level has `sources`: per field, where the value came from (`user`,
   `garment_label`, `hang_tag`, `care_label`, `retailer_page`, `manufacturer_page`,
   `vision_inference`, `derived`), how sure (0 to 1), and the text as found. `wardrobe_photos` has
-  every photo with its role (garment, tag, care_label, detail, other); the item's `photo_path` is
-  the one shown. `wardrobe_closet` is the flat view (the item's own value, else the variant's,
+  every photo with its role (garment, tag, care_label, detail, other) and where it came from
+  (`origin`): `own` (Steve's photo of his piece, evidence of what he has), `reference` (a shop's
+  or maker's picture, with `source_url`: something to make a catalog image from) or `catalog` (the
+  wardrobe's own image, with `made_from`: the photos it was made from). Catalog images are what
+  make the closet read as one set across brands: one style for all of them (`CATALOG_STYLE` in
+  `areas/wardrobe.js`: the garment alone, front on, flat or on an invisible mannequin, centred, on
+  plain light grey #F2F2F2, even light, true colour, no model, props or added text). The item's
+  `photo_path` is the one shown, and one rule picks it: the photo asked for, else the best garment
+  photo there is, catalog before Steve's own before a reference (a reference is only a stand-in),
+  keeping the one shown unless something outranks it. A new catalog image is shown at once. Every
+  photo is kept. `wardrobe_closet` is the flat view (the item's own value, else the variant's,
   else the product's) that the app and `find_items` read. The first three items (one Uniqlo shirt
   in three colours, added before this) were regrouped by
   `20261005000200_wardrobe_uniqlo.sql`: one product, three variants, the same three ids, the old
@@ -249,7 +258,8 @@ its instructions, and said on every tool that writes:
   style number, punctuation and case aside; else brand + the exact name where style numbers don't
   disagree; never fuzzy), then the variant (SKU, else colour and size as printed), creates the
   owned item (`quantity` for identical pieces, one row each), stores the photos with their roles
-  (`garment_photo` is the one shown; `tag_photo`, `care_label_photo`, `detail_photos` beside it),
+  (`garment_photo`, `tag_photo`, `care_label_photo`, `detail_photos` as Steve's own;
+  `catalog_photo`, the wardrobe's own image, shown when it's there, else the garment photo),
   and returns the whole garment with `product_created`, `variant_created`, `owned_item_created`
   and warnings (no garment photo, facts without a source, a name-only match, the product found
   again saying something different, which it keeps). A product found again gets its blanks
@@ -345,15 +355,21 @@ its instructions, and said on every tool that writes:
   caller itself, since tokens from the new key may not pass the gateway's old check.
 - **Who it is:** `SERVER` in `server.js` (the `initialize` answer): "SJPJr", a line on what it
   does, its home (`websiteUrl`, the site) and its logo (`ICONS`: the site's SJPJr badge,
-  `assets/images/sj-512.png`, `-180`, `-64`). Neither app reads the
+  `assets/images/sj-512.png`, `-256` (7 KB, for apps that want a small icon), `-180`, `-64`).
+  Neither app reads the
   logo from the server yet (Oct 2026): ChatGPT shows the icon uploaded when the connector is
   created (and can't change it after), Claude a globe for every custom connector. Each tool also
   has the status lines ChatGPT shows while it runs (`STATUS`), and the card's resource tells
   ChatGPT's model what the card already shows (`openai/widgetDescription`), so the answer doesn't
   repeat it.
-- **Links:** the photos' signed links are long and only the card needs them, so `photosApart`
-  moves them out of what the model reads into the result's `_meta` (hosts give that to the card,
-  not the model), leaving short references (`"hero_photo": "p1"`) that the card fills back in.
+- **Photos by id:** what the model reads names photos by their own id: an item's
+  `hero_photo_id` (the one shown) is the photo `get_item` lists with `hero: true`, the same in
+  `find_items`, `get_item`, `get_trip` and every write's answer. Their signed links (long, and
+  different on every call) go only in the result's `_meta.photos`, by photo id, which hosts give
+  the card and not the model (`kit.js`, `sign`); the card puts them in place. `add_photo` takes an
+  upload (`photo`) or a link (`url`: a picture, or a product page whose main picture is taken; the
+  page is noted on the product, or the garment, where nothing's noted yet), with its `role`,
+  `origin` and, for a catalog image, `made_from`; `set_photo_role` corrects either.
   Results stay small (both apps cap what a tool may return, and the model reads all of it):
   lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
   sources drop their dates, the same photo link is sent once, and a trip names each garment once
@@ -366,7 +382,8 @@ its instructions, and said on every tool that writes:
   403; an `MCP-Protocol-Version` it doesn't speak, a 400; a 401 names the scopes; an unknown
   tool is a protocol error (-32602), and everything else that goes wrong is a result with
   `isError`, worded so the model can fix its call.
-- **Its own address:** `https://mcp.stevenpisani.com`, once it's set up. `proxy/_worker.js` is a
+- **Its own address:** `https://mcp.stevenpisani.com` (live since Oct 2026).
+  `proxy/_worker.js` is a
   Cloudflare Pages worker that passes every request to the function as it came, adding
   `x-mcp-public-host`; `index.ts` then gives out that address (RFC 9728's `resource` has to be the
   URL the app used; the authorization server stays Supabase Auth, so sign-ins and tokens don't
@@ -384,8 +401,9 @@ its instructions, and said on every tool that writes:
   4. Connect the apps again with the new URL (below); the old one keeps working meanwhile.
 - **Connecting ChatGPT** (Steve, once): on the web, Settings → Security and login → turn on
   Developer mode; then Plugins (once called Connectors, then Apps) → + → name "SJPJr", icon
-  `assets/images/sj-512.png` (only when creating it), URL `https://mcp.stevenpisani.com`
-  (until that's set up, `https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp`),
+  `assets/images/sj-256.png` (ChatGPT takes 10 KB at most; only when creating it), URL
+  `https://mcp.stevenpisani.com`
+  (`https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/mcp` works too),
   authentication OAuth → sign in → Allow. ChatGPT asks before each write; that approval lasts the
   conversation if you tell it to.
 - **Connecting Claude** (Steve, once, on claude.ai or the desktop app, then it's on mobile too):
