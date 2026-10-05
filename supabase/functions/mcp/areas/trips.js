@@ -1,12 +1,19 @@
 // Trips: where Steve's going, the weather there, what he'll wear each day and what to pack; one of
 // SJPJr's areas (server.js has the protocol and the rules). Outfits and packing are wardrobe items,
 // by id; the weather comes from _shared/weather.js (ctx.weather).
-import { WARDROBE_APP as APP, showsCard, read, write, Invalid, heroPhotos } from "../kit.js";
+import { WARDROBE_APP as APP, showsCard, read, write, Invalid, heroPhotos, trashed, goneOn } from "../kit.js";
 
 const DATE = { type: "string", description: "YYYY-MM-DD." };
 const LEG = { type: "object", properties: { place: { type: "string", description: "A city, with its country if it's ambiguous: \"Florence, Italy\"." }, from: DATE, to: DATE }, required: ["place", "from", "to"], additionalProperties: false };
 
 const TOOLS = [
+  {
+    name: "delete_trip",
+    title: "Delete a trip (to the trash)",
+    description: "Moves a trip, with its days and packing, to the trash: hidden everywhere, and restore brings it back within 30 days; then it's gone for good. The garments it planned aren't touched.",
+    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  },
   {
     name: "list_trips",
     title: "List trips",
@@ -89,7 +96,12 @@ async function call(name, args, ctx) {
   }
   const id = String(args.id || args.trip_id || "");
   const t = await ctx.trips.get(id);
-  if (!t) throw new Invalid("There's no trip with that id. list_trips has them.");
+  if (!t) throw new Invalid("There's no trip with that id (it may be in the trash: list_trash). list_trips has them.");
+  if (name === "delete_trip") {
+    const at = new Date().toISOString();
+    await ctx.trash.set("trips", t.id, at);
+    return { text: trashed(t.name, at), data: { id: t.id, in_trash: true, gone_on: goneOn(at) } };
+  }
   const items = await ctx.items.list(), byId = new Map(items.map((i) => [i.id, i]));
   if (name === "get_trip") {
     const legs = await Promise.all(t.legs.map(async (l) => ({ ...l, weather: await ctx.weather(l).catch(() => null) })));
@@ -169,6 +181,7 @@ export default {
   records: true,
   tools: TOOLS,
   status: {
+    delete_trip: ["Moving the trip to the trash…", "Moved the trip to the trash"],
   list_trips: ["Getting the trips…", "Got the trips"],
   get_trip: ["Getting the trip and its weather…", "Got the trip"],
   create_trip: ["Creating the trip…", "Created the trip"],

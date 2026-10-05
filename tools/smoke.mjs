@@ -486,7 +486,13 @@ async function apps(page, shot) {
   await until(page, () => document.getElementById('trip-name').textContent === 'Smoke weekend');
   const made = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trips'));
   if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
-  step('trips: legs with weather, days; packing ticked, undone and added to; Back goes back; a new trip');
+  // deleting it moves it to the trash (an update, never a delete)
+  page.once('dialog', (d) => d.accept());
+  await page.click('#trip-edit');
+  await page.click('#trip-remove');
+  await until(page, () => location.hash === '#trips');
+  if (asked.some((a) => a.method === 'DELETE' && a.path.includes('/rest/v1/trips')) || !asked.some((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips') && a.body?.deleted_at)) throw new Error('deleting a trip didn\'t move it to the trash');
+  step('trips: legs with weather, days; packing ticked, undone and added to; Back goes back; a new trip, then to the trash');
 
   // Today, mid-trip: where you are, the weather and what you're wearing, with a word about the rain
   // (and the suede); the next day is a tap away; an item opens over it and Back closes it
@@ -624,14 +630,12 @@ async function card(page, shot) {
   await frame.locator('.w-tools:empty').waitFor({ state: 'attached' });
   const [crew] = await w.q(`select photo_path from public.wardrobe_items where ingest_key = 'smoke-crew'`);
   if (!/crew-tag/.test(crew.photo_path)) throw new Error(`the role and "Make it the main photo" in the card didn't save: ${crew.photo_path}`);
-  // the shop's picture, wrong: two taps take it away (Steve's own photos have no Remove)
+  // the shop's picture, wrong: two taps move it to the trash
   await frame.locator('.w-thumb', { has: frame.locator('.w-badge', { hasText: 'Shop' }) }).click();
-  await frame.getByRole('button', { name: 'Remove' }).click();
-  await frame.getByRole('button', { name: 'Remove for good?' }).click();
+  await frame.getByRole('button', { name: 'Delete' }).click();
+  await frame.getByRole('button', { name: 'Move to trash?' }).click();
   await frame.locator('.w-thumb').nth(2).waitFor();
-  if ((await frame.locator('.w-thumb').count()) !== 3 || (await w.q(`select count(*)::int as n from public.wardrobe_photos where item_id = $1 and origin = 'reference'`, [crewId]))[0].n) throw new Error('removing the shop picture in the card left it behind');
-  await frame.locator('.w-thumb[data-role="garment"]').first().click();
-  if (await frame.getByRole('button', { name: 'Remove' }).count()) throw new Error("Steve's own photo offered Remove");
+  if ((await frame.locator('.w-thumb').count()) !== 3 || (await w.q(`select count(*)::int as n from public.wardrobe_photos where item_id = $1 and origin = 'reference' and deleted_at is null`, [crewId]))[0].n) throw new Error('deleting the shop picture in the card left it showing');
   await frame.getByRole('button', { name: '‹ Back' }).click();
   await frame.locator('.w-grid').waitFor();
   await page.evaluate(() => window.bridge.setHostContext({ theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US' }));

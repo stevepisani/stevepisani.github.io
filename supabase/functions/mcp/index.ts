@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
   const rows = async (q: any) => { const { data, error } = await q; if (error) throw error; return data; };
   // deno-lint-ignore no-explicit-any
   const one = async (q: any) => { const { data, error } = await q; if (error && error.code !== "22P02") throw error; return data ?? null; }; // 22P02: not an id at all
-  const closet = (id: string) => one(db.from("wardrobe_closet").select("*").eq("id", id).maybeSingle());
+  const closet = (id: string) => one(db.from("wardrobe_closet").select("*").eq("id", id).maybeSingle()); // the view leaves the trash out
   const table = (name: string) => ({
     get: (id: string) => one(db.from(name).select("*").eq("id", id).maybeSingle()),
     add: (row: Record<string, unknown>) => rows(db.from(name).insert(row).select().single()),
@@ -97,18 +97,17 @@ Deno.serve(async (req) => {
     variants: { ...table("wardrobe_variants"), list: (productId: string) => rows(db.from("wardrobe_variants").select("*").eq("product_id", productId)) },
     photos: {
       ...table("wardrobe_photos"),
-      list: (itemId: string) => rows(db.from("wardrobe_photos").select("*").eq("item_id", itemId).order("created_at").order("id")),
-      forItems: (itemIds: string[]) => rows(db.from("wardrobe_photos").select("*").in("item_id", itemIds).order("created_at").order("id")),
-      byFile: (fileId: string) => one(db.from("wardrobe_photos").select("*").eq("file_id", fileId).limit(1).maybeSingle()),
+      get: (id: string) => one(db.from("wardrobe_photos").select("*").eq("id", id).is("deleted_at", null).maybeSingle()),
+      list: (itemId: string) => rows(db.from("wardrobe_photos").select("*").eq("item_id", itemId).is("deleted_at", null).order("created_at").order("id")),
+      forItems: (itemIds: string[]) => rows(db.from("wardrobe_photos").select("*").in("item_id", itemIds).is("deleted_at", null).order("created_at").order("id")),
+      byFile: (fileId: string) => one(db.from("wardrobe_photos").select("*").eq("file_id", fileId).is("deleted_at", null).limit(1).maybeSingle()),
       add: async (list: Record<string, unknown>[]) => { await rows(db.from("wardrobe_photos").insert(list)); },
-      remove: async (id: string) => { await rows(db.from("wardrobe_photos").delete().eq("id", id)); },
     },
     photoUrls: async (paths: string[]) => {
       if (!paths.length) return new Map();
       const { data } = await db.storage.from("photos").createSignedUrls(paths, DAY);
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     },
-    removeFile: async (path: string) => { const { error } = await db.storage.from("photos").remove([path]); if (error) throw error; },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),
     // a photo uploaded in the chat: fetched from ChatGPT's short-lived link and kept in the person's folder
@@ -124,10 +123,21 @@ Deno.serve(async (req) => {
       } catch (e) { console.error(e); return null; }
     },
     trips: {
-      list: async () => { const { data, error } = await db.from("trips").select("*"); if (error) throw error; return data; },
-      get: async (id: string) => { const { data, error } = await db.from("trips").select("*").eq("id", id).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+      list: async () => { const { data, error } = await db.from("trips").select("*").is("deleted_at", null); if (error) throw error; return data; },
+      get: async (id: string) => { const { data, error } = await db.from("trips").select("*").eq("id", id).is("deleted_at", null).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
       add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("trips").insert(row).select().single(); if (error) throw error; return data; },
       set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("trips").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+    },
+    // what's in the trash, and putting things in or taking them out (table: one of the three)
+    trash: {
+      // deno-lint-ignore no-explicit-any
+      list: async () => ({
+        items: (await rows(db.from("wardrobe_items").select("id, name, colour, deleted_at, variant:wardrobe_variants(manufacturer_colour, product:wardrobe_products(name))").not("deleted_at", "is", null)))
+          .map(({ variant, ...i }: any) => ({ ...i, name: i.name || variant?.product?.name, manufacturer_colour: variant?.manufacturer_colour })),
+        photos: await rows(db.from("wardrobe_photos").select("id, item_id, role, origin, deleted_at").not("deleted_at", "is", null)),
+        trips: await rows(db.from("trips").select("id, name, deleted_at").not("deleted_at", "is", null)),
+      }),
+      set: (table: string, id: string, at: string | null) => one(db.from(table).update({ deleted_at: at }).eq("id", id).select("id").maybeSingle()),
     },
     cardScript,
     storageOrigin: SUPABASE, // where the photos load from, for the card's allowed sources

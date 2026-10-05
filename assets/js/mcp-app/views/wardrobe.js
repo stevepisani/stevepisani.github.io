@@ -100,15 +100,13 @@ function garment(data, receipt) {
     const from = { catalog: 'Catalog image', reference: 'Shop picture', own: 'Your photo' }[looking.origin || 'own'];
     tools.append(el('span', 'w-cap', `${from}${looking.role !== 'garment' ? ` · ${ROLES[looking.role]}` : ''}`), button('w-link', 'Change', () => { editing = true; paint(); }));
     if (looking.role === 'garment' && !looking.hero) tools.append(button('w-btn', 'Make it the main photo', () => setRole(looking, { make_hero: true })));
-    // a catalog image or shop picture that's wrong can go (Steve's own photos stay): two taps
-    if ((looking.origin || 'own') !== 'own') {
-      const gone = button('w-link w-link--bad', 'Remove', async () => {
-        if (!gone.dataset.sure) { gone.dataset.sure = '1'; gone.textContent = 'Remove for good?'; return; }
-        try { draw({ ...(await callTool('remove_photo', { photo_id: looking.id })), view: 'garment' }, false); }
-        catch (e) { say(e.message, true); }
-      });
-      tools.append(gone);
-    }
+    // any photo can go to the trash (restorable for 30 days): two taps
+    const gone = button('w-link w-link--bad', 'Delete', async () => {
+      if (!gone.dataset.sure) { gone.dataset.sure = '1'; gone.textContent = 'Move to trash?'; return; }
+      try { draw({ ...(await callTool('delete_photo', { photo_id: looking.id })), view: 'garment' }, false); }
+      catch (e) { say(e.message, true); }
+    });
+    tools.append(gone);
   };
   const setRole = async (x, change) => {
     try {

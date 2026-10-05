@@ -5,7 +5,7 @@
 // Steve has, one row per physical piece; it may belong to a variant (one colour and size as sold),
 // which belongs to a product (brand, name, style number). Every fact keeps its source. Reads come
 // flat (find_items) or whole (get_item); ingest_item files a garment at all three levels at once.
-import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural, heroPhotos, sign } from "../kit.js";
+import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural, heroPhotos, sign, trashed, goneOn } from "../kit.js";
 
 export const CATEGORIES = ["tops", "bottoms", "outerwear", "suits", "shoes", "accessories", "workout", "swim"];
 const SEASONS = ["spring", "summer", "autumn", "winter"];
@@ -148,7 +148,7 @@ const TOOLS = [
     description: [
       "Adds a photo to a garment: one uploaded in this chat (photo), or a shop's or maker's picture from a link (url: the picture itself, or the product page, whose main picture is taken; its page is noted on the garment). Says what it is (role) and where it came from (origin).",
       `origin: own (Steve's photo of his piece, the default for uploads), reference (a shop's or maker's picture, the default for links: kept to make a catalog image from, shown only when there's nothing better), catalog (the wardrobe's own image of the garment, made from the references and his photos in one style for every brand: ${CATALOG_STYLE}; give made_from, the ids of the photos it was made from). A new catalog image is the one shown; others only with make_hero, or when there's no better one.`,
-      "Before adding a catalog image, look at it against the garment: the same kind (long or short sleeves, collar, length), colour and details as Steve's photos and the shop's. Say what it shows in shows; one of another kind is refused. A catalog image or shop picture that's wrong can be taken away with remove_photo.",
+      "Before adding a catalog image, look at it against the garment: the same kind (long or short sleeves, collar, length), colour and details as Steve's photos and the shop's. Say what it shows in shows; one of another kind is refused. A photo that's wrong goes to the trash with delete_photo.",
     ].join("\n"),
     inputSchema: { type: "object", properties: { id: { type: "string", description: "The owned item." }, photo: FILE, url: { type: "string", description: "A shop's or maker's page or picture." }, role: { type: "string", enum: ROLES }, origin: { type: "string", enum: ORIGINS }, made_from: { type: "array", items: { type: "string" }, description: "For a catalog image: the photo ids it was made from." }, shows: SHOWS, make_hero: { type: "boolean" } }, required: ["id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
@@ -163,12 +163,19 @@ const TOOLS = [
     _meta: { "openai/widgetAccessible": true },
   },
   {
-    name: "remove_photo",
-    title: "Remove a wrong catalog image or shop picture",
-    description: "Removes a photo a chat added by mistake: a catalog image or a shop picture (origin catalog or reference), for good. Steve's own photos are evidence of what he has, so they can't be removed here; set their role to other to stop showing one, and he can remove it in the app. If it was the one shown, the next best is.",
+    name: "delete_photo",
+    title: "Delete a photo (to the trash)",
+    description: "Moves a photo to the trash: it's hidden everywhere, and restore brings it back within 30 days; then it's gone for good. For a wrong catalog image or shop picture, or any photo Steve wants gone. If it was the one shown, the next best is.",
     inputSchema: { type: "object", properties: { photo_id: { type: "string" } }, required: ["photo_id"], additionalProperties: false },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: { "openai/widgetAccessible": true },
+  },
+  {
+    name: "delete_item",
+    title: "Delete a garment (to the trash)",
+    description: "Moves a garment to the trash, with its photos: it's hidden everywhere (trips that planned it show it as gone), and restore brings it back within 30 days; then it's gone for good. To keep it but take it out of the wardrobe (worn out, given away), retire_item instead.",
+    inputSchema: { type: "object", properties: { id: { type: "string" } }, required: ["id"], additionalProperties: false },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "update_item",
@@ -186,7 +193,7 @@ const TOOLS = [
   {
     name: "retire_item",
     title: "Retire a garment (or bring it back)",
-    description: "Takes one physical garment out of the wardrobe (worn out, given away, lost) without deleting it, or with retired: false puts it back. Deleting is only done by Steve, in the app.",
+    description: "Takes one physical garment out of the wardrobe (worn out, given away, lost) without deleting it, or with retired: false puts it back. To delete it instead, delete_item (to the trash).",
     inputSchema: { type: "object", properties: { id: { type: "string" }, retired: { type: "boolean", description: "Default true." } }, required: ["id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
   },
@@ -467,7 +474,7 @@ async function update(args, ctx) {
 // ---------- Photos ----------
 // Which photo is shown: the one asked for, else the best garment photo there is (catalog, then
 // Steve's own, then a reference), keeping the one shown unless something outranks it
-async function settleHero(id, ctx, choose) {
+export async function settleHero(id, ctx, choose) {
   const [item, photos] = await Promise.all([ctx.items.get(id), ctx.photos.list(id)]);
   const shown = photos.find((p) => p.path === item.photo_path);
   let next = choose ? photos.find((p) => p.id === choose) : shown && shown.role === "garment" ? shown : null;
@@ -547,16 +554,21 @@ async function setPhotoRole(args, ctx) {
   return { text: `Photo ${p.id} is now ${origin}, ${role}${w.item.hero_photo_id === p.id ? ", and the one shown" : ""}: ${line(w.item)}`, data: w };
 }
 
-async function removePhoto(args, ctx) {
+async function deletePhoto(args, ctx) {
   const p = await ctx.photos.get(String(args.photo_id || ""));
-  if (!p) throw new Invalid("There's no photo with that id (it may be gone already). get_item lists them.");
-  if ((p.origin || "own") === "own") throw new Invalid(`That's one of Steve's own photos, which a chat can't remove. Set its role to other to stop it being shown; he can remove it in the app: ${APP}#item/${p.item_id}`);
-  await ctx.photos.remove(p.id);
-  // the file goes too, unless something else still uses it
-  if (!(await ctx.photos.list(p.item_id)).some((x) => x.path === p.path)) await ctx.removeFile(p.path).catch(() => {});
+  if (!p) throw new Invalid("There's no photo with that id (it may be in the trash already: list_trash). get_item lists them.");
+  const at = new Date().toISOString();
+  await ctx.trash.set("wardrobe_photos", p.id, at);
   await settleHero(p.item_id, ctx);
   const w = await whole(p.item_id, ctx);
-  return { text: `Removed the ${p.origin} ${p.role === "garment" ? "image" : `${p.role} photo`} [photo ${p.id}]: ${line(w.item)}`, data: w };
+  return { text: `${trashed(`the ${p.origin || "own"} ${p.role} photo [photo ${p.id}]`, at)} ${line(w.item)}`, data: w };
+}
+async function deleteItem(args, ctx) {
+  const row = await ctx.items.get(String(args.id || ""));
+  if (!row) throw new Invalid("There's no item with that id (it may be in the trash already: list_trash).");
+  const at = new Date().toISOString();
+  await ctx.trash.set("wardrobe_items", row.id, at);
+  return { text: trashed(row.name, at), data: { id: row.id, in_trash: true, gone_on: goneOn(at) } };
 }
 
 async function call(name, args = {}, ctx) {
@@ -611,7 +623,8 @@ async function call(name, args = {}, ctx) {
   }
   if (name === "add_photo") return addPhoto(args, ctx);
   if (name === "set_photo_role") return setPhotoRole(args, ctx);
-  if (name === "remove_photo") return removePhoto(args, ctx);
+  if (name === "delete_photo") return deletePhoto(args, ctx);
+  if (name === "delete_item") return deleteItem(args, ctx);
   if (name === "update_item") return update(args, ctx);
   if (name === "retire_item") {
     const retired = args.retired !== false;
@@ -634,7 +647,8 @@ export default {
   add_item: ["Adding it…", "Added"],
   add_photo: ["Adding the photo…", "Added the photo"],
   set_photo_role: ["Updating the photo…", "Updated the photo"],
-  remove_photo: ["Removing the photo…", "Removed the photo"],
+  delete_photo: ["Moving the photo to the trash…", "Moved the photo to the trash"],
+  delete_item: ["Moving it to the trash…", "Moved it to the trash"],
   update_item: ["Making the change…", "Changed"],
   retire_item: ["Updating…", "Updated"],
   },

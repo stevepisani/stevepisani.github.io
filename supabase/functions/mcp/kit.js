@@ -38,3 +38,8 @@ export async function heroPhotos(rows, ctx) {
   await sign(ctx, [...out.values()]);
   return out;
 }
+
+// The trash: what's deleted is kept this long, then gone for good (empty_trash, the weekly job)
+export const TRASH_DAYS = 30;
+export const goneOn = (deletedAt) => new Date(new Date(deletedAt).getTime() + TRASH_DAYS * 864e5).toISOString().slice(0, 10);
+export const trashed = (what, at) => `Moved ${what} to the trash: it can be restored until ${goneOn(at)}, then it's gone for good.`;

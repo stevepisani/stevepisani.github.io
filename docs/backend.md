@@ -27,7 +27,9 @@ design: row-level security guards every table.
   copies the `ANTHROPIC_API_KEY` repo secret into the project's function secrets, and deploys
   every function (Supabase CLI, `--use-api`, no Docker). To try a change before merging, run the
   workflow on your branch (Actions → Supabase → Run workflow). Once a week it also asks the API for
-  something, because free projects pause after a week without requests.
+  something, because free projects pause after a week without requests, and empties the
+  wardrobe's trash: what was deleted over 30 days ago goes for good, its photo files with it
+  (`tools/empty-trash.mjs`; `docs/apps.md`, "The trash"). It prints counts only.
 - **When a function misbehaves, read its logs:** Actions → Supabase → Run workflow with "logs"
   ticked. `tools/supabase-logs.mjs` prints the last 3 hours of edge function requests (time,
   method, path, status) and what the functions logged, through the Management API's `logs`
