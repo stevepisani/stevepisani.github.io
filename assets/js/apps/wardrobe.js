@@ -13,10 +13,10 @@
 import { $, db, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
-const items = rows('wardrobe_items'); // each garment Steve owns; written here
-const closet = rows('wardrobe_closet'); // the same, with its product's and variant's facts filled in; read here
-const photoRows = rows('wardrobe_photos'); // every photo of a garment, with its role
-const tripRows = rows('trips');
+const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
+const closet = rows('wardrobe_closet'); // (the view leaves the trash out) // the same, with its product's and variant's facts filled in; read here
+const photoRows = rows('wardrobe_photos', { trash: true }); // every photo of a garment, with its role
+const tripRows = rows('trips', { trash: true });
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
 let list = [], links = new Map(), failed = false, uid = null, offline = false;
@@ -297,12 +297,8 @@ $('#retire').addEventListener('click', async () => {
 });
 $('#remove').addEventListener('click', async () => {
   const it = current;
-  if (!confirm(`Delete "${it.name}" for good? (Retiring keeps it.)`)) return;
-  const paths = [...new Set([it.photo_path, ...sheetPhotos.map((p) => p.path)].filter(Boolean))];
-  if (!(await items.remove(it.id))) return; // its photo rows go with it
-  // a photo file another garment still shows (identical pieces filed together) stays
-  const { data: still } = paths.length ? await db.from('wardrobe_photos').select('path').in('path', paths) : { data: [] };
-  photos.remove(...paths.filter((p) => !(still || []).some((r) => r.path === p) && !list.some((x) => x !== it && x.photo_path === p)));
+  if (!confirm(`Move "${it.name}" to the trash? It can be restored for 30 days. (Retiring keeps it in the closet's history.)`)) return;
+  if (!(await items.remove(it.id))) return; // its photos and files stay until the trash is emptied
   list = list.filter((x) => x !== it);
   tiles.get(it.id)?.remove();
   tiles.delete(it.id);
@@ -337,7 +333,7 @@ const ROLE = { garment: 'Garment', tag: 'Tag', care_label: 'Care label', detail:
 let sheetPhotos = [], picked = null;
 async function loadPhotos(it) {
   if (offline) return;
-  const { data } = await db.from('wardrobe_photos').select('*').eq('item_id', it.id).order('created_at');
+  const { data } = await db.from('wardrobe_photos').select('*').eq('item_id', it.id).is('deleted_at', null).order('created_at');
   if (current !== it) return;
   sheetPhotos = data || [];
   const missing = sheetPhotos.map((p) => p.path).filter((p) => !links.has(p));
@@ -379,11 +375,10 @@ $('#photo-role').addEventListener('change', async (e) => {
 $('#photo-show').addEventListener('click', async () => { if (picked && (await showPhoto(current, picked))) paintSheet(); });
 $('#photo-remove').addEventListener('click', async () => {
   const it = current, p = picked;
-  if (!p || !confirm('Remove this photo?') || !(await photoRows.remove(p.id))) return;
+  if (!p || !confirm('Move this photo to the trash? It can be restored for 30 days.') || !(await photoRows.remove(p.id))) return;
   sheetPhotos = sheetPhotos.filter((x) => x !== p);
   picked = null;
   if (it.photo_path === p.path) await showPhoto(it, sheetPhotos.find((x) => x.role === 'garment'));
-  if (!list.some((x) => x.photo_path === p.path)) photos.remove(p.path);
   paintSheet();
 });
 // ---------- Where you are: the address says, so Back works and any view can be linked ----------
@@ -793,7 +788,7 @@ async function editTrip(t) {
   $('#leg-rows').querySelectorAll('.leg-row').forEach((r) => r.remove());
   (t?.legs.length ? t.legs : [{}]).forEach((l) => legRow({ ...l, place: l.place && l.country ? `${l.place}, ${l.country}` : l.place }));
   $('#trip-remove').onclick = async () => {
-    if (!confirm(`Delete "${t.name}" and everything planned for it?`) || !(await tripRows.remove(t.id))) return;
+    if (!confirm(`Move "${t.name}" and everything planned for it to the trash? It can be restored for 30 days.`) || !(await tripRows.remove(t.id))) return;
     trips = trips.filter((x) => x !== t);
     keepCopy();
     dialog.close('');

@@ -8,7 +8,7 @@ lede: Approve an app (ChatGPT or Claude) to use SJPJr, your own things on this s
 {%- comment -%} Supabase Auth's OAuth consent page (docs/apps.md, the MCP server): Auth sends you here
 with ?authorization_id= when ChatGPT or Claude asks to sign in as you. Not listed on /apps. {%- endcomment -%}
 <section class="card consent" id="consent" hidden>
-  <p class="consent__ask"><strong id="consent-client"></strong> wants to use SJPJr as you: see your wardrobe and trips, and add, change and retire things. It can't delete anything, and it can't change the site.</p>
+  <p class="consent__ask"><strong id="consent-client"></strong> wants to use SJPJr as you: see your wardrobe and trips, and add, change and retire things. Anything it deletes goes to the trash, restorable for 30 days. It can't change the site.</p>
   <p class="consent__where">It will send you back to <code id="consent-host"></code>.</p>
   <p class="consent__warn" id="consent-warn" hidden>That isn't ChatGPT's or Claude's address, so this can't be approved here.</p>
   <div class="app-dialog__buttons consent__buttons">

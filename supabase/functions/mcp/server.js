@@ -19,6 +19,7 @@
 import { SITE, APP_URI, Invalid } from "./kit.js";
 import wardrobe from "./areas/wardrobe.js";
 import trips from "./areas/trips.js";
+import trash from "./areas/trash.js";
 export { APP_URI };
 export { CATEGORIES, SOURCES, ROLES } from "./areas/wardrobe.js";
 
@@ -27,27 +28,31 @@ export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
 // ---------- The areas, and the rules they all keep (docs/apps.md, "The rules") ----------
 // An area is one file in areas/: { name, records, tools, status, instructions, call }. A new one
 // is a file and a line here.
-export const AREAS = [wardrobe, trips];
+export const AREAS = [wardrobe, trips, trash];
 // 1. Steve's own records (an area with records: true) can be read and changed from a chat. The
 //    site's content (drinks, books, what he's written) is read-only here: it changes in the repo.
-// 2. Nothing is deleted from a chat: no tool deletes, and none is marked destructive. Deleting is
-//    Steve's, in the apps. Retiring or clearing is the most a tool does.
+// 2. Deleting moves things to the trash, from a chat as from the app: hidden everywhere, restorable
+//    for 30 days (kit.js, TRASH_DAYS), then gone for good. No tool deletes outright; TRASH lists the
+//    only tools that delete.
 // 3. Everything runs as the signed-in member (row-level security), and stays on stevenpisani.com.
 // Checked here when the server starts, so an area that breaks them doesn't load; said to the model
 // in RULES, and on every tool that writes.
-export const RULES = "Rules: Steve's own records (wardrobe, trips) can be read and changed; the site's content is read-only; nothing is ever deleted from here (that's his to do in the apps).";
+export const RULES = "Rules: Steve's own records (wardrobe, trips) can be read and changed; the site's content is read-only; deleting moves things to the trash, where they can be restored for 30 days before they're gone for good.";
+// the only tools that delete, each to the trash
+export const TRASH = ["delete_item", "delete_photo", "delete_trip"];
 const WRITES = "It changes only Steve's own records on stevenpisani.com; it sends nothing anywhere and deletes nothing.";
+const TRASHES = "It moves only that to the trash in Steve's private wardrobe on stevenpisani.com (restorable for 30 days), and sends nothing anywhere.";
 export const TOOLS = [];
 const OWNER = new Map();
 for (const area of AREAS) for (const t of area.tools) {
   if (OWNER.has(t.name)) throw new Error(`${t.name} is in two areas`);
   if (!area.records && !t.annotations.readOnlyHint) throw new Error(`${t.name}: ${area.name} is read-only (the rules)`);
-  if (t.annotations.destructiveHint || /^(delete|remove|destroy)_/.test(t.name)) throw new Error(`${t.name}: nothing is deleted from a chat (the rules)`);
+  if ((t.annotations.destructiveHint || /^(delete|remove|destroy)_/.test(t.name)) && !TRASH.includes(t.name)) throw new Error(`${t.name}: deleting goes to the trash, through the TRASH tools (the rules)`);
   const [invoking, invoked] = area.status[t.name] || [];
   if (!invoking) throw new Error(`${t.name} has no status lines`);
   OWNER.set(t.name, area);
   // what ChatGPT shows while it runs, and once it's done (64 characters at most)
-  TOOLS.push({ ...t, ...(!t.annotations.readOnlyHint && { description: `${t.description}\n${WRITES}` }), _meta: { ...t._meta, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked } });
+  TOOLS.push({ ...t, ...(!t.annotations.readOnlyHint && { description: `${t.description}\n${TRASH.includes(t.name) ? TRASHES : WRITES}` }), _meta: { ...t._meta, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked } });
 }
 const INSTRUCTIONS = [
   "SJPJr: Steve Pisani's own things, private to him: his wardrobe and his trips. Start with find_items (one entry per garment he owns, flat) and refer to things by name.",

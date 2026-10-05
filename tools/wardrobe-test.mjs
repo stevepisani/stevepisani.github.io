@@ -9,7 +9,7 @@
 //
 //   node tools/wardrobe-test.mjs
 import { existsSync, readFileSync } from 'node:fs';
-import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES } from '../supabase/functions/mcp/server.js';
+import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
 
 let passed = 0;
@@ -51,17 +51,17 @@ const count = async (table) => (await q(`select count(*)::int as n from public.$
 
 // ---------- The protocol ----------
 ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion === '2025-06-18' && (await ask('initialize', { protocolVersion: '2025-11-25' })).protocolVersion === '2025-11-25', 'the handshake picks the asked protocol (ChatGPT\'s and Claude\'s)');
-ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
+ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records|moves only that to the trash/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
 const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
 ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos,catalog_photo', 'ingest_item takes uploaded photos, and a catalog image');
 ok((await rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, ctx)) === null, 'a notification gets no answer');
-ok((await tool('delete_item', { id: IDS.brown })).code === -32602, 'there is no way to delete (an unknown tool is a protocol error)');
+ok((await tool('destroy_item', { id: IDS.brown })).code === -32602, 'an unknown tool is a protocol error');
 {
   const hello = await ask('initialize', { protocolVersion: '2025-11-25' });
   ok(hello.serverInfo.title === 'SJPJr' && hello.serverInfo.websiteUrl === 'https://stevenpisani.com' && hello.serverInfo.icons.some((i) => i.mimeType === 'image/png' && i.sizes.includes('512x512')) && ICONS.every((i) => existsSync(new URL(`..${new URL(i.src).pathname}`, import.meta.url))), 'the server says who it is, with its logo (files that exist) and its home', hello.serverInfo);
   ok(hello.instructions.includes(RULES) && AREAS.every((a) => hello.instructions.includes(a.instructions)), 'the model is told the rules, and how to use each area');
-  ok(TOOLS.every((t) => !t.annotations.destructiveHint && !/^(delete|remove|destroy)_/.test(t.name)) && AREAS.every((a) => a.records || a.tools.every((t) => t.annotations.readOnlyHint)), 'the rules hold: nothing deletes, and only areas of Steve\'s own records write');
+  ok(TOOLS.every((t) => TRASH.includes(t.name) || (!t.annotations.destructiveHint && !/^(delete|remove|destroy)_/.test(t.name))) && TRASH.every((n) => TOOLS.find((t) => t.name === n)?.annotations.destructiveHint) && /trash/.test(RULES) && AREAS.every((a) => a.records || a.tools.every((t) => t.annotations.readOnlyHint)), 'the rules hold: only the TRASH tools delete, each to the trash, and only areas of Steve\'s own records write');
   ok(Buffer.byteLength(hello.instructions) < 2048 && /find_items/.test(hello.instructions.slice(0, 512)), 'its instructions fit what hosts read (under 2 KB, the start first)');
   ok(TOOLS.every((t) => [t._meta['openai/toolInvocation/invoking'], t._meta['openai/toolInvocation/invoked']].every((x) => x && x.length <= 64)), 'every tool says what it\'s doing while it runs, briefly');
 }
@@ -224,6 +224,34 @@ await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: t
 ok((await tool('tick_packing', { trip_id: trip.id, label: 'nothing like it', packed: true })).error, 'M: ticking something not on the list is refused');
 ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select packing from public.trips`))[0].packing[0].packed === true, 'M: packing keeps what was ticked');
 
+// ---------- The trash: deleting hides, restore brings back, 30 days later it's gone ----------
+{
+  const coat = await tool('add_item', { name: 'Trash test coat', category: 'outerwear' });
+  await tool('add_photo', { id: coat.item.id, photo: file('coat-front') });
+  const del = await tool('delete_item', { id: coat.item.id });
+  ok(!del.error && del.in_trash && /restored until \d{4}-\d\d-\d\d/.test(del.text), 'delete_item moves it to the trash and says until when', del.text);
+  ok((await tool('get_item', { id: coat.item.id })).error && !(await tool('find_items', { query: 'trash test coat' })).items?.length, 'a garment in the trash is hidden everywhere');
+  ok((await tool('list_trash', {})).items.some((i) => i.id === coat.item.id), 'list_trash has the garment');
+  ok(!(await tool('restore', { id: coat.item.id })).error && !(await tool('get_item', { id: coat.item.id })).error, 'restore brings it back');
+  const trip = await tool('create_trip', { name: 'Trash test trip', legs: [{ place: 'Rome', from: '2026-11-01', to: '2026-11-03' }] });
+  ok(!(await tool('delete_trip', { id: trip.id })).error && !(await tool('list_trips', {})).trips.some((t) => t.id === trip.id), 'delete_trip moves a trip to the trash');
+  ok(!(await tool('restore', { id: trip.id })).error && (await tool('list_trips', {})).trips.some((t) => t.id === trip.id), 'and restore brings it back');
+  ok((await tool('restore', { id: IDS.darkGray })).error, "restore only takes what's in the trash");
+  // 30 days on, emptying the trash deletes the rows and names the files to remove
+  await tool('delete_item', { id: coat.item.id });
+  await tool('delete_trip', { id: trip.id });
+  const coatFile = (await q(`select path from public.wardrobe_photos where item_id = $1`, [coat.item.id]))[0].path;
+  await db.exec(`reset role; set request.jwt.claims = ''`); // as the weekly job: no member
+  ok(!(await q(`select * from public.empty_trash()`)).length, 'emptying the trash leaves what was deleted less than 30 days ago');
+  await q(`update public.wardrobe_items set deleted_at = now() - interval '31 days' where id = $1`, [coat.item.id]);
+  await q(`update public.trips set deleted_at = now() - interval '31 days' where id = $1`, [trip.id]);
+  const files = (await q(`select * from public.empty_trash()`)).map((r) => Object.values(r)[0]);
+  ok(files.includes(coatFile) && !(await q(`select 1 from public.wardrobe_items where id = $1`, [coat.item.id])).length && !(await q(`select 1 from public.wardrobe_photos where item_id = $1`, [coat.item.id])).length && !(await q(`select 1 from public.trips where id = $1`, [trip.id])).length, 'after 30 days it deletes the garment, its photos and the trip, and names the files', files);
+  await db.exec(`set role authenticated`);
+  await as(STEVE, 'steve@example.com');
+  ok(await q(`select * from public.empty_trash(0)`).then(() => false, (e) => /weekly job/.test(e.message)), 'a member can\'t empty the trash, even with the function granted');
+}
+
 // ---------- Photos: where each came from, and the one shown ----------
 {
   const tee = await tool('add_item', { name: 'Plain white tee', category: 'tops' });
@@ -237,7 +265,7 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
   const own = await tool('add_photo', { id: tee.item.id, photo: file('tee-front') });
   ok(own.photos.find((p) => p.id === own.photo_id).origin === 'own' && own.item.hero_photo_id === own.photo_id, "his own photo outranks a shop's picture", own.item);
   // the wardrobe's catalog image, made from both, is the one shown; nothing is dropped
-  const cat = await tool('add_photo', { id: tee.item.id, photo: file('tee-catalog'), origin: 'catalog', made_from: [refPhoto.id, own.photo_id] });
+  const cat = await tool('add_photo', { id: tee.item.id, photo: file('tee-catalog'), origin: 'catalog', made_from: [refPhoto.id, own.photo_id], shows: { subcategory: 't_shirt', colour: 'white' } });
   const catPhoto = cat.photos.find((p) => p.id === cat.photo_id);
   ok(catPhoto.origin === 'catalog' && catPhoto.made_from.join() === [refPhoto.id, own.photo_id].join() && cat.item.hero_photo_id === catPhoto.id && cat.photos.length === 3, 'a catalog image, made from the reference and his photo, is the one shown; every photo is kept', cat.photos);
   const later = await tool('add_photo', { id: tee.item.id, photo: file('tee-back') });
@@ -250,8 +278,29 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
   // correcting where a photo came from
   const fixed = await tool('set_photo_role', { photo_id: catPhoto.id, origin: 'own' });
   ok(fixed.photos.find((p) => p.id === catPhoto.id).origin === 'own' && fixed.item.hero_photo_id === catPhoto.id, 'set_photo_role corrects where a photo came from');
-  const recat = await tool('set_photo_role', { photo_id: own.photo_id, origin: 'catalog' });
+  const recat = await tool('set_photo_role', { photo_id: own.photo_id, origin: 'catalog', shows: { subcategory: 't_shirt', colour: 'white' } });
   ok(recat.item.hero_photo_id === own.photo_id, 'a photo newly marked catalog is the one shown');
+  // a catalog image has to show the garment: a short-sleeve picture for a long-sleeve shirt is refused
+  const shirt = await tool('add_item', { name: 'Brushed long sleeve tee', category: 'tops', subcategory: 'long_sleeve_t_shirt', colour: 'dark brown' });
+  const wrongKind = await tool('add_photo', { id: shirt.item.id, photo: file('short-sleeve-render'), origin: 'catalog', shows: { subcategory: 't_shirt', colour: 'dark brown' } });
+  const noShows = await tool('add_photo', { id: shirt.item.id, photo: file('render-2'), origin: 'catalog' });
+  ok(wrongKind.error && /long sleeve t shirt; that image shows a t shirt/.test(wrongKind.text) && noShows.error && !(await tool('get_item', { id: shirt.item.id })).photos.length, 'a catalog image of another kind, or with nothing said of what it shows, is refused and nothing is kept', wrongKind.text);
+  const offColour = await tool('add_photo', { id: shirt.item.id, photo: file('render-3'), origin: 'catalog', shows: { subcategory: 'long_sleeve_t_shirt', colour: 'charcoal' } });
+  ok(!offColour.error && /Check the colour/.test(offColour.text), 'a colour that reads differently is said, not refused', offColour.text);
+  // any photo goes to the trash; the next best is shown; restore brings it back
+  const shopPic = await tool('add_photo', { id: shirt.item.id, url: 'https://shop.example/brushed-tee.jpg' });
+  const mine = await tool('add_photo', { id: shirt.item.id, photo: file('brushed-front') });
+  const gone = await tool('delete_photo', { photo_id: offColour.photo_id });
+  ok(!gone.error && /trash/.test(gone.text) && !gone.photos.some((p) => p.id === offColour.photo_id) && gone.item.hero_photo_id === mine.photo_id, 'a wrong catalog image goes to the trash, and the next best is shown', gone.item);
+  ok((await tool('delete_photo', { photo_id: offColour.photo_id })).error, 'a photo in the trash is gone from everywhere, deleting it again included');
+  const inTrash = await tool('list_trash', {});
+  ok(inTrash.photos.some((p) => p.id === offColour.photo_id && p.gone_on), 'list_trash has it, with the day it goes for good', inTrash);
+  const back = await tool('restore', { id: offColour.photo_id });
+  ok(!back.error && (await tool('get_item', { id: shirt.item.id })).item.hero_photo_id === offColour.photo_id, 'restore brings it back, shown again');
+  const ownGone = await tool('delete_photo', { photo_id: mine.photo_id });
+  const shopGone = await tool('delete_photo', { photo_id: shopPic.photo_id });
+  ok(!ownGone.error && !shopGone.error && shopGone.photos.length === 1, "his own photos and shop pictures go to the trash too");
+
   // filing with a catalog image
   const filed = await tool('ingest_item', { product: { brand: 'Arket', name: 'Heavyweight Tee', sources: { brand: 'garment_label', name: 'hang_tag' } }, item: { category: 'tops' }, garment_photo: file('arket-front'), catalog_photo: file('arket-catalog'), client_ref: 'arket-tee' });
   const shown = filed.photos.find((p) => p.hero);
