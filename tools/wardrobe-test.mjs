@@ -9,7 +9,7 @@
 //
 //   node tools/wardrobe-test.mjs
 import { existsSync, readFileSync } from 'node:fs';
-import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH } from '../supabase/functions/mcp/server.js';
+import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH, REMOVES } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
 
 let passed = 0;
@@ -51,7 +51,7 @@ const count = async (table) => (await q(`select count(*)::int as n from public.$
 
 // ---------- The protocol ----------
 ok((await ask('initialize', { protocolVersion: '2025-06-18' })).protocolVersion === '2025-06-18' && (await ask('initialize', { protocolVersion: '2025-11-25' })).protocolVersion === '2025-11-25', 'the handshake picks the asked protocol (ChatGPT\'s and Claude\'s)');
-ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records|moves only that to the trash/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
+ok(TOOLS.every((t) => t.title && t.annotations && (t.annotations.readOnlyHint || /changes only Steve's own records|moves only that to the trash|removes only that entry of the trip/.test(t.description))), 'every tool has a title and hints, and every write says plainly what it touches');
 const { tools } = await ask('tools/list');
 ok(tools.length === TOOLS.length && tools.find((t) => t.name === 'find_items').annotations.readOnlyHint && !tools.find((t) => t.name === 'ingest_item').annotations.readOnlyHint, 'tools/list, with read-only hints');
 ok(TOOLS.find((t) => t.name === 'ingest_item')._meta['openai/fileParams'].join() === 'garment_photo,tag_photo,care_label_photo,detail_photos,catalog_photo', 'ingest_item takes uploaded photos, and a catalog image');
@@ -61,7 +61,7 @@ ok((await tool('destroy_item', { id: IDS.brown })).code === -32602, 'an unknown 
   const hello = await ask('initialize', { protocolVersion: '2025-11-25' });
   ok(hello.serverInfo.title === 'SJPJr' && hello.serverInfo.websiteUrl === 'https://stevenpisani.com' && hello.serverInfo.icons.some((i) => i.mimeType === 'image/png' && i.sizes.includes('512x512')) && ICONS.every((i) => existsSync(new URL(`..${new URL(i.src).pathname}`, import.meta.url))), 'the server says who it is, with its logo (files that exist) and its home', hello.serverInfo);
   ok(hello.instructions.includes(RULES) && AREAS.every((a) => hello.instructions.includes(a.instructions)), 'the model is told the rules, and how to use each area');
-  ok(TOOLS.every((t) => TRASH.includes(t.name) || (!t.annotations.destructiveHint && !/^(delete|remove|destroy)_/.test(t.name))) && TRASH.every((n) => TOOLS.find((t) => t.name === n)?.annotations.destructiveHint) && /trash/.test(RULES) && AREAS.every((a) => a.records || a.tools.every((t) => t.annotations.readOnlyHint)), 'the rules hold: only the TRASH tools delete, each to the trash, and only areas of Steve\'s own records write');
+  ok(TOOLS.every((t) => TRASH.includes(t.name) || REMOVES.includes(t.name) || (!t.annotations.destructiveHint && !/^(delete|remove|destroy)_/.test(t.name))) && TRASH.every((n) => TOOLS.find((t) => t.name === n)?.annotations.destructiveHint) && /trash/.test(RULES) && AREAS.every((a) => a.records || a.tools.every((t) => t.annotations.readOnlyHint)), 'the rules hold: only the TRASH tools delete, each to the trash, and the REMOVES tools take a trip\'s own entry, and only areas of Steve\'s own records write');
   ok(Buffer.byteLength(hello.instructions) < 2048 && /find_items/.test(hello.instructions.slice(0, 512)), 'its instructions fit what hosts read (under 2 KB, the start first)');
   ok(TOOLS.every((t) => [t._meta['openai/toolInvocation/invoking'], t._meta['openai/toolInvocation/invoked']].every((x) => x && x.length <= 64)), 'every tool says what it\'s doing while it runs, briefly');
 }
@@ -76,7 +76,7 @@ ok((await tool('destroy_item', { id: IDS.brown })).code === -32602, 'an unknown 
   ok(inlined.includes('<script>window.x = "<\\/script><b>";</script>') && !inlined.includes('src='), 'with the script to hand, the page carries it, safely', inlined);
   const shows = TOOLS.filter((t) => t._meta?.ui?.resourceUri === APP_URI).map((t) => t.name).sort().join();
   ok(shows === 'find_items,get_item,get_trip,ingest_item' && TOOLS.find((t) => t.name === 'find_items')._meta['openai/outputTemplate'] === APP_URI, 'the closet, a garment, filing and a trip show the card (in both hosts\' keys)', shows);
-  ok(TOOLS.find((t) => t.name === 'tick_packing')._meta.ui.visibility.join() === 'app', 'ticking packing is the card\'s alone');
+  ok(TOOLS.find((t) => t.name === 'set_packing_status')._meta['openai/widgetAccessible'], 'the card can tick packing off');
   ok((await rpc({ jsonrpc: '2.0', id: 2, method: 'resources/read', params: { uri: 'ui://nope' } }, ctx)).error, 'an unknown resource is an error');
   ok((await ask('initialize', {})).capabilities.resources, 'the server says it has resources');
   ok(page._meta['openai/widgetDescription'] && resources[0].icons?.length, "the card tells ChatGPT's model what it shows, and carries the logo");
@@ -212,17 +212,18 @@ ok((await tool('retire_item', { id: twins.item_ids[1], retired: false })).retire
 // ---------- M. Trips, outfits and packing keep pointing at the same pieces ----------
 const [trip] = await q(`select * from public.trips`);
 const tr = await tool('get_trip', { id: trip.id });
-ok(/Museums: Soft Brushed Crew Neck Long Sleeve T, Brown suede loafers/.test(tr.text) && /Soft Brushed Crew Neck Long Sleeve T ✓/.test(tr.text), 'M: a trip planned before the migration still names the same pieces', tr.text);
+ok(/Museums\. Outfit: Soft Brushed Crew Neck Long Sleeve T, Brown suede loafers/.test(tr.text) && /Soft Brushed Crew Neck Long Sleeve T \[packed, clothing; id /.test(tr.text), 'M: a trip planned before the migrations still names the same pieces, its ticked packing now an entry, packed', tr.text);
 const planned = await tool('plan_days', { trip_id: trip.id, days: [{ date: '2026-10-09', items: [crewItem, IDS.brown], occasion: 'Walk' }] });
 ok(!planned.error && planned.planned === 2, 'M: planning with the new ids works');
 const board = await tool('get_trip', { id: trip.id });
-ok(board.view === 'trip' && board.trip.days.find((d) => d.date === '2026-10-09').items.includes(crewItem) && board.trip.garments[crewItem]?.hero_photo && board.trip.garments[crewItem].name, 'M: a trip tells the card to draw its board: each garment once, with its photo, and the days by id', board.trip);
-ok(board.trip.legs.every((l) => !l.weather || (l.weather.summary && !l.weather.days)), 'M: the legs carry a weather summary, not every day of it', board.trip.legs);
-const ticked = await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: false });
-ok(ticked.packed === 0 && (await q(`select packing from public.trips`))[0].packing[0].packed === false, 'M: the card ticks one thing off (or back on)', ticked);
-await tool('tick_packing', { trip_id: trip.id, item_id: IDS.darkBrown, packed: true });
-ok((await tool('tick_packing', { trip_id: trip.id, label: 'nothing like it', packed: true })).error, 'M: ticking something not on the list is refused');
-ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select packing from public.trips`))[0].packing[0].packed === true, 'M: packing keeps what was ticked');
+ok(board.view === 'trip' && board.days.find((d) => d.date === '2026-10-09').items.includes(crewItem) && board.garments[crewItem]?.hero_photo && board.garments[crewItem].name, 'M: a trip tells the card to draw its board: each garment once, with its photo, and the days by id', board);
+ok(board.legs.every((l) => !l.weather || (l.weather.summary && !l.weather.days)), 'M: the legs carry a weather summary, not every day of it', board.legs);
+const entry = board.packing.items[0];
+const ticked = await tool('set_packing_status', { packing_item_ids: [entry.id], status: 'needed' });
+ok(ticked.summary.packed === 0 && (await q(`select status from public.trip_packing where id = $1`, [entry.id]))[0].status === 'needed', 'M: the card ticks one thing off (or back on)', ticked);
+await tool('set_packing_status', { packing_item_ids: [entry.id], status: 'packed' });
+ok((await tool('set_packing_status', { packing_item_ids: ['nothing-like-it'], status: 'packed' })).error, 'M: ticking something not on the list is refused');
+ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select status from public.trip_packing where item_id = $1`, [IDS.darkBrown]))[0].status === 'packed', 'M: packing keeps what was ticked');
 
 // ---------- The trash: deleting hides, restore brings back, 30 days later it's gone ----------
 {

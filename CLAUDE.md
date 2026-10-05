@@ -41,14 +41,14 @@ npm run build && bundle exec jekyll build --strict_front_matter
 npm run check
 
 # Test: first the wardrobe's data and MCP server on the real schema (tools/wardrobe-test.mjs: every
-# migration in PGlite, a few seconds), then the smoke test: every page, then the planet driven
+# migration in PGlite, a few seconds), then trips in detail the same way (tools/trips-test.mjs), then the smoke test: every page, then the planet driven
 # through everything a visitor can do, on desktop and phone, the private apps against a made-up
 # Supabase, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
 # About 5 minutes under software WebGL. node tools/smoke.mjs --only desktop|phone|pages|apps|nogl, --shots <dir>.
 npm test
 ```
 
-CI (`.github/workflows/site.yml`) runs build, check, the wardrobe test and the smoke test on every PR, and on main
+CI (`.github/workflows/site.yml`) runs build, check, the wardrobe and trips tests and the smoke test on every PR, and on main
 deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
 
 ## The JavaScript build
@@ -92,7 +92,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
 - `apps/`: the private apps, members only (`public.members`), sign-ups off: `index.html` (/apps, the list from `_data/apps.yml`), `recipes.html` (/apps/recipes, the recipe tracker, also linked from the lab), `wardrobe.html` (/apps/wardrobe, Steve's clothes, private to him; ChatGPT and Claude reach it through SJPJr, the MCP server, `supabase/functions/mcp` (one file per area in `areas/`, the rules in `server.js`), and show it in a card, `assets/js/mcp-app/`) and `authorize.html` (/apps/authorize, the OAuth consent page they send you to; not listed). `offline.js` is the service worker that lets the wardrobe open with no connection. They use `_layouts/app.html`, `assets/css/apps.css` and `assets/js/apps/` (one script per app on the shared `lib/kit.js`, bundled to `dist/apps/`). How they work and how to add one: `docs/apps.md`. `recipe_tracker/` only redirects to /apps/recipes.
 - `supabase/`: the Supabase project as code (migrations, auth settings, edge functions); see `docs/backend.md`.
 - `proxy/`: `_worker.js`, the Cloudflare Pages worker behind `mcp.stevenpisani.com`, SJPJr's (the MCP server's) own address (deployed by `.github/workflows/mcp-proxy.yml`; `docs/apps.md`).
-- `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `wardrobe-test.mjs` (the wardrobe's migrations, view, row-level security and MCP tools, in PGlite, on `wardrobe-db.mjs`, which the smoke test's card session uses too), `supabase.mjs` (applies `supabase/`), `supabase-logs.mjs` (the edge functions' recent logs, via the Supabase workflow's "logs" option), `audible-sync.py` (the Audible sync), `fixtures/` (made-up data for tests: an Audible library and shelves, recipes, clothes, photos, trips), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
+- `tools/`: `build-js.mjs` (the esbuild bundle; it runs `library.mjs` first), `library.mjs` (the books merge), `check-site.mjs` (links and assets), `smoke.mjs` (the browser test), `wardrobe-test.mjs` (the wardrobe's migrations, view, row-level security and MCP tools, in PGlite, on `wardrobe-db.mjs`, which the smoke test's card session uses too), `trips-test.mjs` (trips in detail the same way: the London and Florence trip end to end), `supabase.mjs` (applies `supabase/`), `supabase-logs.mjs` (the edge functions' recent logs, via the Supabase workflow's "logs" option), `audible-sync.py` (the Audible sync), `fixtures/` (made-up data for tests: an Audible library and shelves, recipes, clothes, photos, trips), `build-models.mjs` and `models/` (the 3D model pipeline and hero model prompts).
 
 ## The asteroid (homepage)
 

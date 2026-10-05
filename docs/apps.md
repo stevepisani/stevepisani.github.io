@@ -160,10 +160,10 @@ wardrobe MCP server, signed in as him (below).
     anything that isn't a browser; then only the link is kept and the name is typed.
 - Categories: tops, bottoms, outerwear, suits, shoes, accessories, workout, swim (a check in the
   table, and `CATS` in `wardrobe.js`).
-- **Trips** (the Trips tab; table `trips`, private like the clothes): a trip is its legs (a
-  place, looked up for its latitude and longitude, and dates), its days (the wardrobe items worn,
-  what the day holds, a note) and its packing list (wardrobe items or plain labels, how many,
-  packed or not), kept on the row as JSON. A trip shows each leg with its weather (a bar a day:
+- **Trips** (the Trips tab; table `trips` and its parts, private like the clothes; "Trips in
+  detail" below has the model): a trip is its legs (a place, looked up for its latitude and
+  longitude, and dates), who's going, its days (activities, the wardrobe items worn, a summary, a
+  note), and its own rows for packing, bags, transport, lodging and links. A trip shows each leg with its weather (a bar a day:
   its height the high, its blue the chance of rain; dashed for typical days), the planned days
   with their outfits, and how the packing's going. Trips are mostly made in ChatGPT; "New trip"
   and "Edit" here take a name, places and dates, and notes.
@@ -203,9 +203,10 @@ one JSON answer; no sessions, no stream). In plain JavaScript, so `tools/wardrob
 it in Node against the real schema (below):
 
 - `server.js`: the protocol, who the server is, the card's resource, and the rules;
-- `areas/`: one file per area (`wardrobe.js`, `trips.js`), each `{ name, records, tools,
-  status, instructions, call }`: its tools, the status lines ChatGPT shows while each runs, what
-  the model is told about it, and the code;
+- `areas/`: one file per area (`wardrobe.js`; `trips.js`, `packing.js` and `trip-parts.js`,
+  sharing `trip-kit.js`; `trash.js`), each `{ name, records, tools, status, instructions, call }`:
+  its tools, the status lines ChatGPT shows while each runs, what the model is told about it, and
+  the code;
 - `kit.js`: what the areas share (the card's keys, tool hints, `Invalid` for a call's mistakes);
 - `index.ts`: serves it, checks who's calling, and gives it the data as that person (the `ctx`
   object, listed at the top of `server.js`).
@@ -219,9 +220,12 @@ its instructions, and said on every tool that writes:
 1. Steve's own records (an area with `records: true`: the wardrobe, trips) can be read and changed
    from a chat. The site's content (drinks, books, what he's written) is read-only there: it
    changes in the repo.
-2. Deleting moves things to the trash, from a chat as from the app: hidden everywhere, restorable
-   for 30 days, then gone for good (below). `TRASH` in `server.js` lists the only tools that
-   delete (`delete_item`, `delete_photo`, `delete_trip`), and the server won't load another.
+2. Deleting a garment, photo or trip moves it to the trash, from a chat as from the app: hidden
+   everywhere, restorable for 30 days, then gone for good (below). `TRASH` in `server.js` lists
+   the only tools that do (`delete_item`, `delete_photo`, `delete_trip`). A trip's own entries (a
+   packing entry, bag, journey, stay or link) are removed outright, one at a time, by the tools in
+   `REMOVES`, and never what they point at (a garment, the entries in a bag). The server won't
+   load any other tool that deletes or removes.
 3. Everything runs as the signed-in member, through row-level security, and stays on
    stevenpisani.com.
 
@@ -238,6 +242,60 @@ After 30 days (`TRASH_DAYS` in `kit.js`) the weekly Supabase job runs `tools/emp
 `public.empty_trash()` deletes the rows for good and names the photo files nothing uses any more,
 and the script removes those from Storage. Only that job can run it (no member, even if granted).
 The app has no trash view yet: restoring is from a chat.
+
+### Trips in detail
+
+Made for a five-week trip with a toddler (`supabase/migrations/20261005000500_trip_details.sql`).
+SJPJr keeps the facts, checks them and works out what follows from them by fixed rules; the model
+suggests (outfits, what to bring) from those and the weather. Nothing here is booked, looked up or
+sent.
+
+- **On the trip row:** `legs` (as before: places and dates, for the weather); `travelers`
+  (`[{ id, key, name, type }]`, type adult, child, infant or other; the key, "steve", is what
+  packing and bags point at, and "shared" means everyone); `laundry` (`{ available,
+  frequency_days, notes }`); `days`, each `{ date, occasion, activities, items, note }`, where
+  `activities` are the structured plan (`{ id, title, type, start_time, end_time, location,
+  notes }`, several a day) and `occasion` stays the one-line summary.
+- **Rows of their own**, each with a stable id, private to the owner (row-level security checks
+  the trip is theirs), going to the trash and back with the trip: `trip_packing` (a wardrobe
+  `item_id`, never copied, or a `label`; `traveler_key`, `category`, `qty`, `status` needed,
+  to_buy, ready or packed, `bag_id`, `essential`, `notes`), `trip_bags` (a `key` unique on the
+  trip, label, type, whose), `trip_transport` (type, date, from and to with optional codes,
+  departure and arrival times as given: ISO 8601 with the place's UTC offset when known, local
+  time without one, never a time zone made up; carrier, number, confirmation, booking link),
+  `trip_lodging` (name, place, address, check-in and check-out) and `trip_resources` (links:
+  insurance, tickets, bookings). A packing entry's bag is a bag of the same trip (a foreign key on
+  both); removing a bag leaves its entries, out of any bag. A packing entry's garment has no
+  foreign key, on purpose: a garment deleted later stays named on the trip, marked gone.
+- **Kinds** (categories, bag and transport types, activities, link types) are lists in
+  `trip-kit.js`, checked by the server, not the database: a new one is a word added there.
+- **The packing kept on the trip until now** became entries in the migration, in order: a ticked
+  one packed, the rest needed; a garment clothing, shoes or accessories by its category, anything
+  else misc; nobody's and in no bag.
+- **Tools:** `create_trip` and `update_trip` own the trip's own fields (name, notes, legs,
+  travelers, laundry); `plan_days` sets days whole; packing has `add_packing_items` (appends; the
+  same thing for the same traveler is updated, not added twice), `update_packing_item`,
+  `set_packing_status` and `move_packing_items` (several at once), `remove_packing_item`, and
+  `set_packing` (replaces the whole list, for imports; older calls with only item_id or label and
+  qty still work, and what's matched keeps its id and status). Bags, transport, lodging and links
+  each have `add_` (several at once), `update_` (only what's given) and `remove_` tools
+  (`trip-parts.js` makes them alike).
+- **`get_trip`** is the whole trip in one call: the trip, travelers, legs with the weather,
+  lodging and transport in the order they happen, links, bags with how many entries each, days
+  with place, weather, activities, outfit and whether it's a travel day, and the packing with a
+  count. Garments come once, in `garments`, marked `retired` or `missing` when they've gone since.
+- **`analyze_trip_packing`** is separate, so `get_trip` stays predictable: counts by status,
+  traveler, category and bag; the wardrobe (planned and listed, planned but not packed, listed
+  but never planned, planned on several days); the days (with no plan, with activities but no
+  outfit, travel and work days, nights with no lodging); and warnings, each a code and a sentence:
+  a planned garment not on the list, an essential not packed, a garment retired or deleted since,
+  an entry or bag for someone not on the trip, transport outside the trip (a flight the day
+  before the first leg is inside it), lodging outside the trip or overlapping. No advice: "bring a
+  rain jacket" is the model's to say.
+- **Tests:** `tools/trips-test.mjs` (in `npm test` and CI) runs the real trip end to end (London
+  then Florence, Steve, Lexi and Dominic, BA184 and BA3279, St James House, eight bags), every
+  tool, older calls unchanged, references (a bag of another trip, someone else's trip), removing
+  and deleting.
 
 ### Adding an area
 
@@ -260,7 +318,8 @@ The app has no trash view yet: restoring is from a chat.
   `read_store_link`, `list_trips`, `get_trip`; and `ingest_item` (below), `add_item` (a quick item
   with no product), `add_photo` (with a role), `set_photo_role` (what a photo is, or which is
   shown), `update_item` (with a scope, below), `retire_item` (or back), `create_trip`,
-  `update_trip`, `plan_days`, `set_packing`, `tick_packing` (the card's); `delete_item`,
+  `update_trip`, `plan_days`, `analyze_trip_packing` (read-only), the packing and trip-part tools
+  ("Trips in detail" above); `delete_item`,
   `delete_photo` and `delete_trip` (each to the trash), `list_trash` (read-only) and `restore`. The tool descriptions are written for the AI calling them: which to start
   with, when to ingest rather than add, what's a fact and what's a judgement, how photos get
   roles, how duplicates are avoided.
@@ -328,10 +387,11 @@ The app has no trash view yet: restoring is from a chat.
     garment, a new colour or size, another one), only the guessed facts up front, the facts read
     off a tag folded, one line of what's missing (the warnings meant for the model stay out), and
     "Add to wardrobe". After adding, the garment.
-  - `trip` (`get_trip`): the legs, the next planned outfit as photos, packing so far; "Open trip"
-    and "Packing list" go full screen, with Days (each outfit as photos; names on tap) and
-    Packing (ticked with `tick_packing`, a tool only the card can call,
-    `_meta.ui.visibility: ["app"]`; twins by colour, how often each is worn).
+  - `trip` (`get_trip`): the legs and who's going, the next day (its outfit as photos, or its
+    activities), packing so far; "Open trip" and "Packing list" go full screen, with Days (each
+    day's activities and outfit as photos; names on tap) and Packing (Everyone, each traveler or
+    Shared; ticked with `set_packing_status`, unticking goes back to where it was; twins by
+    colour, bag and status, how often each is worn).
 
   When Steve opens a garment in the card, the card tells the model (`ui/update-model-context`),
   so "what goes with this?" in the chat knows what "this" is. Without full screen (a host that
