@@ -63,6 +63,8 @@ jobs:
       - run: mkdir _site && tar -xf artifact.tar -C _site
       - name: The wardrobe's data and MCP server, on the real schema
         run: node tools/wardrobe-test.mjs
+      - name: Trips in detail, on the real schema
+        run: node tools/trips-test.mjs
       - name: Smoke test
         run: node tools/smoke.mjs _site
       - if: failure() # what the page looked like when it failed

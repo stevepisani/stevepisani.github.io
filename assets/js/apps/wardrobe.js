@@ -1,15 +1,16 @@
 // The wardrobe (/apps/wardrobe, apps/wardrobe.html): Steve's clothes, each with a photo cut out
 // of its background, what it is, and where to buy another; and his trips, with the weather, what
-// to wear each day and what to pack. Private to its owner (tables public.wardrobe_items and
-// public.trips; photos under photos/wardrobe/<owner id>/). A garment may belong to a variant and
+// to wear each day and what to pack. Private to its owner (tables public.wardrobe_items,
+// public.trips and the trip's parts: trip_packing, trip_bags, trip_transport, trip_lodging,
+// trip_resources; photos under photos/wardrobe/<owner id>/). A garment may belong to a variant and
 // product (wardrobe_variants, wardrobe_products: the maker's facts, filed by ChatGPT); the app
 // reads the flat view (wardrobe_closet) and changes only the garment itself. ChatGPT reads and
 // edits the same rows through the wardrobe MCP server (docs/apps.md).
 //
 // It works with no signal (a train, a plane): every load keeps a copy on the phone (the rows, the
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
-// answers from), and with no connection the app opens on that copy. Packing ticks made then are
-// kept and sent when the connection's back.
+// answers from), and with no connection the app opens on that copy. Changes to packing entries
+// made then are kept and sent when the connection's back.
 import { $, db, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
@@ -17,6 +18,10 @@ const items = rows('wardrobe_items', { trash: true }); // each garment Steve own
 const closet = rows('wardrobe_closet'); // (the view leaves the trash out) // the same, with its product's and variant's facts filled in; read here
 const photoRows = rows('wardrobe_photos', { trash: true }); // every photo of a garment, with its role
 const tripRows = rows('trips', { trash: true });
+// a trip's parts, each its own rows: what to pack, the bags, getting there, where to stay, links
+const PARTS = ['trip_packing', 'trip_bags', 'trip_transport', 'trip_lodging', 'trip_resources'];
+const partRows = Object.fromEntries(PARTS.map((p) => [p, rows(p)]));
+const noParts = () => Object.fromEntries(PARTS.map((p) => [p, []]));
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
 let list = [], links = new Map(), failed = false, uid = null, offline = false;
@@ -383,7 +388,7 @@ $('#photo-remove').addEventListener('click', async () => {
 });
 // ---------- Where you are: the address says, so Back works and any view can be linked ----------
 // #today, #closet, #trips, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over the view)
-let trips = [], openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
+let trips = [], parts = noParts(), openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
 const here = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
 const openItem = (it, mode = 'view') => { nextMode = mode; pushedItem = true; location.hash = `item/${it.id}`; };
 addEventListener('hashchange', route);
@@ -453,6 +458,8 @@ const legWeatherCached = (l) => {
   }
   return weatherCache.get(key);
 };
+// a trip's rows of one part (a part whose trip isn't loaded, in the trash, is never shown)
+const partsOf = (t, part) => parts[part].filter((r) => r.trip_id === t.id);
 // where you are on a date: on a travel day, the place you're going to
 const legOn = (t, date) => [...t.legs].reverse().find((l) => l.from <= date && date <= l.to);
 const wxOn = async (t, date) => { const l = legOn(t, date); return l ? (await legWeatherCached(l))?.days.find((d) => d.date === date) || null : null; };
@@ -489,9 +496,38 @@ function itemChip(id, { opens = true } = {}) {
 }
 
 const packSummary = (t) => {
-  const done = t.packing.filter((p) => p.packed).length, n = t.packing.length;
+  const entries = partsOf(t, 'trip_packing'), done = entries.filter((p) => p.status === 'packed').length, n = entries.length;
   return !n ? 'Nothing on the list yet.' : done === n ? `All ${n} packed.` : `${done} of ${n} packed.`;
 };
+
+// A time as given ("2026-10-13T11:15:00+01:00", or "11:15"): its clock time there, never moved
+// to another timezone; and its date, when it has one
+const clock = (s) => /(?:T|^)(\d\d:\d\d)/.exec(s || '')?.[1] || s || '';
+const dateOf = (s) => /^\d{4}-\d\d-\d\d/.exec(s || '')?.[0] || null;
+const spaced = (s) => (s || '').replace(/_/g, ' ');
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// a row in one of the trip's short lists: what it is (a link if there's one), then the details
+function infoRow(title, url, details) {
+  const li = el('li', 'info-row'), head = url ? el('a', 'info-row__title', title) : el('span', 'info-row__title', title);
+  if (url) Object.assign(head, { href: href(url), target: '_blank', rel: 'noopener' });
+  li.append(head);
+  const more = details.filter(Boolean).join(' · ');
+  if (more) li.append(el('span', 'info-row__more', more));
+  return li;
+}
+const part = (id, rowsIn) => { $(`#${id}`).replaceChildren(...rowsIn); $(`#${id}-part`).hidden = !rowsIn.length; };
+// what a day holds, in time order: "09:30–12:00 Uffizi · sightseeing"
+function activities(d) {
+  const acts = [...(d.activities || [])].sort((x, y) => (x.start_time || '99').localeCompare(y.start_time || '99'));
+  if (!acts.length) return null;
+  const ul = el('ul', 'acts');
+  for (const a of acts) {
+    const li = el('li', 'act'), when = [a.start_time, a.end_time].filter(Boolean).join('–');
+    li.append(el('span', 'act__time', when), el('span', 'act__title', a.title || ''), el('span', 'act__more', [a.type && spaced(a.type), a.location].filter(Boolean).join(' · ')));
+    ul.append(li);
+  }
+  return ul;
+}
 
 async function drawTrip() {
   const t = openTrip;
@@ -503,6 +539,21 @@ async function drawTrip() {
   $('#trip-notes').textContent = t.notes || '';
   $('#pack-sum').textContent = packSummary(t);
   $('#pack-open').href = `#trip/${t.id}/pack`;
+  // who's going, how they get there, where they stay, the links: each only when there's something
+  const people = t.travelers || [];
+  $('#trip-who').textContent = people.map((x) => (x.type && x.type !== 'adult' ? `${x.name} (${spaced(x.type)})` : x.name)).join(', ');
+  $('#trip-who-part').hidden = !people.length;
+  const goes = partsOf(t, 'trip_transport').sort((x, y) => x.date.localeCompare(y.date) || (x.departure_time || '').localeCompare(y.departure_time || ''));
+  part('trip-go', goes.map((g) => {
+    const dep = g.departure_time, arr = g.arrival_time, nextDay = dateOf(arr) && dateOf(arr) !== (dateOf(dep) || g.date);
+    const times = [dep && clock(dep), arr && `${clock(arr)}${nextDay ? ` (${fmtDay(dateOf(arr))})` : ''}`].filter(Boolean).join(' – ');
+    const end = (place, code) => (code ? `${place} ${code}` : place);
+    return infoRow(`${end(g.origin, g.origin_code)} → ${end(g.destination, g.destination_code)}`, g.booking_url, [
+      `${cap(spaced(g.type))}, ${fmtDay(g.date, { weekday: 'short' })}`, [g.carrier, g.number].filter(Boolean).join(' '), times, g.confirmation && `ref ${g.confirmation}`, g.notes]);
+  }));
+  const stays = partsOf(t, 'trip_lodging').sort((x, y) => x.check_in.localeCompare(y.check_in));
+  part('trip-stay', stays.map((l) => infoRow(l.name, l.booking_url, [l.place, `${fmtDay(l.check_in)} – ${fmtDay(l.check_out)}`, l.confirmation && `ref ${l.confirmation}`, l.notes])));
+  part('trip-links', partsOf(t, 'trip_resources').map((r) => infoRow(r.label, r.url, [r.notes])));
   // the legs, each with its weather
   const weather = await Promise.all(t.legs.map(legWeatherCached));
   if (openTrip !== t || shown !== 'trip') return;
@@ -538,6 +589,8 @@ async function drawTrip() {
     head.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}${w ? ` · ${Math.round(w.hi)}°/${Math.round(w.lo)}°, ${w.rain}% rain` : ''}`);
     li.append(head);
     if (d.occasion) li.append(el('p', 'day__occasion', d.occasion));
+    const acts = activities(d);
+    if (acts) li.append(acts);
     const outfit = el('div', 'day__outfit');
     d.items.forEach((id) => outfit.append(itemChip(id)));
     li.append(outfit);
@@ -614,6 +667,8 @@ async function drawToday() {
   for (const line of advice(w, outfit)) card.append(el('p', 'today-card__advice', line));
   card.append(el('p', 'today-card__label', "What you're wearing"));
   if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
+  const acts = plan && activities(plan);
+  if (acts) card.append(acts);
   if (outfit.length) {
     const ul = el('ul', 'outfit');
     for (const it of outfit) {
@@ -661,18 +716,66 @@ async function drawToday() {
   box.replaceChildren(head, card, ...(ahead.length ? [next] : []), pack);
 }
 
-// ---------- Packing: one row a thing, by category, a tap to tick it ----------
-let packShow = 'left';
-const packKey = (p) => (p.item_id ? `i:${p.item_id}` : `l:${p.label}`);
+// ---------- The Packing Board: everyone's things, by category, a tap to move each one on ----------
+// Each entry is its own row (trip_packing): a garment (by id) or anything else by label, whose it
+// is, which bag, how many, and how far along it is. A change saves as a PATCH of that one row.
+const STATUS = [['needed', 'Need'], ['to_buy', 'To buy'], ['ready', 'Ready'], ['packed', 'Packed']];
+const statusName = Object.fromEntries(STATUS);
+const NEXT = { needed: 'ready', to_buy: 'ready', ready: 'packed', packed: 'needed' }; // one tap moves it on
+const SHOW = [['open', 'To pack'], ...STATUS, ['all', 'All']]; // "To pack": everything not packed yet
+const PACK_CATS = [['clothing', 'Clothes'], ['shoes', 'Shoes'], ['baby', 'Baby'], ['toiletries', 'Toiletries'], ['medicine', 'Medicine'], ['electronics', 'Electronics'], ['documents', 'Documents'], ['work', 'Work'], ['accessories', 'Accessories'], ['gear', 'Gear'], ['misc', 'Misc']];
+const packCatName = Object.fromEntries(PACK_CATS);
+const catOf = (p) => (packCatName[p.category] ? p.category : 'misc');
+// a garment's own category says where it goes on the list
+const garmentCat = (it) => (it?.category === 'shoes' ? 'shoes' : it?.category === 'accessories' ? 'accessories' : 'clothing');
+const packedLine = { packed: (n) => `Packed ${n}.`, ready: (n) => `${n}: ready to pack.`, needed: (n) => `${n}: needed again.` };
+const garmentOf = (p) => (p.item_id ? list.find((x) => x.id === p.item_id) : null);
+const entryName = (p) => (p.item_id ? garmentOf(p)?.name || p.label || 'No longer in the wardrobe' : p.label);
+const whoName = (t, key) => (key === 'shared' ? 'Shared' : (t.travelers || []).find((x) => x.key === key)?.name || key || '');
+const isShared = (p) => !p.traveler_key || p.traveler_key === 'shared';
+
+// What's shown (status, whose, category, bag), remembered per trip on this phone
+const packFilters = kept('wardrobe-pack') || {};
+function packFilter(t) {
+  const f = { status: 'open', who: '', cat: '', bag: '', ...packFilters[t.id] };
+  if (!SHOW.some(([v]) => v === f.status)) f.status = 'open';
+  if (f.who && f.who !== 'shared' && !(t.travelers || []).some((x) => x.key === f.who)) f.who = '';
+  if (f.bag && f.bag !== 'none' && !partsOf(t, 'trip_bags').some((b) => b.id === f.bag)) f.bag = '';
+  if (f.cat && !packCatName[f.cat]) f.cat = '';
+  return f;
+}
+function setPackFilter(change) {
+  const t = openTrip;
+  if (!t) return;
+  packFilters[t.id] = { ...packFilter(t), ...change };
+  keep('wardrobe-pack', packFilters);
+  drawPack();
+}
+const fits = (p, f) => (!f.who || (f.who === 'shared' ? isShared(p) : p.traveler_key === f.who))
+  && (!f.cat || catOf(p) === f.cat) && (!f.bag || (f.bag === 'none' ? !p.bag_id : p.bag_id === f.bag));
+const shows = (p, status) => (status === 'open' ? p.status !== 'packed' : status === 'all' || p.status === status);
+const options = (select, pairs, value) => {
+  select.replaceChildren(...pairs.map(([v, text]) => new Option(text, v)));
+  select.value = pairs.some(([v]) => v === value) ? value : pairs[0]?.[0] ?? '';
+};
+const chips = (box, pairs, value) => box.replaceChildren(...pairs.map(([v, text, n]) => {
+  const b = el('button', '', text);
+  b.type = 'button';
+  b.dataset.value = v;
+  b.setAttribute('aria-pressed', v === value);
+  if (n != null) b.append(el('span', '', n));
+  return b;
+}));
+
+let addFor = ''; // the filters the add form's pickers were last set from
 function drawPack() {
   const t = openTrip;
   if (!t) return;
+  const entries = partsOf(t, 'trip_packing'), bags = partsOf(t, 'trip_bags'), people = t.travelers || [], f = packFilter(t);
   $('#pack-back').textContent = `‹ ${t.name}`;
   $('#pack-back').href = `#trip/${t.id}`;
-  const n = t.packing.length, done = t.packing.filter((p) => p.packed).length;
-  $('#pack-left').textContent = n - done;
-  $('#pack-all').textContent = n;
-  for (const b of $('#pack-show').children) b.setAttribute('aria-pressed', b.dataset.value === packShow);
+  // how it's going, over the whole list
+  const n = entries.length, done = entries.filter((p) => p.status === 'packed').length;
   const bar = $('#pack-progress');
   bar.hidden = !n;
   bar.firstElementChild.style.setProperty('--p', `${n ? (100 * done) / n : 0}%`);
@@ -680,90 +783,181 @@ function drawPack() {
   bar.setAttribute('aria-valuenow', done);
   const leave = leaving(span(t)[0] || '');
   $('#pack-count').textContent = n ? `${done} of ${n} packed${leave ? ` · ${leave}` : ''}` : '';
+  // what to show: the status (with counts under the other filters), whose, category, bag
+  const pool = entries.filter((p) => fits(p, f));
+  chips($('#pack-status'), SHOW.map(([v, text]) => [v, text, pool.filter((p) => shows(p, v)).length]), f.status);
+  chips($('#pack-who'), [['', 'Everyone'], ...people.map((x) => [x.key, x.name]), ['shared', 'Shared']], f.who);
+  $('#pack-who').hidden = !people.length;
+  const cats = PACK_CATS.filter(([c]) => c === f.cat || entries.some((p) => catOf(p) === c));
+  options($('#pack-cat'), [['', 'Every category'], ...cats], f.cat);
+  options($('#pack-bag'), [['', 'Any bag'], ...bags.map((b) => [b.id, b.label]), ['none', 'In no bag']], f.bag);
+  $('#pack-bag').hidden = !bags.length;
+  $('#pack-filters').hidden = !n;
+  // the add form starts from the filters: adding while looking at Lexi's toiletries adds hers
+  const now = `${t.id}|${f.who}|${f.cat}`;
+  if (addFor !== now) {
+    addFor = now;
+    options($('#pack-add-who'), [['', 'Not assigned'], ...people.map((x) => [x.key, x.name]), ['shared', 'Shared']], f.who);
+    options($('#pack-add-cat'), PACK_CATS, f.cat || 'misc');
+  }
+  $('#pack-add-who').hidden = !people.length;
   // what the planned outfits wear that isn't on the list yet
-  const onList = new Set(t.packing.map((p) => p.item_id).filter(Boolean));
-  const missing = [...new Set(t.days.flatMap((d) => d.items))].filter((id) => !onList.has(id) && list.some((x) => x.id === id));
+  const onList = new Set(entries.map((p) => p.item_id).filter(Boolean));
+  const missing = [...new Set(t.days.flatMap((d) => d.items || []))].filter((id) => !onList.has(id) && list.some((x) => x.id === id));
   $('#pack-from-plan').hidden = !missing.length;
   $('#pack-from-plan').textContent = n ? `Add from the planned outfits (${missing.length})` : 'Make the list from the planned outfits';
-  $('#pack-from-plan').onclick = () => savePacking(t, (l) => { l.push(...missing.map((item_id) => ({ item_id, qty: 1, packed: false }))); });
-  // by category, then the other things
-  const groups = new Map([...CATS.map(([c, name]) => [c, { name, rows: [] }]), ['other', { name: 'Other things', rows: [] }]]);
-  t.packing.forEach((p) => {
-    const it = p.item_id && list.find((x) => x.id === p.item_id);
-    groups.get(it ? it.category : 'other').rows.push({ p, it });
-  });
+  $('#pack-from-plan').onclick = () => {
+    const steve = people.some((x) => x.key === 'steve') ? 'steve' : null;
+    addEntries(t, missing.map((item_id) => ({ item_id, category: garmentCat(list.find((x) => x.id === item_id)), traveler_key: steve })))
+      .then((added) => added && toast(`Added ${plural(added.length, 'thing')} from the planned outfits.`));
+  };
+  // by category, in the board's order
   const box = $('#pack-groups');
   box.textContent = '';
-  for (const g of groups.values()) {
-    const left = g.rows.filter((r) => !r.p.packed).length, rowsShown = g.rows.filter((r) => packShow === 'all' || !r.p.packed);
-    if (!rowsShown.length) continue;
+  for (const [c, name] of PACK_CATS) {
+    const inCat = pool.filter((p) => catOf(p) === c), shown = inCat.filter((p) => shows(p, f.status));
+    if (!shown.length) continue;
+    const left = inCat.filter((p) => p.status !== 'packed').length;
     const section = el('section', 'pack-group'), h = el('h3', 'pack-group__head');
-    h.append(el('span', '', g.name), el('span', 'pack-group__left', left ? `${left} left` : 'all packed'));
+    h.append(el('span', '', name), el('span', 'pack-group__left', left ? `${left} left` : 'all packed'));
     const ul = el('ul', 'pack-rows');
-    for (const { p, it } of rowsShown.sort((x, y) => (x.it?.name || x.p.label || '').localeCompare(y.it?.name || y.p.label || ''))) {
-      const name = it ? it.name : p.item_id ? 'No longer in the wardrobe' : p.label;
-      const li = el('li', `pack-row${p.packed ? ' is-packed' : ''}`), label = el('label', 'pack-row__tick');
-      const box2 = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!p.packed, className: 'pack-row__box' });
-      box2.addEventListener('change', () => tick(t, p, box2.checked, name));
-      const text = el('span', 'pack-row__text');
-      text.append(el('span', 'pack-row__name', name));
-      label.append(p.item_id ? thumb(it, 'pack-row__photo') : el('span', 'pack-row__photo pack-row__photo--none', '·'), text);
-      if (p.qty > 1) label.append(el('span', 'pack__qty', `×${p.qty}`));
-      label.append(box2);
-      const x = el('button', 'link-btn pack__x', '×');
-      x.type = 'button';
-      x.setAttribute('aria-label', `Take ${name} off the list`);
-      x.addEventListener('click', () => {
-        const at = t.packing.findIndex((q) => packKey(q) === packKey(p));
-        savePacking(t, (l) => { l.splice(at, 1); }).then((ok) => ok && toast(`Took ${name} off the list.`, false, () => savePacking(t, (l) => { l.splice(Math.min(at, l.length), 0, p); })));
-      });
-      li.append(label, x);
-      ul.append(li);
-    }
+    shown.sort((x, y) => entryName(x).localeCompare(entryName(y))).forEach((p) => ul.append(packRow(t, p, bags)));
     section.append(h, ul);
     box.append(section);
   }
-  const empty = !n ? (missing.length ? '' : 'Nothing on the list yet. Add things below, or ask ChatGPT to make the list.') : 'All packed.';
+  const empty = !n ? (missing.length ? '' : 'Nothing on the list yet. Add things below, or ask ChatGPT to make the list.')
+    : f.status === 'open' && !pool.some((p) => p.status !== 'packed') ? (pool.length ? 'All packed.' : 'Nothing here.') : 'Nothing here.';
   $('#pack-empty').hidden = !!box.childElementCount || !empty;
   $('#pack-empty').textContent = empty;
 }
-function tick(t, p, packed, name) {
-  const set = (on) => savePacking(t, (l) => { const q = l.find((x) => packKey(x) === packKey(p)); if (q) q.packed = on; });
-  set(packed).then((ok) => ok && toast(`${packed ? 'Packed' : 'Unpacked'} ${name}.`, false, () => set(!packed)));
-}
-$('#pack-show').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { packShow = b.dataset.value; drawPack(); } });
 
-// A change to the packing shows at once. With no connection it's kept on the phone and sent
-// when the connection's back (the whole list, so the last change wins).
-const queue = kept('wardrobe-queue') || {}; // trip id → its packing, waiting to be sent
-async function savePacking(t, change) {
-  const before = t.packing, next = before.map((p) => ({ ...p }));
-  change(next);
-  t.packing = next;
+function packRow(t, p, bags) {
+  const it = garmentOf(p), name = entryName(p), bag = bags.find((b) => b.id === p.bag_id);
+  const li = el('li', `pack-row is-${p.status}`), open = el('button', 'pack-row__open'), text = el('span', 'pack-row__text');
+  open.type = 'button';
+  const title = el('span', 'pack-row__name', name);
+  if (p.qty > 1) title.append(el('span', 'pack__qty', ` ×${p.qty}`));
+  text.append(title);
+  const line = (bits) => { const s = bits.filter(Boolean).join(' · '); if (s) text.append(el('span', 'pack-row__meta', s)); };
+  if (p.item_id) {
+    const planned = t.days.filter((d) => d.items?.includes(p.item_id)).sort((x, y) => x.date.localeCompare(y.date)).map((d) => fmtDay(d.date));
+    line([it?.brand, it && (it.manufacturer_colour || it.colour)]);
+    line([planned.length && `Planned: ${planned.join(', ')}`, bag?.label, p.notes]);
+  } else line([whoName(t, p.traveler_key), bag?.label, p.notes]);
+  if (p.essential) title.prepend(el('span', 'pack-row__must', 'Essential'));
+  open.append(p.item_id ? thumb(it, 'pack-row__photo') : el('span', 'pack-row__photo pack-row__photo--none', (name || '?')[0].toUpperCase()), text);
+  open.addEventListener('click', () => openEntry(p));
+  const status = el('button', 'pack-row__status', statusName[p.status] || p.status);
+  status.type = 'button';
+  status.setAttribute('aria-label', `${name}: ${statusName[p.status]}. Tap for ${statusName[NEXT[p.status] || 'ready']}.`);
+  status.addEventListener('click', () => {
+    const was = p.status, to = NEXT[was] || 'ready';
+    setEntry(p, { status: to }).then((ok) => ok && toast(packedLine[to](name), false, () => setEntry(p, { status: was })));
+  });
+  li.append(open, status);
+  return li;
+}
+$('#pack-status').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setPackFilter({ status: b.dataset.value }); });
+$('#pack-who').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) setPackFilter({ who: b.dataset.value }); });
+$('#pack-cat').addEventListener('change', (e) => setPackFilter({ cat: e.target.value }));
+$('#pack-bag').addEventListener('change', (e) => setPackFilter({ bag: e.target.value }));
+
+// A change shows at once and saves as a PATCH of that one entry. With no connection it's kept on
+// the phone (entry id → its changes, merged) and sent when the connection's back.
+const QUEUE = 'wardrobe-packing-queue';
+try { localStorage.removeItem('wardrobe-queue'); } catch (e) {} // the old queue held whole lists, for a column that's gone
+const queue = kept(QUEUE) || {};
+const cantAdd = () => {
+  if (!offline && navigator.onLine) return false;
+  toast("You're offline. Adding and taking off wait for a connection.", true);
+  return true;
+};
+async function setEntry(p, patch) {
+  const before = Object.fromEntries(Object.keys(patch).map((k) => [k, p[k]]));
+  Object.assign(p, patch);
   redraw();
+  paintEntry();
   if (offline || !navigator.onLine) {
-    queue[t.id] = next;
-    keep('wardrobe-queue', queue);
+    queue[p.id] = { ...queue[p.id], ...patch };
+    keep(QUEUE, queue);
     keepCopy();
     return true;
   }
-  if (!(await tripRows.set(t.id, { packing: next }))) { t.packing = before; redraw(); return false; }
+  if (!(await partRows.trip_packing.set(p.id, patch))) { Object.assign(p, before); redraw(); paintEntry(); return false; }
   keepCopy();
   return true;
 }
 async function sendQueue() {
-  for (const [id, packing] of Object.entries(queue)) {
-    if (await tripRows.set(id, { packing })) delete queue[id];
+  for (const [id, patch] of Object.entries(queue)) {
+    const { error } = await db.from('trip_packing').update(patch).eq('id', id);
+    if (!error || error.code) delete queue[id]; // sent, or refused (taken off the list elsewhere): either way, done
   }
-  keep('wardrobe-queue', queue);
+  keep(QUEUE, queue);
 }
-$('#pack-add').addEventListener('submit', (e) => {
+async function addEntries(t, entries) {
+  if (cantAdd()) return null;
+  const added = await partRows.trip_packing.add(entries.map((r) => ({ trip_id: t.id, qty: 1, status: 'needed', ...r })));
+  if (!added) return null;
+  parts.trip_packing.push(...added);
+  keepCopy();
+  redraw();
+  return added;
+}
+$('#pack-add').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const label = e.target.label.value.trim();
-  if (!label || !openTrip) return;
-  e.target.reset();
-  savePacking(openTrip, (l) => { l.push({ label, qty: 1, packed: false }); });
+  const form = e.target, label = form.label.value.trim(), t = openTrip;
+  if (!label || !t) return;
+  if (await addEntries(t, [{ label, traveler_key: form.traveler.value || null, category: form.category.value }])) form.label.value = '';
 });
+
+// ---------- An entry, in a small sheet: status, whose, which bag, how many, essential, notes ----------
+const packSheet = $('#pack-sheet');
+let entryOpen = null;
+function openEntry(p) {
+  entryOpen = p;
+  $('#ps-notes').value = p.notes || '';
+  delete $('#ps-notes').dataset.save;
+  paintEntry();
+  if (!packSheet.open) packSheet.showModal();
+}
+function paintEntry() {
+  const p = entryOpen, t = openTrip;
+  if (!p || !t) return;
+  const it = garmentOf(p);
+  $('#ps-photo').replaceChildren(p.item_id ? thumb(it, 'pack-row__photo') : el('span', 'pack-row__photo pack-row__photo--none', (entryName(p) || '?')[0].toUpperCase()));
+  $('#ps-name').textContent = entryName(p);
+  $('#ps-cat').textContent = packCatName[catOf(p)];
+  chips($('#ps-status'), STATUS, p.status);
+  const people = t.travelers || [], who = [['', 'Not assigned'], ...people.map((x) => [x.key, x.name]), ['shared', 'Shared']];
+  if (p.traveler_key && !who.some(([k]) => k === p.traveler_key)) who.push([p.traveler_key, p.traveler_key]);
+  options($('#ps-who'), who, p.traveler_key || '');
+  options($('#ps-bag'), [['', 'No bag yet'], ...partsOf(t, 'trip_bags').map((b) => [b.id, b.label])], p.bag_id || '');
+  $('#ps-qty').textContent = p.qty;
+  $('#ps-less').disabled = p.qty <= 1;
+  $('#ps-essential').checked = !!p.essential;
+  $('#ps-garment').hidden = !it;
+}
+$('#ps-status').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && entryOpen) setEntry(entryOpen, { status: b.dataset.value }); });
+$('#ps-who').addEventListener('change', (e) => entryOpen && setEntry(entryOpen, { traveler_key: e.target.value || null }));
+$('#ps-bag').addEventListener('change', (e) => entryOpen && setEntry(entryOpen, { bag_id: e.target.value || null }));
+$('#ps-essential').addEventListener('change', (e) => entryOpen && setEntry(entryOpen, { essential: e.target.checked }));
+for (const [id, by] of [['#ps-less', -1], ['#ps-more', 1]]) {
+  $(id).addEventListener('click', () => entryOpen && setEntry(entryOpen, { qty: Math.min(999, Math.max(1, entryOpen.qty + by)) }));
+}
+saver($('#ps-notes'), (value) => (entryOpen ? setEntry(entryOpen, { notes: value.trim() || null }) : Promise.resolve(false)));
+$('#ps-garment').addEventListener('click', () => { const it = entryOpen && garmentOf(entryOpen); packSheet.close(); if (it) openItem(it); });
+$('#ps-remove').addEventListener('click', async () => {
+  const p = entryOpen, t = openTrip, name = entryName(p);
+  if (!p || cantAdd() || !(await partRows.trip_packing.remove(p.id))) return; // the entry only; never the garment
+  parts.trip_packing = parts.trip_packing.filter((x) => x !== p);
+  keepCopy();
+  packSheet.close();
+  redraw();
+  const { owner, updated_at, ...back } = p;
+  toast(`Took ${name} off the list.`, false, () => addEntries(t, [back]));
+});
+packSheet.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => packSheet.close(); });
+packSheet.addEventListener('close', () => { $('#ps-notes').dispatchEvent(new Event('change')); setTimeout(() => { if (!packSheet.open) entryOpen = null; }, 0); });
 
 // Starting a trip, or changing its places and dates (the places are looked up for the weather)
 function legRow(l = {}) {
@@ -807,14 +1001,14 @@ async function editTrip(t) {
   legs.sort((x, y) => x.from.localeCompare(y.from));
   const values = { name: v.name.trim(), notes: v.notes.trim() || null, legs };
   if (t) { if (await tripRows.set(t.id, values)) { Object.assign(t, values); keepCopy(); redraw(); } }
-  else { const added = await tripRows.add([{ ...values, days: [], packing: [] }]); if (added) { trips.push(...added); keepCopy(); location.hash = `trip/${added[0].id}`; } }
+  else { const added = await tripRows.add([{ ...values, days: [] }]); if (added) { trips.push(...added); keepCopy(); location.hash = `trip/${added[0].id}`; } }
 }
 $('#new-trip').addEventListener('click', () => editTrip(null));
 $('#trip-edit').addEventListener('click', () => openTrip && editTrip(openTrip));
 
 // ---------- The copy on the phone ----------
 const copyKey = () => `wardrobe-copy:${uid}`;
-const keepCopy = () => { if (uid) keep(copyKey(), { at: Date.now(), list, trips, links: [...links] }); };
+const keepCopy = () => { if (uid) keep(copyKey(), { at: Date.now(), list, trips, parts, links: [...links] }); };
 // the photos themselves, for the service worker to answer from with no connection: keyed by the
 // file (a signed link's token changes), fetched once each, and dropped when nothing shows them
 const photoKey = (url) => { const u = new URL(url); return u.origin + u.pathname; };
@@ -836,16 +1030,19 @@ const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 
 
 // ---------- Loading ----------
 async function load() {
-  let got = null, gotTrips = null;
+  let got = null, gotTrips = null, gotParts = null;
   if (navigator.onLine && (await db.auth.getSession()).data.session) {
-    await sendQueue(); // what was ticked offline goes first, so what comes back has it
-    [got, gotTrips] = await Promise.all([closet.list('name'), tripRows.list('created_at')]);
+    await sendQueue(); // what was changed offline goes first, so what comes back has it
+    let rest;
+    [got, gotTrips, ...rest] = await Promise.all([closet.list('name'), tripRows.list('created_at'), ...PARTS.map((p) => partRows[p].list('created_at'))]);
+    if (rest.every(Boolean)) gotParts = Object.fromEntries(PARTS.map((p, i) => [p, rest[i]]));
   }
   const copy = kept(copyKey());
-  if (got && gotTrips) {
+  if (got && gotTrips && gotParts) {
     offline = failed = false;
     list = got;
     trips = gotTrips;
+    parts = gotParts;
     links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean));
     keepCopy();
     keepPhotos();
@@ -856,16 +1053,18 @@ async function load() {
     failed = false;
     list = copy.list;
     trips = copy.trips;
+    parts = { ...noParts(), ...copy.parts };
     links = new Map(copy.links);
-    for (const t of trips) if (queue[t.id]) t.packing = queue[t.id];
+    for (const p of parts.trip_packing) if (queue[p.id]) Object.assign(p, queue[p.id]);
   } else {
     offline = false;
     failed = true;
     list = got || [];
     trips = gotTrips || [];
+    parts = gotParts || noParts();
   }
   $('#offline-note').hidden = !offline;
-  if (offline) $('#offline-note').textContent = `Offline: showing the copy saved on this phone ${ago(copy.at)}. Packing ticks are kept and sent when you're back online.`;
+  if (offline) $('#offline-note').textContent = `Offline: showing the copy saved on this phone ${ago(copy.at)}. Packing changes are kept and sent when you're back online.`;
   if (openTrip) openTrip = trips.find((t) => t.id === openTrip.id) || null;
   tiles.clear();
   $('#grid').textContent = '';
@@ -874,7 +1073,7 @@ async function load() {
 }
 addEventListener('online', () => { if (uid) load(); });
 start(async (user) => { uid = user.id; await load(); }, () => {
-  list = []; trips = []; openTrip = null; uid = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+  list = []; trips = []; parts = noParts(); openTrip = null; uid = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
 }, { offline: true });
 fresh(load);
 
