@@ -12,7 +12,7 @@
 //   ctx.products.list(); get(id); add(row) → row; set(id, patch) → row
 //   ctx.variants.list(productId); get(id); add(row) → row; set(id, patch) → row
 //   ctx.photos.list(itemId); forItems(itemIds); get(id); byFile(fileId) → row | null; add(rows); set(id, patch)
-//   ctx.photoUrls(paths) → Map(path → signed link); ctx.readProduct(url); ctx.storeImage(url) → path | null
+//   ctx.photoUrls(paths) → Map(path → signed link); ctx.photoFile(path) → Uint8Array | null (the file as stored); ctx.readProduct(url); ctx.storeImage(url) → path | null
 //   ctx.storeUpload(file) → path | null (a file ChatGPT passes: { download_url, file_id, mime_type })
 //   ctx.trips.list(); get(id); add(row) → row; set(id, patch) → row | null
 //   ctx.parts.get(table, id); list(table, tripId); add(table, rows) → rows; set(table, id, patch) → row | null;
@@ -127,8 +127,9 @@ export async function rpc(msg, ctx) {
       try {
         // the photos' links, by photo id, for the card alone (kit.js, sign)
         const links = {};
-        const { text, data } = await area.call(name, args || {}, { ...ctx, links });
-        return ok({ content: [{ type: "text", text }], structuredContent: data, ...(Object.keys(links).length && { _meta: { photos: links } }) });
+        // images: photos as the images themselves (get_photo), after the text, in order
+        const { text, data, images = [] } = await area.call(name, args || {}, { ...ctx, links });
+        return ok({ content: [{ type: "text", text }, ...images.map((i) => ({ type: "image", data: i.data, mimeType: i.mimeType }))], structuredContent: data, ...(Object.keys(links).length && { _meta: { photos: links } }) });
       } catch (e) {
         if (!(e instanceof Invalid)) console.error(e);
         return ok({ content: [{ type: "text", text: e instanceof Invalid ? e.message : "That didn't work; SJPJr couldn't be reached. Try again." }], isError: true });
