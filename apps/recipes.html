@@ -60,24 +60,24 @@ lede: What we're cooking our way through, with ratings, notes and photos.
 
 <dialog class="app-dialog" id="add-dialog" aria-labelledby="add-title">
   <form method="dialog">
-    <h2 id="add-title">Add a recipe</h2>
+    <header class="dialog-bar">
+      <button class="link-btn" type="button" data-close>Cancel</button>
+      <h2 id="add-title">Add a recipe</h2>
+      <button class="link-btn dialog-bar__ok" type="submit" value="ok">Add</button>
+    </header>
     <label>Name <input name="title" type="text" required></label>
     <label>Link (optional) <input name="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
-    <div class="app-dialog__buttons">
-      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
-      <button class="btn btn--small" type="submit" value="ok">Add</button>
-    </div>
   </form>
 </dialog>
 
 <dialog class="app-dialog" id="import-dialog" aria-labelledby="import-title">
   <form method="dialog">
-    <h2 id="import-title">Import a list</h2>
+    <header class="dialog-bar">
+      <button class="link-btn" type="button" data-close>Cancel</button>
+      <h2 id="import-title">Import a list</h2>
+      <button class="link-btn dialog-bar__ok" type="submit" value="ok">Import</button>
+    </header>
     <p>One recipe a line. To include its link, put it after a bar: <code>Name | https://…</code></p>
     <label>Recipes <textarea name="list" rows="8" required></textarea></label>
-    <div class="app-dialog__buttons">
-      <button class="btn btn--ghost btn--small" type="button" data-close>Cancel</button>
-      <button class="btn btn--small" type="submit" value="ok">Import</button>
-    </div>
   </form>
 </dialog>
