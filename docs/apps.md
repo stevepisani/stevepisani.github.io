@@ -64,6 +64,19 @@ Known limits, to deal with when an app meets them:
 - **Photos are freshly signed each visit**, so the browser never caches them. Fine for a few
   dozen at 1600px; the wardrobe stores its cut-outs at 1200px as WebP (`photos.put(file, folder,
   { alpha: true, longest: 1200 })`, 50 to 200 KB each), which holds up to a couple of hundred.
+- **Photo sizes** (`assets/js/apps/lib/photo-sizes.js`): the stored file is often far too big to
+  show (a catalog image is a 1254 px PNG of 2 to 2.6 MB; 47 tiles were about 100 MB, slow on a
+  phone and a fiftieth of the free plan's 5 GB a month of downloads each time the closet opened).
+  So every wardrobe photo has two WebP copies beside it, transparency kept: `<path>.w512` (about
+  25 to 70 KB) for tiles, flat-lays and thumbnails, and `<path>.w1080` (about 100 to 250 KB) for
+  the photo in a garment's sheet, both sharp on a 3x screen. `photos.urls(paths, px)` signs each
+  path with its copy in one request and gives the copy's link, or the file's until the copy is
+  made. The sheet shows the small copy at once and swaps in the large one when it's loaded.
+  Copies come from three places: the app makes them when it uploads (`photos.put(…, { copies:
+  true })`; WebP where the browser writes it, else JPEG, and not at all for a cut-out in a browser
+  without WebP), `tools/photo-copies.mjs` makes any missing every hour (photos added through
+  ChatGPT, older ones), and the trash and `photos.remove` delete them with the photo. Resizing on
+  the fly (Supabase image transformations) needs the Pro plan, $25 a month, so it's not used.
 - **`rows().list()` has no paging**; the API returns at most 1,000 rows.
 - Recipe photos from before Oct 2026 sit at the bucket's root (`<recipe id>/…`); new ones are
   under `recipes/`. Both work.
@@ -543,7 +556,8 @@ sent.
   once, with ImageScript (in Node, the npm build pinned in `package.json`; on the server, its
   Deno build, 1.3.0 from deno.land in `index.ts`, since the npm one loads native code the edge
   runtime refuses: "unsupported arch/platform"; the two make the same bytes), and kept beside the file in Storage
-  (`<path>.vision.jpg`, `.thumbnail.jpg`); the stored file is never changed, and emptying the
+  (`<path>.vision.jpg`, `.thumbnail.jpg`, beside the app's own `.w512` and `.w1080`, "Photo
+  sizes"); the stored file is never changed, and emptying the
   trash takes the copies too. The Supabase workflow makes them after each deploy and hourly
   (`tools/photo-copies.mjs`), so the server rarely has to (a function gets about 2 s of CPU); if
   it can't load ImageScript, it sends the stored file instead.
