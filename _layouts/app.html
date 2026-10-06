@@ -1,11 +1,12 @@
 ---
 layout: default
 ---
-{%- comment -%} A private app (docs/apps.md): the page's content is the app, hidden until a member signs in. `app:` names its script in assets/js/apps/. {%- endcomment -%}
+{%- comment -%} A private app (docs/apps.md): the page's content is the app, hidden until a member signs in. `app:` names its script in assets/js/apps/. An app may change the heading (#app-title) to say where you are, and show #app-back, the way back up. {%- endcomment -%}
 <article class="wrap page app" id="app" data-state="loading">
   <header class="page-head">
-    <p class="kicker">{% unless page.url == '/apps/' %}<a href="{{ '/apps/' | relative_url }}">Apps</a> · {% endunless %}Members only</p>
-    <h1>{{ page.heading | default: page.title }}</h1>
+    <a class="app-back" id="app-back" href="#" hidden></a>
+    <p class="kicker" id="app-kicker">{% unless page.url == '/apps/' %}<a href="{{ '/apps/' | relative_url }}">Apps</a> · {% endunless %}Members only</p>
+    <h1 id="app-title" tabindex="-1">{{ page.heading | default: page.title }}</h1>
   </header>
 
   <section class="card app-gate" id="app-gate" hidden>
