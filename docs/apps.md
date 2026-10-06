@@ -9,9 +9,9 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | Piece | What it does |
 |---|---|
 | `_data/apps.yml` | the list on `/apps` (`apps/index.html`): title, url, emoji, blurb |
-| `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`) and the script named by `app:` |
-| `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, dialog, toast |
-| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `ask(dialog)` (a form in a dialog; Cancel is `type="button" data-close`, so Enter submits), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it) |
+| `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear) and the script named by `app:`. An app may set the heading (`#app-title`) to say where you are and show `#app-back`, the way back up |
+| `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
+| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
 | `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
@@ -91,6 +91,21 @@ Design rules for the apps, from the Oct 2026 critique and accessibility pass:
 - Not fixed, because it's the whole site's: white on the light theme's `--accent` (buttons) is
   3.9:1.
 
+And from the Oct 2026 redesign (Apple's HIG and Krug, for one user on an iPhone first):
+- Every dialog is a sheet: a bar on top with the way out on the left (Cancel, or nothing when
+  everything already saved), what it is in the middle, the main button on the right. On a phone it
+  rises from the bottom with a grabber, and a swipe down, Esc or a tap outside puts it away; none
+  of those throws away typing without asking.
+- The content is the clothes: photos sit on the studio (`--studio`, the pale grey the catalog
+  photos are shot on, the same in every theme and dimmed at night), so a photo and its tile are one
+  surface. A garment with no photo shows a line drawing of its kind, not a letter.
+- On a phone the site's bar scrolls away on app pages, tabs sit at the bottom in thumb reach (icons
+  and labels, for sections, never actions), and the title settles into a bar at the top as you
+  scroll. Wider, the tabs sit beside the title.
+- Motion says where things went (deeper slides in from the right, an item grows out of the photo
+  tapped); with reduced motion it doesn't move. Loading shows the shape of what's coming, not a
+  spinner.
+
 It lived at `/recipe_tracker/` as a standalone page until Oct 2026; that address redirects.
 Gone with the old page: the Refresh button (it reloads by itself when you come back to it), the
 Cmd+I, Cmd+N and R shortcuts, and the camera opening straight away for a photo (the phone now
@@ -134,22 +149,34 @@ wardrobe MCP server, signed in as him (below).
 - **Where you are is in the address** (`#today`, `#closet`, `#trips`, `#trip/<id>`,
   `#trip/<id>/pack`, `#item/<id>` over whatever's underneath), so Back works everywhere and any
   view can be linked. With a trip on, or starting within two weeks, it opens on Today; otherwise
-  on the tab last used.
+  on the tab last used. The heading says where you are (Closet, Trips, the trip's name,
+  Packing), with the way back up above it ("‹ Trips"); on a phone both settle into a bar at the
+  top as you scroll, and the tabs (Today, Closet, Trips, with icons) sit at the bottom. Each view
+  keeps its scroll, so coming back lands where you were; the tab you're on, tapped again, goes to
+  the top. Going in to a trip or its packing slides in from the right; an item grows out of the
+  photo tapped (View Transitions, where the browser has them; reduced motion, none).
 - **The closet:** search and Add, category chips (All, then each category with something in it,
-  with counts), and Filters (season, dressiness, "In the closet / Retired"; folded away on a
-  phone). A grid of square tiles: the photo cut out on a soft tile, the name, brand and size.
-  Remembered on that phone (`localStorage` `wardrobe-view`).
-- **An item** (tap a tile, or an item anywhere): what it is first: the photo, category, name,
+  with counts), a dot for each colour there is (from the colour's words: "Dark Brown" is brown;
+  `CLOTH` in `wardrobe.js` has the words and the cloth colours, the same in every theme), and More
+  filters (season, dressiness, "In the closet / Retired"; folded away on a phone unless one's
+  set). A grid of square tiles: the photo on the studio ground, the name, brand and size; with no
+  photo, a line drawing of its kind. While it loads, grey tiles in its shape. Nothing matching
+  says so, with "Show everything". Remembered on that phone (`localStorage` `wardrobe-view`).
+- **An item** (tap a tile, or an item anywhere), in a sheet with Edit on the left and Done on the
+  right: what it is first: the photo, category, name,
   brand, colour (as printed, if known), material and size, fit, style number, condition, the
   kind, seasons, warmth and dressiness (and where else it works), price and when it was bought,
   notes, then every photo with its role, one marked shown (tap one to say what it is, show it, or
   remove it), "Buy another" (the replacement link) and "Find another" (a Google Shopping search
   for brand, name and colour). "Edit" shows the fields; text saves as it's typed, the rest at
-  once. Edits are for this piece only (on a piece with a product, it says so); changing the
+  once, and the bar says so ("Saving…", "Saved"); Done goes back to what it is. Closing it any
+  way (Done, Esc, a tap outside, a swipe down) saves what's being typed. Edits are for this piece only (on a piece with a product, it says so); changing the
   maker's facts for every colour and size is ChatGPT's (`update_item`, scope product or variant).
   "Add a photo" adds one (cut out), shown if there's no garment photo shown yet. Something just added opens on the fields. "Retire it" moves it out of the closet (kept,
   under Retired, with Undo); "Delete it" is for good, and only here, never from ChatGPT.
-- **Adding:** a photo, or a store link (or both: the link is kept as where to buy another).
+- **Adding:** a photo, or a store link (or both: the link is kept as where to buy another). The
+  sheet asks for the photo first, as a big place to tap; the photo fills it, shimmering while it's
+  cut out. Cancel with something entered asks first.
   - A photo is cut out of its background in the browser (`@imgly/background-removal`, run on
     demand; its model, about 40 MB, comes from imgly's CDN the first time and is then cached;
     about 15 s on a laptop). If it can't be cut out it's kept as taken. The library is AGPL-3.0,
@@ -167,28 +194,42 @@ wardrobe MCP server, signed in as him (below).
   its height the high, its blue the chance of rain; dashed for typical days), the planned days
   with their outfits, and how the packing's going. Trips are mostly made in ChatGPT; "New trip"
   and "Edit" here take a name, places and dates, and notes.
-- **Today** (a tab only while a trip is on, or starts within two weeks): the trip's line, leg by
-  leg, with the one you're on lit and the days left there; then a card for the day: the place,
-  the high, the low and the chance of rain, a line of advice when the weather and the outfit
-  disagree, and what you're wearing (the occasion, the items, the note). "Day before" and
-  "Tomorrow" step through the trip. Below, the next five days (weather and a thumbnail of each
-  outfit; tap one to see it on the card) and the packing. Before the trip, the card shows its
+- **Today** (a tab only while a trip is on, or starts within two weeks; its heading is the trip's
+  name): the trip's line, leg by leg, with the one you're on lit, a dot where you are in it and the
+  days left there; then a morning card for the day: the place, the weather (a sun, cloud or rain
+  drawing, the high, the low and the chance of rain), the advice in one box when the weather and
+  the outfit disagree, and what you're wearing laid flat (below), the occasion, the plan and the
+  note. "Day before" and "Tomorrow" step through the trip, and so does a swipe across the card.
+  Below, the next five days (weather and the outfit small; tap one to see it on the card) and the
+  packing, as a ring that fills. Before the trip, the card shows its
   first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say: rain of 50%
   or more asks for something whose name, material or notes say rain, waterproof, shell, Gore-Tex,
   trench, mac or umbrella, and warns off suede; a low under 8° with nothing from outerwear or
   warm; a high of 26° or more with something warm.
-- **The trip page** adds, when there are any: Who's going, Getting there (transport in date and
+- **An outfit laid flat** (`flatlay()` in `wardrobe.js`): its photos on one studio ground, like a
+  lookbook page, top to toe (outerwear and tops, trousers, shoes, the rest): one alone, two
+  staggered, three with the first big, four two and two, more three a row. Each piece opens the
+  garment; the names are under it; a garment gone since is a dashed outline. Pure CSS from the
+  photos the app already has (the MCP server's "board" image isn't used here).
+- **The trip page** (its heading the trip's name) starts with the dates, who's going (a face and
+  a name each) and Edit, then Packing as a card with a ring, the places with their weather, and
+  the days, each a card with its weather, plan and outfit laid flat (today's outlined). Wider, the
+  days are on the left and the rest beside them. It adds, when there are any: Who's going, Getting there (transport in date and
   time order, times as given, never converted: an arrival on another day says its date), Staying
   (lodging) and Links; each day shows its activities under its summary, in time order (Today's
   card too).
-- **The Packing Board** (`#trip/<id>/pack`): the status as a bar with counts (To pack, the
+- **The Packing Board** (`#trip/<id>/pack`, headed Packing, "‹ <trip>" above): a suitcase that
+  fills as things are packed, how many are and how long until you leave; the status as a row of
+  chips with counts (To pack, the
   default: everything not packed; Need, To buy, Ready, Packed, All), how many are packed and how
   long until you leave, then whose (Everyone, each traveler, Shared: "shared" or nobody's), a
   category and a bag (the filters kept per trip in `wardrobe-pack`). Rows by category (Clothes,
   Shoes, Baby, Toiletries, Medicine, Electronics, Documents, Work, Accessories, Gear, Misc): a
   garment with its photo, brand and colour, the days it's planned and its bag; anything else with
   whose it is. One tap on the status moves it on (needed → ready → packed; to buy → ready), with
-  Undo; the status reads as a word and a ring, not colour alone. Tapping the row opens it: status,
+  Undo; the status reads as a word and a ring, not colour alone. A tap to Packed lands a tick (and, with To pack showing, the row folds away);
+  a bag finished, or everything, gets a small burst of confetti and says so (reduced motion: no
+  movement; a buzz where the phone can). Tapping the row opens it: status,
   whose, bag, how many, essential, notes, "Take it off the list" (the entry only, with Undo), and
   the garment. Each change is one PATCH of that entry's row, never the whole list. "Add from the
   planned outfits" adds the planned garments not on the list (Steve's, if the trip has a "steve");
@@ -196,9 +237,11 @@ wardrobe MCP server, signed in as him (below).
 - **With no connection** (a plane, a train abroad): every load keeps a copy on the phone
   (`localStorage` `wardrobe-copy:<user id>`: the rows, the trips' parts and the photo links; `wardrobe-wx`: the last
   weather for each leg; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
-  the page and its scripts. Offline, the app opens on that copy and says how old it is. Packing
+  the page and its scripts. Offline, the app opens on that copy and a line under the tabs says how old it is and how many
+  packing changes are waiting. Packing
   changes work and wait in `wardrobe-packing-queue`, by entry (the patches merged); they're sent,
-  one PATCH an entry, when the connection's back, before anything is loaded. Adding, taking off
+  one PATCH an entry, when the connection's back, before anything is loaded, and a toast says how
+  many went. Adding, taking off
   and editing a trip wait for a connection, and say so.
 - **Weather** comes from Open-Meteo (free, no key; `supabase/functions/_shared/weather.js`, which
   the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
