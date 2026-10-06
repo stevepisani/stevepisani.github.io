@@ -2,7 +2,8 @@
 // content, sized so an answer gets through. Why sizes matter: ChatGPT carries a tool's answer over
 // gRPC, which drops one past about 4 MB (two 2.6 MB catalog PNGs, base64, failed; one went through).
 // So every answer's images share BUDGET, and anything but "original" is a smaller copy, made once
-// with ImageScript (ctx.imaging: npm imagescript, the same version in index.ts and package.json) and
+// with ImageScript (ctx.imaging: on the server its Deno build, 1.3.0 from deno.land, all WebAssembly;
+// in Node and the tests the npm one, package.json's, which uses native code the edge can't load) and
 // kept beside the stored file in Storage (<path>.vision.jpg, .thumbnail.jpg). The stored file itself
 // is never changed. docs/apps.md, "Seeing a photo".
 
