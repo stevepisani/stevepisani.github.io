@@ -139,6 +139,7 @@ body:has(#app) :is(.site-head__inner, .site-foot__inner), .app.wrap { padding-le
   overscroll-behavior: contain;
   transition: opacity .22s ease, transform .32s cubic-bezier(.2, .8, .2, 1), overlay .32s allow-discrete, display .32s allow-discrete;
 }
+.app-dialog:focus { outline: none; } /* it holds focus when it opens (kit.js, sheet) */
 .app-dialog:not([open]) { opacity: 0; transform: translateY(14px) scale(.98); pointer-events: none; }
 @starting-style { .app-dialog[open] { opacity: 0; transform: translateY(14px) scale(.98); } }
 .app-dialog::backdrop { background: rgb(0 0 0 / .45); transition: opacity .3s, overlay .32s allow-discrete, display .32s allow-discrete; }

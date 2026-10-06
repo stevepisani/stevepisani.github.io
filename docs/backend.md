@@ -28,7 +28,8 @@ design: row-level security guards every table.
   every function (Supabase CLI, `--use-api`, no Docker). To try a change before merging, run the
   workflow on your branch (Actions → Supabase → Run workflow). Every hour it also asks the API for
   something, because free projects pause after a week without requests, makes the smaller copies of
-  new wardrobe photos (`tools/photo-copies.mjs`, `docs/apps.md`), and empties the
+  new wardrobe photos, for the MCP server and for the app (`tools/photo-copies.mjs`, `docs/apps.md`,
+  "Photo sizes"), and empties the
   wardrobe's trash: what was deleted over 30 days ago goes for good, its photo files with it
   (`tools/empty-trash.mjs`; `docs/apps.md`, "The trash"). It prints counts only.
 - **When a function misbehaves, read its logs:** Actions → Supabase → Run workflow with "logs"
