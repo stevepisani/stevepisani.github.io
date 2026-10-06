@@ -471,6 +471,17 @@ sent.
     to look at an outfit, and the images to picture it from;
   - `get_item` with `include_images: true` (the photo shown, as stored).
   What can't be sent (no photo, not found, too big) is listed with why; the rest still come.
+- **The outfit as one picture:** `get_outfit_images` with `purpose: "board"` sends one JPEG, made
+  on the server (`board` in `images.js`): each garment's photo (its vision copy), resized and
+  placed, never redrawn, so it costs nothing and can't get a garment wrong. 1200 px wide, a grid
+  read left to right, top to bottom, in the order asked: one garment fills it, up to four sit two
+  a row, five or six three a row, and a short last row is centred. It sits on the photos' own
+  background (the median of their corners, so the catalog images' pale grey runs edge to edge;
+  white when the corners disagree or are see-through). Beside it, each garment's `position` and
+  where it landed (`x`, `y`, `width`, `height`); a garment with no photo, not found, or a file
+  that can't be read is left off and said, and with nothing to lay out it's refused. About 0.5 s
+  for four (the vision copies are usually made already). It needs ImageScript on the server; if
+  that won't load, it says to use `vision` instead.
 - **For an image generator:** `get_outfit_images` with `purpose: "generation"` sends no images.
   For each garment, in the order and slots asked, it gives the same photo `vision` showed as a
   link to the stored file, unchanged and full size, on SJPJr's own address

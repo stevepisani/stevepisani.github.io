@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH, REMOVES } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS, LINK_SECRET } from './wardrobe-db.mjs';
 import { Image, decode } from 'imagescript';
-import { BUDGET, LINK_MINUTES, readPhotoToken, servePhoto } from '../supabase/functions/mcp/images.js';
+import { BUDGET, LINK_MINUTES, b64Length, readPhotoToken, servePhoto } from '../supabase/functions/mcp/images.js';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`wardrobe: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 600)}` : ''}`); passed++; };
@@ -341,6 +341,28 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
     const gaps = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[4].item }, { slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }], purpose: 'generation' });
     ok(gaps.references.length === 1 && gaps.not_sent[0].reference_key === 'hat' && /no garment/.test(gaps.not_sent[0].reason), 'generation: a garment not found is listed by slot with why');
     ok((await tool('get_photo', { photo_id: g[1].photo, purpose: 'generation' })).error, 'generation is get_outfit_images\' alone');
+    // purpose board: the outfit as one picture, laid out from the real photos, made here
+    const bo = await tool('get_outfit_images', { items: want, purpose: 'board' });
+    const bb = Buffer.from(bo.images[0]?.data || '', 'base64'), bimg = bb.length && await decode(bb);
+    ok(!bo.error && bo.images.length === 1 && bo.images[0].mimeType === 'image/jpeg' && starts(bb, JPG) && bimg.width === 1200 && bimg.height === 1200 && bo.board.width === 1200 && b64Length(bb.length) < BUDGET, 'board: one JPEG, 1200 px square for four garments, well inside an answer', [bimg.width, bimg.height, bb.length]);
+    ok(bo.references.map((r) => r.reference_key).join() === 'outerwear,bottom,shoes,top' && bo.references.map((r) => r.photo_id).join() === seen.references.map((r) => r.photo_id).join() && bo.references.every((r, i) => r.position === i + 1), 'board: the same photos as vision, in the order and slots asked', bo.references);
+    const [c1, c2, c3, c4] = bo.references;
+    ok(c1.x < 600 && c1.y < 600 && c2.x >= 600 && c2.y < 600 && c3.x < 600 && c3.y >= 600 && c4.x >= 600 && c4.y >= 600 && bo.references.every((r) => Math.max(r.width, r.height) > 500 && Math.max(r.width, r.height) <= 600), 'board: two a row, left to right, top to bottom, each filling its square but its margin', bo.references.map(({ x, y, width, height }) => [x, y, width, height]));
+    ok(Math.abs(c1.width / c1.height - 1200 / 1600) < 0.02 && Math.abs(c4.width / c4.height - 1300 / 1700) < 0.02, 'board: each photo keeps its proportions');
+    const white = (x, y) => { const [r, gg, b] = Image.colorToRGBA(bimg.getPixelAt(x + 1, y + 1)); return r > 245 && gg > 245 && b > 245; };
+    const inside = (r) => { const [R, G, B] = Image.colorToRGBA(bimg.getPixelAt(r.x + Math.round(r.width * 0.8) + 1, r.y + Math.round(r.height * 0.8) + 1)); return R + G + B < 700; };
+    ok(white(0, 0) && white(1199, 1199) && white(c1.x - 5, c1.y + 5) && bo.references.every(inside), 'board: white around the garments, the photos where it says they are');
+    ok(/^Image 1 = the outfit board, 1200×1200/.test(bo.text) && /^1\. outerwear: Big coat/m.test(bo.text), 'board: the text says what\'s where, by slot', bo.text);
+    const grid = async (n) => (await tool('get_outfit_images', { items: g.slice(1, n + 1).map((x, i) => ({ slot: `s${i}`, item_id: x.item })), purpose: 'board' }));
+    const [one, three, five] = [await grid(1), await grid(3), await grid(5)];
+    ok(one.board.height === 1200 && one.references[0].x >= 0 && Math.max(one.references[0].width, one.references[0].height) > 1000, 'board: one garment fills it');
+    ok(three.board.height === 1200 && three.references[2].x > 300 && three.references[2].x < 600, 'board: three, the last centred under the two', three.references.map((r) => r.x));
+    ok(five.board.width === 1200 && five.board.height === 800 && five.references.filter((r) => r.y < 400).length === 3 && five.references[3].x > 150, 'board: five or six, three a row', [five.board.width, five.board.height]);
+    const unread = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'coat', item_id: g[1].item }], purpose: 'board' });
+    ok(unread.references.length === 1 && unread.references[0].reference_key === 'coat' && /couldn't be read/.test(unread.not_sent[0].reason) && (await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }], purpose: 'board' })).error, 'board: a photo that can\'t be read is left off and said; with nothing else, refused', unread.not_sent);
+    const bgaps = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[4].item }, { slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }, { slot: 'belt', item_id: (await tool('find_items', { query: 'Photo-less belt' })).items[0].id }], purpose: 'board' });
+    ok(bgaps.images.length === 1 && bgaps.references.length === 1 && bgaps.board.height === 1200 && bgaps.not_sent.map((x) => x.reference_key).join() === 'hat,belt' && /Left off \(hat\)/.test(bgaps.text), 'board: a garment not found, or with no photo, is left off and said; the rest laid out', bgaps.not_sent);
+    ok((await tool('get_outfit_images', { items: [{ slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }], purpose: 'board' })).error && (await tool('get_photos', { photo_ids: [g[1].photo], purpose: 'board' })).error, 'board: nothing to lay out is refused; board is get_outfit_images\' alone');
     void extra;
   }
   // test_images: plain, different, numbered pictures to check what arrives

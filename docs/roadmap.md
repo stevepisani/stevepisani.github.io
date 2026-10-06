@@ -15,11 +15,12 @@ rather than leaving it in a chat.
 0. **The wardrobe** (`docs/apps.md`): the closet, ChatGPT through an MCP server, trips, and
    then Today, pack mode, offline, the item view and the in-chat card (closet, garment, ingest
    preview, trip board): done. Next, in order:
-   - catalog images made on the server (today ChatGPT makes them and adds them with
-     `origin: catalog`), in `CATALOG_STYLE`, from the references and Steve's photos; outfit pictures
-     (flat, or on Steve) the same way; made on the server with
-     OpenAI's image API under a $10 a month cap, and a widget that shows them; needs an
-     `OPENAI_API_KEY` repo secret from Steve;
+   - outfit pictures: the board (the real photos laid out, made on the server for nothing,
+     `get_outfit_images` `purpose: "board"`) is done. Next, styled or on-body pictures made on the
+     server with Google's Gemini image model (it takes the photos as references; about $0.04 a
+     picture, Oct 2026) under a $5 a month cap in code, and catalog images (today ChatGPT makes
+     them and adds them with `origin: catalog`) in `CATALOG_STYLE` the same way; Steve is setting
+     up the key, as a `GEMINI_API_KEY` repo secret;
    - in-chat for ChatGPT and Claude alike (research, Oct 2026: both render MCP Apps, SEP-1865,
      `ui://` resources): a text description of each photo at ingest (`get_photo` and `get_photos`, the images themselves, are done); an upload link that doesn't
      depend on ChatGPT's fileParams (the only way Claude can take a photo, and ChatGPT mobile's

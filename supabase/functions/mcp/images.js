@@ -70,6 +70,50 @@ export async function photoBytes(ctx, path, purpose = "original") {
   return { bytes: made.bytes, purpose };
 }
 
+// ---------- An outfit board: get_outfit_images, purpose board ----------
+// The garments' photos laid out as one picture, made here from the stored files (their vision
+// copies), resized and placed, never redrawn: so it costs nothing and can't get a garment wrong.
+// BOARD_WIDTH wide, on the photos' own background (boardGround), in a grid read left to right, top to bottom, in the order given: one
+// garment fills it; up to four sit two a row; five or six, three a row. A short last row is centred.
+export const BOARD_WIDTH = 1200;
+export function boardLayout(n) {
+  const cols = n <= 1 ? 1 : n <= 4 ? 2 : 3, cell = Math.floor(BOARD_WIDTH / cols), rows = Math.ceil(n / cols);
+  const cells = Array.from({ length: n }, (_, i) => {
+    const row = Math.floor(i / cols), inRow = Math.min(cols, n - row * cols);
+    return { x: Math.floor((BOARD_WIDTH - inRow * cell) / 2) + (i % cols) * cell, y: row * cell, size: cell };
+  });
+  return { width: BOARD_WIDTH, height: rows * cell, cells };
+}
+// The colour the photos sit on, so they read as one picture, not tiles: each photo's four corners
+// (the catalog images share a pale grey), their median channel by channel, opaque; white when a
+// corner is see-through or the corners disagree (photos on their own backgrounds)
+export function boardGround(imaging, images) {
+  const corners = images.flatMap((img) => [[1, 1], [img.width, 1], [1, img.height], [img.width, img.height]].map(([x, y]) => imaging.Image.colorToRGBA(img.getPixelAt(x, y))));
+  if (!corners.length || corners.some((c) => c[3] < 250)) return 0xffffffff;
+  const mid = [0, 1, 2].map((k) => corners.map((c) => c[k]).sort((a, b) => a - b)[corners.length >> 1]);
+  if (corners.some((c) => Math.max(...[0, 1, 2].map((k) => Math.abs(c[k] - mid[k]))) > 24)) return 0xffffffff;
+  return imaging.Image.rgbaToColor(...mid, 255);
+}
+// pictures: the files' bytes, in order. The board as a JPEG with where each landed, or null when
+// ImageScript isn't there; a picture it can't read is left out, its cell blank, and said
+export async function board(module, pictures) {
+  const imaging = await lib(module);
+  if (!imaging) return null;
+  const { width, height, cells } = boardLayout(pictures.length);
+  const decoded = [];
+  for (const bytes of pictures) { try { decoded.push(await imaging.decode(bytes)); } catch { decoded.push(null); } }
+  const out = new imaging.Image(width, height).fill(boardGround(imaging, decoded.filter(Boolean))), placed = [];
+  for (const [i, img] of decoded.entries()) {
+    if (!img) { placed.push(null); continue; }
+    const c = cells[i], room = c.size - 2 * Math.round(c.size * 0.04), scale = Math.min(room / img.width, room / img.height);
+    const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+    const x = c.x + Math.floor((c.size - w) / 2), y = c.y + Math.floor((c.size - h) / 2);
+    out.composite(img.resize(w, h), x, y);
+    placed.push({ x, y, width: w, height: h });
+  }
+  return { bytes: await out.encodeJPEG(85), width, height, placed };
+}
+
 // Deterministic test pictures, each easy to say in words: test_images
 export const TEST_PICTURES = [
   ["red", (x, y) => 0xdc1e1eff],
