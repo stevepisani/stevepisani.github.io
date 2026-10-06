@@ -5,7 +5,7 @@
 // Steve has, one row per physical piece; it may belong to a variant (one colour and size as sold),
 // which belongs to a product (brand, name, style number). Every fact keeps its source. Reads come
 // flat (find_items) or whole (get_item); ingest_item files a garment at all three levels at once.
-import { BUDGET, PURPOSES, LINK_MINUTES, sniff, base64, b64Length, photoBytes, dimensions } from "../images.js";
+import { BUDGET, PURPOSES, LINK_MINUTES, sniff, base64, b64Length, photoBytes, dimensions, board } from "../images.js";
 import { WARDROBE_APP as APP, showsCard, read, write, Invalid, today, present, pick, plural, heroPhotos, sign, trashed, goneOn } from "../kit.js";
 
 export const PHOTOS_MAX = 6; // get_photos, at once
@@ -99,8 +99,8 @@ const TOOLS = [
   {
     name: "get_outfit_images",
     title: "See an outfit's garments",
-    description: `The way to look at an outfit: give up to ${PHOTOS_MAX} garments, each with a slot (\"top\", \"outerwear\", \"bottom\", \"shoes\"), and get each one's current photo shown (its hero, looked up now) as the image itself, in that order. Each image comes with its reference_key (the slot), item_id, photo_id and hero, and nothing else to read in its place: image 1 is the first slot, and so on. purpose vision (the default) sends copies up to 1024 px. A garment with no photo, or not found, is listed with why. Use the images, not the garments' text, for colour, pattern, cut and what goes together. To picture the outfit, call again with purpose generation: the same photos, as short-lived links to the full-size files, to give an image generator as its input images (the same order and reference_keys); fetch them again for the next outfit.`,
-    inputSchema: { type: "object", properties: { items: { type: "array", minItems: 1, maxItems: PHOTOS_MAX, items: { type: "object", properties: { slot: { type: "string", description: "Short and unique in the outfit: top, outerwear, bottom, shoes, accessory." }, item_id: { type: "string" } }, required: ["slot", "item_id"], additionalProperties: false } }, purpose: { type: "string", enum: [...Object.keys(PURPOSES), "generation"], description: "vision (the default): the images themselves, copies up to 1024 px, to look at. generation: no images; for each garment a link to its stored photo, unchanged, full size, on SJPJr's own address, signed and good for " + LINK_MINUTES + " minutes, with its type and size: the input images for an image generator. original, thumbnail: as get_photo." } }, required: ["items"], additionalProperties: false },
+    description: `The way to look at an outfit: give up to ${PHOTOS_MAX} garments, each with a slot (\"top\", \"outerwear\", \"bottom\", \"shoes\"), and get each one's current photo shown (its hero, looked up now) as the image itself, in that order. Each image comes with its reference_key (the slot), item_id, photo_id and hero, and nothing else to read in its place: image 1 is the first slot, and so on. purpose vision (the default) sends copies up to 1024 px. A garment with no photo, or not found, is listed with why. Use the images, not the garments' text, for colour, pattern, cut and what goes together. To show the outfit as one picture, use purpose board: the same photos, laid out together in one image (the real photos, resized and placed, nothing drawn). To picture it some other way, call again with purpose generation: the same photos, as short-lived links to the full-size files, to give an image generator as its input images (the same order and reference_keys); fetch them again for the next outfit.`,
+    inputSchema: { type: "object", properties: { items: { type: "array", minItems: 1, maxItems: PHOTOS_MAX, items: { type: "object", properties: { slot: { type: "string", description: "Short and unique in the outfit: top, outerwear, bottom, shoes, accessory." }, item_id: { type: "string" } }, required: ["slot", "item_id"], additionalProperties: false } }, purpose: { type: "string", enum: [...Object.keys(PURPOSES), "generation", "board"], description: "vision (the default): the images themselves, copies up to 1024 px, to look at. board: one image, the garments' photos laid out together, white, 1200 px wide, in the order given (left to right, top to bottom), to show Steve the outfit. generation: no images; for each garment a link to its stored photo, unchanged, full size, on SJPJr's own address, signed and good for " + LINK_MINUTES + " minutes, with its type and size: the input images for an image generator. original, thumbnail: as get_photo." } }, required: ["items"], additionalProperties: false },
     annotations: read,
   },
   {
@@ -417,6 +417,37 @@ async function generationLinks(wanted, ctx) {
   return { text, data: { purpose: "generation", references, ...(not_sent.length && { not_sent }) } };
 }
 
+// The outfit as one picture (images.js, board): each garment's photo, its vision copy, in a grid
+// in the order asked. A garment with no photo, or one that can't be read, is left off and said.
+async function outfitBoard(wanted, ctx) {
+  const got = [], not_sent = [];
+  for (const w of wanted) {
+    const { photo_id: id, reference_key, item_id, missing_item } = w;
+    const p = id && (await ctx.photos.get(id));
+    const item = p && (await ctx.items.get(p.item_id));
+    const file = p && item && (await photoBytes(ctx, p.path, "vision"));
+    if (!file || !sniff(file.bytes)) { not_sent.push({ reference_key, ...(item_id && { item_id }), ...(id && { photo_id: id }), reason: missing_item ? `There's no garment ${missing_item} (find_items has them).` : !id ? "It has no photo." : "Its file couldn't be read as an image.", ...(missing_item && { item_id: missing_item }) }); continue; }
+    got.push({ reference_key, item_id: p.item_id, photo_id: p.id, hero: item.photo_path === p.path, item_name: item.name, bytes: file.bytes });
+  }
+  if (!got.length) throw new Invalid(`Nothing to lay out: ${not_sent.map((s) => `${s.reference_key}: ${s.reason}`).join(" ")}`);
+  const made = await board(ctx.imaging, got.map((g) => g.bytes));
+  if (!made) throw new Invalid("The board can't be made right now (the server's image library didn't load); use purpose vision to see the garments one by one.");
+  const references = [];
+  for (const [i, g] of got.entries()) {
+    const { bytes, ...ref } = g;
+    if (made.placed[i]) references.push({ ...ref, position: references.length + 1, ...made.placed[i] });
+    else not_sent.push({ reference_key: g.reference_key, item_id: g.item_id, photo_id: g.photo_id, reason: "Its file couldn't be read as an image." });
+  }
+  console.log(`board: ${references.length} placed, ${not_sent.length} not, ${made.bytes.length} bytes`);
+  if (!references.length) throw new Invalid(`Nothing to lay out: ${not_sent.map((s) => `${s.reference_key}: ${s.reason}`).join(" ")}`);
+  const text = [
+    `Image 1 = the outfit board, ${made.width}×${made.height}: the garments' own photos, laid out left to right, top to bottom.`,
+    ...references.map((r) => `${r.position}. ${r.reference_key}: ${r.item_name} [photo ${r.photo_id}, item ${r.item_id}]`),
+    ...not_sent.map((s) => `Left off (${s.reference_key}): ${s.reason}`),
+  ].join("\n");
+  return { text, images: [{ data: base64(made.bytes), mimeType: "image/jpeg" }], data: { purpose: "board", board: { width: made.width, height: made.height, mime_type: "image/jpeg", bytes: made.bytes.length }, references, ...(not_sent.length && { not_sent }) } };
+}
+
 // one line a garment, for the text half of a result
 const line = (o) => `${o.name} (${[o.category, o.subcategory?.replace(/_/g, " ")].filter(Boolean).join(", ")}${o.retired ? ", retired" : ""}): ${[o.brand, o.manufacturer_colour || o.colour, o.size && `size ${o.size}`, o.fit, o.material, o.dressiness && `${o.dressiness}${o.dressiness_also?.length ? ` (also ${o.dressiness_also.join(", ")})` : ""}`, o.warmth && `${o.warmth} warmth`, o.seasons?.join("/")].filter(Boolean).join(", ") || "no details yet"} [id ${o.id}]`;
 
@@ -664,7 +695,8 @@ async function call(name, args = {}, ctx) {
   }
   if (name === "get_photo" || name === "get_photos" || name === "get_outfit_images") {
     const purpose = args.purpose || (name === "get_photo" ? "original" : "vision");
-    if (!(purpose in PURPOSES) && !(purpose === "generation" && name === "get_outfit_images")) throw new Invalid(`purpose is one of: ${Object.keys(PURPOSES).join(", ")}${name === "get_outfit_images" ? ", generation" : ""}.`);
+    const outfitOnly = ["generation", "board"];
+    if (!(purpose in PURPOSES) && !(outfitOnly.includes(purpose) && name === "get_outfit_images")) throw new Invalid(`purpose is one of: ${Object.keys(PURPOSES).join(", ")}${name === "get_outfit_images" ? `, ${outfitOnly.join(", ")}` : ""}.`);
     let wanted;
     if (name === "get_outfit_images") {
       const items = Array.isArray(args.items) ? args.items : [];
@@ -684,6 +716,7 @@ async function call(name, args = {}, ctx) {
       wanted = ids.map((photo_id) => ({ photo_id }));
     }
     if (purpose === "generation") return generationLinks(wanted, ctx);
+    if (purpose === "board") return outfitBoard(wanted, ctx);
     const r = await photoImages(wanted, ctx, purpose);
     for (const s of r.skipped) if (s.missing_item) { s.reason = `There's no garment ${s.missing_item} (find_items has them).`; s.item_id = s.missing_item; delete s.missing_item; }
     if (name === "get_photo" && !r.meta.length) throw new Invalid(r.skipped[0].reason);
