@@ -11,7 +11,8 @@
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
 // answers from), and with no connection the app opens on that copy. Changes to packing entries
 // made then are kept and sent when the connection's back.
-import { $, db, start, fresh, rows, saver, ask, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
+import { $, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
+import { SIZES } from './lib/photo-sizes.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
@@ -191,7 +192,7 @@ async function cutOut(file, status) {
 async function storePhoto(file, status) {
   const cut = await cutOut(file, status);
   if (!cut) toast("Couldn't cut that one out; kept the photo as taken.");
-  return photos.put(cut || file, folder(), { alpha: !!cut, longest: 1200 });
+  return photos.put(cut || file, folder(), { alpha: !!cut, longest: 1200, copies: true });
 }
 
 // ---------- Adding: a photo, or a link to it in a shop ----------
@@ -218,7 +219,7 @@ $('#add').addEventListener('click', async () => {
   list.push(...added);
   if (path) {
     photoRows.add([{ item_id: added[0].id, role: 'garment', path, source: got.photo ? 'app_upload' : 'retailer_page' }]);
-    links = new Map([...links, ...(await photos.urls([path]))]);
+    links = new Map([...links, ...(await photos.urls([path], SIZES.small))]);
   }
   view.shelf = 'in';
   render();
@@ -244,7 +245,7 @@ $('#add-photo input').addEventListener('change', (e) => {
   $('#add-ok').disabled = true;
   mine.photo = storePhoto(file, (t) => { if (pending === mine) showPreview(null, t, true); }).then(async (path) => {
     if (pending === mine) {
-      const url = path && (await photos.urls([path])).get(path);
+      const url = path && (await photos.urls([path], SIZES.small)).get(path);
       showPreview(url || null, path ? '' : "The photo didn't upload; you can add one later.");
       $('#add-ok').disabled = false;
     }
@@ -263,7 +264,7 @@ $('#read-link').addEventListener('click', async () => {
   if (error || !data) { showPreview(null, "Couldn't read that page. Name it yourself; the link is kept."); return; }
   Object.assign(mine, { brand: data.brand, price: data.price, currency: data.currency, link: data.link, photo_path: data.photo_path });
   if (data.name && !form.name.value) form.name.value = data.name;
-  const url = data.photo_path && (await photos.urls([data.photo_path])).get(data.photo_path);
+  const url = data.photo_path && (await photos.urls([data.photo_path], SIZES.small)).get(data.photo_path);
   showPreview(url || null, data.name ? `From ${new URL(data.link).hostname.replace(/^www\./, '')}${data.price != null ? `, ${data.price} ${data.currency || ''}` : ''}.` : "That shop doesn't say much. Name it yourself; the link is kept.");
 });
 
@@ -282,10 +283,23 @@ async function save(patch) {
   return true;
 }
 const money = (n, cur) => { try { return n.toLocaleString(undefined, { style: 'currency', currency: cur || 'USD', maximumFractionDigits: n % 1 ? 2 : 0 }); } catch (e) { return `${n} ${cur || ''}`; } };
+// The sheet's photo, sharp: the small copy shows at once (it's what the tile already has), and the
+// large one replaces it once it's here and decoded, so there's no blank and no flash
+const big = new Map(); // photo path → link to its large copy ('' while it's being fetched)
+async function sharpen(path) {
+  if (big.has(path) || offline) return;
+  big.set(path, '');
+  const url = (await photos.urls([path], SIZES.large)).get(path);
+  if (!url) { big.delete(path); return; }
+  await Object.assign(new Image(), { src: url }).decode().catch(() => {});
+  big.set(path, url);
+  if (current?.photo_path === path) paintSheet();
+}
 function paintSheet() {
   const it = current;
   if (!it) return;
-  const img = $('.sheet__photo img', sheet), url = it.photo_path && links.get(it.photo_path);
+  const img = $('.sheet__photo img', sheet), url = it.photo_path && (big.get(it.photo_path) || links.get(it.photo_path));
+  if (it.photo_path) sharpen(it.photo_path);
   if (url && img.src !== url) img.src = url;
   img.alt = it.name;
   img.hidden = !url;
@@ -318,7 +332,7 @@ function openSheet(it, mode = 'view') {
   picked = null;
   paintSheet();
   loadPhotos(it);
-  if (!sheet.open) { sheet.showModal(); sheet.scrollTop = 0; }
+  if (!sheet.open) { open(sheet); sheet.scrollTop = 0; }
   if (mode === 'edit') $('[data-is="name"]', sheet).focus();
 }
 // Done, Esc, a tap outside or a swipe down: each closes it, and closing saves what's being typed
@@ -391,7 +405,7 @@ $('#sheet-photo input').addEventListener('change', async (e) => {
   $('span', slot).textContent = 'Cutting it out…';
   const path = await storePhoto(file);
   if (path) {
-    links.set(path, (await photos.urls([path])).get(path) || URL.createObjectURL(file));
+    links.set(path, (await photos.urls([path], SIZES.small)).get(path) || URL.createObjectURL(file));
     const added = await photoRows.add([{ item_id: it.id, role: 'garment', path, source: 'app_upload' }]);
     if (added) {
       sheetPhotos.push(...added);
@@ -415,7 +429,7 @@ async function loadPhotos(it) {
   if (current !== it) return;
   sheetPhotos = data || [];
   const missing = sheetPhotos.map((p) => p.path).filter((p) => !links.has(p));
-  if (missing.length) links = new Map([...links, ...(await photos.urls(missing))]);
+  if (missing.length) links = new Map([...links, ...(await photos.urls(missing, SIZES.small))]);
   if (current === it) paintPhotos();
 }
 async function showPhoto(it, p) {
@@ -1146,7 +1160,7 @@ function openEntry(p) {
   $('#ps-notes').value = p.notes || '';
   delete $('#ps-notes').dataset.save;
   paintEntry();
-  if (!packSheet.open) packSheet.showModal();
+  if (!packSheet.open) open(packSheet);
 }
 function paintEntry() {
   const p = entryOpen, t = openTrip;
@@ -1274,7 +1288,7 @@ async function load() {
     list = got;
     trips = gotTrips;
     parts = gotParts;
-    links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean));
+    links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean), SIZES.small);
     keepCopy();
     keepPhotos();
     for (const k of Object.keys(wxKept)) if (!trips.some((t) => t.legs.some((l) => legKey(l) === k))) delete wxKept[k];

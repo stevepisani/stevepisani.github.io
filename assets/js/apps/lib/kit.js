@@ -3,6 +3,7 @@
 // form in a dialog. An app is a page with `layout: app` and a script beside this folder that
 // calls start().
 import { createClient } from '@supabase/supabase-js';
+import { SIZES, QUALITY, copyPath, copyPaths } from './photo-sizes.js';
 
 const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
 export const db = createClient(meta('supabase-url'), meta('supabase-key'));
@@ -169,6 +170,14 @@ export function fresh(again) {
 // grabber and a swipe down puts it away; anywhere, Esc or a tap outside it does too. Each of those,
 // and its [data-close] buttons, go through one way out: `dialog.dismiss` (by default, close it),
 // so a sheet that holds unsaved typing can ask first. Wired once per dialog.
+// Opens a dialog holding focus itself rather than its first button (which Safari would draw a
+// ring round, as if it had been tabbed to); Tab still goes straight into it, and VoiceOver reads
+// its title
+export function open(dialog) {
+  dialog.tabIndex = -1;
+  if (!dialog.open) dialog.showModal();
+  dialog.focus({ preventScroll: true });
+}
 export function sheet(dialog, dismiss) {
   if (dismiss) dialog.dismiss = dismiss;
   if (dialog.dataset.sheet) return dialog;
@@ -222,7 +231,7 @@ export function ask(dialog, { dirty } = {}) {
     if ((dirty ? dirty() : touched) && !confirm('Discard what you\'ve entered?')) return;
     dialog.close('');
   });
-  dialog.showModal();
+  open(dialog);
   return new Promise((resolve) => {
     dialog.addEventListener('close', () => {
       form.removeEventListener('input', mark);
@@ -266,16 +275,19 @@ export function celebrate(from = null) {
 // Photos: one private bucket for every app, each app in its own folder, shown through signed
 // links that last a week.
 const BUCKET = 'photos', WEEK = 60 * 60 * 24 * 7, LONGEST = 1600, BIGGEST = 5 * 1024 * 1024;
+// a canvas as a blob of `type`, or null when the browser can't write that type (it hands back a PNG)
+const toBlob = (canvas, type, quality) => new Promise((r) => canvas.toBlob((b) => r(b && b.type === type ? b : null), type, quality));
 export const photos = {
   // Stores a picture under `folder/` and returns its path. It's shrunk first to 1600px on its
   // long side (a phone photo goes from megabytes to a few hundred KB; the free plan has 1 GB).
-  // `alpha` keeps a transparent background (a cut-out, as WebP); `longest` shrinks it further.
-  async put(file, folder, { alpha = false, longest = LONGEST } = {}) {
-    let blob = file, ext = (/\.(\w+)$/.exec(file.name)?.[1] || 'jpg').toLowerCase();
+  // `alpha` keeps a transparent background (a cut-out, as WebP); `longest` shrinks it further;
+  // `copies` also stores the smaller copies (photo-sizes.js) so it shows fast from the start.
+  async put(file, folder, { alpha = false, longest = LONGEST, copies = false } = {}) {
+    let blob = file, ext = (/\.(\w+)$/.exec(file.name)?.[1] || 'jpg').toLowerCase(), img = null;
     const src = URL.createObjectURL(file);
     try {
       // through an <img>, which every browser turns the right way up (a phone's portrait photo)
-      const img = Object.assign(new Image(), { src });
+      img = Object.assign(new Image(), { src });
       await img.decode();
       const k = Math.min(1, longest / Math.max(img.naturalWidth, img.naturalHeight));
       const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
@@ -283,26 +295,42 @@ export const photos = {
       if (!alpha) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); } // under a transparent PNG
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const type = alpha ? 'image/webp' : 'image/jpeg';
-      const small = await new Promise((r) => canvas.toBlob(r, type, 0.85));
-      if (small && small.type === type) { blob = small; ext = alpha ? 'webp' : 'jpg'; }
+      const small = await toBlob(canvas, type, 0.85);
+      if (small) { blob = small; ext = alpha ? 'webp' : 'jpg'; }
     } catch (e) { /* a kind of picture the browser can't draw: store it as it is */ }
-    URL.revokeObjectURL(src);
-    if (blob.size > BIGGEST) { toast('That photo is too big (5 MB at most).', true); return null; }
+    if (blob.size > BIGGEST) { URL.revokeObjectURL(src); toast('That photo is too big (5 MB at most).', true); return null; }
     const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
     const { error } = await db.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || 'image/jpeg' });
-    if (error) { console.error(error); toast(`The photo didn't upload: ${error.message}`, true); return null; }
+    if (error) { URL.revokeObjectURL(src); console.error(error); toast(`The photo didn't upload: ${error.message}`, true); return null; }
+    // the copies: WebP where the browser writes it, else JPEG on white (not for a cut-out, whose
+    // transparency would be lost; the hourly job makes those). A copy that fails is made later.
+    if (copies && img?.naturalWidth) {
+      for (const px of Object.values(SIZES)) {
+        const k = Math.min(1, px / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = Object.assign(document.createElement('canvas'), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
+        const ctx = canvas.getContext('2d');
+        let small = await (ctx.drawImage(img, 0, 0, canvas.width, canvas.height), toBlob(canvas, 'image/webp', QUALITY));
+        if (!small && !alpha) { ctx.globalCompositeOperation = 'destination-over'; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); small = await toBlob(canvas, 'image/jpeg', QUALITY); }
+        if (small) await db.storage.from(BUCKET).upload(copyPath(path, px), small, { contentType: small.type, upsert: true }).catch(() => {});
+      }
+    }
+    URL.revokeObjectURL(src);
     return path;
   },
-  // Signed links for many paths in one request: a Map of path → link.
-  async urls(paths) {
+  // Signed links for many paths in one request: a Map of path → link. With `px` (a size from
+  // photo-sizes.js), each path's link is to its copy that size, or to the file itself until the
+  // copy is made: both are signed at once, and a copy that isn't there yet simply has no link.
+  async urls(paths, px) {
     if (!paths.length) return new Map();
-    const { data, error } = await db.storage.from(BUCKET).createSignedUrls(paths, WEEK);
+    const ask = px ? paths.flatMap((p) => [p, copyPath(p, px)]) : paths;
+    const { data, error } = await db.storage.from(BUCKET).createSignedUrls(ask, WEEK);
     if (error) { console.error(error); return new Map(); }
-    return new Map(data.filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+    const got = new Map(data.filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
+    return new Map(paths.filter((p) => got.has(p)).map((p) => [p, (px && got.get(copyPath(p, px))) || got.get(p)]));
   },
   // Deletes pictures nothing points at any more. Quietly: a leftover file isn't worth a warning.
   async remove(...paths) {
-    paths = paths.filter(Boolean);
+    paths = paths.filter(Boolean).flatMap((p) => [p, ...copyPaths(p)]);
     if (paths.length) await db.storage.from(BUCKET).remove(paths).catch(() => {});
   },
 };

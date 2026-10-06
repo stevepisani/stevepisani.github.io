@@ -6,6 +6,8 @@
 //   SUPABASE_ACCESS_TOKEN=... node tools/empty-trash.mjs
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
+import { PURPOSES, renditionPath } from '../supabase/functions/mcp/images.js';
+import { copyPaths } from '../assets/js/apps/lib/photo-sizes.js';
 
 const repo = resolve(dirname(new URL(import.meta.url).pathname), '..');
 const token = process.env.SUPABASE_ACCESS_TOKEN;
@@ -30,8 +32,9 @@ if (!files.length) process.exit(0);
 // Storage takes the service key, fetched here and never printed
 const key = (await api('GET', '/api-keys?reveal=true')).find((k) => k.name === 'service_role')?.api_key;
 if (!key) throw new Error('No service_role key from the Management API.');
-// each file with its smaller copies (images.js), if it has them
-const all = files.flatMap((f) => [f, `${f}.vision.jpg`, `${f}.thumbnail.jpg`]);
+// each file with its smaller copies, if it has them: the MCP server's (images.js) and the app's
+// (photo-sizes.js)
+const all = files.flatMap((f) => [f, ...Object.keys(PURPOSES).filter((p) => PURPOSES[p]).map((p) => renditionPath(f, p)), ...copyPaths(f)]);
 for (let i = 0; i < all.length; i += 100) {
   const res = await fetch(`${url[0]}/storage/v1/object/photos`, {
     method: 'DELETE',
