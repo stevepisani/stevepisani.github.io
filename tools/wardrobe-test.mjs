@@ -225,6 +225,17 @@ await tool('set_packing_status', { packing_item_ids: [entry.id], status: 'packed
 ok((await tool('set_packing_status', { packing_item_ids: ['nothing-like-it'], status: 'packed' })).error, 'M: ticking something not on the list is refused');
 ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBrown }, { item_id: crewItem, qty: 2 }] })).count === 2 && (await q(`select status from public.trip_packing where item_id = $1`, [IDS.darkBrown]))[0].status === 'packed', 'M: packing keeps what was ticked');
 
+// ---------- test_image: a tiny PNG as standard MCP image content, nothing else involved ----------
+{
+  const r = (await rpc({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'test_image', arguments: {} } }, {})).result;
+  const img = r.content?.find((c) => c.type === 'image');
+  const bytes = img && Buffer.from(img.data, 'base64');
+  ok(Array.isArray(r.content) && img && img.type === 'image' && img.mimeType === 'image/png' && typeof img.data === 'string' && img.data.length > 0, 'test_image: an image content block, image/png, with data', r.content);
+  ok(bytes.length === 103 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) && !img.data.startsWith('data:') && Buffer.from(bytes).toString('base64') === img.data, 'test_image: the data is plain base64 (no data: prefix) of a real PNG', img.data.slice(0, 20));
+  ok(!r.isError && r.content[0].type === 'text' && r.content.length === 2 && !('image' in (r.structuredContent || {})), 'test_image: a short text, then the image, in content (not in structuredContent)');
+  // get_photo answers in exactly the same shape (checked on real photos below)
+}
+
 // ---------- Photos as images: the stored file itself, for the model to see ----------
 {
   const tee = await tool('add_item', { name: 'Photo test tee', category: 'tops', subcategory: 't_shirt', colour: 'white' });
@@ -238,6 +249,8 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
   const one = await tool('get_photo', { photo_id: hero });
   ok(!one.error && one.images.length === 1 && one.images[0].type === 'image' && one.images[0].mimeType === 'image/jpeg' && Buffer.from(one.images[0].data, 'base64').equals(Buffer.from(stored)), 'get_photo: the image itself, as MCP image content, byte for byte the stored file, its type from its bytes', one.images[0]?.mimeType);
   const m = one.photos[0];
+  const raw = (await rpc({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'get_photo', arguments: { photo_id: hero } } }, ctx)).result;
+  ok(raw.content.map((c) => c.type).join() === 'text,image' && Object.keys(raw.content[1]).sort().join() === 'data,mimeType,type' && !raw.content[1].data.startsWith('data:'), 'get_photo: the same shape as test_image (text, then { type, data, mimeType } with plain base64)', Object.keys(raw.content[1] || {}));
   ok(m.photo_id === hero && m.item_id === tee.item.id && m.role === 'garment' && m.origin === 'catalog' && m.hero === true && m.made_from.join() === front.photo_id && /the one shown/.test(one.text), 'get_photo: with what it is (photo_id, item_id, role, origin, hero, made_from)', m);
   const many = await tool('get_photos', { photo_ids: [front.photo_id, hero, tag.photo_id] });
   ok(many.images.length === 3 && many.photos.map((x) => x.photo_id).join() === [front.photo_id, hero, tag.photo_id].join() && many.photos.map((x) => x.image).join() === '1,2,3' && many.photos[2].role === 'tag' && !many.photos[0].hero, 'get_photos: several at once, in the order asked, each numbered to its image', many.photos);

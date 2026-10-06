@@ -467,7 +467,13 @@ sent.
   `get_item` with `include_images: true` adds the photo shown, the one `hero_photo_id` names. One
   answer carries 15 MB of files at most; a photo past that is said, to ask for alone. So the way
   to picture an outfit is item → `hero_photo_id` → the image → look → then draw, never the text
-  alone. Claude shows images from tools to its model; whether ChatGPT does is up to ChatGPT.
+  alone. Claude shows images from tools to its model. ChatGPT, as of Oct 2026, calls the tool
+  and gets no image (OpenAI says tool images aren't a guaranteed way into its model; reports say
+  small ones fare better than the 1 to 3 MB catalog PNGs). `test_image` (`areas/test.js`, for now)
+  answers with a 103-byte PNG made in the code, red on the left and blue on the right, in exactly
+  get_photo's shape, to tell the two apart; each answer with images is logged (the tool, the
+  content types, each image's type and size, never the image), read with the Supabase workflow's
+  "logs".
   Results stay small (both apps cap what a tool may return, and the model reads all of it):
   lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
   sources drop their dates, the same photo link is sent once, and a trip names each garment once
