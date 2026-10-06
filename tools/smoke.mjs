@@ -293,6 +293,11 @@ async function member(page, target) {
   for (const [k, rows] of Object.entries(tripParts)) tripParts[k] = rows.map((r, i) => ({ ...mine, created_at: `2026-10-01T12:00:0${i}Z`, ...r }));
   let made = 0;
   const photoTable = JSON.parse(readFileSync(new URL('./fixtures/wardrobe-photos.json', import.meta.url)));
+  // the files in Storage: every photo the fixtures name, the oxford's with its small and large
+  // copies (its tag's without, so the app's fallback to the file itself is seen), and what's uploaded
+  const stored = new Set([...closet.map((c) => c.photo_path), ...photoTable.map((f) => f.path)].filter(Boolean));
+  for (const px of [512, 1080]) stored.add(`wardrobe/u1/oxford.jpg.w${px}`);
+  const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   const asked = [];
   await target.route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), method = req.method();
@@ -301,6 +306,12 @@ async function member(page, target) {
     const body = (() => { try { return req.postDataJSON(); } catch (e) { return null; } })(); // a photo isn't JSON
     asked.push({ method, path: url.pathname + url.search, body });
     if (url.pathname.endsWith('/rpc/is_member')) return json(true);
+    // Storage, as it answers: an upload is kept; signing gives a link only for a file that's there;
+    // a signed link is the picture
+    const file = /\/storage\/v1\/object\/photos\/(.+)$/.exec(url.pathname);
+    if (file && method === 'POST') stored.add(decodeURIComponent(file[1]));
+    if (url.pathname.endsWith('/storage/v1/object/sign/photos') && method === 'POST') return json(body.paths.map((p) => (stored.has(p) ? { path: p, signedURL: `/object/sign/photos/${p}?token=t`, error: null } : { path: p, signedURL: null, error: 'Either the object does not exist or you do not have access to it' })));
+    if (url.pathname.includes('/storage/v1/object/sign/photos/')) return route.fulfill({ contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: PIXEL });
     if (url.pathname.endsWith('/rest/v1/recipes')) {
       if (method === 'GET') return json(table);
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-${i}`, cooked: false, rating: 0, created_at: new Date().toISOString(), ...r })), 201);
@@ -425,6 +436,10 @@ async function apps(page, shot) {
   if ((await page.textContent('#app-title')) !== 'Closet' || !(await page.isVisible('#tabs a[data-value="closet"][aria-current="page"]'))) throw new Error("the wardrobe doesn't say it's on the closet");
   await shot('wardrobe');
   step('wardrobe: 3 in the closet (the retired one hidden), chips counted, the title and tab say where it is');
+  // a tile shows the photo's small copy, never the stored file (a 2 MB catalog PNG)
+  const tileSrc = await page.getAttribute('#grid .tile img:not([hidden])', 'src');
+  if (!/oxford\.jpg\.w512\?/.test(tileSrc || '')) throw new Error(`a tile shows ${tileSrc}, not the photo's small copy`);
+  step("a tile shows its photo's small copy");
   await page.click('#cats button[data-value="shoes"]');
   if ((await page.locator('#grid .tile:visible').count()) !== 1) throw new Error("the Shoes chip didn't narrow the closet");
   await page.click('#cats button[data-value=""]');
@@ -442,6 +457,12 @@ async function apps(page, shot) {
   // its photos: the tag is kept beside the garment photo; a garment photo that becomes a "detail"
   // stops being shown, and the tag never takes its place; any photo can be shown on purpose
   await until(page, () => document.querySelectorAll('#sheet-photos .photo-thumb').length === 2);
+  // the sheet's photo is sharpened to the large copy; a photo with no copies yet shows as stored
+  await until(page, () => /oxford\.jpg\.w1080\?/.test(document.querySelector('.sheet__photo img').src));
+  const tagSrc = await page.getAttribute('#sheet-photos .photo-thumb:nth-child(2) img', 'src');
+  if (!/oxford-tag\.jpg\?/.test(tagSrc || '')) throw new Error(`a photo with no copies yet shows ${tagSrc}`);
+  if (await page.evaluate(() => document.activeElement !== document.getElementById('sheet'))) throw new Error('an opened sheet should hold focus itself, not ring its first button');
+  step("the sheet's photo sharpens to the large copy; a photo without copies shows as stored; the sheet holds focus, no ring");
   if (!/Garment · shown/.test(await page.textContent('#sheet-photos')) || !/Tag/.test(await page.textContent('#sheet-photos'))) throw new Error("the item's photos don't say their roles");
   await page.locator('#sheet-photos .photo-thumb').first().click();
   await page.selectOption('#photo-role', 'detail');
@@ -499,6 +520,8 @@ async function apps(page, shot) {
   const shirtUpload = asked.find((a) => a.method === 'POST' && a.path.includes('/object/photos/wardrobe/u1/'));
   const withPhoto = asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items')).pop();
   if (!shirtUpload || !/^wardrobe\/u1\//.test(withPhoto.body[0].photo_path || '')) throw new Error(`adding a photo sent ${JSON.stringify(shirtUpload)} / ${JSON.stringify(withPhoto)}`);
+  const copies = asked.filter((a) => a.method === 'POST' && a.path.startsWith(`/storage/v1/object/photos/${withPhoto.body[0].photo_path}.w`)).map((a) => a.path.split('.w').pop());
+  if (copies.sort().join() !== '1080,512') throw new Error(`a photo added in the app stored copies ${copies}`);
   await page.click('#retire');
   await until(page, () => !document.getElementById('sheet').open);
   if (!asked.some((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items') && a.body?.retired === true)) throw new Error("retiring didn't save");
