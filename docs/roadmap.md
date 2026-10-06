@@ -73,6 +73,8 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: images that reach ChatGPT: vision-sized copies so six fit in one answer, `get_outfit_images`
+  (each garment's current photo, named by slot), and `test_image(s)` to check what arrives.
 - Oct 2026: `get_photo` and `get_photos`: the model sees a garment's stored photo itself, not its
   description; `get_item` can add the photo shown.
 - Oct 2026: trips in detail, for the five-week Europe trip: travelers, a packing list for everyone
