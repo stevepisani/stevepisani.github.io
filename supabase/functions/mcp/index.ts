@@ -11,11 +11,15 @@
 // gives out (RFC 9728's resource, the 401's metadata link) are that one.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { PROTOCOLS, rpc } from "./server.js";
+import { LINK_MINUTES, photoToken, servePhoto } from "./images.js";
 import { fetchLimited, readProduct, storeImage } from "../_shared/product.js";
 import { legWeather, locate } from "../_shared/weather.js";
 
 const SUPABASE = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
+// photo links (images.js): signed with the service key, which never leaves the server; answered as
+// the server, since a link carries no sign-in (its signature is the permission)
+const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const RESOURCE = `${SUPABASE}/functions/v1/mcp`;
 const PUBLIC_HOSTS = ["mcp.stevenpisani.com"];
 const SCOPES = ["openid", "email", "profile"];
@@ -48,6 +52,23 @@ Deno.serve(async (req) => {
   // RFC 9728: who guards this server, and how to ask for a token
   if (path.endsWith("/.well-known/oauth-protected-resource")) {
     return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "SJPJr", resource_documentation: "https://stevenpisani.com/apps/wardrobe" }, 200, { "access-control-allow-origin": "*" });
+  }
+  // a photo link for an image generator (get_outfit_images, purpose generation): the stored file,
+  // read only, while the link lasts
+  const link = /\/photo\/([\w.-]+)$/.exec(path);
+  if (link && (req.method === "GET" || req.method === "HEAD")) {
+    const admin = createClient(SUPABASE, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
+    const res = await servePhoto(link[1], {
+      secret: SERVICE,
+      find: async (id: string) => {
+        const { data: p } = await admin.from("wardrobe_photos").select("path, item_id").eq("id", id).is("deleted_at", null).maybeSingle();
+        const { data: it } = p ? await admin.from("wardrobe_items").select("id").eq("id", p.item_id).is("deleted_at", null).maybeSingle() : { data: null };
+        return it ? p.path : null;
+      },
+      file: async (p: string) => { const { data } = await admin.storage.from("photos").download(p); return data ? new Uint8Array(await data.arrayBuffer()) : null; },
+    });
+    console.log(`photo link: ${res.status}`);
+    return req.method === "HEAD" ? new Response(null, { status: res.status, headers: res.headers }) : res;
   }
   // the transport's checks (MCP 2025-11-25): a page elsewhere can't use a browser's way in, and
   // a protocol this server doesn't speak is said plainly
@@ -118,6 +139,8 @@ Deno.serve(async (req) => {
     // ImageScript, for the smaller copies (images.js), loaded when first needed: it reads its own
     // WebAssembly files, and if the runtime can't, photos are sent without making copies here (the
     // Supabase workflow makes them: tools/photo-copies.mjs)
+    // a link to a photo on SJPJr's own address, good for LINK_MINUTES (images.js)
+    photoLink: async (id: string) => { const expires = Date.now() + LINK_MINUTES * 60_000; return { url: `https://${PUBLIC_HOSTS[0]}/photo/${await photoToken(SERVICE, id, expires)}`, expires_at: new Date(expires).toISOString() }; },
     imaging: () => (imagingLoad ??= import("npm:imagescript@1.3.1" /* as in package.json */).catch((e) => { console.error(`imagescript: ${e?.message}`); return null; })),
     photoFile: async (path: string) => { const { data, error } = await db.storage.from("photos").download(path); if (error || !data) return null; return new Uint8Array(await data.arrayBuffer()); },
     readProduct,
