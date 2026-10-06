@@ -39,6 +39,8 @@ const cardScript = async () => {
   return card.js;
 };
 
+// deno-lint-ignore no-explicit-any
+let imagingLoad: Promise<any> | null = null;
 Deno.serve(async (req) => {
   const path = new URL(req.url).pathname;
   const host = req.headers.get("x-mcp-public-host");
@@ -111,6 +113,12 @@ Deno.serve(async (req) => {
       return new Map((data ?? []).filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     },
     // a photo's file as stored, for the model to see (get_photo)
+    // a file into the person's photo folder (a photo's smaller copy, images.js), replacing one there
+    saveFile: async (path: string, bytes: Uint8Array, type: string) => { const { error } = await db.storage.from("photos").upload(path, bytes, { contentType: type, upsert: true }); if (error) throw error; },
+    // ImageScript, for the smaller copies (images.js), loaded when first needed: it reads its own
+    // WebAssembly files, and if the runtime can't, photos are sent without making copies here (the
+    // Supabase workflow makes them: tools/photo-copies.mjs)
+    imaging: () => (imagingLoad ??= import("npm:imagescript@1.3.1" /* as in package.json */).catch((e) => { console.error(`imagescript: ${e?.message}`); return null; })),
     photoFile: async (path: string) => { const { data, error } = await db.storage.from("photos").download(path); if (error || !data) return null; return new Uint8Array(await data.arrayBuffer()); },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),

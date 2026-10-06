@@ -9,6 +9,7 @@
 //   const as = await w.signIn();    Supabase's default grants, then everything as Steve
 //   w.ctx                           the MCP server's data access (photos and weather made up)
 import { PGlite } from '@electric-sql/pglite';
+import * as imaging from 'imagescript';
 import { readFileSync, readdirSync } from 'node:fs';
 
 const dir = new URL('../supabase/migrations/', import.meta.url);
@@ -79,7 +80,7 @@ export async function wardrobeDb() {
   const closetRow = (id) => byId(`select * from public.wardrobe_closet where id = $1`, id);
   const PARTS = ['trip_packing', 'trip_bags', 'trip_transport', 'trip_lodging', 'trip_resources'];
   const part = (name) => { if (!PARTS.includes(name)) throw new Error(`not a trip part: ${name}`); return name; };
-  const uploads = []; // what the made-up storage was given
+  const uploads = [], files = new Map(); // what the made-up storage was given, and holds
   const ctx = {
     items: {
       list: () => q(`select * from public.wardrobe_closet`),
@@ -109,7 +110,11 @@ export async function wardrobeDb() {
       set: (id, patch) => update('wardrobe_photos', id, patch),
     },
     // a made-up file per path, its first bytes saying what it is (as a real one's would)
-    photoFile: async (path) => (/broken/.test(path) ? null : new Uint8Array([...(/\.png$/i.test(path) ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : [0xff, 0xd8, 0xff, 0xe0]), ...new TextEncoder().encode(`photo:${path}`)])),
+    // the made-up storage: what was saved (saveFile, files), else a made-up file per path
+    files,
+    saveFile: async (path, bytes) => { files.set(path, bytes); },
+    imaging,
+    photoFile: async (path) => files.get(path) || (/broken|\.(vision|thumbnail)\.jpg$/.test(path) ? null : new Uint8Array([...(/\.png$/i.test(path) ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : [0xff, 0xd8, 0xff, 0xe0]), ...new TextEncoder().encode(`photo:${path}`)])),
     photoUrls: async (paths) => new Map(paths.map((p) => [p, `https://example.com/signed/${p}`])),
     readProduct: async (url) => ({ url, name: 'Linen shirt', brand: 'Shopco', image: 'https://example.com/shirt.jpg', price: 60, currency: 'EUR' }),
     storeImage: async (url) => (/\.(jpe?g|png|webp)$/i.test(url) ? `wardrobe/${STEVE}/${url.split('/').pop()}` : null), // a picture's address, not a page's

@@ -459,21 +459,36 @@ sent.
   one of another kind than the garment is refused before anything is kept, a different colour is
   said); `set_photo_role` corrects either; `delete_photo` moves any photo to the trash, a wrong catalog
   image included (the card has a two-tap Delete on every photo; the next best is shown).
-- **Seeing a photo:** the model reads ids and facts, never pixels, unless it asks:
-  `get_photo` (one) and `get_photos` (up to six, an outfit) return each stored photo as MCP image
-  content (`type: "image"`, base64 and its MIME type, read from the file's first bytes), the file
-  exactly as stored, nothing described, resized or redrawn on the server, with its facts beside
-  it (photo_id, item_id, role, origin, hero, made_from) and its place among the images.
-  `get_item` with `include_images: true` adds the photo shown, the one `hero_photo_id` names. One
-  answer carries 15 MB of files at most; a photo past that is said, to ask for alone. So the way
-  to picture an outfit is item → `hero_photo_id` → the image → look → then draw, never the text
-  alone. Claude shows images from tools to its model. ChatGPT, as of Oct 2026, calls the tool
-  and gets no image (OpenAI says tool images aren't a guaranteed way into its model; reports say
-  small ones fare better than the 1 to 3 MB catalog PNGs). `test_image` (`areas/test.js`, for now)
-  answers with a 103-byte PNG made in the code, red on the left and blue on the right, in exactly
-  get_photo's shape, to tell the two apart; each answer with images is logged (the tool, the
-  content types, each image's type and size, never the image), read with the Supabase workflow's
-  "logs".
+- **Seeing a photo:** the model reads ids and facts, never pixels, unless it asks. These return
+  each photo as MCP image content (`type: "image"`, plain base64, its MIME type read from the
+  file's first bytes), numbered in the order asked, with its facts beside it (photo_id, item_id,
+  role, origin, hero, made_from, purpose), never described or redrawn on the server:
+  - `get_photo` (one; `purpose` original, the default: the stored file unchanged);
+  - `get_photos` (up to six; `purpose` vision by default);
+  - `get_outfit_images` (up to six garments, each with a slot: the server looks up each one's
+    current hero photo, and each image comes back named by its slot as `reference_key`, with
+    item_id, photo_id and hero; one short line an image, nothing to read in its place). The way
+    to look at an outfit, and the images to picture it from;
+  - `get_item` with `include_images: true` (the photo shown, as stored).
+  What can't be sent (no photo, not found, too big) is listed with why; the rest still come.
+- **Sizes, and why** (`images.js`): ChatGPT carries an answer over gRPC, which fails past about
+  4 MB: one 2.6 MB catalog PNG (3.5 MB as base64) got through, two failed. So an answer's images
+  share a budget of 3.8 M base64 characters, and `purpose` picks the size: `original` (the stored
+  file), `vision` (a JPEG on white up to 1024 px, stepping down in quality, then to 768 px, until
+  it's under 400 KB, so six always fit) or `thumbnail` (256 px, under 60 KB). The copies are made
+  once, with ImageScript (pinned in `package.json`), and kept beside the file in Storage
+  (`<path>.vision.jpg`, `.thumbnail.jpg`); the stored file is never changed, and emptying the
+  trash takes the copies too. The Supabase workflow makes them after each deploy and hourly
+  (`tools/photo-copies.mjs`), so the server rarely has to (a function gets about 2 s of CPU); if
+  it can't load ImageScript, it sends the stored file instead.
+- **Checking delivery:** `test_image` (one 103-byte PNG, red left, blue right) and `test_images`
+  (`count` 1 to 6, `size` small 64 px or vision 768 px: red, blue, green, yellow, a checkerboard,
+  a white circle on black, in that order, PNGs written in `images.js` with nothing else
+  involved) are for asking a host what it actually received; the answer key is in
+  structuredContent, not the text. Claude sees tool images; ChatGPT does, one at a time and in
+  small sets (Oct 2026). Every answer with images is logged (the tool, its content types, each
+  image's type and size, and each photo's file, size and purpose; never the image), read with the
+  Supabase workflow's "logs".
   Results stay small (both apps cap what a tool may return, and the model reads all of it):
   lists give per garment only what dressing and drawing need (`FLAT`; `get_item` has the rest),
   sources drop their dates, the same photo link is sent once, and a trip names each garment once

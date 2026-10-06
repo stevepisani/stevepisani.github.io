@@ -30,11 +30,13 @@ if (!files.length) process.exit(0);
 // Storage takes the service key, fetched here and never printed
 const key = (await api('GET', '/api-keys?reveal=true')).find((k) => k.name === 'service_role')?.api_key;
 if (!key) throw new Error('No service_role key from the Management API.');
-for (let i = 0; i < files.length; i += 100) {
+// each file with its smaller copies (images.js), if it has them
+const all = files.flatMap((f) => [f, `${f}.vision.jpg`, `${f}.thumbnail.jpg`]);
+for (let i = 0; i < all.length; i += 100) {
   const res = await fetch(`${url[0]}/storage/v1/object/photos`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${key}`, apikey: key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prefixes: files.slice(i, i + 100) }),
+    body: JSON.stringify({ prefixes: all.slice(i, i + 100) }),
   });
   if (!res.ok) throw new Error(`Removing photo files: HTTP ${res.status}`);
 }
