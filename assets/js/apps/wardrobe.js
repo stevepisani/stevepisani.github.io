@@ -11,7 +11,7 @@
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
 // answers from), and with no connection the app opens on that copy. Changes to packing entries
 // made then are kept and sent when the connection's back.
-import { $, db, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
+import { $, db, start, fresh, rows, saver, ask, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
@@ -25,7 +25,7 @@ const noParts = () => Object.fromEntries(PARTS.map((p) => [p, []]));
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
 let list = [], links = new Map(), failed = false, uid = null, offline = false;
-let view = { cat: '', season: '', dress: '', shelf: 'in', tab: 'closet' };
+let view = { cat: '', colour: '', season: '', dress: '', shelf: 'in', tab: 'closet' };
 try { Object.assign(view, JSON.parse(localStorage.getItem('wardrobe-view'))); } catch (e) {}
 const tiles = new Map(); // item id → its tile
 
@@ -37,15 +37,45 @@ const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 for (const sel of ['#add-category', '[data-is="category"]']) $(sel).append(...CATS.map(([v, t]) => new Option(t, v)));
 
-// A photo, small: the cut-out on its soft tile, or the category's letter when there's none
-function thumb(it, cls = 'tile__photo') {
+// An icon from the page's set (apps/wardrobe.html): a category, a tab, the weather
+const SVG = 'http://www.w3.org/2000/svg';
+function icon(name, cls = '') {
+  const svg = document.createElementNS(SVG, 'svg'), use = document.createElementNS(SVG, 'use');
+  svg.setAttribute('aria-hidden', 'true');
+  if (cls) svg.setAttribute('class', cls);
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
+const catIcon = (it) => (catName[it?.category] ? it.category : 'tops');
+
+// A photo, small: the garment on the studio ground every catalog photo shares, or, with no photo
+// yet, a line drawing of its kind (so it reads as "no photo yet", not as broken)
+function thumb(it, cls = 'tile__photo studio') {
   const box = el('span', cls), url = it?.photo_path && links.get(it.photo_path);
   if (url) box.append(Object.assign(document.createElement('img'), { src: url, alt: '', loading: 'lazy', decoding: 'async' }));
-  else box.append(el('span', 'tile__none', it ? catName[it.category]?.[0] || '' : '?'));
+  else box.append(icon(it ? catIcon(it) : 'tops', `tile__none${it ? '' : ' is-gone'}`));
   return box;
 }
 
-// ---------- The closet: category chips, filters, a grid of tiles ----------
+// A garment's colour, for browsing by colour: its colour word ("Dark Brown" is brown, "charcoal" is
+// grey) and a dot of cloth that colour. These are the garments' colours, not the page's, so they
+// stay the same in every theme. A word not here isn't offered.
+const CLOTH = {
+  black: '#1f1f22', white: '#f7f6f2', ivory: '#efe9db', cream: '#efe9db', ecru: '#e8dfca', beige: '#d8c7a6', sand: '#d2bf98', stone: '#c9bea8', khaki: '#b5a47a', tan: '#b88b5a', camel: '#b58350',
+  brown: '#6b4a33', chocolate: '#4e342a', rust: '#a4502b', orange: '#d9772f', mustard: '#c9a13b', yellow: '#e6c84f',
+  olive: '#6b6b3a', green: '#3f6b48', sage: '#9aaa8c', teal: '#2f6e70', blue: '#3e5f8f', denim: '#4a6587', indigo: '#2e3a63', navy: '#22304d',
+  purple: '#5d4777', burgundy: '#6c2232', wine: '#6c2232', maroon: '#6c2232', red: '#a8322f', pink: '#dba3a8',
+  grey: '#8d8f91', gray: '#8d8f91', charcoal: '#45484c', silver: '#b9bcbf', heather: '#a3a5a8', oatmeal: '#d9cdb6',
+};
+const SAME = { gray: 'grey', maroon: 'burgundy', wine: 'burgundy', ivory: 'cream', chocolate: 'brown' };
+function swatchOf(it) {
+  const words = String(it.colour || it.manufacturer_colour || '').toLowerCase().split(/[^a-z]+/).filter(Boolean).reverse();
+  const w = words.find((x) => CLOTH[x]);
+  return w ? SAME[w] || w : null;
+}
+
+// ---------- The closet: category chips, colours, filters, a grid of tiles ----------
 function paintTile(it) {
   const tile = tiles.get(it.id), img = $('img', tile), url = it.photo_path && links.get(it.photo_path);
   $('.tile__name', tile).textContent = it.name;
@@ -53,16 +83,17 @@ function paintTile(it) {
   if (url && img.src !== url) img.src = url;
   img.alt = it.name;
   img.hidden = !url;
-  $('.tile__none', tile).hidden = !!url;
-  $('.tile__none', tile).textContent = catName[it.category]?.[0] || '';
+  $('.tile__none', tile).style.display = url ? 'none' : '';
+  $('.tile__none use', tile).setAttribute('href', `#i-${catIcon(it)}`);
 }
 
 function render() {
   const q = $('#search').value.trim().toLowerCase();
   const shelf = list.filter((it) => it.retired === (view.shelf === 'retired'));
   const fits = (it) => (!view.season || it.seasons?.includes(view.season)) && (!view.dress || it.dressiness === view.dress)
-    && (!q || [it.name, it.brand, it.colour, it.material, it.notes].join(' ').toLowerCase().includes(q));
-  const counts = Object.fromEntries(CATS.map(([c]) => [c, shelf.filter((it) => it.category === c && fits(it)).length]));
+    && (!q || [it.name, it.brand, it.colour, it.manufacturer_colour, it.material, it.notes].join(' ').toLowerCase().includes(q));
+  const tinted = (it) => !view.colour || swatchOf(it) === view.colour;
+  const counts = Object.fromEntries(CATS.map(([c]) => [c, shelf.filter((it) => it.category === c && fits(it) && tinted(it)).length]));
   // the chips: All, then each category that has something (and the one picked, even if empty)
   const cats = $('#cats');
   cats.textContent = '';
@@ -75,27 +106,51 @@ function render() {
     b.append(t, Object.assign(document.createElement('span'), { textContent: n }));
     cats.append(b);
   }
+  // the colours there are, as dots: a tap shows only that colour (when there are two or more)
+  const tints = new Map();
+  for (const it of shelf) { const sw = swatchOf(it); if (sw && fits(it) && (!view.cat || it.category === view.cat)) tints.set(sw, (tints.get(sw) || 0) + 1); }
+  if (view.colour && !tints.has(view.colour)) tints.set(view.colour, 0);
+  const sw = $('#swatches');
+  sw.hidden = tints.size < 2 && !view.colour;
+  sw.replaceChildren(...[...tints].sort((a, b) => b[1] - a[1]).map(([c, n]) => {
+    const b = el('button', 'swatch');
+    b.type = 'button';
+    b.dataset.value = c;
+    b.style.setProperty('--swatch', CLOTH[c]);
+    b.setAttribute('aria-pressed', view.colour === c);
+    b.setAttribute('aria-label', `${c} (${n})`);
+    b.title = c;
+    return b;
+  }));
   const on = [view.season, view.dress, view.shelf !== 'in'].filter(Boolean).length;
   $('#filter-n').textContent = on ? `(${on})` : '';
   const order = (a, b) => CATS.findIndex(([c]) => c === a.category) - CATS.findIndex(([c]) => c === b.category) || a.name.localeCompare(b.name);
   let shown = 0;
   for (const it of [...list].sort(order)) {
     if (!tiles.has(it.id)) build(it);
-    const tile = tiles.get(it.id), match = shelf.includes(it) && (!view.cat || it.category === view.cat) && fits(it);
+    const tile = tiles.get(it.id), match = shelf.includes(it) && (!view.cat || it.category === view.cat) && fits(it) && tinted(it);
     tile.hidden = !match;
     if (match) shown++;
     $('#grid').append(tile);
   }
+  $('#grid').setAttribute('aria-busy', 'false');
+  const narrowed = q || view.cat || view.colour || on;
   $('#empty').hidden = shown > 0;
-  $('#empty').textContent = failed ? "The wardrobe didn't load. Reload the page to try again."
+  $('#empty').replaceChildren(failed ? "The wardrobe didn't load. Reload the page to try again."
     : !list.length ? 'Nothing here yet. Add something: a photo, or a link to it in a shop.'
-    : view.shelf === 'retired' && !shelf.length ? 'Nothing retired.' : 'Nothing matches that.';
+    : view.shelf === 'retired' && !shelf.length ? 'Nothing retired.' : 'Nothing matches that. ');
+  if (shown === 0 && narrowed && list.length && !failed) {
+    const all = el('button', 'link-btn', 'Show everything');
+    all.type = 'button';
+    all.addEventListener('click', () => { $('#search').value = ''; $('#season').value = $('#dress').value = ''; $('#shelf').value = 'in'; look({ cat: '', colour: '', season: '', dress: '', shelf: 'in' }); });
+    $('#empty').append(all);
+  }
 }
 
 function build(it) {
   const tile = $('#tile').content.firstElementChild.cloneNode(true);
   tiles.set(it.id, tile);
-  $('.tile__open', tile).addEventListener('click', () => openItem(it));
+  $('.tile__open', tile).addEventListener('click', () => openItem(it, 'view', $('.tile__photo', tile)));
   paintTile(it);
 }
 
@@ -107,12 +162,14 @@ const look = (change) => {
 };
 $('#search').addEventListener('input', render);
 $('#cats').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) look({ cat: b.dataset.value }); });
+$('#swatches').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) look({ colour: view.colour === b.dataset.value ? '' : b.dataset.value }); });
 for (const [id, key] of [['#season', 'season'], ['#dress', 'dress'], ['#shelf', 'shelf']]) {
   $(id).value = view[key];
   $(id).addEventListener('input', (e) => look({ [key]: e.target.value }));
 }
-// the filters fold away on a phone, where the closet is what matters; on a wider screen they're out
-$('#filters').open = matchMedia('(min-width: 561px)').matches;
+// the filters fold away on a phone, where the closet is what matters; on a wider screen they're out.
+// Folded with one set, they open, so nothing hides with no trace.
+$('#filters').open = matchMedia('(min-width: 701px)').matches || !!(view.season || view.dress || view.shelf !== 'in');
 
 // ---------- A photo, cut out of its background ----------
 // The cutting out runs in the browser (@imgly/background-removal; its model, about 40 MB, comes
@@ -142,10 +199,10 @@ let pending = null; // what the add dialog has so far: { photo: Promise<path>, p
 $('#add').addEventListener('click', async () => {
   if (offline) { toast("You're offline. Adding has to wait for a connection.", true); return; }
   pending = {};
-  const dialog = $('#add-dialog'), preview = $('#add-preview');
-  preview.hidden = true;
+  const dialog = $('#add-dialog'), mine = pending;
+  showPreview('', '');
   $('#add-ok').disabled = false;
-  const values = await ask(dialog);
+  const values = await ask(dialog, { dirty: () => !!(mine.photo || mine.photo_path) || [...$('form', dialog).elements].some((f) => f.name && f.type !== 'file' && f.value && f.value !== f.defaultValue && f.tagName !== 'SELECT') });
   const got = pending;
   pending = null;
   if (!values) { got.photo?.then((p) => photos.remove(p)); return; } // cancelled: nothing stays behind
@@ -168,11 +225,14 @@ $('#add').addEventListener('click', async () => {
   keepCopy();
   openItem(added[0], 'edit'); // the rest of what it is, while it's in hand
 });
-const showPreview = (url, text) => {
-  const preview = $('#add-preview');
-  preview.hidden = false;
-  if (url) $('img', preview).src = url;
-  $('img', preview).hidden = !url;
+// The photo fills the place it was asked for in, shimmering while it's worked on; a line under it says
+// what's happening
+const showPreview = (url, text, busy = false) => {
+  const drop = $('#add-photo'), img = $('.drop__img', drop);
+  if (url != null) { img.hidden = !url; if (url) img.src = url; } // null: keep what's there; '': clear it
+  $('.drop__ask', drop).hidden = !img.hidden;
+  drop.classList.toggle('is-busy', busy);
+  $('#add-status').hidden = !text;
   $('#add-status').textContent = text;
 };
 $('#add-photo input').addEventListener('change', (e) => {
@@ -180,12 +240,12 @@ $('#add-photo input').addEventListener('change', (e) => {
   e.target.value = '';
   if (!file || !pending) return;
   const mine = pending;
-  showPreview(URL.createObjectURL(file), 'Cutting it out of the background…');
+  showPreview(URL.createObjectURL(file), 'Cutting it out of the background…', true);
   $('#add-ok').disabled = true;
-  mine.photo = storePhoto(file, (t) => { if (pending === mine) showPreview(null, t); }).then(async (path) => {
+  mine.photo = storePhoto(file, (t) => { if (pending === mine) showPreview(null, t, true); }).then(async (path) => {
     if (pending === mine) {
       const url = path && (await photos.urls([path])).get(path);
-      showPreview(url || null, path ? 'Ready.' : "The photo didn't upload; you can add one later.");
+      showPreview(url || null, path ? '' : "The photo didn't upload; you can add one later.");
       $('#add-ok').disabled = false;
     }
     return path;
@@ -196,7 +256,7 @@ $('#read-link').addEventListener('click', async () => {
   if (!link || !pending) return;
   const mine = pending, button = $('#read-link');
   button.disabled = true;
-  showPreview(null, 'Reading the page…');
+  showPreview(null, 'Reading the page…', true);
   const { data, error } = await db.functions.invoke('wardrobe-link', { body: { url: link } });
   button.disabled = false;
   if (pending !== mine) return;
@@ -229,8 +289,8 @@ function paintSheet() {
   if (url && img.src !== url) img.src = url;
   img.alt = it.name;
   img.hidden = !url;
-  $('.sheet__photo .tile__none', sheet).hidden = !!url;
-  $('.sheet__photo .tile__none', sheet).textContent = catName[it.category]?.[0] || '';
+  $('.sheet__photo .tile__none', sheet).style.display = url ? 'none' : '';
+  $('.sheet__photo .tile__none use', sheet).setAttribute('href', `#i-${catIcon(it)}`);
   // what it is, in a few lines
   $('#sv-cat').textContent = `${catName[it.category] || ''}${it.retired ? ' · retired' : ''}`;
   $('#sv-name').textContent = it.name;
@@ -246,7 +306,7 @@ function paintSheet() {
   $('#find').href = `https://www.google.com/search?tbm=shop&q=${encodeURIComponent([it.brand, it.name, it.colour].filter(Boolean).join(' '))}`;
   $('#find').textContent = it.buy_link ? 'Or find another' : 'Find another';
   $('#retire').textContent = it.retired ? 'Back in the closet' : 'Retire it (worn out, given away)';
-  $('#sheet-photo span').textContent = 'Add a photo';
+  if (!$('#sheet-photo').classList.contains('is-busy')) $('#sheet-photo span').textContent = 'Add a photo';
   paintPhotos();
 }
 function openSheet(it, mode = 'view') {
@@ -258,16 +318,29 @@ function openSheet(it, mode = 'view') {
   picked = null;
   paintSheet();
   loadPhotos(it);
-  sheet.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => sheet.close(); });
-  if (!sheet.open) sheet.showModal();
+  if (!sheet.open) { sheet.showModal(); sheet.scrollTop = 0; }
+  if (mode === 'edit') $('[data-is="name"]', sheet).focus();
 }
+// Done, Esc, a tap outside or a swipe down: each closes it, and closing saves what's being typed
+sheetify(sheet, () => sheet.close());
 $('#sheet-edit').addEventListener('click', () => {
   if (offline) { toast("You're offline. Changes have to wait for a connection.", true); return; }
   sheet.dataset.mode = 'edit';
-  $('[data-is="name"]', sheet).focus();
+  $('[data-is="name"]', sheet).focus({ preventScroll: true });
 });
-// text saves as it's typed; the rest at once
+// Done while editing goes back to what it is, with everything typed saved
 const TEXT = ['name', 'brand', 'colour', 'size', 'material', 'fit', 'condition', 'buy_link', 'notes'];
+$('#sheet-finish').addEventListener('click', () => {
+  for (const field of TEXT) $(`[data-is="${field}"]`, sheet).dispatchEvent(new Event('change'));
+  sheet.dataset.mode = 'view';
+  $('#sheet-edit').focus({ preventScroll: true });
+});
+// the bar over the fields says whether they're saved (saver() marks each field as it goes)
+new MutationObserver(() => {
+  const states = [...sheet.querySelectorAll('[data-save]')].map((f) => f.dataset.save);
+  $('#sheet-state').textContent = states.includes('failed') ? "Didn't save" : states.includes('saving') ? 'Saving…' : states.includes('saved') ? 'Saved' : 'Saves as you type';
+}).observe(sheet, { subtree: true, attributeFilter: ['data-save'] });
+// text saves as it's typed; the rest at once
 for (const field of TEXT) {
   const f = $(`[data-is="${field}"]`, sheet);
   saver(f, (value) => (field === 'name' && !value.trim() && !current?.variant_id ? Promise.resolve(false) : save({ [field]: value.trim() || null })));
@@ -296,7 +369,7 @@ $('#retire').addEventListener('click', async () => {
   const it = current, was = it.retired;
   if (!(await save({ retired: !was }))) return;
   sheet.close();
-  toast(was ? 'Back in the closet.' : 'Retired. It\'s under "Retired" in the filters.', false, async () => {
+  toast(was ? 'Back in the closet.' : 'Retired. It\'s under Retired, in More filters.', false, async () => {
     if (await items.set(it.id, { retired: was })) { it.retired = was; keepCopy(); render(); }
   });
 });
@@ -359,7 +432,7 @@ function paintPhotos() {
     b.type = 'button';
     b.setAttribute('aria-pressed', picked === p);
     const box = el('span', 'photo-thumb__img'), url = links.get(p.path);
-    if (url) box.append(Object.assign(document.createElement('img'), { src: url, alt: '' })); else box.textContent = ROLE[p.role][0];
+    if (url) box.append(Object.assign(document.createElement('img'), { src: url, alt: '' })); else box.append(icon(catIcon(it), 'tile__none'));
     b.append(box, el('span', 'photo-thumb__role', `${ROLE[p.role]}${p.path === it.photo_path ? ' · shown' : ''}`));
     b.addEventListener('click', () => { picked = picked === p ? null : p; paintPhotos(); });
     strip.append(b);
@@ -390,16 +463,28 @@ $('#photo-remove').addEventListener('click', async () => {
 // #today, #closet, #trips, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over the view)
 let trips = [], parts = noParts(), openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
 const here = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
-const openItem = (it, mode = 'view') => { nextMode = mode; pushedItem = true; location.hash = `item/${it.id}`; };
+// an item opens over the view, its photo growing out of the one tapped (where the browser can)
+let zoomFrom = null;
+const openItem = (it, mode = 'view', from = null) => { nextMode = mode; pushedItem = true; zoomFrom = from; location.hash = `item/${it.id}`; };
 addEventListener('hashchange', route);
+const motion = () => !!document.startViewTransition && !calm.matches;
 
 function route() {
   if (!ready) return;
   const [where, id, part] = here();
   if (where === 'item') {
     if (!shown) showView(...home());
-    const it = list.find((x) => x.id === id);
-    if (it && current !== it) openSheet(it, nextMode);
+    const it = list.find((x) => x.id === id), from = zoomFrom;
+    zoomFrom = null;
+    if (it && current !== it) {
+      const mode = nextMode, photo = $('.sheet__photo', sheet);
+      if (from?.isConnected && motion()) {
+        from.style.viewTransitionName = 'garment';
+        document.documentElement.classList.add('vt-zoom');
+        const vt = document.startViewTransition(() => { from.style.viewTransitionName = ''; photo.style.viewTransitionName = 'garment'; openSheet(it, mode); });
+        vt.finished.finally(() => { photo.style.viewTransitionName = ''; document.documentElement.classList.remove('vt-zoom'); });
+      } else openSheet(it, mode);
+    }
     nextMode = 'view';
     return;
   }
@@ -410,31 +495,72 @@ function route() {
 }
 // with a trip on (or about to be), Today; otherwise wherever you were last
 const home = () => [nowTrip() ? 'today' : view.tab === 'trips' ? 'trips' : 'closet'];
+const DEPTH = { today: 0, closet: 0, trips: 0, trip: 1, pack: 2 };
+const scrolls = {}; // where each view was scrolled to, so coming back to it lands there
 function showView(name, id) {
-  shown = name;
-  shownHash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
-  const tab = name === 'trip' || name === 'pack' ? 'trips' : name;
-  if (tab !== 'today') { view.tab = tab; saveView(); }
-  const now = nowTrip();
-  for (const a of $('#tabs').children) {
-    if (a.dataset.value === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-    if (a.dataset.value === 'today') a.hidden = !now;
-  }
-  $('#today-view').hidden = tab !== 'today';
-  $('#closet-view').hidden = tab !== 'closet';
-  $('#trips-view').hidden = tab !== 'trips';
-  $('#trip-list-view').hidden = name !== 'trips';
-  $('#trip').hidden = name !== 'trip';
-  $('#pack-view').hidden = name !== 'pack';
-  openTrip = id ? trips.find((t) => t.id === id) : name === 'today' ? now : null;
-  redraw();
+  const was = shown, wasHash = shownHash, hash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
+  if (was) scrolls[wasHash] = scrollY;
+  const swap = () => {
+    shown = name;
+    shownHash = hash;
+    const tab = name === 'trip' || name === 'pack' ? 'trips' : name;
+    if (tab !== 'today') { view.tab = tab; saveView(); }
+    const now = nowTrip();
+    for (const a of $('#tabs').children) {
+      if (a.dataset.value === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (a.dataset.value === 'today') a.hidden = !now;
+    }
+    $('#today-view').hidden = tab !== 'today';
+    $('#closet-view').hidden = tab !== 'closet';
+    $('#trips-view').hidden = tab !== 'trips';
+    $('#trip-list-view').hidden = name !== 'trips';
+    $('#trip').hidden = name !== 'trip';
+    $('#pack-view').hidden = name !== 'pack';
+    openTrip = id ? trips.find((t) => t.id === id) : name === 'today' ? now : null;
+    title();
+    const drawn = redraw();
+    if (hash !== wasHash) {
+      const y = scrolls[hash] || 0;
+      scrollTo(0, y);
+      if (y) Promise.resolve(drawn).then(() => { if (shownHash === hash) scrollTo(0, y); });
+      if (was) $('#app-title').focus({ preventScroll: true }); // where you are now, for VoiceOver
+    }
+  };
+  // going in slides the new view in from the side, coming back slides it back; switching tabs is instant
+  const deeper = was && DEPTH[name] !== DEPTH[was] && (DEPTH[name] > DEPTH[was] ? 'in' : 'out');
+  if (deeper && motion()) {
+    document.documentElement.dataset.vt = deeper;
+    document.startViewTransition(swap).finished.finally(() => { delete document.documentElement.dataset.vt; });
+  } else swap();
 }
+// The heading says where you are, and the way back up sits above it; on a phone both settle into
+// a bar at the top as you scroll
+function title() {
+  const t = openTrip, back = shown === 'trip' ? ['#trips', 'Trips'] : shown === 'pack' && t ? [`#trip/${t.id}`, t.name] : null;
+  const name = shown === 'today' && t ? t.name : shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : 'Closet';
+  $('#app-title').textContent = name;
+  document.title = `${name} · Wardrobe`;
+  $('#app-kicker').hidden = !!back;
+  for (const a of [$('#app-back'), $('#mini-back')]) {
+    a.hidden = !back;
+    if (back) { a.href = back[0]; a.textContent = `‹ ${back[1]}`; }
+  }
+  $('#mini-title').textContent = name;
+}
+$('#app-kicker').lastChild.textContent = ' · Wardrobe';
+new IntersectionObserver(([e]) => $('#mini-bar').classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0)).observe($('#app-title'));
+// the tab you're on, tapped again, goes back to its top
+$('#tabs').addEventListener('click', (e) => {
+  const a = e.target.closest('a');
+  if (a && location.hash === `#${a.dataset.value}` && shown === a.dataset.value) { e.preventDefault(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); }
+});
 function redraw() {
-  if (shown === 'today') drawToday();
-  else if (shown === 'trips') drawTrips();
-  else if (shown === 'trip') drawTrip();
-  else if (shown === 'pack') drawPack();
-  else render();
+  if (shown) title();
+  if (shown === 'today') return drawToday();
+  if (shown === 'trips') return drawTrips();
+  if (shown === 'trip') return drawTrip();
+  if (shown === 'pack') return drawPack();
+  return render();
 }
 
 // ---------- Trips: where and when, the weather, what to wear each day, what to pack ----------
@@ -472,33 +598,85 @@ function nowTrip() {
 }
 const leaving = (a) => { const d = daysBetween(isoToday(), a); return d > 1 ? `you leave in ${d} days` : d === 1 ? 'you leave tomorrow' : d === 0 ? 'you leave today' : ''; };
 
+// the weather as a picture: rain likely, maybe, or not
+const sky = (w) => (!w ? 'cloud' : w.rain >= 50 ? 'rain' : w.rain >= 25 ? 'cloud' : 'sun');
+const deg = (n) => (n == null ? '–' : `${Math.round(n)}°`);
+
 function drawTrips() {
-  const ul = $('#trip-list');
-  ul.textContent = '';
-  const sorted = [...trips].sort((a, b) => (span(b)[0] || '').localeCompare(span(a)[0] || ''));
-  for (const t of sorted) {
-    const [a, b] = span(t);
-    const li = el('li'), card = el('a', 'trip-card');
-    card.href = `#trip/${t.id}`;
-    card.append(el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : 'No dates yet'), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
-    li.append(card);
-    ul.append(li);
+  const box = $('#trip-list'), today = isoToday();
+  box.textContent = '';
+  const sorted = [...trips].sort((a, b) => (span(a)[0] || '9').localeCompare(span(b)[0] || '9'));
+  const past = (t) => { const b = span(t)[1]; return b && b < today; };
+  const groups = [['Coming up', sorted.filter((t) => !past(t))], ['Been', sorted.filter(past).reverse()]].filter(([, ts]) => ts.length);
+  for (const [name, ts] of groups) {
+    if (groups.length > 1) box.append(el('h2', 'part-title', name));
+    const ul = el('ul', 'trip-cards');
+    for (const t of ts) {
+      const [a, b] = span(t), li = el('li'), card = el('a', 'trip-card');
+      card.href = `#trip/${t.id}`;
+      const on = a && a <= today && today <= b;
+      const status = !a ? 'No dates yet' : on ? `On now · day ${daysBetween(a, today) + 1} of ${daysBetween(a, b) + 1}` : a > today ? cap(leaving(a) || `in ${daysBetween(today, a)} days`) : `${daysBetween(a, b) + 1} days`;
+      card.append(el('span', `trip-card__status${on ? ' is-on' : ''}`, status), el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : ''), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
+      // the outfits planned, as a row of small photos
+      const worn = [...new Set(t.days.flatMap((d) => d.items || []))].map((id) => list.find((x) => x.id === id)).filter(Boolean).slice(0, 5);
+      if (worn.length) { const row = el('span', 'trip-card__worn'); worn.forEach((it) => row.append(thumb(it, 'trip-card__thumb studio'))); card.append(row); }
+      card.append(el('span', 'trip-card__go', '›'));
+      card.lastChild.setAttribute('aria-hidden', 'true');
+      li.append(card);
+      ul.append(li);
+    }
+    box.append(ul);
   }
   $('#trips-empty').hidden = trips.length > 0;
-  $('#trips-empty').textContent = 'No trips yet. Start one here, or ask ChatGPT to plan one.';
+  $('#trips-empty').textContent = 'No trips yet. Start one here, or ask ChatGPT or Claude to plan one.';
 }
 
-function itemChip(id, { opens = true } = {}) {
-  const it = list.find((x) => x.id === id), chip = el('span', 'chip-item');
-  chip.append(thumb(it, 'chip-item__photo'), el('span', 'chip-item__name', it ? it.name : 'No longer in the wardrobe'));
-  if (it && opens) { chip.tabIndex = 0; chip.role = 'button'; chip.addEventListener('click', () => openItem(it)); chip.addEventListener('keydown', (e) => { if (e.key === 'Enter') openItem(it); }); }
-  return chip;
+// An outfit laid flat: its photos on one shared ground, like a lookbook page, top to toe (a jacket
+// and top first, then trousers, shoes, the rest). Each piece opens the garment; a piece gone from
+// the wardrobe since is a dashed outline. `mini` is the small one for a glance (no buttons).
+const BODY = { outerwear: 0, suits: 0, tops: 1, workout: 1, swim: 2, bottoms: 2, shoes: 3, accessories: 4 };
+function flatlay(ids, { mini = false } = {}) {
+  const pieces = (ids || []).map((id) => list.find((x) => x.id === id) || { id, gone: true })
+    .sort((a, b) => (a.gone ? 9 : BODY[a.category] ?? 5) - (b.gone ? 9 : BODY[b.category] ?? 5)).slice(0, mini ? 4 : 6);
+  const board = el(mini ? 'span' : 'div', `flatlay studio flatlay--${pieces.length}${mini ? ' flatlay--mini' : ''}`);
+  for (const it of pieces) {
+    const piece = el(mini || it.gone ? 'span' : 'button', `flatlay__piece${mini || it.gone ? '' : ' outfit__item'}${it.gone ? ' is-gone' : ''}`);
+    const url = !it.gone && it.photo_path && links.get(it.photo_path);
+    if (url) piece.append(Object.assign(document.createElement('img'), { src: url, alt: '', loading: 'lazy', decoding: 'async' }));
+    else piece.append(icon(it.gone ? 'tops' : catIcon(it), 'tile__none'));
+    if (!mini && !it.gone) {
+      piece.type = 'button';
+      piece.setAttribute('aria-label', it.name);
+      piece.addEventListener('click', () => openItem(it, 'view', piece));
+    } else if (it.gone && !mini) piece.title = 'No longer in the wardrobe';
+    board.append(piece);
+  }
+  if (mini) return board;
+  const names = el('p', 'flatlay__names', pieces.map((it) => (it.gone ? 'No longer in the wardrobe' : it.name)).join(' · '));
+  const box = el('div', 'look');
+  box.append(board, names);
+  return box;
 }
 
+const packCount = (t) => { const entries = partsOf(t, 'trip_packing'); return [entries.filter((p) => p.status === 'packed').length, entries.length]; };
 const packSummary = (t) => {
-  const entries = partsOf(t, 'trip_packing'), done = entries.filter((p) => p.status === 'packed').length, n = entries.length;
+  const [done, n] = packCount(t);
   return !n ? 'Nothing on the list yet.' : done === n ? `All ${n} packed.` : `${done} of ${n} packed.`;
 };
+// a ring that fills as the packing does
+const ring = (box, t) => { const [done, n] = packCount(t); box.style.setProperty('--fill', n ? done / n : 0); box.classList.toggle('is-done', !!n && done === n); };
+function packCard(t) {
+  const a = el('a', 'pack-card'), r = el('span', 'ring'), text = el('span', 'pack-card__text');
+  a.href = `#trip/${t.id}/pack`;
+  r.setAttribute('aria-hidden', 'true');
+  ring(r, t);
+  const leave = leaving(span(t)[0] || '');
+  text.append(el('span', 'pack-card__title', 'Packing'), el('span', '', `${packSummary(t)}${leave && !packSummary(t).startsWith('All') ? ` ${cap(leave)}.` : ''}`));
+  const go = el('span', 'pack-card__go', '›');
+  go.setAttribute('aria-hidden', 'true');
+  a.append(r, text, go);
+  return a;
+}
 
 // A time as given ("2026-10-13T11:15:00+01:00", or "11:15"): its clock time there, never moved
 // to another timezone; and its date, when it has one
@@ -532,17 +710,23 @@ function activities(d) {
 async function drawTrip() {
   const t = openTrip;
   if (!t) return;
-  const [a, b] = span(t);
-  $('#trip-name').textContent = t.name;
-  $('#trip-when').textContent = a ? `${fmtDay(a)} – ${fmtDay(b)} · ${plural(t.legs.length, 'place')}` : '';
-  $('#trip-notes').hidden = !t.notes;
+  const [a, b] = span(t), today = isoToday();
+  const total = a ? daysBetween(a, b) + 1 : 0;
+  $('#trip-when').textContent = a ? `${fmtDay(a)} – ${fmtDay(b)} · ${plural(total, 'day')} · ${plural(t.legs.length, 'place')}` : 'No dates yet';
+  $('#trip-notes-part').hidden = !t.notes;
   $('#trip-notes').textContent = t.notes || '';
   $('#pack-sum').textContent = packSummary(t);
+  ring($('#pack-ring'), t);
   $('#pack-open').href = `#trip/${t.id}/pack`;
   // who's going, how they get there, where they stay, the links: each only when there's something
   const people = t.travelers || [];
-  $('#trip-who').textContent = people.map((x) => (x.type && x.type !== 'adult' ? `${x.name} (${spaced(x.type)})` : x.name)).join(', ');
-  $('#trip-who-part').hidden = !people.length;
+  $('#trip-who').replaceChildren(...people.map((x) => {
+    const li = el('li', 'person'), face = el('span', 'person__face', (x.name || '?')[0].toUpperCase());
+    face.setAttribute('aria-hidden', 'true');
+    li.append(face, el('span', 'person__name', x.name), ...(x.type && x.type !== 'adult' ? [el('span', 'person__type', spaced(x.type))] : []));
+    return li;
+  }));
+  $('#trip-who').hidden = !people.length;
   const goes = partsOf(t, 'trip_transport').sort((x, y) => x.date.localeCompare(y.date) || (x.departure_time || '').localeCompare(y.departure_time || ''));
   part('trip-go', goes.map((g) => {
     const dep = g.departure_time, arr = g.arrival_time, nextDay = dateOf(arr) && dateOf(arr) !== (dateOf(dep) || g.date);
@@ -554,52 +738,56 @@ async function drawTrip() {
   const stays = partsOf(t, 'trip_lodging').sort((x, y) => x.check_in.localeCompare(y.check_in));
   part('trip-stay', stays.map((l) => infoRow(l.name, l.booking_url, [l.place, `${fmtDay(l.check_in)} – ${fmtDay(l.check_out)}`, l.confirmation && `ref ${l.confirmation}`, l.notes])));
   part('trip-links', partsOf(t, 'trip_resources').map((r) => infoRow(r.label, r.url, [r.notes])));
+  const planned = [...t.days].sort((x, y) => x.date.localeCompare(y.date));
+  $('#days-count').textContent = planned.length ? `${planned.length} of ${total} planned` : '';
   // the legs, each with its weather
   const weather = await Promise.all(t.legs.map(legWeatherCached));
   if (openTrip !== t || shown !== 'trip') return;
   const legs = $('#legs');
   legs.textContent = '';
   t.legs.forEach((l, i) => {
-    const w = weather[i], li = el('li', 'leg');
-    li.append(el('h3', 'leg__place', `${l.place}${l.country ? `, ${l.country}` : ''}`), el('p', 'leg__when', `${fmtDay(l.from)} – ${fmtDay(l.to)}`));
+    const w = weather[i], here = l.from <= today && today <= l.to, li = el('li', `leg${here ? ' is-here' : ''}`);
+    const head = el('div', 'leg__head');
+    head.append(el('h3', 'leg__place', `${l.place}${l.country ? `, ${l.country}` : ''}`), el('p', 'leg__when', `${fmtDay(l.from)} – ${fmtDay(l.to)} · ${plural(daysBetween(l.from, l.to), 'night')}${here ? ' · you\'re here' : ''}`));
+    li.append(head);
     if (w) {
       const s = w.summary;
       li.append(el('p', 'leg__weather', `${w.kind === 'forecast' ? 'Forecast' : w.kind === 'mixed' ? 'Forecast, then typical' : 'Typically'}: highs ${s.hi}°, lows ${s.lo}°, about ${plural(s.wet, 'day')} of rain`));
       const strip = el('ol', 'leg__days');
       strip.setAttribute('aria-label', `Day by day in ${l.place}`);
+      const top = Math.max(...w.days.map((d) => d.hi ?? 0), 1), low = Math.min(...w.days.map((d) => d.lo ?? d.hi ?? 0));
       for (const d of w.days) {
-        const day = el('li', `wx${d.kind === 'typical' ? ' wx--typical' : ''}`);
+        const day = el('li', `wx${d.kind === 'typical' ? ' wx--typical' : ''}${d.date === today ? ' is-today' : ''}`);
         day.title = `${fmtDay(d.date, { weekday: 'short' })}: ${d.hi}° / ${d.lo}°, ${d.rain}% chance of rain${d.kind === 'typical' ? ' (typical)' : ''}`;
-        day.style.setProperty('--hi', d.hi ?? 0);
+        day.style.setProperty('--h', Math.max(0.15, ((d.hi ?? low) - low + 2) / (top - low + 2)));
         day.style.setProperty('--rain', (d.rain ?? 0) / 100);
-        day.append(el('span', 'wx__hi', d.hi != null ? `${Math.round(d.hi)}°` : '–'));
+        day.append(el('span', 'visually-hidden', day.title));
         strip.append(day);
       }
       li.append(strip);
     } else li.append(el('p', 'leg__weather', 'Weather unavailable right now.'));
     legs.append(li);
   });
-  // day by day: the planned days, each with its place, weather and outfit
+  // day by day: the planned days, each with its place, weather and outfit laid flat
   const days = $('#days');
   days.textContent = '';
   const wxDay = (date) => { for (const w of weather) { const d = w?.days.find((x) => x.date === date); if (d) return d; } return null; };
-  for (const d of [...t.days].sort((x, y) => x.date.localeCompare(y.date))) {
-    const li = el('li', 'day'), w = wxDay(d.date);
-    const head = el('p', 'day__head');
-    head.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}${w ? ` · ${Math.round(w.hi)}°/${Math.round(w.lo)}°, ${w.rain}% rain` : ''}`);
+  for (const d of planned) {
+    const li = el('li', `day${d.date === today ? ' is-today' : ''}`), w = wxDay(d.date);
+    const head = el('div', 'day__head'), when = el('p', 'day__date');
+    when.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}`);
+    head.append(when);
+    if (w) { const wx = el('p', 'day__wx'); wx.append(icon(sky(w), `sky sky--${sky(w)}`), `${deg(w.hi)}/${deg(w.lo)} · ${w.rain}%`); wx.setAttribute('aria-label', `${deg(w.hi)} high, ${deg(w.lo)} low, ${w.rain}% chance of rain`); head.append(wx); }
     li.append(head);
     if (d.occasion) li.append(el('p', 'day__occasion', d.occasion));
     const acts = activities(d);
     if (acts) li.append(acts);
-    const outfit = el('div', 'day__outfit');
-    d.items.forEach((id) => outfit.append(itemChip(id)));
-    li.append(outfit);
+    if (d.items?.length) li.append(flatlay(d.items));
     if (d.note) li.append(el('p', 'day__note', d.note));
     days.append(li);
   }
-  const total = a ? daysBetween(a, b) + 1 : 0;
-  $('#days-empty').hidden = false;
-  $('#days-empty').textContent = t.days.length ? `${t.days.length} of ${total} days planned.` : 'No outfits planned yet. Ask ChatGPT: "plan what I wear each day of my trip".';
+  $('#days-empty').hidden = !!t.days.length;
+  $('#days-empty').textContent = 'No outfits planned yet. Ask ChatGPT or Claude to plan what you wear each day.';
 }
 
 // ---------- Today: where you are on the trip, the weather, what you're wearing ----------
@@ -620,7 +808,7 @@ function advice(w, outfit) {
   return out;
 }
 
-let dayOn = null; // the date the Today card shows; it can step through the trip
+let dayOn = null, slide = ''; // the date the Today card shows (it steps through the trip), and which way it came in
 async function drawToday() {
   const t = openTrip, box = $('#today-view');
   if (!t) return;
@@ -635,7 +823,7 @@ async function drawToday() {
 
   // the trip, and where you are on it: a line in legs, the one you're on lit
   const head = el('header', 'today__trip');
-  head.append(el('h2', 'today__name', t.name), el('p', 'today__when', `${fmtDay(a)} – ${fmtDay(b)} · ${underway ? `day ${daysBetween(a, today) + 1} of ${total}` : leaving(a)}`));
+  head.append(el('p', 'today__when', `${fmtDay(a)} – ${fmtDay(b)} · ${underway ? `day ${daysBetween(a, today) + 1} of ${total}` : leaving(a)}`));
   const line = el('ol', 'legline');
   line.setAttribute('aria-label', 'The trip, place by place');
   t.legs.forEach((l, i) => {
@@ -643,75 +831,91 @@ async function drawToday() {
     const now = underway && l.from <= today && (today < end || (last && today <= end));
     const li = el('li', `legline__leg${underway && end <= today && !now ? ' is-past' : ''}${now ? ' is-now' : ''}`);
     li.style.flexGrow = Math.max(1, daysBetween(l.from, end));
-    li.append(el('span', 'legline__place', now ? `${l.place} · ${plural(daysBetween(today, end), 'day')} left` : l.place));
+    if (now) li.style.setProperty('--at', Math.min(1, daysBetween(l.from, today) / Math.max(1, daysBetween(l.from, end))));
+    li.append(el('span', 'legline__place', l.place));
+    if (now) li.append(el('span', 'legline__left', `${plural(daysBetween(today, end), 'day')} left`));
     line.append(li);
   });
   head.append(line);
 
-  // the day: where, the weather, any advice, the outfit
-  const card = el('section', 'today-card'), top = el('div', 'today-card__top'), where = el('div');
+  // the day, like a morning card: where, the weather, one word of warning, the outfit laid flat
+  const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`), top = el('div', 'today-card__top'), where = el('div');
+  slide = '';
   card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : fmtDay(date, { weekday: 'long' })}`);
-  where.append(el('p', 'today-card__kicker', date === today ? 'Today' : date === a && !underway ? 'First day' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]),
-    el('h3', 'today-card__place', legOn(t, date)?.place || ''), el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
+  const dayNo = daysBetween(a, date) + 1;
+  where.append(el('p', 'today-card__kicker', `${date === today ? 'Today' : date === a && !underway ? 'First day' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]} · day ${dayNo}`),
+    el('h2', 'today-card__place', legOn(t, date)?.place || ''), el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
   const wx = el('div', 'today-card__wx');
   if (w) {
+    const big = el('span', 'today-card__hi');
+    big.append(icon(sky(w), `sky sky--${sky(w)} today-card__sky`), deg(w.hi));
     const rain = el('span', `today-card__rain${w.rain >= 50 ? ' is-wet' : ''}`, `${w.rain}% rain`);
-    const low = el('span', 'today-card__low', `low ${Math.round(w.lo)}° · `);
+    const low = el('span', 'today-card__low', `low ${deg(w.lo)} · `);
     low.append(rain);
-    wx.append(el('span', 'today-card__hi', `${Math.round(w.hi)}°`), low);
+    wx.append(big, low);
     if (w.kind === 'typical') wx.append(el('span', 'today-card__typical', 'typical, not a forecast yet'));
   } else wx.append(el('span', 'today-card__low', 'No weather yet'));
   top.append(where, wx);
   card.append(top);
-  const outfit = wearing(date), plan = planned(date);
-  for (const line of advice(w, outfit)) card.append(el('p', 'today-card__advice', line));
-  card.append(el('p', 'today-card__label', "What you're wearing"));
+  const outfit = wearing(date), plan = planned(date), warn = advice(w, outfit);
+  if (warn.length) {
+    const box2 = el('div', 'advice');
+    box2.setAttribute('role', 'note');
+    const lines = el('div');
+    for (const l of warn) lines.append(el('p', 'today-card__advice', l));
+    box2.append(icon('umbrella', 'advice__icon'), lines);
+    card.append(box2);
+  }
+  if (plan?.items?.length) card.append(flatlay(plan.items));
   if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
   const acts = plan && activities(plan);
   if (acts) card.append(acts);
-  if (outfit.length) {
-    const ul = el('ul', 'outfit');
-    for (const it of outfit) {
-      const li = el('li'), btn = el('button', 'outfit__item');
-      btn.type = 'button';
-      btn.append(thumb(it), el('span', 'outfit__name', it.name));
-      btn.addEventListener('click', () => openItem(it));
-      li.append(btn);
-      ul.append(li);
-    }
-    card.append(ul);
-  } else card.append(el('p', 'today-card__none', 'Nothing planned for this day. Ask ChatGPT to plan it.'));
+  if (!plan?.items?.length) card.append(el('p', 'today-card__none', 'Nothing planned to wear. Ask ChatGPT or Claude to plan it.'));
   if (plan?.note) card.append(el('p', 'today-card__note', plan.note));
   const step = el('div', 'today-card__step');
-  const go = (d, text) => { const btn = el('button', 'link-btn', text); btn.type = 'button'; btn.disabled = d < a || d > b; btn.addEventListener('click', () => { dayOn = d; drawToday(); }); return btn; };
-  step.append(go(addDays(date, -1), '‹ Day before'), go(addDays(date, 1), date === today ? 'Tomorrow ›' : 'Next day ›'));
+  const go = (d, text, dir) => {
+    const btn = el('button', 'link-btn', text);
+    btn.type = 'button';
+    btn.disabled = d < a || d > b;
+    btn.addEventListener('click', () => { dayOn = d; slide = dir; drawToday(); });
+    return btn;
+  };
+  step.append(go(addDays(date, -1), '‹ Day before', 'back'), go(addDays(date, 1), date === today ? 'Tomorrow ›' : 'Next day ›', 'on'));
   card.append(step);
+  // a swipe across the card steps a day, as the buttons do
+  let x0 = null, y0 = 0;
+  card.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+  card.addEventListener('touchend', (e) => {
+    if (x0 == null) return;
+    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const btn = step.children[dx < 0 ? 1 : 0];
+    if (!btn.disabled) { buzz(); btn.click(); }
+  });
 
   // the next few days, a tap away
   const next = el('section', 'today__part'), nextHead = el('div', 'today__part-head');
-  const allDays = el('a', 'link-btn', 'All days');
+  const allDays = el('a', 'link-btn', 'All days ›');
   allDays.href = `#trip/${t.id}`;
-  nextHead.append(el('h3', '', 'Next few days'), allDays);
+  nextHead.append(el('h2', 'part-title', 'Next few days'), allDays);
   const strip = el('ol', 'next-days');
   ahead.forEach((d, i) => {
-    const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = wearing(d);
+    const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = planned(d)?.items || [];
     btn.type = 'button';
-    btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), el('span', 'next-day__wx', dw ? `${Math.round(dw.hi)}° · ${dw.rain}%` : '–'));
-    const thumbs = el('span', 'next-day__thumbs');
-    if (on.length) on.slice(0, 3).forEach((it) => thumbs.append(thumb(it, 'next-day__thumb')));
-    else thumbs.append(el('span', 'next-day__none', 'Nothing planned'));
-    btn.append(thumbs);
-    btn.addEventListener('click', () => { dayOn = d; drawToday(); scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); });
+    const wxLine = el('span', 'next-day__wx');
+    if (dw) wxLine.append(icon(sky(dw), `sky sky--${sky(dw)}`), `${deg(dw.hi)} · ${dw.rain}%`); else wxLine.append('–');
+    btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), wxLine);
+    btn.append(on.length ? flatlay(on, { mini: true }) : el('span', 'next-day__none', 'Nothing planned'));
+    btn.addEventListener('click', () => { dayOn = d; slide = 'on'; drawToday(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); });
     li.append(btn);
     strip.append(li);
   });
   if (ahead.length) next.append(nextHead, strip);
 
   // the packing, and the way to it
-  const pack = el('section', 'today__part'), packHead = el('div', 'today__part-head'), packLink = el('a', 'link-btn', 'Pack ›');
-  packLink.href = `#trip/${t.id}/pack`;
-  packHead.append(el('h3', '', 'Packing'), packLink);
-  pack.append(packHead, el('p', 'today__pack', packSummary(t)));
+  const pack = el('section', 'today__part');
+  pack.append(packCard(t));
 
   box.replaceChildren(head, card, ...(ahead.length ? [next] : []), pack);
 }
@@ -772,17 +976,17 @@ function drawPack() {
   const t = openTrip;
   if (!t) return;
   const entries = partsOf(t, 'trip_packing'), bags = partsOf(t, 'trip_bags'), people = t.travelers || [], f = packFilter(t);
-  $('#pack-back').textContent = `‹ ${t.name}`;
-  $('#pack-back').href = `#trip/${t.id}`;
-  // how it's going, over the whole list
+  // how it's going, over the whole list: a suitcase that fills as things go in
   const n = entries.length, done = entries.filter((p) => p.status === 'packed').length;
   const bar = $('#pack-progress');
   bar.hidden = !n;
-  bar.firstElementChild.style.setProperty('--p', `${n ? (100 * done) / n : 0}%`);
+  bar.style.setProperty('--fill', n ? done / n : 0);
+  bar.classList.toggle('is-done', !!n && done === n);
   bar.setAttribute('aria-valuemax', n);
   bar.setAttribute('aria-valuenow', done);
   const leave = leaving(span(t)[0] || '');
-  $('#pack-count').textContent = n ? `${done} of ${n} packed${leave ? ` · ${leave}` : ''}` : '';
+  $('#pack-count').textContent = n ? (done === n ? `All ${n} packed` : `${done} of ${n} packed`) : 'Nothing on the list yet';
+  $('#pack-leave').textContent = leave ? cap(leave) : '';
   // what to show: the status (with counts under the other filters), whose, category, bag
   const pool = entries.filter((p) => fits(p, f));
   chips($('#pack-status'), SHOW.map(([v, text]) => [v, text, pool.filter((p) => shows(p, v)).length]), f.status);
@@ -850,9 +1054,23 @@ function packRow(t, p, bags) {
   const status = el('button', 'pack-row__status', statusName[p.status] || p.status);
   status.type = 'button';
   status.setAttribute('aria-label', `${name}: ${statusName[p.status]}. Tap for ${statusName[NEXT[p.status] || 'ready']}.`);
-  status.addEventListener('click', () => {
+  status.addEventListener('click', async () => {
     const was = p.status, to = NEXT[was] || 'ready';
-    setEntry(p, { status: to }).then((ok) => ok && toast(packedLine[to](name), false, () => setEntry(p, { status: was })));
+    buzz();
+    if (to === 'packed') {
+      li.classList.add('is-going'); // the tick lands, and with "To pack" showing, the row folds away
+      status.textContent = statusName.packed;
+      if (!calm.matches) await new Promise((r) => setTimeout(r, packFilter(t).status === 'open' ? 420 : 220));
+    }
+    const ok = await setEntry(p, { status: to });
+    if (!ok) return;
+    const undo = () => setEntry(p, { status: was });
+    if (to !== 'packed') return toast(packedLine[to](name), false, undo);
+    // a bag finished, or everything: a small celebration
+    const all = partsOf(t, 'trip_packing'), bagged = p.bag_id && all.filter((x) => x.bag_id === p.bag_id);
+    if (all.every((x) => x.status === 'packed')) { celebrate($('#pack-progress')); buzz([10, 60, 10]); toast(`Packed ${name}. That's everything.`, false, undo); }
+    else if (bagged?.every((x) => x.status === 'packed')) { celebrate($('#pack-progress')); toast(`Packed ${name}. ${bags.find((x) => x.id === p.bag_id)?.label || 'That bag'} is done.`, false, undo); }
+    else toast(packedLine.packed(name), false, undo);
   });
   li.append(open, status);
   return li;
@@ -881,11 +1099,21 @@ async function setEntry(p, patch) {
     queue[p.id] = { ...queue[p.id], ...patch };
     keep(QUEUE, queue);
     keepCopy();
+    showStatus();
     return true;
   }
   if (!(await partRows.trip_packing.set(p.id, patch))) { Object.assign(p, before); redraw(); paintEntry(); return false; }
   keepCopy();
   return true;
+}
+// The line under the tabs while offline: how old the copy is, and what's waiting to go
+function showStatus(copy = kept(copyKey())) {
+  const note = $('#offline-note'), waiting = Object.keys(queue).length;
+  note.hidden = !offline;
+  if (!offline) return;
+  const text = el('span');
+  text.append(el('strong', '', 'Offline'), ` · the copy from ${copy ? ago(copy.at) : 'before'}. ${waiting ? `${plural(waiting, 'packing change')} waiting to send.` : "Packing changes wait here until you're back."}`);
+  note.replaceChildren(icon('offline', 'status-line__icon'), text);
 }
 async function sendQueue() {
   for (const [id, patch] of Object.entries(queue)) {
@@ -956,7 +1184,7 @@ $('#ps-remove').addEventListener('click', async () => {
   const { owner, updated_at, ...back } = p;
   toast(`Took ${name} off the list.`, false, () => addEntries(t, [back]));
 });
-packSheet.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => packSheet.close(); });
+sheetify(packSheet, () => packSheet.close());
 packSheet.addEventListener('close', () => { $('#ps-notes').dispatchEvent(new Event('change')); setTimeout(() => { if (!packSheet.open) entryOpen = null; }, 0); });
 
 // Starting a trip, or changing its places and dates (the places are looked up for the weather)
@@ -1032,7 +1260,10 @@ const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 
 async function load() {
   let got = null, gotTrips = null, gotParts = null;
   if (navigator.onLine && (await db.auth.getSession()).data.session) {
+    const waiting = Object.keys(queue).length;
     await sendQueue(); // what was changed offline goes first, so what comes back has it
+    const sent = waiting - Object.keys(queue).length;
+    if (sent > 0) toast(`Back online. Sent ${plural(sent, 'packing change')}.`);
     let rest;
     [got, gotTrips, ...rest] = await Promise.all([closet.list('name'), tripRows.list('created_at'), ...PARTS.map((p) => partRows[p].list('created_at'))]);
     if (rest.every(Boolean)) gotParts = Object.fromEntries(PARTS.map((p, i) => [p, rest[i]]));
@@ -1063,8 +1294,7 @@ async function load() {
     trips = gotTrips || [];
     parts = gotParts || noParts();
   }
-  $('#offline-note').hidden = !offline;
-  if (offline) $('#offline-note').textContent = `Offline: showing the copy saved on this phone ${ago(copy.at)}. Packing changes are kept and sent when you're back online.`;
+  showStatus(copy);
   if (openTrip) openTrip = trips.find((t) => t.id === openTrip.id) || null;
   tiles.clear();
   $('#grid').textContent = '';

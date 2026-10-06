@@ -422,11 +422,19 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
   if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
+  if ((await page.textContent('#app-title')) !== 'Closet' || !(await page.isVisible('#tabs a[data-value="closet"][aria-current="page"]'))) throw new Error("the wardrobe doesn't say it's on the closet");
   await shot('wardrobe');
-  step('wardrobe: 3 in the closet (the retired one hidden), chips counted');
+  step('wardrobe: 3 in the closet (the retired one hidden), chips counted, the title and tab say where it is');
   await page.click('#cats button[data-value="shoes"]');
   if ((await page.locator('#grid .tile:visible').count()) !== 1) throw new Error("the Shoes chip didn't narrow the closet");
   await page.click('#cats button[data-value=""]');
+  // the colours there are, as dots (navy, white, brown): one narrows the closet to it, again shows all
+  if ((await page.locator('#swatches .swatch').count()) !== 3) throw new Error(`the colour dots: ${await page.locator('#swatches .swatch').count()}`);
+  await page.click('#swatches .swatch[data-value="brown"]');
+  if ((await page.locator('#grid .tile:visible').count()) !== 1 || !/loafers/.test(await page.textContent('#grid .tile:not([hidden])'))) throw new Error("the brown dot didn't narrow the closet to the loafers");
+  await page.click('#swatches .swatch[data-value="brown"]');
+  if ((await page.locator('#grid .tile:visible').count()) !== 3) throw new Error('tapping the colour again should show everything');
+  step('the colour dots narrow the closet, and tapping one again shows everything');
   await page.locator('#grid .tile:visible .tile__open').first().click();
   await until(page, () => document.getElementById('sheet').open && /^#item\//.test(location.hash));
   if (!(await page.isVisible('#sv-name')) || await page.isVisible('#sheet [data-is="brand"]')) throw new Error("an item doesn't open on what it is");
@@ -451,6 +459,9 @@ async function apps(page, shot) {
   await page.selectOption('#sheet [data-is="dressiness"]', 'formal');
   await until(page, () => !document.querySelector('#sheet [data-save="saving"]'));
   await shot('sheet');
+  // Done while editing goes back to what it is (what was typed, saved); then Done closes it
+  await page.click('#sheet-finish');
+  if ((await page.getAttribute('#sheet', 'data-mode')) !== 'view' || !/Smoke Brand/.test(await page.textContent('#sv-facts'))) throw new Error("Done while editing doesn't go back to the garment, saved");
   await page.click('#sheet [data-close]');
   const patched = asked.filter((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items')).map((a) => a.body);
   if (!patched.some((b) => b.brand === 'Smoke Brand') || !patched.some((b) => b.dressiness === 'formal')) throw new Error(`the sheet saved ${JSON.stringify(patched)}`);
@@ -464,8 +475,21 @@ async function apps(page, shot) {
   await until(page, () => document.getElementById('sheet').open);
   const fromLink = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items'));
   if (!fromLink || fromLink.body[0].brand !== 'Everlane' || fromLink.body[0].buy_link !== 'https://www.everlane.com/products/crew') throw new Error(`adding from a link sent ${JSON.stringify(fromLink)}`);
-  await page.click('#sheet [data-close]');
-  step('added one from a store link: name, brand, price and the buy link');
+  if ((await page.getAttribute('#sheet', 'data-mode')) !== 'edit') throw new Error('something just added should open on its fields');
+  await page.keyboard.press('Escape'); // Esc closes it, like Done
+  await until(page, () => !document.getElementById('sheet').open);
+  step('added one from a store link: name, brand, price and the buy link; Esc closes it');
+  // Cancel never throws away what was typed without asking: kept if the answer's no, gone if yes
+  await page.click('#add');
+  await page.fill('#add-dialog [name="name"]', 'Half typed');
+  page.once('dialog', (d) => d.dismiss());
+  await page.click('#add-dialog [data-close]');
+  if (!(await page.evaluate(() => document.getElementById('add-dialog').open)) || (await page.inputValue('#add-dialog [name="name"]')) !== 'Half typed') throw new Error('Cancel threw away what was typed without asking');
+  page.once('dialog', (d) => d.accept());
+  await page.keyboard.press('Escape');
+  await until(page, () => !document.getElementById('add-dialog').open);
+  if (asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/wardrobe_items')).length !== 1) throw new Error('cancelling added something');
+  step('Cancel (or Esc) asks before throwing away what was typed');
   await page.click('#add');
   await page.locator('#add-photo input').setInputFiles({ name: 'shirt.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
   await page.fill('#add-dialog [name="name"]', 'Smoke linen shirt');
@@ -492,7 +516,11 @@ async function apps(page, shot) {
   await until(page, () => document.querySelectorAll('#legs .leg__days li').length > 30);
   if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 6 packed')) throw new Error(`the trip doesn't show its legs, days and packing (the entries, the one on a trip in the trash left out): ${JSON.stringify([await page.locator('#legs .leg').count(), await page.locator('#days .day').count(), await page.textContent('#pack-sum')])}`);
   if (!/highs 18°, lows 9°/.test(await page.textContent('#legs'))) throw new Error("the trip's weather isn't shown");
-  if ((await page.textContent('#trip-who')) !== 'Steve, Lexi, Dominic (child)') throw new Error(`who's going: ${await page.textContent('#trip-who')}`);
+  const who = await page.locator('#trip-who .person').evaluateAll((ps) => ps.map((p) => [p.querySelector('.person__name').textContent, p.querySelector('.person__type')?.textContent].filter(Boolean).join(' ')));
+  if (who.join(', ') !== 'Steve, Lexi, Dominic child') throw new Error(`who's going: ${who}`);
+  if ((await page.textContent('#app-title')) !== 'Europe, autumn' || (await page.getAttribute('#app-back', 'href')) !== '#trips') throw new Error("the trip's title, or the way back to the trips, is wrong");
+  // each planned day's outfit laid flat, its pieces opening the garments
+  if ((await page.locator('#days .day').first().locator('.flatlay .flatlay__piece').count()) !== 2) throw new Error("a day's outfit isn't laid out");
   const goes = await page.locator('#trip-go .info-row').allTextContents();
   if (goes.length !== 2 || !/^Philadelphia PHL → London LHR.*British Airways BA 66.*18:30 – 06:45 \(.*7.*\).*ref XK7Q2B/.test(goes[0]) || !/London → Florence.*07:01 – 19:30/.test(goes[1])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
   if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
@@ -576,16 +604,17 @@ async function apps(page, shot) {
   await shot('packing-wide');
   await page.setViewportSize({ width: 390, height: 844 });
   step('adding from the planned outfits and by hand (from the filters) POST entries; one taken off and put back');
+  if ((await page.textContent('#app-title')) !== 'Packing' || !/Europe, autumn/.test(await page.textContent('#app-back'))) throw new Error("the board's title, or the way back to the trip, is wrong");
   await page.goBack();
   await until(page, () => location.hash === '#trip/t1' && !document.getElementById('trip').hidden);
-  await page.click('#trip-back');
+  await page.click('#app-back');
   await page.click('#new-trip');
   await page.fill('#trip-dialog [name="name"]', 'Smoke weekend');
   await page.fill('#leg-rows [data-k="place"]', 'Lisbon, Portugal');
   await page.fill('#leg-rows [data-k="from"]', '2026-12-01');
   await page.fill('#leg-rows [data-k="to"]', '2026-12-03');
   await page.click('#trip-dialog [type="submit"]');
-  await until(page, () => document.getElementById('trip-name').textContent === 'Smoke weekend');
+  await until(page, () => document.getElementById('app-title').textContent === 'Smoke weekend');
   const made = asked.find((a) => a.method === 'POST' && a.path.includes('/rest/v1/trips'));
   if (!made || made.body[0].legs[0].place !== 'Lisbon' || made.body[0].legs[0].lat !== 45 || 'packing' in made.body[0]) throw new Error(`a new trip saved ${JSON.stringify(made)}`);
   // deleting it moves it to the trash (an update, never a delete)
@@ -602,10 +631,10 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.querySelector('.today-card') && location.hash === '');
   const today = await page.textContent('#today-view');
-  if (!/Florence/.test(await page.textContent('.today-card__place')) || !/Uffizi/.test(today) || (await page.locator('.outfit__item').count()) !== 2) throw new Error(`Today doesn't show the day: ${today.slice(0, 200)}`);
+  if (!/Florence/.test(await page.textContent('.today-card__place')) || !/Uffizi/.test(today) || (await page.locator('.today-card .flatlay .outfit__item').count()) !== 2) throw new Error(`Today doesn't show the day, its outfit laid flat: ${today.slice(0, 200)}`);
   if (!/day 9 of 42/.test(today) || !/Rain likely \(70%\), and nothing in this outfit is for rain/.test(today) || !/Maybe not Brown suede loafers/.test(today)) throw new Error(`Today's trip line or advice is wrong: ${today.slice(0, 400)}`);
   await shot('today');
-  await page.locator('.outfit__item').first().click();
+  await page.locator('.today-card .outfit__item').first().click();
   await until(page, () => document.getElementById('sheet').open);
   await page.goBack();
   await until(page, () => !document.getElementById('sheet').open && !document.getElementById('today-view').hidden);
