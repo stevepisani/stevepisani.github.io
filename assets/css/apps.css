@@ -17,9 +17,18 @@
 :root[data-theme="terminal"] .app { --studio: var(--bg-2); --studio-ink: var(--ink-2); }
 /* .studio: anything on that ground */
 .studio { background: var(--studio); }
-/* at night the studio is dimmed a little, so a photo isn't a lamp in a dark room */
-:root[data-theme="dark"] .app .studio { filter: brightness(.86); }
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app .studio { filter: brightness(.86); } }
+/* at night the studio is dimmed a little, so a photo isn't a lamp in a dark room: the ground by its
+   colour (.86 of the day's) and the photo by a filter on the photo itself. Never a filter on the
+   box around it: Safari doesn't repaint a filtered box when a photo inside it finishes loading,
+   so the photos stayed blank grey squares */
+:root[data-theme="dark"] .app { --studio: #cecfcf; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app { --studio: #cecfcf; } }
+:root[data-theme="dark"] .app .studio img { filter: brightness(.86); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app .studio img { filter: brightness(.86); } }
+/* a photo fills its square by being pinned to it, not by a percentage height in a centred grid
+   (which Safari can measure as nothing, and a lazy photo of no size is never fetched) */
+:is(.tile__photo, .photo-thumb__img, .trip-card__thumb, .flatlay__piece, .pack-row__photo) { position: relative; }
+:is(.tile__photo, .photo-thumb__img, .trip-card__thumb, .flatlay__piece, .pack-row__photo) > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 
 /* On a phone an app is the point: the site's bar scrolls away with the page instead of staying,
    and nothing sits under the notch or the home indicator (viewport-fit=cover on app pages) */
@@ -287,7 +296,6 @@ html.vt-zoom .app-dialog { transition: none; }
 .tile__open:focus-visible .tile__photo { outline: 2px solid var(--accent); outline-offset: 3px; }
 /* a garment on the studio ground: a catalog photo fills it, a cut-out floats on it */
 .tile__photo { position: relative; display: grid; place-items: center; aspect-ratio: 1; margin-bottom: 6px; border-radius: 18px; background: var(--studio); overflow: hidden; }
-.tile__photo img { width: 100%; height: 100%; object-fit: contain; }
 .tile__open:hover .tile__photo img { scale: 1.03; }
 .tile__photo img { transition: scale .3s ease; }
 .tile__none { width: 40%; height: 40%; color: var(--studio-ink); opacity: .55; stroke-width: 1.2 !important; }
@@ -346,7 +354,6 @@ html.vt-zoom .app-dialog { transition: none; }
 .photo-strip { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px; }
 .photo-thumb { flex: none; display: grid; gap: 4px; width: 84px; padding: 0; border: 0; background: none; color: var(--ink-2); font-size: .75rem; text-align: left; cursor: pointer; }
 .photo-thumb__img { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 12px; background: var(--studio); overflow: hidden; }
-.photo-thumb__img img { width: 100%; height: 100%; object-fit: contain; }
 .photo-thumb[aria-pressed="true"] .photo-thumb__img { outline: 3px solid var(--accent); outline-offset: 1px; }
 .photo-thumb:focus-visible { outline: none; }
 .photo-thumb:focus-visible .photo-thumb__img { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -372,7 +379,6 @@ html.vt-zoom .app-dialog { transition: none; }
 .trip-card__when, .trip-card__legs { font-size: .92rem; color: var(--ink-2); }
 .trip-card__worn { display: flex; gap: 6px; margin-top: 10px; }
 .trip-card__thumb { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; overflow: hidden; }
-.trip-card__thumb img { width: 100%; height: 100%; object-fit: contain; }
 .trip-card__go, .pack-card__go { position: absolute; right: 16px; top: 50%; translate: 0 -50%; font-size: 1.7rem; line-height: 1; color: var(--ink-3); }
 
 /* a trip: one column on a phone; wider, the days on the left and the rest beside them */
@@ -445,7 +451,6 @@ html.vt-zoom .app-dialog { transition: none; }
 .flatlay--3 > :first-child { grid-row: span 2; }
 .flatlay--5, .flatlay--6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .flatlay__piece { display: grid; place-items: center; aspect-ratio: 1; min-width: 0; padding: 0; border: 0; border-radius: 12px; background: none; cursor: pointer; transition: transform .2s ease; -webkit-tap-highlight-color: transparent; }
-.flatlay__piece img { width: 100%; height: 100%; object-fit: contain; }
 button.flatlay__piece:hover { transform: scale(1.03); }
 button.flatlay__piece:active { transform: scale(.96); }
 .flatlay__piece:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -561,7 +566,6 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .pack-row__open { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; min-height: 68px; padding: 8px 0; border: 0; background: none; color: var(--ink); font: 400 1.05rem var(--font-body); text-align: left; cursor: pointer; }
 .pack-row__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 10px; }
 .pack-row__photo { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 12px; background: var(--studio); overflow: hidden; }
-.pack-row__photo img { width: 100%; height: 100%; object-fit: contain; }
 .pack-row__photo .tile__none { width: 56%; height: 56%; }
 .pack-row__photo--none { background: var(--bg-2); font: 600 1.1rem var(--font-display); color: var(--ink-2); }
 .pack-row__text { display: grid; gap: 1px; flex: 1; min-width: 0; }
