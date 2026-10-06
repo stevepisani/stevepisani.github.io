@@ -1,6 +1,6 @@
 // The recipe tracker (/apps/recipes, apps/recipes.html): the recipes we're cooking through, each
 // with a photo, a rating out of 10, notes and the day it was cooked. Table public.recipes.
-import { $, start, fresh, rows, saver, ask, photos, toast } from './lib/kit.js';
+import { $, start, fresh, rows, saver, ask, photos, toast, calm, celebrate } from './lib/kit.js';
 
 const recipes = rows('recipes');
 const cards = new Map(); // recipe id → its card, built once so typing is never interrupted
@@ -10,7 +10,6 @@ let failed = false; // the list didn't load
 // what's shown and in what order, remembered on this phone
 let view = { filter: 'all', sort: 'title' };
 try { Object.assign(view, JSON.parse(localStorage.getItem('recipes-view'))); } catch (e) {}
-const calm = matchMedia('(prefers-reduced-motion: reduce)');
 
 const today = () => { const d = new Date(), two = (x) => String(x).padStart(2, '0'); return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`; }; // here, not in UTC
 const day = (d) => new Date(d + 'T12:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', ...(d.slice(0, 4) !== today().slice(0, 4) && { year: 'numeric' }) });
@@ -133,7 +132,7 @@ function build(r) {
   });
   $('[data-do="uncook"]', card).addEventListener('click', () => set({ cooked: false, date_cooked: null }));
   $('[data-do="cook"]', card).addEventListener('click', async () => {
-    if (await set({ cooked: true, date_cooked: r.date_cooked || today() })) confetti();
+    if (await set({ cooked: true, date_cooked: r.date_cooked || today() })) celebrate();
   });
   $('[data-do="remove"]', card).addEventListener('click', async () => {
     if (!confirm(`Remove "${r.title}"?`) || !(await recipes.remove(r.id))) return;
@@ -190,21 +189,6 @@ async function add(values) {
   list.push(...added);
   render();
   return added;
-}
-
-// A short burst when something gets cooked (not for anyone who's asked for less motion)
-function confetti() {
-  if (calm.matches) return;
-  const canvas = Object.assign(document.createElement('canvas'), { width: innerWidth, height: innerHeight });
-  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:30';
-  document.body.append(canvas);
-  const ctx = canvas.getContext('2d'), colors = ['#e0531f', '#ffb347', '#1f7a45', '#3a7bd5', '#b3261e'];
-  const bits = Array.from({ length: 120 }, (_, i) => ({ x: Math.random() * innerWidth, y: -Math.random() * innerHeight, s: 5 + Math.random() * 8, v: 4 + Math.random() * 5, c: colors[i % colors.length] }));
-  (function fall() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const b of bits) { b.y += b.v; ctx.fillStyle = b.c; ctx.fillRect(b.x, b.y, b.s, b.s * 0.6); }
-    if (bits.some((b) => b.y < canvas.height)) requestAnimationFrame(fall); else canvas.remove();
-  })();
 }
 
 const look = (change) => {

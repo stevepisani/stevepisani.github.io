@@ -165,19 +165,102 @@ export function fresh(again) {
   });
 }
 
+// A dialog that behaves like a sheet (docs/apps.md): on a phone it rises from the bottom with a
+// grabber and a swipe down puts it away; anywhere, Esc or a tap outside it does too. Each of those,
+// and its [data-close] buttons, go through one way out: `dialog.dismiss` (by default, close it),
+// so a sheet that holds unsaved typing can ask first. Wired once per dialog.
+export function sheet(dialog, dismiss) {
+  if (dismiss) dialog.dismiss = dismiss;
+  if (dialog.dataset.sheet) return dialog;
+  dialog.dataset.sheet = '1';
+  dialog.dismiss ||= () => dialog.close('');
+  const out = () => dialog.dismiss();
+  dialog.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]')) return out();
+    if (e.target !== dialog) return;
+    const r = dialog.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) out(); // the backdrop
+  });
+  dialog.addEventListener('cancel', (e) => { e.preventDefault(); out(); }); // Esc
+  // the swipe: only from the top of the sheet's scroll, never from inside a field
+  let y0 = null, dy = 0, t0 = 0;
+  dialog.addEventListener('touchstart', (e) => {
+    y0 = dialog.scrollTop <= 0 && !e.target.closest('input, textarea, select, .photo-strip, .cats') ? e.touches[0].clientY : null;
+    dy = 0; t0 = Date.now();
+  }, { passive: true });
+  dialog.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { dialog.style.transform = ''; return; }
+    e.preventDefault();
+    dialog.style.transition = 'none';
+    dialog.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  dialog.addEventListener('touchend', () => {
+    if (y0 == null) return;
+    y0 = null;
+    dialog.style.transition = '';
+    dialog.style.transform = '';
+    if (dy > 120 || (dy > 50 && dy / (Date.now() - t0) > 0.5)) out();
+  });
+  return dialog;
+}
+
 // Opens a <dialog> holding a <form method="dialog">; resolves with the form's values when it's
 // submitted by its button (value "ok"), or null when it's closed any other way. Enter presses a
 // form's first submit button, so the "ok" button is the only one: Cancel is a plain button with
-// data-close.
-export function ask(dialog) {
+// data-close. Cancel (or Esc, or a swipe) never throws away what was typed without asking:
+// `dirty()` says whether there's anything to lose (by default, anything typed since it opened).
+export function ask(dialog, { dirty } = {}) {
   const form = $('form', dialog);
   form.reset();
   dialog.returnValue = '';
-  dialog.querySelectorAll('[data-close]').forEach((b) => { b.onclick = () => dialog.close(''); });
+  let touched = false;
+  const mark = () => { touched = true; };
+  form.addEventListener('input', mark);
+  sheet(dialog, () => {
+    if ((dirty ? dirty() : touched) && !confirm('Discard what you\'ve entered?')) return;
+    dialog.close('');
+  });
   dialog.showModal();
   return new Promise((resolve) => {
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok' ? Object.fromEntries(new FormData(form)) : null), { once: true });
+    dialog.addEventListener('close', () => {
+      form.removeEventListener('input', mark);
+      resolve(dialog.returnValue === 'ok' ? Object.fromEntries(new FormData(form)) : null);
+    }, { once: true });
   });
+}
+
+// For anyone who's asked for less motion
+export const calm = matchMedia('(prefers-reduced-motion: reduce)');
+// A tiny tap felt in the hand, where the phone can (Android; iPhones ignore it)
+export const buzz = (ms = 8) => { try { if (!calm.matches) navigator.vibrate?.(ms); } catch (e) {} };
+
+// A short burst of confetti in the theme's colours, from an element (or the top of the screen).
+// Not for anyone who's asked for less motion.
+export function celebrate(from = null) {
+  if (calm.matches) return;
+  const css = getComputedStyle($('#app') || document.documentElement), colors = ['--accent', '--ok', '--wet', '--mark', '--ink-3'].map((v) => css.getPropertyValue(v).trim()).filter(Boolean);
+  const canvas = Object.assign(document.createElement('canvas'), { width: innerWidth, height: innerHeight });
+  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:30';
+  canvas.setAttribute('aria-hidden', 'true');
+  document.body.append(canvas);
+  const r = from?.getBoundingClientRect(), x = r ? r.left + r.width / 2 : innerWidth / 2, y = r ? r.top + r.height / 2 : -20;
+  const ctx = canvas.getContext('2d');
+  const bits = Array.from({ length: r ? 70 : 120 }, (_, i) => {
+    const a = r ? Math.random() * Math.PI * 2 : Math.PI / 2, v = r ? 3 + Math.random() * 7 : 4 + Math.random() * 5;
+    return { x: r ? x : Math.random() * innerWidth, y: r ? y : -Math.random() * innerHeight, vx: Math.cos(a) * v, vy: Math.sin(a) * v - (r ? 4 : 0), s: 5 + Math.random() * 7, c: colors[i % colors.length], spin: Math.random() * 6 };
+  });
+  const end = Date.now() + 2500;
+  (function fall() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const b of bits) {
+      b.x += b.vx; b.y += b.vy; b.vy += r ? 0.25 : 0; b.vx *= 0.99; b.spin += 0.1;
+      ctx.fillStyle = b.c;
+      ctx.fillRect(b.x, b.y, b.s, b.s * (0.4 + 0.3 * Math.abs(Math.sin(b.spin))));
+    }
+    if (Date.now() < end && bits.some((b) => b.y < canvas.height)) requestAnimationFrame(fall); else canvas.remove();
+  })();
 }
 
 // Photos: one private bucket for every app, each app in its own folder, shown through signed
