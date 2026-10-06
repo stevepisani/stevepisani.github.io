@@ -497,7 +497,9 @@ sent.
   share a budget of 3.8 M base64 characters, and `purpose` picks the size: `original` (the stored
   file), `vision` (a JPEG on white up to 1024 px, stepping down in quality, then to 768 px, until
   it's under 400 KB, so six always fit) or `thumbnail` (256 px, under 60 KB). The copies are made
-  once, with ImageScript (pinned in `package.json`), and kept beside the file in Storage
+  once, with ImageScript (in Node, the npm build pinned in `package.json`; on the server, its
+  Deno build, 1.3.0 from deno.land in `index.ts`, since the npm one loads native code the edge
+  runtime refuses: "unsupported arch/platform"; the two make the same bytes), and kept beside the file in Storage
   (`<path>.vision.jpg`, `.thumbnail.jpg`); the stored file is never changed, and emptying the
   trash takes the copies too. The Supabase workflow makes them after each deploy and hourly
   (`tools/photo-copies.mjs`), so the server rarely has to (a function gets about 2 s of CPU); if
