@@ -141,7 +141,7 @@ Deno.serve(async (req) => {
     // Supabase workflow makes them: tools/photo-copies.mjs)
     // a link to a photo on SJPJr's own address, good for LINK_MINUTES (images.js)
     photoLink: async (id: string) => { const expires = Date.now() + LINK_MINUTES * 60_000; return { url: `https://${PUBLIC_HOSTS[0]}/photo/${await photoToken(SERVICE, id, expires)}`, expires_at: new Date(expires).toISOString() }; },
-    imaging: () => (imagingLoad ??= import("npm:imagescript@1.3.1" /* as in package.json */).catch((e) => { console.error(`imagescript: ${e?.message}`); return null; })),
+    imaging: () => (imagingLoad ??= import("https://deno.land/x/imagescript@1.3.0/mod.ts" /* its Deno build: npm's needs native code the edge can't load */).catch((e) => { console.error(`imagescript: ${e?.message}`); return null; })),
     photoFile: async (path: string) => { const { data, error } = await db.storage.from("photos").download(path); if (error || !data) return null; return new Uint8Array(await data.arrayBuffer()); },
     readProduct,
     storeImage: (image: string) => storeImage(db, uid, image),
