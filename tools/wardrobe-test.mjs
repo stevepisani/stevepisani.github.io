@@ -10,9 +10,9 @@
 //   node tools/wardrobe-test.mjs
 import { existsSync, readFileSync } from 'node:fs';
 import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH, REMOVES } from '../supabase/functions/mcp/server.js';
-import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
+import { wardrobeDb, STEVE, OTHER, IDS, LINK_SECRET } from './wardrobe-db.mjs';
 import { Image, decode } from 'imagescript';
-import { BUDGET } from '../supabase/functions/mcp/images.js';
+import { BUDGET, LINK_MINUTES, readPhotoToken, servePhoto } from '../supabase/functions/mcp/images.js';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`wardrobe: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 600)}` : ''}`); passed++; };
@@ -315,6 +315,34 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
   const gaps = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }, { slot: 'belt', item_id: (await tool('add_item', { name: 'Photo-less belt', category: 'accessories' })).item.id }] });
   ok(gaps.images.length === 1 && gaps.not_sent.map((x) => x.reference_key).join() === 'hat,belt' && /no garment/.test(gaps.not_sent[0].reason) && /no photo/.test(gaps.not_sent[1].reason), 'get_outfit_images: a garment not found, or with no photo, is listed by slot with why', gaps.not_sent);
   ok((await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'Top', item_id: g[1].item }] })).error, 'get_outfit_images: two garments can\'t share a slot');
+  // purpose generation: the same photos as links to the stored files, for an image generator
+  {
+    const want = [{ slot: 'outerwear', item_id: g[1].item }, { slot: 'bottom', item_id: g[2].item }, { slot: 'shoes', item_id: g[3].item }, { slot: 'top', item_id: g[4].item }];
+    const seen = await tool('get_outfit_images', { items: want });
+    const gen = await tool('get_outfit_images', { items: want, purpose: 'generation' });
+    const refs = gen.references;
+    ok(!gen.error && !gen.images.length && refs.map((r) => r.reference_key).join() === 'outerwear,bottom,shoes,top' && refs.map((r) => r.photo_id).join() === seen.references.map((r) => r.photo_id).join() && refs.every((r, i) => r.item_id === want[i].item_id && r.hero), 'generation: no images, the same photos as vision, in the order and slots asked', refs);
+    ok(refs.every((r) => r.url.startsWith('https://mcp.stevenpisani.com/photo/') && r.mime_type === 'image/png') && refs[0].width === 1200 && refs[0].height === 1600 && refs[3].width === 1300 && refs[3].height === 1700 && refs[2].bytes === g[3].bytes, 'generation: each a link on SJPJr\'s address, with the stored file\'s type, size and dimensions', refs.map(({ width, height, mime_type, bytes }) => ({ width, height, mime_type, bytes })));
+    const left = (new Date(refs[0].expires_at) - Date.now()) / 60000;
+    ok(left > LINK_MINUTES - 1 && left <= LINK_MINUTES && /^Reference 1 = outerwear: Big coat .*https:\/\/mcp\.stevenpisani\.com\/photo\//.test(gen.text), `generation: good for ${LINK_MINUTES} minutes; the text names each link by its slot`, gen.text.split('\n')[0]);
+    const token = refs[0].url.split('/photo/')[1];
+    ok(await readPhotoToken(LINK_SECRET, token) === refs[0].photo_id && !(await readPhotoToken('another-secret', token)) && !/wardrobe|Big|\.png/.test(Buffer.from(token.split('.')[0], 'base64').toString()), 'a link names only the photo\'s id and its expiry, signed: no file, no name', token.slice(0, 30));
+    // what the server answers a link with (index.ts wires servePhoto to the database and Storage)
+    const serve = (t, now) => servePhoto(t, { secret: LINK_SECRET, now, find: async (id) => (await ctx.photos.get(id))?.path ?? null, file: async (path) => ctx.files.get(path) ?? ctx.photoFile(path) });
+    const res = await serve(token);
+    const body = Buffer.from(await res.arrayBuffer());
+    ok(res.status === 200 && body.equals(Buffer.from(ctx.files.get(g[1].path))) && res.headers.get('content-type') === 'image/png' && /private, max-age=\d+/.test(res.headers.get('cache-control')) && res.headers.get('x-content-type-options') === 'nosniff', 'a link is answered with the stored file, byte for byte, as its type, cached privately only while it lasts', [res.status, res.headers.get('content-type'), res.headers.get('cache-control')]);
+    const flipped = token.slice(0, -2) + (token.endsWith('AA') ? 'AB' : 'AA');
+    ok((await serve(flipped)).status === 404 && (await serve(token, Date.now() + (LINK_MINUTES + 1) * 60000)).status === 404 && (await serve('nonsense')).status === 404, 'an altered, expired or made-up link gets nothing');
+    const extra = await tool('add_photo', { id: g[5].item, photo: file('gen-extra') });
+    const xt = (await tool('get_outfit_images', { items: [{ slot: 'scarf', item_id: g[5].item }], purpose: 'generation' })).references[0];
+    await tool('delete_photo', { photo_id: xt.photo_id });
+    ok((await serve(xt.url.split('/photo/')[1])).status === 404, 'a photo deleted since stops its link working');
+    const gaps = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[4].item }, { slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }], purpose: 'generation' });
+    ok(gaps.references.length === 1 && gaps.not_sent[0].reference_key === 'hat' && /no garment/.test(gaps.not_sent[0].reason), 'generation: a garment not found is listed by slot with why');
+    ok((await tool('get_photo', { photo_id: g[1].photo, purpose: 'generation' })).error, 'generation is get_outfit_images\' alone');
+    void extra;
+  }
   // test_images: plain, different, numbered pictures to check what arrives
   for (const size of ['small', 'vision']) {
     const t = (await rpc({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'test_images', arguments: { count: 6, size } } }, ctx)).result;
