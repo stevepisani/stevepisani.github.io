@@ -386,6 +386,8 @@ async function photoImages(ids, ctx) {
     if (!p || !item) { skipped.push({ photo_id: id, reason: "There's no photo with that id (it may be in the trash). get_item lists a garment's photos." }); continue; }
     const bytes = await ctx.photoFile(p.path).catch(() => null);
     const mimeType = bytes && sniff(bytes);
+    // for the logs: which file, how big, what it is (the folder, Steve's user id, left out)
+    console.log(`photo ${id}: ${p.path.replace(/^wardrobe\/[^/]+\//, "wardrobe/…/")}, ${bytes ? `${bytes.length} bytes` : "no file"}, ${mimeType || "not an image"}`);
     if (!bytes || !mimeType) { skipped.push({ photo_id: id, reason: "Its file couldn't be read as an image." }); continue; }
     if (total + bytes.length > SEND_MAX) { skipped.push({ photo_id: id, reason: `Too big to send with the others (${Math.round(bytes.length / 1024)} KB); ask for it alone with get_photo.` }); continue; }
     total += bytes.length;
