@@ -11,6 +11,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { rpc, TOOLS, APP_URI, APP_MIME, ICONS, AREAS, RULES, TRASH, REMOVES } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
+import { Image, decode } from 'imagescript';
+import { BUDGET } from '../supabase/functions/mcp/images.js';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`wardrobe: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 600)}` : ''}`); passed++; };
@@ -263,6 +265,66 @@ ok((await tool('set_packing', { trip_id: trip.id, items: [{ item_id: IDS.darkBro
   await tool('delete_photo', { photo_id: tag.photo_id });
   ok((await tool('get_photo', { photo_id: tag.photo_id })).error, 'get_photo: a photo in the trash isn\'t sent');
   ok(TOOLS.filter((t) => /^get_photos?$/.test(t.name)).every((t) => t.annotations.readOnlyHint), 'get_photo and get_photos only read');
+}
+
+// ---------- Several images in one answer: sized to get through, in order, named by slot ----------
+{
+  const PNG = [0x89, 0x50, 0x4e, 0x47], JPG = [0xff, 0xd8, 0xff];
+  const starts = (b, sig) => sig.every((v, i) => b[i] === v);
+  // real pictures, of different sizes: noise doesn't compress, so these are big like catalog PNGs
+  const noisy = async (w, h, seed) => { const img = new Image(w, h); let x = seed * 2654435761 >>> 0 || 1; for (let i = 0; i < img.bitmap.length; i++) { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; x >>>= 0; const px = (i >> 2) % w, py = Math.floor((i >> 2) / w); img.bitmap[i] = i % 4 === 3 ? 255 : Math.max(0, Math.min(255, ((i % 4 === 0 ? px : i % 4 === 1 ? py : px + py) * 255) / (w + h) + (x & 15) - 8)); } return img.encode(1); };
+  const garment = async (name, category, w, h, seed) => {
+    const it = await tool('add_item', { name, category });
+    const ph = await tool('add_photo', { id: it.item.id, photo: file(`big-${seed}`) });
+    const path = (await q(`select path from public.wardrobe_photos where id = $1`, [ph.photo_id]))[0].path;
+    ctx.files.set(path, await noisy(w, h, seed));
+    return { item: it.item.id, photo: ph.photo_id, path, bytes: ctx.files.get(path).length };
+  };
+  const g = [await garment('Big top', 'tops', 1600, 1200, 1), await garment('Big coat', 'outerwear', 1200, 1600, 2), await garment('Big trousers', 'bottoms', 1400, 1400, 3), await garment('Small shoes', 'shoes', 300, 240, 4), await garment('Big shirt', 'tops', 1300, 1700, 5), await garment('Big scarf', 'accessories', 1500, 1000, 6)];
+  ok(g[0].bytes > 3e6 && g[1].bytes > 3e6, 'images: the test pictures are big, as the catalog PNGs are', g.map((x) => x.bytes));
+  // get_photo, original: one too big for an answer is refused, with the way round; vision fits
+  const tooBig = await tool('get_photo', { photo_id: g[0].photo });
+  ok(tooBig.error && /purpose vision/.test(tooBig.text), 'get_photo original: a file past what an answer can carry is refused, saying to ask for vision', tooBig.text);
+  const v = await tool('get_photo', { photo_id: g[0].photo, purpose: 'vision' });
+  const vb = Buffer.from(v.images[0].data, 'base64'), vimg = await decode(vb);
+  ok(starts(vb, JPG) && v.images[0].mimeType === 'image/jpeg' && Math.max(vimg.width, vimg.height) === 1024 && Math.abs(vimg.width / vimg.height - 1600 / 1200) < 0.01 && vb.length <= 400_000 && v.photos[0].purpose === 'vision', 'get_photo vision: a JPEG copy, 1024 px on its long side, the same proportions', [vimg.width, vimg.height]);
+  ok(ctx.files.has(`${g[0].path}.vision.jpg`) && ctx.files.get(g[0].path).length === g[0].bytes, 'the copy is kept beside the stored file, which is unchanged');
+  const again = await tool('get_photo', { photo_id: g[0].photo, purpose: 'vision' });
+  ok(again.images[0].data === v.images[0].data, 'asked again, the kept copy is sent');
+  // get_photos: 2 to 6 at once, by default vision, in the order asked, all inside one answer's budget
+  const ids = [g[1].photo, g[0].photo, g[2].photo, g[3].photo, g[5].photo, g[4].photo];
+  for (const n of [2, 3, 4, 5, 6]) {
+    const r = await tool('get_photos', { photo_ids: ids.slice(0, n) });
+    const total = r.images.reduce((t, i) => t + i.data.length, 0);
+    ok(!r.error && r.images.length === n && r.images.every((i) => Buffer.from(i.data, 'base64').length <= 400_000) && r.photos.map((m) => m.photo_id).join() === ids.slice(0, n).join() && r.photos.every((m, i) => m.image === i + 1) && total < BUDGET && r.images.every((i) => starts(Buffer.from(i.data, 'base64'), JPG) || starts(Buffer.from(i.data, 'base64'), PNG)), `get_photos ${n}: every image sent, numbered in the order asked, ${Math.round(total / 1e3)}K base64 in all`, r.photos);
+  }
+  const small = (await tool('get_photos', { photo_ids: [g[3].photo] })).photos[0];
+  ok(small.purpose === 'original', 'get_photos: a photo already small is sent as it is');
+  const orig = await tool('get_photos', { photo_ids: [g[3].photo, g[1].photo], purpose: 'original' });
+  ok(orig.images.length === 1 && orig.not_sent[0].photo_id === g[1].photo && /Too big/.test(orig.not_sent[0].reason), 'get_photos original: what doesn\'t fit is listed with why, the rest still sent', orig.not_sent);
+  const thumb = await decode(Buffer.from((await tool('get_photo', { photo_id: g[1].photo, purpose: 'thumbnail' })).images[0].data, 'base64'));
+  ok(Math.max(thumb.width, thumb.height) === 256, 'get_photo thumbnail: 256 px');
+  // get_outfit_images: slot by slot, each garment's current hero, looked up now
+  const outfit = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'outerwear', item_id: g[1].item }, { slot: 'bottom', item_id: g[2].item }, { slot: 'shoes', item_id: g[3].item }] });
+  ok(!outfit.error && outfit.images.length === 4 && outfit.references.map((r) => r.reference_key).join() === 'top,outerwear,bottom,shoes' && outfit.references.every((r, i) => r.image === i + 1 && r.hero && r.item_id === g[i].item && r.photo_id === g[i].photo), 'get_outfit_images: every garment\'s hero photo, in slot order, each image named by its slot', outfit.references);
+  ok(/^Image 1 = top: Big top/.test(outfit.text) && outfit.text.split('\n').length === 4, 'get_outfit_images: one short line an image, slot first', outfit.text);
+  const newer = await tool('add_photo', { id: g[0].item, photo: file('big-new-catalog'), origin: 'catalog', shows: {} }).catch(() => null);
+  await tool('set_photo_role', { photo_id: (await tool('add_photo', { id: g[0].item, photo: file('big-new-front') })).photo_id, make_hero: true });
+  const now = (await tool('find_items', { query: 'Big top' })).items[0].hero_photo_id;
+  ok((await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }] })).references[0].photo_id === now && now !== g[0].photo, 'get_outfit_images: the hero as it is now, not as it was');
+  const gaps = await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'hat', item_id: '99999999-9999-4999-8999-999999999999' }, { slot: 'belt', item_id: (await tool('add_item', { name: 'Photo-less belt', category: 'accessories' })).item.id }] });
+  ok(gaps.images.length === 1 && gaps.not_sent.map((x) => x.reference_key).join() === 'hat,belt' && /no garment/.test(gaps.not_sent[0].reason) && /no photo/.test(gaps.not_sent[1].reason), 'get_outfit_images: a garment not found, or with no photo, is listed by slot with why', gaps.not_sent);
+  ok((await tool('get_outfit_images', { items: [{ slot: 'top', item_id: g[0].item }, { slot: 'Top', item_id: g[1].item }] })).error, 'get_outfit_images: two garments can\'t share a slot');
+  // test_images: plain, different, numbered pictures to check what arrives
+  for (const size of ['small', 'vision']) {
+    const t = (await rpc({ jsonrpc: '2.0', id: 11, method: 'tools/call', params: { name: 'test_images', arguments: { count: 6, size } } }, ctx)).result;
+    const imgs = t.content.filter((c) => c.type === 'image');
+    const px = await Promise.all(imgs.map(async (c) => { const im = await decode(Buffer.from(c.data, 'base64')); return [im.width, im.getPixelAt(Math.round(im.width / 8), Math.round(im.height / 8))]; }));
+    ok(imgs.length === 6 && new Set(imgs.map((c) => c.data)).size === 6 && imgs.every((c) => c.mimeType === 'image/png' && !c.data.startsWith('data:') && Buffer.from(c.data, 'base64').subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]))) && px.every(([w]) => w === (size === 'vision' ? 768 : 64)) && t.structuredContent.answer_key.map((a) => a.shows.split(' ')[0]).join() === 'red,blue,green,yellow,a,a' && !/\b(red|blue|green|yellow)\b/.test(t.content[0].text), `test_images ${size}: six different pictures in a fixed order, the key out of the text`, px.map(([w, c]) => [w, (c >>> 0).toString(16)]));
+    const [r1, , , y4] = px.map(([, c]) => c >>> 0);
+    ok((r1 >>> 24) > 180 && ((r1 >>> 8) & 255) < 80 && ((y4 >>> 8) & 255) < 80 && (y4 >>> 24) > 180 && ((y4 >>> 16) & 255) > 150, `test_images ${size}: the first is red, the fourth yellow`);
+  }
+  ok((await tool('test_images', { count: 7 })).code === undefined && (await tool('test_images', { count: 7 })).error, 'test_images: six at most');
 }
 
 // ---------- The trash: deleting hides, restore brings back, 30 days later it's gone ----------

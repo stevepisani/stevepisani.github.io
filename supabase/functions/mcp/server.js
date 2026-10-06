@@ -12,7 +12,8 @@
 //   ctx.products.list(); get(id); add(row) → row; set(id, patch) → row
 //   ctx.variants.list(productId); get(id); add(row) → row; set(id, patch) → row
 //   ctx.photos.list(itemId); forItems(itemIds); get(id); byFile(fileId) → row | null; add(rows); set(id, patch)
-//   ctx.photoUrls(paths) → Map(path → signed link); ctx.photoFile(path) → Uint8Array | null (the file as stored); ctx.readProduct(url); ctx.storeImage(url) → path | null
+//   ctx.photoUrls(paths) → Map(path → signed link); ctx.photoFile(path) → Uint8Array | null (the file as stored);
+//   ctx.saveFile(path, bytes, type) (a smaller copy, beside it); ctx.imaging (ImageScript: images.js); ctx.readProduct(url); ctx.storeImage(url) → path | null
 //   ctx.storeUpload(file) → path | null (a file ChatGPT passes: { download_url, file_id, mime_type })
 //   ctx.trips.list(); get(id); add(row) → row; set(id, patch) → row | null
 //   ctx.parts.get(table, id); list(table, tripId); add(table, rows) → rows; set(table, id, patch) → row | null;
