@@ -471,6 +471,16 @@ sent.
     to look at an outfit, and the images to picture it from;
   - `get_item` with `include_images: true` (the photo shown, as stored).
   What can't be sent (no photo, not found, too big) is listed with why; the rest still come.
+- **For an image generator:** `get_outfit_images` with `purpose: "generation"` sends no images.
+  For each garment, in the order and slots asked, it gives the same photo `vision` showed as a
+  link to the stored file, unchanged and full size, on SJPJr's own address
+  (`https://mcp.stevenpisani.com/photo/<token>`), with its `mime_type`, `width` and `height` (read
+  from the file's header) and `expires_at`. The token is the photo's id and an expiry 15 minutes
+  on (`LINK_MINUTES`), signed with HMAC-SHA256 under the server's service key, so it can't be
+  guessed or altered and names no file. The server answers a link (`servePhoto` in `images.js`,
+  wired in `index.ts` before any sign-in, since a link carries none) with the file as its type,
+  `private, max-age` only while it lasts, and 404 for anything altered, expired or deleted since.
+  So: look with `vision`, then hand the generator exactly those photos with `generation`.
 - **Sizes, and why** (`images.js`): ChatGPT carries an answer over gRPC, which fails past about
   4 MB: one 2.6 MB catalog PNG (3.5 MB as base64) got through, two failed. So an answer's images
   share a budget of 3.8 M base64 characters, and `purpose` picks the size: `original` (the stored

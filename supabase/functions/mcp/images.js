@@ -93,3 +93,65 @@ export async function testPicture(n, px) {
   const ihdr = [...be32(px), ...be32(px), 8, 2, 0, 0, 0];
   return new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...chunk("IHDR", ihdr), ...chunk("IDAT", idat), ...chunk("IEND", [])]);
 }
+
+// A file's width and height from its header (PNG, JPEG, WebP, GIF), or null: nothing decoded
+export function dimensions(b) {
+  const type = sniff(b), u16 = (i) => (b[i] << 8) | b[i + 1], le16 = (i) => b[i] | (b[i + 1] << 8), le24 = (i) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
+  if (type === "image/png") return { width: ((b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19]) >>> 0, height: ((b[20] << 24) | (b[21] << 16) | (b[22] << 8) | b[23]) >>> 0 };
+  if (type === "image/gif") return { width: le16(6), height: le16(8) };
+  if (type === "image/webp") {
+    const kind = String.fromCharCode(...b.subarray(12, 16));
+    if (kind === "VP8 ") return { width: le16(26) & 0x3fff, height: le16(28) & 0x3fff };
+    if (kind === "VP8L") return { width: 1 + (((b[22] & 0x3f) << 8) | b[21]), height: 1 + (((b[24] & 0xf) << 10) | (b[23] << 2) | ((b[22] & 0xc0) >> 6)) };
+    if (kind === "VP8X") return { width: 1 + le24(24), height: 1 + le24(27) };
+  }
+  if (type === "image/jpeg") {
+    for (let i = 2; i + 9 < b.length;) {
+      if (b[i] !== 0xff) return null;
+      const m = b[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { width: u16(i + 7), height: u16(i + 5) };
+      i += 2 + u16(i + 2);
+    }
+  }
+  return null;
+}
+
+// ---------- Links to a photo, for an image generator: get_outfit_images, purpose generation ----------
+// https://mcp.stevenpisani.com/photo/<token>: the token is the photo's id and when the link stops
+// working, signed (HMAC-SHA256) with a key only the server has (index.ts: its service key), so it
+// can't be guessed or altered, names no file, and is good for LINK_MINUTES. The server answers it
+// with the stored file, unchanged (servePhoto), and nothing else: no listing, no writing.
+export const LINK_MINUTES = 15;
+const b64url = (bytes) => base64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64url = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+const hmac = async (secret, text) => {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text)));
+};
+export async function photoToken(secret, photoId, expiresAt) {
+  const body = b64url(new TextEncoder().encode(JSON.stringify({ i: photoId, e: Math.floor(expiresAt / 1000) })));
+  return `${body}.${b64url(await hmac(secret, body))}`;
+}
+// the photo id a token names, if it's ours, unaltered and not yet expired; null otherwise
+export async function readPhotoToken(secret, token, now = Date.now()) {
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig || !/^[\w-]+$/.test(body + sig)) return null;
+  const want = await hmac(secret, body), got = (() => { try { return unb64url(sig); } catch { return null; } })();
+  if (!got || got.length !== want.length || got.some((v, i) => v !== want[i])) return null;
+  let claim;
+  try { claim = JSON.parse(new TextDecoder().decode(unb64url(body))); } catch { return null; }
+  return typeof claim?.i === "string" && claim.e * 1000 > now ? claim.i : null;
+}
+// The answer to a photo link: the file as stored, or 404 for anything else (an altered or expired
+// link, a photo since deleted). find(id) → its path or null (as the server, any owner's: the
+// signature is what grants it); file(path) → bytes or null.
+export async function servePhoto(token, { secret, find, file, now = Date.now() }) {
+  const gone = () => new Response("Not found, or this link has expired.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+  const id = await readPhotoToken(secret, token, now);
+  const path = id && (await find(id).catch(() => null));
+  const bytes = path && (await file(path).catch(() => null));
+  const type = bytes && sniff(bytes);
+  if (!type) return gone();
+  const left = Math.max(0, JSON.parse(new TextDecoder().decode(unb64url(token.split(".")[0]))).e - Math.floor(now / 1000));
+  return new Response(bytes, { status: 200, headers: { "content-type": type, "content-length": String(bytes.length), "cache-control": `private, max-age=${left}`, "x-content-type-options": "nosniff", "content-disposition": "inline" } });
+}
