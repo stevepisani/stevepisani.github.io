@@ -24,6 +24,7 @@ import trips from "./areas/trips.js";
 import packing from "./areas/packing.js";
 import tripParts from "./areas/trip-parts.js";
 import trash from "./areas/trash.js";
+import imageTest from "./areas/test.js";
 export { APP_URI };
 export { CATEGORIES, SOURCES, ROLES } from "./areas/wardrobe.js";
 
@@ -32,7 +33,7 @@ export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
 // ---------- The areas, and the rules they all keep (docs/apps.md, "The rules") ----------
 // An area is one file in areas/: { name, records, tools, status, instructions, call }. A new one
 // is a file and a line here.
-export const AREAS = [wardrobe, trips, packing, tripParts, trash];
+export const AREAS = [wardrobe, trips, packing, tripParts, trash, imageTest];
 // 1. Steve's own records (an area with records: true) can be read and changed from a chat. The
 //    site's content (drinks, books, what he's written) is read-only here: it changes in the repo.
 // 2. Deleting a garment, photo or trip moves it to the trash, from a chat as from the app: hidden
@@ -129,7 +130,10 @@ export async function rpc(msg, ctx) {
         const links = {};
         // images: photos as the images themselves (get_photo), after the text, in order
         const { text, data, images = [] } = await area.call(name, args || {}, { ...ctx, links });
-        return ok({ content: [{ type: "text", text }, ...images.map((i) => ({ type: "image", data: i.data, mimeType: i.mimeType }))], structuredContent: data, ...(Object.keys(links).length && { _meta: { photos: links } }) });
+        const content = [{ type: "text", text }, ...images.map((i) => ({ type: "image", data: i.data, mimeType: i.mimeType }))];
+        // what went out with images, for the logs (never the image itself): tools/supabase-logs.mjs
+        if (images.length) console.log(`tools/call ${name}: content ${content.map((c) => c.type).join(",")}; ${images.map((i) => `${i.mimeType} ${i.data.length} base64 chars`).join("; ")}`);
+        return ok({ content, structuredContent: data, ...(Object.keys(links).length && { _meta: { photos: links } }) });
       } catch (e) {
         if (!(e instanceof Invalid)) console.error(e);
         return ok({ content: [{ type: "text", text: e instanceof Invalid ? e.message : "That didn't work; SJPJr couldn't be reached. Try again." }], isError: true });
