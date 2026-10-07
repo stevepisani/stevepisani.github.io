@@ -131,6 +131,7 @@ and the bartender.
 | What | How | When |
 |---|---|---|
 | The site | `.github/workflows/site.yml`: bundle (`npm run build`), Jekyll, link check, smoke test, then `actions/deploy-pages` | every push to main; PRs build and test only |
+| Exchange rates (Today's home and away line) | none: the browser asks Frankfurter (free, no key) at most once a day | — |
 | Supabase | `.github/workflows/supabase.yml` | merges touching `supabase/` |
 | mcp.stevenpisani.com (the wardrobe MCP server's address, `proxy/`) | `.github/workflows/mcp-proxy.yml`: Cloudflare Pages | merges touching `proxy/`; skipped without the Cloudflare secrets |
 | Audible library | `.github/workflows/audible.yml` (`tools/audible-sync.py`); commits `_data/audible.json` and starts the site workflow | daily |
