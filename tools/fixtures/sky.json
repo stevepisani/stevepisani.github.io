@@ -1,0 +1,22 @@
+{
+  "moon": {
+    "time": "2026-10-07T02:00",
+    "image": "https://svs.gsfc.nasa.gov/vis/a000000/a005500/a005587/frames/730x730_1x1_30p/moon.6699.jpg",
+    "phase": 14.29,
+    "age": 25.94,
+    "diameter": 1905.7,
+    "posangle": 18.88,
+    "subearth": { "lon": 4.231, "lat": 0.116 },
+    "subsolar": { "lon": -131.347, "lat": -1.125 },
+    "full": {
+      "time": "2026-09-25T22:00",
+      "image": "https://svs.gsfc.nasa.gov/vis/a000000/a005500/a005587/frames/730x730_1x1_30p/moon.6431.jpg",
+      "phase": 99.25,
+      "age": 14.6,
+      "diameter": 1950.1,
+      "posangle": 335.2,
+      "subearth": { "lon": -2.1, "lat": -6.4 },
+      "subsolar": { "lon": 1.2, "lat": -1.3 }
+    }
+  }
+}

@@ -218,6 +218,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   }
 
   const boardGroup = new THREE.Group(); // the favorite-drinks chalkboard, hung on the back bar below
+  let board = null; // its face and rows, for leaning in on it (below)
 
   /* ---------- Back bar: tapa-cloth wall, lit shelves of bottles and mugs ---------- */
   {
@@ -273,6 +274,29 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       mesh(new THREE.BoxGeometry(1.04, 0.8, 0.04), M.beam, [0, 0, -0.015], boardGroup);
       const face = mesh(new THREE.PlaneGeometry(0.96, 0.72), pbr({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: 0.35, roughness: 0.95 }), [0, 0, 0.007], boardGroup);
       face.castShadow = false;
+      // a chalk underline under the drink you're on (main.js: lean in on the board, tap a name)
+      const line = mesh(new THREE.PlaneGeometry(1, 0.008), new THREE.MeshBasicMaterial({ color: 0xffd36e, transparent: true, opacity: 0.9 }), [0, 0, 0.009], boardGroup);
+      line.castShadow = line.receiveShadow = false;
+      line.visible = false;
+      const rows = map.userData.rows;
+      board = {
+        group: boardGroup,
+        face,
+        rows: rows.length,
+        size: new THREE.Vector2(1.04, 0.8),
+        /** The row (drink index) at a uv on the face, or -1. */
+        rowAt(uv) {
+          return rows.findIndex((r) => uv.y >= r.v0 && uv.y <= r.v1 && uv.x >= r.u0 - 0.1 && uv.x <= r.u1 + 0.04);
+        },
+        /** Underline row i (or none, -1). */
+        mark(i) {
+          const r = rows[i];
+          line.visible = !!r;
+          if (!r) return;
+          line.scale.x = (r.u1 - r.u0) * 0.96 + 0.06;
+          line.position.set(((r.u0 + r.u1) / 2 - 0.5) * 0.96, (r.base - 0.5) * 0.72, 0.009);
+        },
+      };
     }
     const shelfLight = new THREE.PointLight(PALETTE.amber, 1.4, 3.5, 2);
     shelfLight.position.set(0, 1.9, 0.6);
@@ -399,7 +423,10 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   bar.add(robot.group);
 
   /* ---------- Palms around the plinth ---------- */
-  const PALMS = [[-4.7, -2.6, 0.5, 6.2], [4.8, -1.8, 2.8, 5.4], [-5.2, 1.9, 4.0, 4.8], [4.4, 3.6, 1.2, 4.2]];
+  // [x, z, which way it leans, height]. The third leans in over the bar's left side, not out:
+  // leaning out, its crown stood in the telescope's sight of the moon for part of the month
+  // (main.js lookThroughScope; checked against every place the moon can be from there).
+  const PALMS = [[-4.7, -2.6, 0.5, 6.2], [4.8, -1.8, 2.8, 5.4], [-5.2, 1.9, 1.1, 4.8], [4.4, 3.6, 1.2, 4.2]];
   PALMS.forEach(([x, z, ry, h], i) => {
     const p = palm({ height: h, lean: 0.3 + (i % 2) * 0.15, seed: i + 5 });
     p.position.set(x, groundY(x, z) - 0.1, z);
@@ -773,6 +800,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     loose,
     serve,
     make,
+    /** The favorite-drinks chalkboard: { group, face, rows, size, rowAt(uv), mark(i) }. */
+    board,
     setBottles,
     /** Where sound effects go (sound.js `play`). */
     setSfx(fn) { sfx = fn; },

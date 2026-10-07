@@ -76,6 +76,15 @@ so: supabase-js adds its own `Authorization`, and a lowercase one alongside is s
 "Bearer t, Bearer t", which Supabase Auth refuses with an HTML page). The MCP server logs why it
 refused a token (the error, and the token's non-personal claims). No running cost. See `docs/apps.md`.
 
+## The telescope's moon (`supabase/functions/sky`)
+
+GET -> this hour's moon from NASA's Dial-A-Moon (its picture, how big and how lit it looks, its
+libration and tilt; and the same for the nearest full moon, so a landing site in the dark can be shown in daylight), for the telescope on the homepage (`assets/js/world/eyepiece.js`). NASA's API
+only answers browsers on its own sites, so the function asks for it. It's kept for the hour, in the
+function and (`cache-control`) in the browser, so a visitor costs one call an hour at most. Called
+with the public key, like the bartender (JWT checked by the gateway). No running cost. The sun's
+picture (SDO, via SOHO) and the moon's picture itself load straight from NASA in the page.
+
 ## The bartender (`supabase/functions/bartender`)
 
 The robot answers questions at the bar. The browser posts the conversation (last 12 turns) with
@@ -163,5 +172,6 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | The bartender (capped at 1,000 replies a month) | up to about $5 |
 | Audible sync (a minute of Actions a day) | $0 |
 | mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
+| The telescope's moon (an edge function call per visitor per hour, on the free plan's 500,000 a month) | $0 |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.
