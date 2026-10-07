@@ -12,7 +12,7 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear) and the script named by `app:`. An app may set the heading (`#app-title`) to say where you are and show `#app-back`, the way back up |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
-| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the `.ics`, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
+| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the Google Calendar link, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
 | `apps/<app>.webmanifest` | the home-screen app ("The home-screen app" below): one per installable app (wardrobe, recipes), each a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
 | `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
@@ -34,12 +34,12 @@ site build (`docs/backend.md`). Who's a member is the `members` table; every tab
 On an iPhone each app can be added to the Home Screen and opens full screen, with no Safari bars:
 
 - **The manifest** (`apps/wardrobe.webmanifest`, `apps/recipes.webmanifest`, from
-  `_includes/app-manifest.json`): the app's name ("Wardrobe"), `start_url` the app itself (so the
+  `_includes/app-manifest.json`): the app's name ("SJPJr" for the wardrobe and trips, which are becoming more than clothes; its address stays `/apps/wardrobe`, so nothing installed breaks), `start_url` the app itself (so the
   recipe tracker, added from its page, opens on recipes, not the wardrobe), `scope` `/apps/`,
   `display: standalone`, the light theme's `--bg` as its colours, icons at 192 and 512 (the 512 also
   maskable). `head.html` links it only on `layout: app` pages that have one, with
   `apple-mobile-web-app-capable` (and `mobile-web-app-capable`), the status bar `black-translucent`
-  (the page runs under it; `apps.css` already keeps the safe areas clear, and in the light theme,
+  (the page runs under it; `apps.css` keeps the safe areas clear, the site's bar starting below the status bar, and in the light theme,
   installed, a dark band sits under the status bar's white clock), `apple-mobile-web-app-title`
   (the page's title), the app's `apple-touch-icon`, and `theme-color` for light and dark. The
   public site has none of it.
@@ -279,13 +279,14 @@ wardrobe MCP server, signed in as him (below).
     way to Florence. Arrives in 1 h 10 min" once it's left), only for times stored with their UTC
     offset (one without is a clock time somewhere, so it only says "today at 13:00" or
     "tomorrow"); then, under a perforation, the booking reference as a chip a tap copies
-    (Clipboard API, "Copied X9NF5P"), "Add to Calendar" and the booking link. A journey that's
-    happened is quieter and offers no Calendar.
-  - **Add to Calendar** makes an `.ics` (one VEVENT: the times in UTC from the stored offsets; a
-    time with no offset as a floating local time; a journey with no time as an all-day event; no
-    end unless there's an arrival; the summary "Train to Paris (Frecciarossa 9581)", the place you
-    leave from, and a description with the times there and the reference) and opens it as a Blob:
-    on an iPhone Safari offers "Add to Calendar", elsewhere it downloads.
+    (Clipboard API, "Copied X9NF5P"), "Add to Google Calendar" and the booking link. A journey
+    that's happened is quieter and offers no Calendar.
+  - **Add to Google Calendar** (Steve's calendar) is a link to a new event, filled in
+    (`calendar.google.com/calendar/render?action=TEMPLATE`, opened over the app): the times in UTC
+    from the stored offsets; a time with no offset as written, which Google reads in the
+    calendar's zone; a journey with no time as an all-day event; an hour long with no arrival; the
+    title "Train to Paris (Frecciarossa 9581)", the place you leave from, and details with the
+    times there and the reference. You check it and tap Save.
   - **Staying**: the name, the dates and nights ("staying now" outlined), the address as a tap that
     opens Apple Maps (`https://maps.apple.com/?q=<name>&address=<address>`, which is the web map
     off Apple's devices; no address, no map: a name alone finds nothing), notes, the reference to

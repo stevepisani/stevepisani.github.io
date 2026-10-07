@@ -1,6 +1,6 @@
 // Travelling, for the wardrobe's trip page and Today (docs/apps.md, "On the road"): getting there
 // and staying as cards you can act on (a countdown, the booking reference to copy, the journey
-// into Calendar, the address in Maps), and home and away in one line (the time there and at home,
+// into Google Calendar, the address in Maps), and home and away in one line (the time there and at home,
 // and what the money's worth). Only what's stored is shown: no gates, platforms or boarding times.
 import { el, icon, toast } from './kit.js';
 
@@ -119,44 +119,35 @@ export function nextJourney(goes, legs, now = Date.now()) {
   return goes.map((g) => ({ g, n: journeyNow(g, legs, now) })).filter(({ n }) => n.state === 'soon' || n.state === 'on').sort((a, b) => a.n.at - b.n.at)[0]?.g || null;
 }
 
-// ---------- Into Calendar: one VEVENT, its times in UTC from the stored offsets ----------
-const icsText = (s) => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
-const icsUTC = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-const fold = (line) => { let out = '', s = line; while (s.length > 74) { out += `${s.slice(0, 74)}\r\n `; s = s.slice(74); } return out + s; };
-// a time as written when it has no offset: the clock there, "floating" (Calendar shows it as given)
-const icsLocal = (s) => { const m = local(s); return m ? `${m[1].replace(/-/g, '')}T${m[2].replace(':', '')}00` : null; };
-const icsWhen = (name, s, date) => {
-  const at = instant(s);
-  if (at != null) return `${name}:${icsUTC(at)}`;
-  if (icsLocal(s)) return `${name}:${icsLocal(s)}`;
-  return date ? `${name};VALUE=DATE:${date.replace(/-/g, '')}` : null;
-};
-/** A journey as an .ics file's text */
-export function ics(g, legs = []) {
+// ---------- Into Google Calendar: a link that opens a new event, filled in ----------
+const gUTC = (ms) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+// a time as written when it has no offset: the clock there, which Google reads in the calendar's zone
+const gLocal = (s) => { const m = local(s); return m ? `${m[1].replace(/-/g, '')}T${m[2].replace(':', '')}00` : null; };
+const ymd = (d) => d.replace(/-/g, '');
+const nextDay = (d) => new Date(Date.parse(`${d}T00:00Z`) + 864e5).toISOString().slice(0, 10);
+// start/end: in UTC when both ends carry an offset, else as written, else the whole day; with no
+// arrival, an hour
+function gDates(g) {
+  const dep = instant(g.departure_time), arr = instant(g.arrival_time);
+  if (dep != null) return `${gUTC(dep)}/${gUTC(arr != null && arr > dep ? arr : dep + 36e5)}`;
+  const start = gLocal(g.departure_time);
+  if (start) {
+    const end = gLocal(g.arrival_time) || gLocal(new Date(Date.parse(`${local(g.departure_time)[1]}T${local(g.departure_time)[2]}Z`) + 36e5).toISOString());
+    return `${start}/${end}`;
+  }
+  const day = g.date || dateOf(g.departure_time);
+  return day ? `${ymd(day)}/${ymd(nextDay(day))}` : null;
+}
+/** A journey as a Google Calendar link (a new event with its times, places, reference and notes) */
+export function googleCalendar(g, legs = []) {
+  const dates = gDates(g);
+  if (!dates) return null;
   const what = [g.carrier, g.number].filter(Boolean).join(' ');
   const from = [g.origin, g.origin_code && `(${g.origin_code})`].filter(Boolean).join(' '), to = [g.destination, g.destination_code && `(${g.destination_code})`].filter(Boolean).join(' ');
   const times = [g.departure_time && `${shortName(g.origin, g.origin_code)} ${clockOf(g.departure_time)}`, g.arrival_time && `${shortName(g.destination, g.destination_code)} ${clockOf(g.arrival_time)}${dateOf(g.arrival_time) && dateOf(g.arrival_time) !== (dateOf(g.departure_time) || g.date) ? ` (${fmtDay(dateOf(g.arrival_time))})` : ''}`].filter(Boolean).join(' → ');
-  const desc = [what, `${from} → ${to}`, times && `${times}, local times`, g.confirmation && `Booking reference ${g.confirmation}`, g.notes, g.booking_url].filter(Boolean).join('\n');
-  const start = icsWhen('DTSTART', g.departure_time, g.date), end = g.arrival_time && icsWhen('DTEND', g.arrival_time, null);
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//stevenpisani.com//Wardrobe//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
-    'BEGIN:VEVENT', `UID:${g.id || Date.now()}@stevenpisani.com`, `DTSTAMP:${icsUTC(Date.now())}`, start, end,
-    `SUMMARY:${icsText(`${kindOf(g)} to ${placeOf(g.destination, legs)}${what ? ` (${what})` : ''}`)}`,
-    `LOCATION:${icsText(from)}`, `DESCRIPTION:${icsText(desc)}`, g.booking_url && `URL:${g.booking_url}`,
-    'END:VEVENT', 'END:VCALENDAR',
-  ].filter(Boolean);
-  return lines.map(fold).join('\r\n') + '\r\n';
-}
-// Opens it: on an iPhone, Safari offers "Add to Calendar" for a calendar file it's sent to; elsewhere it downloads
-const apple = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-function addToCalendar(g, legs) {
-  const url = URL.createObjectURL(new Blob([ics(g, legs)], { type: 'text/calendar;charset=utf-8' }));
-  const a = Object.assign(document.createElement('a'), { href: url });
-  if (!apple()) a.download = `${[g.carrier, g.number].filter(Boolean).join('-') || kindOf(g)}-${g.date || 'trip'}.ics`.replace(/\s+/g, '-');
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const details = [what, `${from} → ${to}`, times && `${times}, local times`, g.confirmation && `Booking reference ${g.confirmation}`, g.notes, g.booking_url].filter(Boolean).join('\n');
+  const q = new URLSearchParams({ action: 'TEMPLATE', text: `${kindOf(g)} to ${placeOf(g.destination, legs)}${what ? ` (${what})` : ''}`, dates, details, location: from });
+  return `https://calendar.google.com/calendar/render?${q}`;
 }
 
 // ---------- The parts of a card ----------
@@ -203,7 +194,7 @@ const ICON = { flight: 'flight', train: 'train', bus: 'bus', ferry: 'ferry', car
 /**
  * Getting there, as a boarding card: the ends big (codes when there are any, the names under),
  * what it is, the times there with the day when it changes, a countdown inside 48 hours, and the
- * reference, Calendar and the booking. `big` is Today's.
+ * reference, Google Calendar and the booking. `big` is Today's.
  */
 export function journeyCard(g, legs = [], { now = Date.now(), today = false } = {}) {
   const n = journeyNow(g, legs, now), card = el(today ? 'section' : 'li', `journey${n.state === 'done' ? ' is-past' : ''}${today ? ' journey--today' : ''}`);
@@ -239,12 +230,12 @@ export function journeyCard(g, legs = [], { now = Date.now(), today = false } = 
   if (g.notes) card.append(el('p', 'journey__notes', g.notes));
   const acts = el('div', 'journey__acts');
   if (g.confirmation) acts.append(refChip(g.confirmation));
-  if (n.state !== 'done' && (g.departure_time || g.date)) {
-    const cal = el('button', 'chip');
-    cal.type = 'button';
-    cal.append(icon('calendar'), el('span', '', 'Add to Calendar'));
-    cal.addEventListener('click', () => addToCalendar(g, legs));
-    acts.append(cal);
+  const cal = n.state !== 'done' && googleCalendar(g, legs);
+  if (cal) {
+    const a = el('a', 'chip');
+    Object.assign(a, { href: cal, target: '_blank', rel: 'noopener' });
+    a.append(icon('calendar'), el('span', '', 'Add to Google Calendar'));
+    acts.append(a);
   }
   if (g.booking_url) acts.append(outLink('Booking', g.booking_url));
   if (acts.children.length) card.append(acts);

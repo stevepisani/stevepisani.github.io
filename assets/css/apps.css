@@ -36,6 +36,8 @@
 /* On a phone an app is the point: the site's bar scrolls away with the page instead of staying,
    and nothing sits under the notch or the home indicator (viewport-fit=cover on app pages) */
 @media (max-width: 700px) { body:has(#app) .site-head { position: static; } }
+/* installed, the page starts under the status bar: the site's bar starts below it */
+body:has(#app) .site-head { padding-top: env(safe-area-inset-top); }
 body:has(#app) :is(.site-head__inner, .site-foot__inner), .app.wrap { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(20px, env(safe-area-inset-right)); }
 
 .app [hidden] { display: none !important; } /* over .btn, .app-stats and the rest that set a display */

@@ -94,7 +94,7 @@ rather than leaving it in a chat.
 ## Done lately
 
 - Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed
-  code there, journeys as boarding cards (countdown, copy the reference, Add to Calendar), stays
+  code there, journeys as boarding cards (countdown, copy the reference, Add to Google Calendar), stays
   with a map, and a home-and-away line (local and home time, the exchange rate).
 - Oct 2026: weather done properly (real conditions, Today's sky and hourly strip, Apple-style day
   lists, °F or °C), photos from small WebP copies, and the redesign on Apple's HIG and Krug.
