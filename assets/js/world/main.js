@@ -1140,14 +1140,15 @@ async function start() {
       seatLook.yaw = seatLook.pitch = 0;
     } else if (!making && !board.on) view.want = 0;
   }
-  chat.addEventListener('focusin', () => { root.classList.add('is-typing'); fitView(); faceRobot(true); });
-  chat.addEventListener('focusout', () => {
-    faceTimer = setTimeout(() => {
-      if (chat.contains(document.activeElement)) return;
-      root.classList.remove('is-typing');
-      if (!talking) faceRobot(false);
-    }, 350);
+  // typing is the box having focus (a phone's keyboard is up exactly then)
+  chatInput.addEventListener('focus', () => { root.classList.add('is-typing'); fitView(); faceRobot(true); });
+  chatInput.addEventListener('blur', () => {
+    root.classList.remove('is-typing');
+    faceTimer = setTimeout(() => { if (document.activeElement !== chatInput && !talking) faceRobot(false); }, 350);
   });
+  // Ask and the questions don't take focus from the box: the keyboard stays up and nothing moves
+  // under your finger mid-tap (as in any chat app)
+  for (const el of [chat.querySelector('button'), chatAsk]) el.addEventListener('pointerdown', (e) => { if (document.activeElement === chatInput) e.preventDefault(); });
   // something to ask, until you've asked something
   chatAsk.replaceChildren(...(data.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
     onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
@@ -1206,7 +1207,7 @@ async function start() {
     chatLog.scrollTop = chatLog.scrollHeight;
     bar.robot.talk(false);
     talking = false;
-    if (!chat.contains(document.activeElement)) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
+    if (document.activeElement !== chatInput) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
   });
   let leaving = false;
   function sitDown({ pickUp = false, then = null } = {}) {

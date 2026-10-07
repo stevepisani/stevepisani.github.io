@@ -180,6 +180,9 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => document.getElementById('chat-ask').hidden);
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /closed/.test(l[1].textContent); }, null, 60000);
   await shot('asked');
+  // done typing (Done on a phone's keyboard): out of the box, "Leave the bar" is back
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
   step('asked the bartender: the question showed, and offline the bar said it was closed');
 
   await page.click('#seat-leave');
