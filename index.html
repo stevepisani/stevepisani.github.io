@@ -126,7 +126,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <button type="button" class="book__sample" id="star-sample" aria-pressed="false">▶ Hear a sample</button>
     </div>
     <button type="button" class="star-card__close" id="star-close" aria-label="Put it away">×</button>
-    <div class="star-card__steps"><button type="button" id="star-prev" aria-label="Previous book">‹</button><button type="button" id="star-next" aria-label="Next book">›</button></div>
+    <div class="star-card__steps"><button type="button" id="star-prev" aria-label="Previous book on this shelf">‹</button><span class="star-card__pos" id="star-pos"></span><button type="button" id="star-next" aria-label="Next book on this shelf">›</button></div>
   </aside>
   <div class="sky-shelf" id="sky-shelf" hidden>
     <button type="button" class="sky-shelf__step" id="sky-prev" aria-label="Previous shelf">‹</button>
@@ -135,6 +135,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     <button type="button" class="sky-shelf__close" id="sky-close" aria-label="Back to the whole sky">×</button>
   </div>
   <div class="sky-labels" id="sky-labels" aria-hidden="true"></div>
+  <div class="visually-hidden" id="sky-list" aria-label="The books on this shelf" hidden></div>
   <button type="button" class="seat-leave" id="shore-leave" hidden>Leave the shore</button>
   <button type="button" class="camp-eat" id="shore-throw" hidden>Hold to throw</button>
   <button type="button" class="seat-leave" id="carry-drop" hidden>Put it down</button>
@@ -151,6 +152,36 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <button type="submit" class="note__roll">Roll it up</button>
     </div>
   </form>
+  <div class="eyepiece__live" id="eyepiece-live"></div>
+  <div class="eyepiece" id="eyepiece" aria-hidden="true">
+    <svg class="eyepiece__ring" viewBox="-100 -100 200 200"><defs><path id="eyepiece-arc" d="M -92 0 A 92 92 0 0 1 92 0"/></defs><text><textPath href="#eyepiece-arc" startOffset="50%" text-anchor="middle" id="eyepiece-mag">STEVE'S</textPath></text></svg>
+  </div>
+  <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
+  <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
+    <p class="scope-card__top"><span class="scope-card__kicker" id="scope-kicker">Through the telescope</span> <span class="scope-card__live" id="scope-live" hidden>Live · NASA</span></p>
+    <h2 class="scope-card__name" id="scope-name"></h2>
+    <p class="scope-card__line" id="scope-line"></p>
+    <p class="scope-card__note" id="scope-note"></p>
+    <div class="scope-card__foot">
+      <button type="button" class="scope-card__more" id="scope-more">Next launch and the ISS</button>
+      <span class="scope-card__steps"><button type="button" id="scope-prev" aria-label="Point it at the last one">‹</button><button type="button" id="scope-next" aria-label="Point it at the next one">›</button></span>
+    </div>
+    <button type="button" class="scope-card__close" id="scope-close" aria-label="Put the card away">×</button>
+  </aside>
+  <button type="button" class="seat-leave" id="board-back" hidden>Back to the bar</button>
+  <div class="visually-hidden" id="board-list" aria-label="The drinks on the board" hidden></div>
+  <aside class="board-card" id="board-card" aria-live="polite" aria-labelledby="board-name" hidden>
+    <h2 class="board-card__name" id="board-name"></h2>
+    <p class="board-card__meta" id="board-meta"></p>
+    <ul class="board-card__build" id="board-build"></ul>
+    <p class="board-card__method" id="board-method"></p>
+    <p class="board-card__note" id="board-note"></p>
+    <div class="board-card__foot">
+      <button type="button" class="board-card__make" id="board-make">Make me one</button>
+      <span class="board-card__steps"><button type="button" id="board-prev" aria-label="Previous drink">‹</button><button type="button" id="board-next" aria-label="Next drink">›</button></span>
+    </div>
+    <button type="button" class="board-card__close" id="board-close" aria-label="Back to the board">×</button>
+  </aside>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
   <ol class="chat-log" id="chat-log" aria-live="polite" aria-label="Your conversation with the bartender" hidden></ol>
   <form class="chat" id="chat" hidden>
@@ -161,6 +192,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <div class="making" id="making" role="status" hidden>
     <p class="making__count" id="making-count"></p>
     <p class="making__text" id="making-text"></p>
+    <ul class="making__build" id="making-build" aria-hidden="true"></ul>
     <ol class="making__dots" id="making-dots" aria-hidden="true"></ol>
   </div>
 
@@ -177,7 +209,8 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
-  "drinks": {{ site.data.drinks | jsonify }}
+  "drinks": {{ site.data.drinks | jsonify }},
+  "moon": {{ site.data.moon | jsonify }}
 }
 </script>
 

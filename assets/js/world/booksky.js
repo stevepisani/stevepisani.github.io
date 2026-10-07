@@ -374,8 +374,9 @@ export function createBookSky({ center, reducedMotion = false }) {
       }
       return best;
     },
-    /** The shelf under screen point (x, y): its name (padded to 44 px) or its patch of sky. */
-    regionAt(x, y, camera, rect) {
+    /** The shelf under screen point (x, y): its name (padded to 44 px) or its patch of sky; with
+     * `near`, the nearest shelf within twice its size, so a tap close by still finds it. */
+    regionAt(x, y, camera, rect, { near = false } = {}) {
       const pxPerDeg = rect.height / camera.fov;
       for (const r of regions) {
         const s = toScreen(r.labelDir, camera, rect);
@@ -384,7 +385,7 @@ export function createBookSky({ center, reducedMotion = false }) {
       let best = null, bestD = Infinity;
       for (const r of regions) {
         const s = toScreen(r.dir, camera, rect), d = Math.hypot(s.x - x, s.y - y) / (r.r * pxPerDeg);
-        if (s.visible && d < 1 && d < bestD) { best = r; bestD = d; }
+        if (s.visible && d < (near ? 2 : 1) && d < bestD) { best = r; bestD = d; }
       }
       return best;
     },

@@ -6,6 +6,8 @@ import { PALETTE } from './materials.js';
 
 export function buildSky({ quality }) {
   const group = new THREE.Group();
+  // what the telescope can be pointed at: where each is, and how wide it looks (radians across)
+  const bodies = {};
   const uniforms = { time: { value: 0 } };
 
   // Nebula dome: fbm noise in three hues over near-black. Rendered first, never writes depth.
@@ -90,6 +92,7 @@ export function buildSky({ quality }) {
     core.position.copy(sun.position);
     core.lookAt(0, 0, 0);
     group.add(core);
+    bodies.sun = { dir: sunDir.clone(), across: 2 * Math.atan(5 / 500), dist: 500 };
   }
 
   // Ringed gas giant, low on your left as you land (about 11° up), on the ecliptic, about 99°
@@ -181,6 +184,7 @@ export function buildSky({ quality }) {
     }));
     giant.add(ring);
     group.add(giant);
+    bodies.giant = { dir: GIANT_DIR.clone(), across: 2 * Math.atan(R2 / 360), dist: 360 };
   }
 
   // The moon, in tonight's real phase: a phase is only where the moon is against the sun (new
@@ -220,6 +224,7 @@ export function buildSky({ quality }) {
         }`,
     }));
     moon.position.copy(MOON_DIR).multiplyScalar(300);
+    bodies.moon = { dir: MOON_DIR.clone(), across: 2 * Math.atan(14 / 300), dist: 300 };
     moon.rotation.y = 2.2;
     group.add(moon);
   }
@@ -237,6 +242,7 @@ export function buildSky({ quality }) {
   return {
     group,
     sunDir,
+    bodies,
     update(t, camera) {
       uniforms.time.value = t;
       group.position.copy(camera.position); // the sky is infinitely far away
