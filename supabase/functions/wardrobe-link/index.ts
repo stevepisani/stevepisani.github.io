@@ -1,4 +1,4 @@
-// The wardrobe's "add from a store link" (/apps/wardrobe): POST { url } with the member's own
+// The wardrobe's "add from a store link" (/apps): POST { url } with the member's own
 // session -> { name, brand, price, currency, link, photo_path }. Reads the product page
 // (_shared/product.js) and copies its picture into the member's own photo folder
 // (photos/wardrobe/<user id>/), as that member, so the storage rules apply. Anything it can't

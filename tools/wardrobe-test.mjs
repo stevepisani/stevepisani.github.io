@@ -175,7 +175,7 @@ ok(all.items.find((i) => i.id === IDS.darkGray).hero_photo, 'H: with the photo s
   const whole2 = (await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } })).structuredContent;
   ok(/^[0-9a-f-]{36}$/.test(listed) && whole1.item.hero_photo_id === listed && whole1.photos.find((p) => p.hero).id === listed && whole2.item.hero_photo_id === listed && whole1.photos.filter((p) => p.hero).length === 1, 'the photo shown has one id in find_items and get_item, which is the photo with hero: true', { listed, item: whole1.item.hero_photo_id, photos: whole1.photos });
   const one = await ask('tools/call', { name: 'get_item', arguments: { id: IDS.darkGray } });
-  ok(one.content[0].text.includes(`In the app: https://stevenpisani.com/apps/wardrobe#item/${IDS.darkGray}`), 'a garment comes with its link in the app', one.content[0].text);
+  ok(one.content[0].text.includes(`In the app: https://stevenpisani.com/apps/#item/${IDS.darkGray}`), 'a garment comes with its link in the app', one.content[0].text);
 }
 
 const smart = await tool('find_items', { category: 'tops', dressiness: 'smart casual' });
@@ -496,7 +496,7 @@ ok((await tool('ingest_item', { product: { brand: 'Uniqlo', name: 'Soft Brushed 
     const browser = await worker.fetch(new Request('https://mcp.stevenpisani.com/', { headers: { accept: 'text/html' } }));
     const [a, b] = seen;
     ok(a.url === 'https://ref.supabase.co/functions/v1/mcp' && a.init.headers.get('x-mcp-public-host') === 'mcp.stevenpisani.com' && a.init.headers.get('authorization') === 'Bearer t' && a.init.headers.get('mcp-protocol-version') === '2025-11-25' && new TextDecoder().decode(a.init.body) === '{"jsonrpc":"2.0"}' && res.status === 401 && res.headers.get('www-authenticate') === 'Bearer x', 'the proxy passes a call through whole, and the answer back', a);
-    ok(b.url === 'https://ref.supabase.co/functions/v1/mcp/.well-known/oauth-protected-resource' && meta.status === 401 && browser.status === 302 && browser.headers.get('location') === 'https://stevenpisani.com/apps/wardrobe' && seen.length === 2, 'and its metadata; a browser is sent to the app');
+    ok(b.url === 'https://ref.supabase.co/functions/v1/mcp/.well-known/oauth-protected-resource' && meta.status === 401 && browser.status === 302 && browser.headers.get('location') === 'https://stevenpisani.com/apps/' && seen.length === 2, 'and its metadata; a browser is sent to the app');
   } finally { globalThis.fetch = real; }
 }
 

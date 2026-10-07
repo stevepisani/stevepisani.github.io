@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
   const resource = host && PUBLIC_HOSTS.includes(host) ? `https://${host}` : RESOURCE; // the address the app used
   // RFC 9728: who guards this server, and how to ask for a token
   if (path.endsWith("/.well-known/oauth-protected-resource")) {
-    return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "SJPJr", resource_documentation: "https://stevenpisani.com/apps/wardrobe" }, 200, { "access-control-allow-origin": "*" });
+    return json({ resource, authorization_servers: [`${SUPABASE}/auth/v1`], bearer_methods_supported: ["header"], scopes_supported: SCOPES, resource_name: "SJPJr", resource_documentation: "https://stevenpisani.com/apps/" }, 200, { "access-control-allow-origin": "*" });
   }
   // a photo link for an image generator (get_outfit_images, purpose generation): the stored file,
   // read only, while the link lasts

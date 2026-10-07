@@ -472,13 +472,13 @@ async function pullDown(page, by = 260, { x = 195, y = 180 } = {}) {
   await cdp.detach();
 }
 
-// The private app (SJPJr, /apps/wardrobe), on a phone, against a made-up Supabase: its own frame
+// The private app (SJPJr, /apps), on a phone, against a made-up Supabase: its own frame
 // (no site nav or footer: the badge and where you are), signed out only the sign-in form; signed
 // in as Steve, Today first, then the recipe tracker (now its Recipes tab, reached from its old
 // address) lists, searches, marks one cooked, saves notes and a rating, and adds one, and each of
 // those asks the database for the right thing.
 async function apps(page, shot) {
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'out');
   if (await page.isVisible('#app-main')) throw new Error('the app shows without signing in');
   if (await page.$('.site-head, .site-foot, .site-nav') || !(await page.isVisible('#app-top #app-me img'))) throw new Error("an app page should have its own bar (the badge), not the site's nav and footer");
@@ -489,7 +489,7 @@ async function apps(page, shot) {
   const asked = await member(page, page);
   await page.clock.setFixedTime(new Date('2026-09-01T10:00:00+02:00')); // before the trip, so Today is at home
   await page.goto(base + '/apps/recipes');
-  await page.waitForURL(/\/apps\/wardrobe#recipes$/);
+  await page.waitForURL(/\/apps\/#recipes$/);
   await until(page, () => document.querySelectorAll('#recipe-cards .item').length === 3 && !document.getElementById('recipes-view').hidden);
   if (!(await page.textContent('#recipe-tally')).includes('1 of 3') || (await page.textContent('#app-title')) !== 'Recipes' || !(await page.isVisible('#tabs a[data-value="recipes"][aria-current="page"]'))) throw new Error('the recipes tab: the cooked count, the title or the tab is wrong');
   await shot('recipes');
@@ -546,7 +546,7 @@ async function apps(page, shot) {
 
   // an expired sign-in link says so (through the old address, which keeps a sign-in link's hash)
   await page.goto(base + '/apps/recipes#error=access_denied&error_code=otp_expired&error_description=expired');
-  await page.waitForURL(/\/apps\/wardrobe/);
+  await page.waitForURL(/\/apps\/(#|$)/);
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   if (!/expired/.test(await page.textContent('#gate-note')) || (await page.evaluate(() => location.hash))) throw new Error("an expired sign-in link wasn't explained");
   step('an expired sign-in link says so');
@@ -557,7 +557,7 @@ async function apps(page, shot) {
   // greeting, nothing planned to wear, the weather in Philadelphia, the next trip a tap away), with
   // Steve's four tabs; then the closet.
   await page.clock.setFixedTime(new Date('2026-09-01T10:00:00+02:00'));
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   await until(page, () => document.querySelector('#today-view .sky-panel') && !document.getElementById('today-view').hidden);
   const tabNames = await page.locator('#tabs a:visible').allTextContents();
   if (tabNames.join() !== 'Today,Closet,Trips,Recipes' || !(await page.isVisible('#tabs a[data-value="today"][aria-current="page"]')) || (await page.evaluate(() => location.hash))) throw new Error(`Steve's tabs, Today first and open with no address: ${tabNames}`);
@@ -684,7 +684,7 @@ async function apps(page, shot) {
   // forecast request a leg, the hours with it
   await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
   const meteoBefore = asked.length;
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   await page.click('#tabs a[data-value="trips"]');
   await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
@@ -822,7 +822,7 @@ async function apps(page, shot) {
   // Today, mid-trip: where you are, the weather and what you're wearing, with a word about the rain
   // (and the suede); the next day is a tap away; an item opens over it and Back closes it
   await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   await until(page, () => document.querySelector('.today-card .hours') && location.hash === '');
   const flat = (x) => x.replace(/\s/g, ' '); // times keep their words together with a no-break space
   const today = flat(await page.textContent('#today-view'));
@@ -916,22 +916,25 @@ async function apps(page, shot) {
   await page.unroute('https://chatgpt.com/**');
   step('consent page: ChatGPT and Claude can be allowed (and you go back), anyone else can\'t');
 
-  // /apps was a list of apps; there's one now, and it goes there. The site's nav has it, signed in
+  // SJPJr's old address (/apps/wardrobe) goes there, a link's hash kept. The site's nav has it, signed in
+  await page.goto(base + '/apps/#closet');
+  await page.waitForURL(/\/apps\/#closet$/);
+  await until(page, () => document.getElementById('app').dataset.state === 'in' && !document.getElementById('closet-view').hidden);
   await page.goto(base + '/apps/');
-  await page.waitForURL(/\/apps\/wardrobe$/);
+  await page.waitForURL(/\/apps\/$/);
   await until(page, () => document.getElementById('app').dataset.state === 'in' && !document.getElementById('today-view').hidden);
   await page.goto(base + '/about');
-  if (!(await page.isVisible('.site-nav [data-members]')) || (await page.getAttribute('.site-nav [data-members]', 'href')) !== '/apps/wardrobe') throw new Error("the site's nav has no Apps link to SJPJr for someone signed in");
-  step('/apps goes to SJPJr (Today), and the site\'s nav has Apps');
+  if (!(await page.isVisible('.site-nav [data-members]')) || (await page.getAttribute('.site-nav [data-members]', 'href')) !== '/apps/') throw new Error("the site's nav has no Apps link to SJPJr for someone signed in");
+  step('/apps/wardrobe goes to SJPJr at /apps (Today, or the tab in its link), and the site\'s nav has Apps');
 }
 
 // Someone who isn't Steve (Lexi, say): the wardrobe and trips are Steve's own, so they see what
 // they can use, Recipes, with no tab bar for one section, greeted by the start of their email
 // (no name stored yet); nothing of the wardrobe is even asked for
 async function another(page, shot) {
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   const asked = await member(page, page, { email: 'lexi@example.com', me: { name: null, sections: ['recipes'] } });
-  await page.goto(base + '/apps/wardrobe#today');
+  await page.goto(base + '/apps/#today');
   await page.reload(); // (the same page with another hash isn't loaded again)
   await until(page, () => !document.getElementById('recipes-view').hidden && document.querySelectorAll('#recipe-cards .item').length === 3);
   if ((await page.textContent('#app-title')) !== 'Recipes' || await page.isVisible('#tabs') || await page.isVisible('#today-view')) throw new Error('another member should land on Recipes, with no tabs and no Today');
@@ -940,7 +943,7 @@ async function another(page, shot) {
   await until(page, () => document.getElementById('settings').open);
   if ((await page.textContent('#app-name')) !== 'Lexi' || (await page.textContent('#app-email')) !== 'lexi@example.com' || await page.isVisible('#settings-units')) throw new Error(`Settings for another member: their name from the email, and no °F or °C (no weather): ${await page.textContent('#app-name')}`);
   await page.keyboard.press('Escape');
-  await page.goto(base + '/apps/wardrobe#closet');
+  await page.goto(base + '/apps/#closet');
   await until(page, () => !document.getElementById('recipes-view').hidden);
   await shot('recipes-only');
   step('another member: Recipes only, no tab bar, named from their email; the wardrobe is never asked for, and its address leads to Recipes');
@@ -950,9 +953,9 @@ async function another(page, shot) {
 // change to a packing entry is kept, and it's sent when the connection's back
 async function offline(page, shot) {
   await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   const asked = await member(page, page.context());
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   await until(page, () => document.querySelector('.today-card'));
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // now through the service worker, which keeps the page and its scripts as they pass
@@ -997,10 +1000,10 @@ async function offline(page, shot) {
 async function install(page, shot) {
   await page.goto(base + '/about');
   if (await page.$('link[rel="manifest"], meta[name="apple-mobile-web-app-capable"]')) throw new Error('a public page links the apps\' manifest');
-  await page.goto(base + '/apps/wardrobe');
+  await page.goto(base + '/apps/');
   const href = await page.getAttribute('link[rel="manifest"]', 'href');
   const manifest = await page.evaluate((h) => fetch(h).then((r) => r.json()), href);
-  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'SJPJr' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
+  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'SJPJr' || manifest.start_url !== '/apps/' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
   const sizes = manifest.icons.map((i) => `${i.sizes} ${i.purpose}`).join();
   if (sizes !== '192x192 any,512x512 any,512x512 maskable') throw new Error(`the manifest's icons: ${sizes}`);
   for (const src of [...manifest.icons.map((i) => i.src), await page.getAttribute('link[rel="apple-touch-icon"]', 'href')]) {
@@ -1011,7 +1014,7 @@ async function install(page, shot) {
     if ((await page.getAttribute(`meta[name="${name}"]`, 'content')) !== content) throw new Error(`the page's ${name} isn't ${content}`);
   }
   if ((await page.locator('meta[name="theme-color"][media]').count()) !== 2) throw new Error('no theme colour for light and dark');
-  step('manifest on the app pages only: SJPJr, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
+  step('manifest on the app pages only: SJPJr, full screen from /apps, its icons at their sizes; the iPhone tags');
 
   // Supabase Auth, made up: the email goes; the code 123456 is right, any other isn't
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
@@ -1070,7 +1073,7 @@ async function install(page, shot) {
   // installed, there's no hint, and the email's link can't be used: the note says only the code
   const installed = await page.context().newPage();
   await installed.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { value: true }); localStorage.clear(); });
-  await installed.goto(base + '/apps/wardrobe');
+  await installed.goto(base + '/apps/');
   await until(installed, () => document.getElementById('app').dataset.state === 'out');
   await installed.fill('#gate-form [name="email"]', 'member@example.com');
   await installed.click('#gate-form button');
