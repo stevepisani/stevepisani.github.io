@@ -239,6 +239,15 @@ export function createSound({ scene, camera, spots }) {
       o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.2);
       burst(inputs.loose, t, { type: 'lowpass', hz: 700, dur: 0.05, v: 0.2 * k });
     },
+    firework(at) { // a shell bursting overhead: a crack, then crackle
+      sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.3);
+      env(g, t, 0.5, 0.002, 0.35);
+      o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.4);
+      burst(inputs.loose, t, { type: 'lowpass', hz: 1800, dur: 0.12, v: 0.45 });
+      for (let k = 0; k < 14; k++) burst(inputs.loose, t + 0.15 + Math.random() * 0.9, { type: 'highpass', hz: 3000 + Math.random() * 3000, dur: 0.012, v: 0.06 + Math.random() * 0.06 });
+    },
     splash(at, k = 0.5) { // into the lagoon
       sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
       const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
@@ -306,7 +315,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where). Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,
