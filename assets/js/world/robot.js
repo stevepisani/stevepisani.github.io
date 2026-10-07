@@ -306,7 +306,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const goal = { pos: new THREE.Vector3(), heading: 0 };
   const from = { pos: new THREE.Vector3(), heading: 0 };
   let moveT = 1, moveDur = 0.9;
-  let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest';
+  let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
   let rolled = 0;
   let idleFor = 0; // seconds at rest with nothing to do: now and then it wipes down the bar
 
@@ -428,6 +428,10 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       pose('shake', seconds, 'rest');
     },
     pour(seconds) { pose('pour', seconds, 'rest'); },
+    /** Talking (answering you): the gauge flickers with the words, the lamps chatter, the head nods. */
+    talk(on) { talking = !!on; },
+    /** Where its head is (for looking it in the eye). */
+    get head() { return rig.head; },
 
     /* ---------- Making a drink ---------- */
     /** Roll to `spot` (parent frame) facing `heading`. */
@@ -521,13 +525,17 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       if (rig.needle) {
         // the gauge swings to VOLCANIC while shaking, idles near MILD
         // (+z rotation swings it left, toward MILD; the scale spans ±2.2 rad)
-        const aim = shaking ? -1.9 : 1.6 + (reducedMotion ? 0 : Math.sin(t * 1.3) * 0.05);
+        const aim = shaking ? -1.9
+          : talking && !reducedMotion ? 0.9 + Math.sin(clock * 13) * 0.35 + Math.sin(clock * 7.3) * 0.25 // the needle flickers with the words
+            : 1.6 + (reducedMotion ? 0 : Math.sin(t * 1.3) * 0.05);
         rig.needle.rotation.z += (aim - rig.needle.rotation.z) * (reducedMotion ? 1 : Math.min(1, dt * 8));
         rig.antenna.visible = (t % 2) > 0.15 || reducedMotion;
         const pulse = 1 + (reducedMotion ? 0 : Math.sin(t * 3) * 0.15);
         rig.valve.scale.set(pulse, 1, pulse);
         // belly lamps blink in turn (all on under reduced motion)
-        rig.lamps.forEach((l, i) => { l.visible = reducedMotion || Math.floor(t * 1.5) % 3 !== i; });
+        rig.lamps.forEach((l, i) => { l.visible = reducedMotion || Math.floor((talking ? clock * 7 : t * 1.5)) % 3 !== i; });
+        // a small nod now and then as it talks
+        rig.head.rotation.x += ((talking && !reducedMotion ? Math.max(0, Math.sin(clock * 3.1)) * 0.06 : 0) - rig.head.rotation.x) * Math.min(1, dt * 6);
       }
     },
   };

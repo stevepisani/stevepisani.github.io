@@ -53,6 +53,13 @@ bartender:
   - "The coconuts under the palms are loose. Pick one up and throw it. They float, too."
   - "Lie in the hammock and look up. Every star over it is a book Steve has read, grouped by kind. Tap one."
 
+# A few things to ask the bartender, offered over the question box until you've asked something.
+ask:
+  - What does Steve do?
+  - What should I order?
+  - What's he reading?
+  - How do I reach him?
+
 # Shown at the campfire on the far side of the planet.
 likes:
   - Technology, especially the kind that runs quietly in the background
