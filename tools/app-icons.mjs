@@ -1,34 +1,40 @@
-// The private apps' home-screen icons (docs/apps.md, "The home-screen app"): each app's line
-// drawing, in the site's cream on the space theme's night blue with the accent orange, drawn as SVG
-// here and saved as PNGs at the sizes iPhones and the manifest ask for. The drawing sits inside the
-// middle 70%, so the same picture works where it's cut to a circle or a squircle ("maskable").
-//   node tools/app-icons.mjs        (writes assets/images/app-<name>-{512,192,180}.png; commit them)
+// The private apps' home-screen icon (docs/apps.md, "The home-screen app"): the site's SJPJr badge
+// (assets/images/sj-512.png, as in the site's header) on the light theme's cream, since iOS fills a
+// transparent icon with black. Cropped to the badge itself (its file has room around it), it fills
+// 84% of the square for iPhones and the manifest's "any" icons (the clouds clear the rounded
+// corners), and 68% for the "maskable" one, whose outer edge a launcher may cut to a circle.
+//   node tools/app-icons.mjs        (writes assets/images/app-icon-{512,192,180}.png and
+//                                    app-icon-maskable-512.png; commit them)
 import { chromium } from 'playwright';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
-const NIGHT = ['#161a33', '#0c0e1e'], CREAM = '#faf7f2', ORANGE = '#ff7a45'; // --bg-2 and --bg (dark), --bg (light), --accent (dark)
-// each drawing on a 24-unit grid, in the wardrobe's line style
-const ART = {
-  // the closet's hanger (apps/wardrobe.html, #i-closet), its hook in orange
-  wardrobe: `<g transform="translate(0 2.3)"><path d="M12 7.5V7a2 2 0 1 0-2-2" stroke="${ORANGE}"/><path d="M12 7.5 2.8 14.6a1 1 0 0 0 .6 1.8h17.2a1 1 0 0 0 .6-1.8z" stroke="${CREAM}"/></g>`, // centred
-  // a bowl, with steam in orange
-  recipes: `<path d="M3.5 12.5h17a8.5 8.5 0 0 1-17 0z" stroke="${CREAM}"/><path d="M9 21h6" stroke="${CREAM}"/><path d="M9 9c-1-1.2 1-2.3 0-3.5M12.5 9c-1-1.2 1-2.3 0-3.5M16 9c-1-1.2 1-2.3 0-3.5" stroke="${ORANGE}"/>`,
-};
-const svg = (art, px) => `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 100 100">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${NIGHT[0]}"/><stop offset="1" stop-color="${NIGHT[1]}"/></linearGradient></defs>
-  <rect width="100" height="100" fill="url(#g)"/>
-  <g transform="translate(20 19) scale(2.5)" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${art}</g>
-</svg>`;
+const CREAM = '#faf7f2'; // --bg (light)
+const badge = `data:image/png;base64,${readFileSync('assets/images/sj-512.png').toString('base64')}`;
+const icons = [['app-icon', 512, 0.84], ['app-icon', 192, 0.84], ['app-icon', 180, 0.84], ['app-icon-maskable', 512, 0.68]];
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
-for (const [name, art] of Object.entries(ART)) {
-  for (const px of [512, 192, 180]) {
-    await page.setViewportSize({ width: px, height: px });
-    await page.setContent(`<style>html,body{margin:0}</style>${svg(art, px)}`);
-    const file = `assets/images/app-${name}-${px}.png`;
-    writeFileSync(file, await page.locator('svg').screenshot({ omitBackground: false }));
-    console.log(file);
-  }
+for (const [name, px, fill] of icons) {
+  await page.setViewportSize({ width: px, height: px });
+  // the badge drawn on a canvas, cropped to where it isn't transparent, then centred at `fill`
+  await page.setContent(`<style>html,body{margin:0}canvas{display:block}</style><canvas width="${px}" height="${px}"></canvas>`);
+  await page.locator('canvas').evaluate(async (canvas, [src, fill, bg]) => {
+    const img = new Image();
+    img.src = src;
+    await img.decode();
+    const probe = Object.assign(document.createElement('canvas'), { width: img.width, height: img.height }).getContext('2d');
+    probe.drawImage(img, 0, 0);
+    const { data } = probe.getImageData(0, 0, img.width, img.height);
+    let x0 = img.width, y0 = img.height, x1 = 0, y1 = 0;
+    for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) if (data[(y * img.width + x) * 4 + 3] > 8) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, k = (canvas.width * fill) / Math.max(w, h), ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, x0, y0, w, h, (canvas.width - w * k) / 2, (canvas.height - h * k) / 2, w * k, h * k);
+  }, [badge, fill, CREAM]);
+  const file = `assets/images/${name}-${px}.png`;
+  writeFileSync(file, await page.locator('canvas').screenshot());
+  console.log(file);
 }
 await browser.close();
