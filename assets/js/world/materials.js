@@ -37,10 +37,6 @@ export const PALETTE = {
   moon: 0x9fb4ff,      // moonlight
   lunar: 0xb9b5ae,     // the moon itself: highlands
   mare: 0x5f5b57,      //   and its dark seas
-  giantCream: 0xf1d9b0, // the ringed gas giant's bands, light to dark
-  giantTan: 0xd9a06a,
-  giantRust: 0xb0623f,
-  giantUmber: 0x5e3624,
   // what's in the glass (and the bottles it's poured from), for the drinks the robot makes
   rum: 0x6a3413,       // aged Barbados rum (Planteray)
   campari: 0xb3242a,

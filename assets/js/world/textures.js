@@ -253,7 +253,6 @@ export function tikiFace(base) {
   return texture(c);
 }
 
-/** Planet with warm bands, for the gas giant in the background. */
 /** The moon's surface, equirectangular: albedo (highlands, dark maria, bright-rimmed craters with
  *  rays) and a matching height map for bump. Craters are stretched toward the poles so they stay
  *  round on the sphere. */
