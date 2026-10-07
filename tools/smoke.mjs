@@ -350,6 +350,28 @@ async function planet(page, shot, { phone = false } = {}) {
   });
   if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
   step(`threw a coconut ${landed.moved.toFixed(1)} m`);
+
+  // the second coconut picked up brings the neon hoop down from the sky, clear of everything;
+  // one dropped down through its rim sets off the fireworks, and it goes back up
+  await page.evaluate(() => window.__world.goGrab(0));
+  await until(page, () => window.__world.carrying, null, 300000);
+  await until(page, () => window.__world.hoop.state === 'up', null, 60000);
+  const clearOf = await page.evaluate(() => {
+    const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
+    return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
+  });
+  if (!(clearOf > 2)) throw new Error(`the hoop came down on top of something (${clearOf.toFixed(1)} m from it)`);
+  await shot('hoop');
+  await page.evaluate(() => {
+    const W = window.__world, it = W.physics.items[0];
+    W.putDown();
+    W.physics.take(it);
+    W.physics.release(it, W.hoop.rim.addScaledVector(W.hoop.up, 0.7), W.hoop.up.multiplyScalar(-1));
+  });
+  await until(page, () => window.__hoopScored === 1, null, 120000);
+  await shot('fireworks');
+  await until(page, () => window.__world.hoop.state === 'off', null, 120000);
+  step('a second coconut brought the hoop down; one through it set off fireworks, and it left');
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
