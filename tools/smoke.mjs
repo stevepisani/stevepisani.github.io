@@ -188,26 +188,35 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk');
   step('campfire: sat, ate one, left');
 
-  // the hammock: lie in it, the reading list, get up
+  // the hammock: lie in it, the stars, the reading list, get up
   await page.evaluate(() => window.__world.lieInHammock());
   await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
   await shot('hammock');
-  // the book sky: the stars gather once the list closes; lean in on a shelf (the view narrows, its titles come up, the strip names it),
-  // step to the next shelf, open a book and step to the next one; Esc puts the card away, Esc
-  // again leans out; Back leans out too
-  await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
+  // the book sky: lying back you look up and the stars gather into their shelves (the reading
+  // list is a button away, and closing it brings you back to them); lean in on a shelf (the view
+  // narrows, its titles come up, the strip names it, its newest book's card opens), step to the
+  // next shelf, step through its books; Esc puts the card away, Esc again leans out; Back leans out too
+  await until(page, () => window.__world.stars > 0, null, 60000);
+  if (!(await page.isHidden('#panel'))) throw new Error('lying back opened the reading list: the stars come first');
+  await until(page, () => window.__world.sky.settled, null, 60000);
+  await page.click('#hammock-read');
+  await until(page, () => !document.getElementById('panel').hidden, null, 60000);
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
-  await until(page, () => window.__world.sky.settled, null, 60000); // the loose stars gather into their shelves once the list closes
   const fov0 = await page.evaluate(() => window.__world.camera.fov);
   await page.evaluate(() => window.__world.zoom('science-fiction'));
   await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
   if (await page.isHidden('#sky-shelf') || !(await page.textContent('#sky-name')).includes('Science Fiction')) throw new Error("leaning in on a shelf didn't show its name");
+  await until(page, () => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'science-fiction'); return W.starCard === r.books[0].book.title; }, null, 60000); // its newest book, without hunting for it
   await shot('shelf');
+  // a title on screen is a tap target for its book
+  const label = await page.evaluate(() => { const el = [...document.querySelectorAll('.sky-label:not([hidden]):not(.is-open)')][0]; if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.left + 8, y: b.top + b.height / 2, title: el.textContent }; });
+  if (!label) throw new Error('leaned in, no other titles showed');
+  await tap([label.x, label.y]);
+  await until(page, (t) => window.__world.starCard === t, label.title);
   await page.evaluate(() => window.__world.stepShelf(1));
   await until(page, () => window.__world.zoomed === 'fiction');
-  await page.evaluate(() => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'fiction'); W.openStar(W.sky.books.indexOf(r.books[0])); });
-  if (await page.isHidden('#star-card')) throw new Error("a star's card didn't open");
+  await until(page, () => !document.getElementById('star-card').hidden, null, 60000);
   if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
   const first = await page.textContent('#star-title');
   await page.click('#star-next');

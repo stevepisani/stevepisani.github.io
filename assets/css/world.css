@@ -244,6 +244,8 @@
 /* above the bottom buttons (the fire's, the hammock's, the shore's, a carried thing's, the chalkboard's) */
 .world[data-state="camp"] .hint, .world[data-state="hammock"] .hint, .world[data-state="shore"] .hint,
 .world:has(#carry-throw:not([hidden])) .hint, .world:has(#board-back:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
+/* leaned in on a shelf of the book sky, the bottom is the shelf's strip and a book's card: the hint goes up top */
+.world:has(#sky-shelf:not([hidden])) .hint { bottom: auto; top: 84px; }
 
 /* ---------- Content panel ---------- */
 .panel { position: absolute; z-index: 5; top: 76px; right: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain;
@@ -329,7 +331,6 @@
 .star-card .book__sample { background: transparent; color: #eef0fa; border-color: rgb(143 162 255 / .45); }
 .star-card .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .star-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
-/* on wide screens, lower left: clear of the book in your hands and the middle of the sky */
 .star-card__steps { position: absolute; right: 4px; bottom: 4px; display: flex; }
 .star-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.5rem; cursor: pointer; }
 .star-card__steps button:hover { color: #fff; }
@@ -355,6 +356,9 @@
 .sky-label.is-open { color: #fff; font-weight: 600; }
 @media (min-width: 901px) { .star-card { left: 16px; translate: 0 0; } }
 @media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } .sky-shelf { bottom: 76px; } }
+/* leaned in on a shelf, the book's card sits above the shelf's strip */
+.world:has(#sky-shelf:not([hidden])) .star-card { bottom: 136px; }
+@media (max-width: 600px) { .world:has(#sky-shelf:not([hidden])) .star-card { bottom: 128px; } }
 
 /* ---------- Leaning in on the chalkboard: a drink's recipe, chalked on a card ----------
    Phones: a sheet along the bottom, the board above it. Wide screens: to the right of the board. */

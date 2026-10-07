@@ -475,11 +475,11 @@ async function start() {
       if (!zoom.region) {
         const c = bookSky.pick(x, y, camera, rect, coarse ? 34 : 26);
         if (c && c.comet) return openStar(c);
-        const r = bookSky.regionAt(x, y, camera, rect);
+        const r = bookSky.regionAt(x, y, camera, rect, { near: true });
         if (r) zoomTo(r);
         return;
       }
-      const b = bookSky.pick(x, y, camera, rect, coarse ? 44 : 34, zoom.region);
+      const b = labelAt(x, y) || bookSky.pick(x, y, camera, rect, coarse ? 64 : 44, zoom.region);
       if (b) return openStar(b);
       const r = bookSky.regionAt(x, y, camera, rect);
       if (r && r !== zoom.region) { closeStar(); zoomTo(r); } else closeStar();
@@ -514,8 +514,8 @@ async function start() {
     // in the hammock: the stars are (the books)
     if (x !== null && state === 'hammock' && lying && !flight && panel.hidden && menu.hidden && bookSky.settled) {
       const rect = canvas.getBoundingClientRect();
-      const b = bookSky.pick(x, y, camera, rect, zoom.region ? 34 : 26, zoom.region);
-      const r = !zoom.region && !(b && b.comet) ? bookSky.regionAt(x, y, camera, rect) : null;
+      const b = (zoom.region && labelAt(x, y)) || bookSky.pick(x, y, camera, rect, zoom.region ? 44 : 26, zoom.region);
+      const r = !zoom.region && !(b && b.comet) ? bookSky.regionAt(x, y, camera, rect, { near: true }) : null;
       const show = (b && (zoom.region || b.comet)) ? [b.book.title, starStatus(b.book)] : r ? [r.name, `${r.count} books`] : null;
       canvas.style.cursor = show ? 'pointer' : '';
       tip.hidden = !show || !starCard.hidden;
@@ -1328,7 +1328,7 @@ async function start() {
       if (state !== 'hammock') return;
       loadTo = 1;
       if (!reducedMotion) HM.kick(0.32); // and you set it swinging
-      readBook();
+      lookUp(); // the stars first; the list is a button away ("Reading list")
     });
   }
   function getOutOfHammock() {
@@ -1357,12 +1357,17 @@ async function start() {
   }
   hmLeave.addEventListener('click', getOutOfHammock);
   hmRead.addEventListener('click', readBook);
+  // lying back, you look up: the loose stars drift together into their shelves
+  function lookUp() {
+    if (state !== 'hammock' || leaving) return;
+    skyGather = true;
+    if (bookSky.count) showHint(`Every star above you is a book Steve has read. ${coarse ? 'Tap' : 'Click'} a group to see its books.`, 'stars');
+  }
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
   afterHammockPanel = () => {
     if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
     tweenBook(CHEST, 0.1, 600);
-    skyGather = true;
-    if (bookSky.count) showHint(`Every star above you is a book Steve has read, grouped by kind. ${coarse ? 'Tap' : 'Click'} a group to look closer.`, 'stars');
+    lookUp();
   };
 
   /* ---------- The book sky: every book Steve has read, as stars over the hammock ---------- */
@@ -1388,7 +1393,7 @@ async function start() {
   let starOpen = null, skyGather = false;
   // leaning in on a shelf: k eases 0..1 as the view narrows from BASE_FOV to `cur`, which follows
   // `fov` (the shelf's) when you step to another
-  const zoom = { region: null, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, pushed: false, applied: false };
+  const zoom = { region: null, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, pushed: false, applied: false, openFirst: null };
   let aimTween = null; // turning your head to a star or a shelf: { from: { yaw, pitch }, dir, t, ms }
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const regionOf = (slug) => bookSky.regions.find((r) => r.slug === slug) || null;
@@ -1399,12 +1404,12 @@ async function start() {
     const [y, m] = b.on.split('-');
     return `${name}${name ? ' · ' : ''}Read ${MONTHS[+m - 1]} ${y}`;
   }
-  function openStar(s) {
+  function openStar(s, { auto = false } = {}) {
     if (!s) return;
     tip.hidden = true; // the hover label goes; the card says it all
     const b = s.book;
     clearHint('stars');
-    clearHint('star-pick');
+    if (!auto) clearHint('star-pick'); // opened by leaning in: the hint about picking another stays
     starOpen = s;
     bookSky.select(s);
     const cover = $('star-cover');
@@ -1417,8 +1422,8 @@ async function start() {
     starSample.hidden = !b.sample;
     starSample.setAttribute('aria-pressed', 'false');
     starPrev.hidden = starNext.hidden = !(s.region && s.region.books.length > 1);
-    skyShelf.hidden = true; // the card takes the strip's place
-    starCard.hidden = false;
+    starCard.hidden = false; // above the shelf's strip, which stays
+    labelsKey = ''; // the open one's title goes first
     // stepping to a book that's off screen (or under the card): turn to it
     if (zoom.region && s.region === zoom.region) {
       const r = canvas.getBoundingClientRect(), p = bookSky.screenOf(s, camera, r);
@@ -1431,7 +1436,7 @@ async function start() {
     starOpen = null;
     bookSky.select(null);
     if (window.stopSample) window.stopSample();
-    if (zoom.region) skyShelf.hidden = false;
+    labelsKey = '';
   }
   function stepBook(d) {
     const list = starOpen && starOpen.region && starOpen.region.books;
@@ -1468,13 +1473,14 @@ async function start() {
     if (first) zoom.cur = zoom.fov;
     bookSky.setFocus(r);
     aimAt(r.dir, first ? 1100 : 700);
+    zoom.openFirst = r; // its newest book's card, once you're looking at it (frame loop)
     // a history entry, so Back leans out again (and a link can't land you here)
     if (!zoom.pushed) { history.pushState({ sky: true }, '', '#sky'); zoom.pushed = true; }
     $('sky-name').textContent = r.name;
     $('sky-count').textContent = `${r.count} ${r.count === 1 ? 'book' : 'books'}`;
     skyShelf.style.setProperty('--hue', r.hue);
     skyShelf.hidden = false;
-    showHint(`${coarse ? 'Tap' : 'Click'} a star to see the book.`, 'star-pick');
+    showHint(`${coarse ? 'Tap' : 'Click'} any title or star to see that book.`, 'star-pick');
   }
   function zoomOut({ fromHistory } = {}) {
     if (!zoom.region) return;
@@ -1511,10 +1517,23 @@ async function start() {
   // when the view changes.
   const labelEls = [];
   let labelsKey = '';
+  // a title on screen is its book's tap target (with its star), padded to 44 px tall; the
+  // nearest one wins where padding overlaps
+  const labelHits = [];
+  function labelAt(x, y) {
+    if (!zoom.region || zoom.k < 1) return null;
+    let best = null, bestD = Infinity;
+    for (const h of labelHits) {
+      if (x < h.left || x > h.right || y < h.top || y > h.bottom) continue;
+      const d = Math.abs(y - (h.top + h.bottom) / 2);
+      if (d < bestD) { best = h.b; bestD = d; }
+    }
+    return best;
+  }
   function layoutLabels() {
     const r = zoom.region, e = zoom.k * zoom.k * (3 - 2 * zoom.k);
     skyLabels.style.opacity = r ? Math.max(0, (e - 0.5) * 2) : 0;
-    if (!r || zoom.k < 0.5) { if (labelsKey) { for (const el of labelEls) el.hidden = true; labelsKey = ''; } return; }
+    if (!r || zoom.k < 0.5) { if (labelsKey) { for (const el of labelEls) el.hidden = true; labelsKey = ''; labelHits.length = 0; } return; }
     camera.updateMatrixWorld(true);
     const key = `${camera.quaternion.toArray().map((v) => v.toFixed(4))}${camera.fov.toFixed(2)}|${starOpen ? starOpen.index : ''}|${innerWidth}x${innerHeight}|${starCard.hidden}`;
     if (key === labelsKey) return;
@@ -1524,6 +1543,7 @@ async function start() {
     const hit = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
     const order = starOpen && starOpen.region === r ? [starOpen, ...r.books.filter((b) => b !== starOpen)] : r.books;
     const boxes = [];
+    labelHits.length = 0;
     let n = 0;
     for (const b of order) {
       if (n >= 70) break;
@@ -1534,6 +1554,7 @@ async function start() {
       if (box.right > rect.right - 6) box = { ...box, left: p.x - 9 - w, right: p.x - 9 };
       if (boxes.some((o) => hit(o, box)) || avoid.some((o) => hit(o, box))) continue;
       boxes.push(box);
+      labelHits.push({ b, left: Math.min(box.left, p.x - 12), right: Math.max(box.right, p.x + 12), top: p.y - 22, bottom: p.y + 22 });
       const el = labelEls[n] || skyLabels.appendChild(Object.assign(document.createElement('span'), { className: 'sky-label' }));
       labelEls[n] = el;
       el.textContent = b.book.title;
@@ -1867,6 +1888,8 @@ async function start() {
       camera.updateProjectionMatrix();
       zoom.applied = zoom.k > 0;
     }
+    if (zoom.openFirst && (zoom.region !== zoom.openFirst || state !== 'hammock')) zoom.openFirst = null;
+    else if (zoom.openFirst && zoom.k === 1 && !aimTween && Math.abs(zoom.cur - zoom.fov) < 0.5) { const r = zoom.openFirst; zoom.openFirst = null; openStar(r.books[0], { auto: true }); }
     physics.update(realDt, player.pos);
     if (carry) {
       if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
