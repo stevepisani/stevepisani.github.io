@@ -16,7 +16,10 @@ design: row-level security guards every table.
   (`create … if not exists`, `drop policy if exists` before `create policy`), so a re-run is safe.
   To change the schema, add a new migration; never edit one that has run.
 - `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off, the OAuth server for
-  ChatGPT and its consent page, the sign-in email's subject, a 6-digit code).
+  ChatGPT and its consent page, the sign-in email's subject, a 6-digit code, and sessions that
+  last: an hour's access token renewed by a refresh token that rotates, with no time limit and no
+  inactivity limit, so a phone stays signed in until it signs out; `docs/apps.md`, "Staying
+  signed in").
 - `templates/<name>.html`: Auth's emails, each the auth config's `mailer_templates_<name>_content`.
   `magic_link.html` is the sign-in email: the link and the code (`{{ .ConfirmationURL }}`,
   `{{ .Token }}`), the code being how the home-screen app signs in (`docs/apps.md`, "Signing in").
@@ -49,8 +52,8 @@ What's in the database:
 
 | Thing | What it is | Who can do what |
 |---|---|---|
-| `members`, `is_member()` | who may use the private bits; every policy asks `is_member()` | members |
-| `recipes` | the recipe tracker (`/apps/recipes`; `docs/apps.md`) | members only |
+| `members`, `is_member()`, `me()` | who may use the private bits (every policy asks `is_member()`), and to the app each one's name and sections (`me()`, their own row) | members |
+| `recipes` | Recipes, a tab in SJPJr (`/apps/wardrobe#recipes`; `docs/apps.md`) | members only |
 | `wardrobe_items`, `wardrobe_variants`, `wardrobe_products`, `wardrobe_photos`, view `wardrobe_closet` | the wardrobe (`/apps/wardrobe`): each owned garment, the colour and size it is, the garment as sold, its photos; the view resolves them flat (`docs/apps.md`) | each member their own rows; what's linked must be theirs too |
 | `trips` | the wardrobe's trips | each member their own |
 | `photos` bucket | every private app's pictures, a folder per app (recipe photos from before Oct 2026 are at the root) | members only |

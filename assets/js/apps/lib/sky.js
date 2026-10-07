@@ -6,22 +6,22 @@
 import { el, icon } from './kit.js';
 import { conditionOf } from '../../../../supabase/functions/_shared/weather.js';
 
-// ---------- °C or °F: the browser's habit (en-US is °F), until a temperature is tapped ----------
+// ---------- °C or °F: the browser's habit (en-US is °F), until it's set in Settings ----------
 const FAHRENHEIT = /-(US|LR|MM|BS|KY|PW|FM|MH)$/i; // the places that still use it
 let unit = (() => {
   try { const u = localStorage.getItem('wardrobe-units'); if (u === 'C' || u === 'F') return u; } catch (e) {}
   return FAHRENHEIT.test(navigator.language || '') ? 'F' : 'C';
 })();
 export const units = () => unit;
-export function switchUnits() {
-  unit = unit === 'F' ? 'C' : 'F';
+export function setUnits(u) {
+  unit = u === 'F' ? 'F' : 'C';
   try { localStorage.setItem('wardrobe-units', unit); } catch (e) {}
   return unit;
 }
 const toUnit = (c) => Math.round(unit === 'F' ? (c * 9) / 5 + 32 : c);
 /** A temperature in °C, as text in the unit shown: "14°" */
 export const temp = (c) => (c == null ? '–' : `${toUnit(c)}°`);
-/** The same, as an element a tap switches (wardrobe.js listens for taps on .t) */
+/** The same, as an element (redrawn when the unit changes) */
 export const tempEl = (c, cls = '') => el('span', `t${cls ? ` ${cls}` : ''}`, temp(c));
 export const speed = (kmh) => (unit === 'F' ? `${Math.round(kmh / 1.609)} mph` : `${Math.round(kmh)} km/h`);
 

@@ -1,9 +1,6 @@
-# The private apps on /apps (members only; docs/apps.md). Same fields as lab.yml, minus the status.
-- title: Recipes
-  url: /apps/recipes
-  emoji: "🍳"
-  blurb: What we're cooking our way through, with ratings, notes and photos.
-- title: Wardrobe
+# The private app (docs/apps.md): its home-screen name and description, for its manifest
+# (_includes/app-manifest.json). There's one, SJPJr; recipes are a tab in it.
+- title: SJPJr
   url: /apps/wardrobe
-  emoji: "👕"
-  blurb: My clothes, each with a photo, what it is and where to buy another. ChatGPT can see it too.
+  emoji: "🧳"
+  blurb: My own things, each with photos and the facts; my clothes and trips, and our recipes. ChatGPT and Claude can see it too.

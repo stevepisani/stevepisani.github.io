@@ -1,21 +1,25 @@
 # The private apps (`/apps`)
 
-Small tools for life at home, on the site but only for members: Steve and Lexi today. The recipe
-tracker was the first; the wardrobe is the second. They share one sign-in, one look and
-one small kit, so a new app is a table, a page and a script, and nothing else.
+Small tools for life at home, on the site but only for members: Steve and Lexi today. Since Oct
+2026 they're one app, **SJPJr** (`/apps/wardrobe`, installed full screen on Steve's iPhone), in
+sections: Today, Closet, Trips and Recipes. Each member sees the sections that are theirs (Steve
+all four, Lexi Recipes). One sign-in, one look, one small kit, so a new section is a table, some
+markup and a module, and nothing else.
 
 ## How it fits together
 
 | Piece | What it does |
 |---|---|
-| `_data/apps.yml` | the list on `/apps` (`apps/index.html`): title, url, emoji, blurb |
-| `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear) and the script named by `app:`. An app may set the heading (`#app-title`) to say where you are and show `#app-back`, the way back up |
+| `_data/apps.yml` | the app's home-screen name and description, for its manifest (one entry: SJPJr) |
+| `_layouts/app.html` | the shell ("The shell" below): its own document, not the site's (no site nav, no footer): the bar on top with the badge, the heading, the sign-in form, the settings sheet, the pull-to-refresh ring, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear), `site.js` (the themes) and the script named by `app:` |
+| `apps/index.html`, `apps/recipes.html` | only redirect: `/apps` to SJPJr, `/apps/recipes` to its Recipes tab (`recipe_tracker/` leads to the second) |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
-| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
-| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the `.ics`, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
-| `apps/<app>.webmanifest` | the home-screen app ("The home-screen app" below): one per installable app (wardrobe, recipes), each a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
-| `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
-| `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
+| `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; the user comes with `name` and `sections` from `me()`; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `here({ title, over, bar, back })` (where you are: the heading, the line over it, the bar's title, the way back up), the settings sheet (wired on load), `pull(refresh)` (pull to refresh), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
+| `assets/js/apps/lib/recipes.js` | Recipes, a section SJPJr mounts (`load()`, `clear()`); its markup is `_includes/recipes.html`, ids starting `recipe-` |
+| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the Google Calendar link, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
+| `apps/wardrobe.webmanifest` | the home-screen app ("The home-screen app" below): a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
+| `apps/offline.js` | the service worker for `/apps/` (registered by SJPJr): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token). `/apps/` and `/apps/recipes` it sends straight to SJPJr and its Recipes tab, connection or not |
+| `assets/js/apps/<name>.js` | one page's script: `wardrobe.js` (SJPJr) and `authorize.js` (the consent page). `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
 Signing in is by email, sign-ups off: the email (Supabase's magic link, `supabase/templates/magic_link.html`)
 has a link and a 6-digit code. The link signs in the browser it opens in. The code is typed in the
@@ -23,23 +27,75 @@ field the sign-in form shows once the email has gone ("Or type the 6-digit code 
 `autocomplete="one-time-code"`, so iOS offers it from Mail where it can; six digits go by
 themselves), which calls `verifyOtp({ email, token, type: 'email' })`. That's the way into the
 home-screen app: iOS gives it its own storage, and the emailed link opens in Safari, which would
-sign in Safari, not the app. Either works once, within the hour. The session is kept in the
-browser for the whole site, so signing in once covers every app, and the site's nav shows "Apps"
-to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
+sign in Safari, not the app. Either works once, within the hour. The last email sent to on that
+phone is kept (`localStorage` `apps-email`) and filled in next time, with "Welcome back" over it,
+so coming back is one tap and the code. The session is kept in the browser for the whole site, and
+the site's nav shows "Apps" (to `/apps/wardrobe`) to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
 site build (`docs/backend.md`). Who's a member is the `members` table; every table's policy asks
 `is_member()`, and the page asks it too, only to decide what to show. The pages are `noindex`.
+
+### Staying signed in
+
+As code, in `supabase/auth.json`: the access token lasts an hour (`jwt_exp` 3600) and supabase-js
+renews it with the refresh token, which rotates on each use (`refresh_token_rotation_enabled`,
+with a 10-second grace for two tabs asking at once, `security_refresh_token_reuse_interval`).
+There's no time limit and no inactivity limit on a session (`sessions_timebox` and
+`sessions_inactivity_timeout` unset: they're Pro-plan settings, and `tools/supabase.mjs` treats
+unset, 0 and absent as the same, so it never sends them). So a phone stays signed in for months,
+until it signs out. Installed on the Home Screen, iOS doesn't clear the app's storage; in Safari
+itself, a site's storage can be cleared after seven days without a visit, which would mean the
+code again.
+
+## The shell
+
+`_layouts/app.html`: an app page is the app, not a page of the site. No site nav (About, Writing,
+Resume…), no footer, no "members only" line.
+
+- **The bar on top** (`.app-top`, sticky): the SJPJr badge on the left, which opens Settings; the
+  way back up beside it when there is one ("‹ Trips"; it keeps its words, the title gives way); and
+  where you are, in the middle, once the big heading has scrolled under it (with a hairline). It
+  starts below `env(safe-area-inset-top)`, so installed it sits under the status bar's clock, not
+  behind it, and the dark band behind the clock stays. Wider, it lines up with the page.
+- **The heading** says where you are (`here()` in `kit.js`): the section, a trip's name, Packing;
+  on Today a greeting.
+- **Settings** (a sheet, `kit.js`): the theme (Auto, Light, Dark, Terminal; `site.js`'s own, as
+  `window.siteTheme`, so it's the whole site's), what the app adds (a page's `<template
+  id="settings-more">`: SJPJr's °F or °C, shown only to someone with weather to see), who's signed
+  in (name and email) with Sign out (it asks first: getting back in takes a code), and a plain link
+  to stevenpisani.com. Everything takes effect at once; Done, a swipe, Esc or a tap outside closes
+  it.
+- **Who's signed in**: `public.members` has `name` and `sections`
+  (`supabase/migrations/20261007000100_members_name.sql`), read through `me()` (the caller's own
+  row; the table itself stays unreadable). The name greets them; with none stored, the start of
+  their email, capitalised. `sections` is which of today, closet, trips and recipes they see (new
+  members: recipes). The wardrobe and trips are each person's own by row-level security, and
+  Steve's are the only ones, so Lexi's row is `{recipes}`; giving someone more is a migration that
+  changes their row. If `me()` can't answer (before the migration has run), everyone sees all four.
+  Both are kept on the phone (`apps-me:<email>`) for opening with no connection.
+- **Feels like an app**: buttons, tabs, chips, cards and the bars don't select as text or bring
+  up the callout on a long press (`user-select: none`, `-webkit-touch-callout: none`, on controls
+  only: notes, facts and fields still select); `touch-action: manipulation`, so a double tap
+  doesn't zoom.
+- **Pull to refresh** (`pull()` in `kit.js`): at the very top of any section, a pull down past the
+  line (a ring comes down with it, turns when it's far enough, and spins while it reloads; with
+  reduced motion it only appears) reloads what's showing, and a toast says "Updated", or "Weather
+  updated" on Today and a trip when only the weather can have changed (the data came back the
+  same). Only a pull that starts at the top and goes mostly down counts: a drag lower down
+  scrolls, a sideways one stays the strip's, and nothing happens with a sheet open or while
+  typing. The browser's own pull is off (`overscroll-behavior-y: contain`); the bounce stays.
+  Offline it says so and shows the copy.
 
 ## The home-screen app
 
 On an iPhone each app can be added to the Home Screen and opens full screen, with no Safari bars:
 
-- **The manifest** (`apps/wardrobe.webmanifest`, `apps/recipes.webmanifest`, from
-  `_includes/app-manifest.json`): the app's name ("Wardrobe"), `start_url` the app itself (so the
-  recipe tracker, added from its page, opens on recipes, not the wardrobe), `scope` `/apps/`,
+- **The manifest** (`apps/wardrobe.webmanifest`, from `_includes/app-manifest.json`): the app's
+  name, "SJPJr" (its address stays `/apps/wardrobe`, so nothing installed breaks), `start_url` the
+  app itself (no hash, so it opens on Today), `scope` `/apps/`,
   `display: standalone`, the light theme's `--bg` as its colours, icons at 192 and 512 (the 512 also
   maskable). `head.html` links it only on `layout: app` pages that have one, with
   `apple-mobile-web-app-capable` (and `mobile-web-app-capable`), the status bar `black-translucent`
-  (the page runs under it; `apps.css` already keeps the safe areas clear, and in the light theme,
+  (the page runs under it; `apps.css` keeps the safe areas clear, the app's bar starting below the status bar, and in the light theme,
   installed, a dark band sits under the status bar's white clock), `apple-mobile-web-app-title`
   (the page's title), the app's `apple-touch-icon`, and `theme-color` for light and dark. The
   public site has none of it.
@@ -47,18 +103,24 @@ On an iPhone each app can be added to the Home Screen and opens full screen, wit
   site's SJPJr badge (`sj-512.png`, as in the header) on the light theme's cream, since iOS fills a
   transparent icon with black; 84% of the square, or 68% for the maskable one a launcher may cut to
   a circle. Every app shares it. `node tools/app-icons.mjs` makes them (through Playwright); they're
-  committed. A new app needs only its line in `_data/apps.yml` and a two-line manifest.
-- **Ways back** with no browser around it: every view has its own (the tabs, "‹ Trips" above the
-  title, Done or Cancel on every sheet, Back's history). Links that leave (Buy another, a booking,
-  a map, a recipe's page) open with `target="_blank"`, so iOS shows them over the app with a Done
-  button, or in Maps. The site's own nav leaves the app's scope; iOS shows those pages the same way.
+  committed. The recipe tracker had its own manifest until Oct 2026; it's gone, and a recipe
+  tracker already on someone's Home Screen opens `/apps/recipes`, which leads to the Recipes tab.
+- **Ways back** with no browser around it: every view has its own (the tabs, "‹ Trips" in the
+  bar, Done or Cancel on every sheet, Back's history). Links that leave (Buy another, a booking,
+  a map, a recipe's page, the site from Settings) open with `target="_blank"`, so iOS shows them
+  over the app with a Done button, or in Maps.
 - **One hint**, on an iPhone in Safari (not installed, not dismissed), above everything, signed in
   or not (installing before signing in is the better order): "Add to Home Screen for the
   full-screen app: tap Share, then Add to Home Screen." × retires it for good on that phone
   (`localStorage` `apps-install-hint`). Installed, it's never shown, and the sign-in note asks only
   for the code.
 
-## Adding an app (say, a wardrobe)
+## Adding a section (or an app)
+
+A new section of SJPJr is a table (below), its markup in `apps/wardrobe.html` (an include, like
+`_includes/recipes.html`), a module in `lib/` that `wardrobe.js` mounts, a tab, its name in
+`SECTIONS` and in the `members_sections_known` check, and the members who see it. A separate app
+is what follows: a page with `layout: app` gets the same shell.
 
 1. **A table**, in a new migration (`supabase/migrations/<timestamp>_<name>.sql`), written so a
    re-run is safe. Shared between members:
@@ -82,9 +144,8 @@ On an iPhone each app can be added to the Home Screen and opens full screen, wit
 
    If each person should see only their own rows, add `owner uuid not null default auth.uid()`
    and make the policy `(select public.is_member()) and owner = (select auth.uid())`.
-2. **A page**, `apps/<name>.html`, with `layout: app`, `app: <name>`, `title:` and `lede:` (the
-   lede is what the sign-in form says the app is). Its content is the app's markup, built from the
-   classes in `apps.css`; `apps/recipes.html` is the example.
+2. **A page**, `apps/<name>.html`, with `layout: app`, `app: <name>` and `title:`. Its content is
+   the app's markup, built from the classes in `apps.css`; `_includes/recipes.html` is the example.
 3. **A script**, `assets/js/apps/<name>.js`: import from `./lib/kit.js`, and call
    `start(async () => { … load and draw … })`. Photos go in the shared private `photos` bucket,
    under `<name>/<row id>/` (`photos.put(file, folder)` shrinks them to 1600px first).
@@ -120,9 +181,11 @@ Known limits, to deal with when an app meets them:
 - Recipe photos from before Oct 2026 sit at the bucket's root (`<recipe id>/…`); new ones are
   under `recipes/`. Both work.
 
-## The recipe tracker (`/apps/recipes`)
+## Recipes (the Recipes tab)
 
-Table `recipes`. Up top, the one thing to act on: tonight's pick (the same one all day; "Another"
+Table `recipes`, shared by the members who see it. `lib/recipes.js`, mounted by `wardrobe.js`
+(its own page until Oct 2026; `/apps/recipes` now leads to the tab). With no connection it says
+recipes need one (they keep no copy on the phone). Up top, the one thing to act on: tonight's pick (the same one all day; "Another"
 picks at random), with how many are cooked, the average rating, the streak and a progress bar.
 Then search and Add; All / To cook / Cooked with their counts; and the order. The filter and order
 are remembered on that phone (`localStorage` `recipes-view`).
@@ -151,9 +214,9 @@ And from the Oct 2026 redesign (Apple's HIG and Krug, for one user on an iPhone 
 - The content is the clothes: photos sit on the studio (`--studio`, the pale grey the catalog
   photos are shot on, the same in every theme and dimmed at night), so a photo and its tile are one
   surface. A garment with no photo shows a line drawing of its kind, not a letter.
-- On a phone the site's bar scrolls away on app pages, tabs sit at the bottom in thumb reach (icons
-  and labels, for sections, never actions), and the title settles into a bar at the top as you
-  scroll. Wider, the tabs sit beside the title.
+- On a phone the tabs sit at the bottom in thumb reach (icons and labels, for sections, never
+  actions), and the title settles into the bar at the top as you scroll. Wide, the tabs sit beside
+  the title; between, under it.
 - Motion says where things went (deeper slides in from the right, an item grows out of the photo
   tapped); with reduced motion it doesn't move. Loading shows the shape of what's coming, not a
   spinner.
@@ -165,7 +228,7 @@ offers the library too). The old page could also fetch an NYT Cooking collection
 dropped (third-party proxies, and no way to test it). If it's missed, the way to do it is an edge
 function.
 
-## The wardrobe (`/apps/wardrobe`)
+## The wardrobe (`/apps/wardrobe`: Today, the Closet and Trips)
 
 Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned by `auth.uid()`;
 photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
@@ -198,12 +261,14 @@ wardrobe MCP server, signed in as him (below).
   in three colours, added before this) were regrouped by
   `20261005000200_wardrobe_uniqlo.sql`: one product, three variants, the same three ids, the old
   values kept in `sources.migrated_from`.
-- **Where you are is in the address** (`#today`, `#closet`, `#trips`, `#trip/<id>`,
+- **Where you are is in the address** (`#today`, `#closet`, `#trips`, `#recipes`, `#trip/<id>`,
   `#trip/<id>/pack`, `#item/<id>` over whatever's underneath), so Back works everywhere and any
-  view can be linked. With a trip on, or starting within two weeks, it opens on Today; otherwise
-  on the tab last used. The heading says where you are (Closet, Trips, the trip's name,
-  Packing), with the way back up above it ("‹ Trips"); on a phone both settle into a bar at the
-  top as you scroll, and the tabs (Today, Closet, Trips, with icons) sit at the bottom. Each view
+  view can be linked. With no address (opening from the Home Screen, from the service worker's
+  copy, or a link) it opens on Today; someone without Today, on their first section. A section a
+  member doesn't see isn't there: its address goes home. The heading says where you are (Today's
+  greeting, Closet, Trips, the trip's name, Packing, Recipes), with the way back up in the bar
+  ("‹ Trips"); the tabs (Today, Closet, Trips, Recipes, with icons, only the member's, and none
+  for one section) sit at the bottom on a phone. Each view
   keeps its scroll, so coming back lands where you were; the tab you're on, tapped again, goes to
   the top. Going in to a trip or its packing slides in from the right; an item grows out of the
   photo tapped (View Transitions, where the browser has them; reduced motion, none).
@@ -245,14 +310,19 @@ wardrobe MCP server, signed in as him (below).
   note), and its own rows for packing, bags, transport, lodging and links. A trip shows each leg with its weather (day by day, "Weather" below), the planned days
   with their outfits, and how the packing's going. Trips are mostly made in ChatGPT; "New trip"
   and "Edit" here take a name, places and dates, and notes.
-- **Today** (a tab only while a trip is on, or starts within two weeks; its heading is the trip's
-  name): the trip's line, leg by leg, with the one you're on lit, a dot where you are in it and the
-  days left there; then a morning card for the day: the place and its weather on a sky ("Weather" below), the
-  advice in one box when the weather and the outfit disagree, and what you're wearing laid flat (below), the occasion, the plan and the
-  note. "Day before" and "Tomorrow" step through the trip, and so does a swipe across the card.
-  Below, the next five days (weather and the outfit small; tap one to see it on the card) and the
-  packing, as a ring that fills. Before the trip, the card shows its
-  first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say and what the
+- **Today** (home): over the heading the date, and the heading a greeting by the phone's time of
+  day and the member's name ("Good morning, Steve": morning from 5, afternoon from noon, evening
+  from 5 PM). Then the next thing first: the next journey within 48 hours (below); what you're
+  wearing (the outfit laid flat, the occasion, the plan, the note, and the advice in one box when
+  the weather and the outfit disagree; "Wore it" will go under the outfit, next); then the weather
+  where you are on its sky ("Weather" below): on a trip that's on, the place you're in that day;
+  otherwise home (`HOME` in `travel.js`, Philadelphia), today and tomorrow. On a trip, "Day before"
+  and "Tomorrow" step through it, and so does a swipe across either card; beside or below: the
+  trip (its name, a tap to it; its line leg by leg, the one you're on lit, a dot where you are and
+  the days left there; home and away), tonight's stay, the next five days (weather and the outfit
+  small; tap one to see it) and the packing, as a ring that fills. With a trip within two weeks
+  it's "Coming up" (when you leave, its line, the packing); with none, the next trip as a card.
+  At home there's no planned outfit yet ("Nothing planned for today."). The advice (`advice()` in `wardrobe.js`) knows only what the items say and what the
   weather does: rain of 50% or more (saying from when, when the hours show it: "Rain likely from
   about 2 PM (68%)") asks for something whose name, material or notes say rain, waterproof, shell,
   Gore-Tex, trench, mac or umbrella, and warns off suede; with nothing from outerwear or warm, an
@@ -279,13 +349,14 @@ wardrobe MCP server, signed in as him (below).
     way to Florence. Arrives in 1 h 10 min" once it's left), only for times stored with their UTC
     offset (one without is a clock time somewhere, so it only says "today at 13:00" or
     "tomorrow"); then, under a perforation, the booking reference as a chip a tap copies
-    (Clipboard API, "Copied X9NF5P"), "Add to Calendar" and the booking link. A journey that's
-    happened is quieter and offers no Calendar.
-  - **Add to Calendar** makes an `.ics` (one VEVENT: the times in UTC from the stored offsets; a
-    time with no offset as a floating local time; a journey with no time as an all-day event; no
-    end unless there's an arrival; the summary "Train to Paris (Frecciarossa 9581)", the place you
-    leave from, and a description with the times there and the reference) and opens it as a Blob:
-    on an iPhone Safari offers "Add to Calendar", elsewhere it downloads.
+    (Clipboard API, "Copied X9NF5P"), "Add to Google Calendar" and the booking link. A journey
+    that's happened is quieter and offers no Calendar.
+  - **Add to Google Calendar** (Steve's calendar) is a link to a new event, filled in
+    (`calendar.google.com/calendar/render?action=TEMPLATE`, opened over the app): the times in UTC
+    from the stored offsets; a time with no offset as written, which Google reads in the
+    calendar's zone; a journey with no time as an all-day event; an hour long with no arrival; the
+    title "Train to Paris (Frecciarossa 9581)", the place you leave from, and details with the
+    times there and the reference. You check it and tap Save.
   - **Staying**: the name, the dates and nights ("staying now" outlined), the address as a tap that
     opens Apple Maps (`https://maps.apple.com/?q=<name>&address=<address>`, which is the web map
     off Apple's devices; no address, no map: a name alone finds nothing), notes, the reference to
@@ -363,8 +434,8 @@ wardrobe MCP server, signed in as him (below).
     where it is now; typical days come after a line saying what they are, faint and dashed. A leg
     shows ten days and "All 31 days". Each row is one sentence for VoiceOver. The day cards and
     "Next few days" use the same drawings: sky, high / low, rain from 20%.
-  - **°F or °C**: an American browser (en-US) gets °F, the rest °C; a tap on any temperature
-    switches every one, and it's kept (`localStorage` `wardrobe-units`). Everything is stored in
+  - **°F or °C**: an American browser (en-US) gets °F, the rest °C; Settings (the badge) switches
+    every one at once, and it's kept (`localStorage` `wardrobe-units`). Everything is stored in
     °C and turned into °F only when shown; wind follows (mph or km/h). The MCP server stays °C.
   - **Offline**, the last weather each leg had (`wardrobe-wx`) includes its hours, so the sky,
     the sentence and the strip are still there.

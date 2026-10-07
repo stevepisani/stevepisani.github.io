@@ -332,11 +332,13 @@ async function planet(page, shot, { phone = false } = {}) {
 // October: rain (70%), dry and cloudy until 2 PM, then rain, heaviest at 4, 10.5° by 8 PM. The trip has three travelers,
 // two bags, a packing list (a garment, a baby's thing, a shared one, one nobody's, one of Lexi's,
 // and one on a trip that isn't loaded, never shown), three journeys (the last a train to Siena on
-// 16 October), two stays and a link; the euro is $1.1269 (Frankfurter, made up). Returns what was asked of it.
-async function member(page, target) {
+// 16 October), two stays and a link; the euro is $1.1269 (Frankfurter, made up). By default the
+// member is Steve (me(): his name, all four sections); `email` and `me` make someone else. Returns
+// what was asked of it.
+async function member(page, target, { email = 'member@example.com', me = { name: 'Steve', sections: ['today', 'closet', 'trips', 'recipes'] } } = {}) {
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
-  const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
-  await page.addInitScript(([key, token]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: 4102444800, user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt]);
+  const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email, role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
+  await page.addInitScript(([key, token, email]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: 4102444800, user: { id: 'u1', email, aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt, email]);
   const table = JSON.parse(readFileSync(new URL('./fixtures/recipes.json', import.meta.url)));
   const closet = JSON.parse(readFileSync(new URL('./fixtures/wardrobe.json', import.meta.url)));
   // the trip's own row lost its packing list to trip_packing, and has who's going and each day's plans
@@ -384,6 +386,7 @@ async function member(page, target) {
     const body = (() => { try { return req.postDataJSON(); } catch (e) { return null; } })(); // a photo isn't JSON
     asked.push({ method, path: url.pathname + url.search, body });
     if (url.pathname.endsWith('/rpc/is_member')) return json(true);
+    if (url.pathname.endsWith('/rpc/me')) return json(me);
     // Storage, as it answers: an upload is kept; signing gives a link only for a file that's there;
     // a signed link is the picture
     const file = /\/storage\/v1\/object\/photos\/(.+)$/.exec(url.pathname);
@@ -458,80 +461,130 @@ async function member(page, target) {
   return asked;
 }
 
-// The private apps (/apps), on a phone, against a made-up Supabase: signed out there's only the
-// sign-in form; signed in as a member, the recipe tracker lists, searches, marks one cooked,
-// saves notes and a rating, and adds one, and each of those asks the database for the right thing.
+// A pull down from the top of the page, as a finger does it (real touch events, through the
+// browser's own input), `by` pixels
+async function pullDown(page, by = 260, { x = 195, y = 180 } = {}) {
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type, at) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: at == null ? [] : [{ x, y: at }] });
+  await touch('touchStart', y);
+  for (let i = 1; i <= 12; i++) { await touch('touchMove', y + (by * i) / 12); await page.waitForTimeout(16); }
+  await touch('touchEnd');
+  await cdp.detach();
+}
+
+// The private app (SJPJr, /apps/wardrobe), on a phone, against a made-up Supabase: its own frame
+// (no site nav or footer: the badge and where you are), signed out only the sign-in form; signed
+// in as Steve, Today first, then the recipe tracker (now its Recipes tab, reached from its old
+// address) lists, searches, marks one cooked, saves notes and a rating, and adds one, and each of
+// those asks the database for the right thing.
 async function apps(page, shot) {
-  await page.goto(base + '/apps/recipes');
+  await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.getElementById('app').dataset.state === 'out');
   if (await page.isVisible('#app-main')) throw new Error('the app shows without signing in');
+  if (await page.$('.site-head, .site-foot, .site-nav') || !(await page.isVisible('#app-top #app-me img'))) throw new Error("an app page should have its own bar (the badge), not the site's nav and footer");
+  if ((await page.textContent('#gate-title')) !== 'Sign in' || /members|private/i.test(await page.textContent('#app-gate'))) throw new Error(`the gate should be short and personal: ${flatText(await page.textContent('#app-gate'))}`);
   await shot('gate');
-  step('signed out: only the sign-in form');
+  step('signed out: its own bar with the badge, no site nav or footer, and only the sign-in form, said plainly');
 
   const asked = await member(page, page);
+  await page.clock.setFixedTime(new Date('2026-09-01T10:00:00+02:00')); // before the trip, so Today is at home
   await page.goto(base + '/apps/recipes');
-  await until(page, () => document.querySelectorAll('#cards .item').length === 3);
-  if (!(await page.textContent('#tally')).includes('1 of 3')) throw new Error('the cooked count is wrong');
+  await page.waitForURL(/\/apps\/wardrobe#recipes$/);
+  await until(page, () => document.querySelectorAll('#recipe-cards .item').length === 3 && !document.getElementById('recipes-view').hidden);
+  if (!(await page.textContent('#recipe-tally')).includes('1 of 3') || (await page.textContent('#app-title')) !== 'Recipes' || !(await page.isVisible('#tabs a[data-value="recipes"][aria-current="page"]'))) throw new Error('the recipes tab: the cooked count, the title or the tab is wrong');
   await shot('recipes');
-  step('signed in as a member: 3 recipes, 1 cooked');
+  step('/apps/recipes leads to the Recipes tab in SJPJr: 3 recipes, 1 cooked');
 
-  await page.fill('#search', 'noodles');
-  if ((await page.locator('#cards .item:visible').count()) !== 1) throw new Error("search didn't narrow the list to one");
-  await page.fill('#search', '');
+  await page.fill('#recipe-search', 'noodles');
+  if ((await page.locator('#recipe-cards .item:visible').count()) !== 1) throw new Error("search didn't narrow the list to one");
+  await page.fill('#recipe-search', '');
   step('search narrows the list');
 
-  await page.locator('#cards .item:visible [data-do="cook"]:visible').first().click();
-  await until(page, () => document.getElementById('tally').textContent.includes('2 of 3'));
+  await page.locator('#recipe-cards .item:visible [data-do="cook"]:visible').first().click();
+  await until(page, () => document.getElementById('recipe-tally').textContent.includes('2 of 3'));
   const cooked = asked.find((a) => a.method === 'PATCH');
   if (!cooked || cooked.body.cooked !== true || !/^\d{4}-\d\d-\d\d$/.test(cooked.body.date_cooked)) throw new Error(`marking one cooked sent ${JSON.stringify(cooked)}`);
   step('marked one cooked');
 
   // notes save themselves a moment after the typing stops; a star saves at once
-  const first = page.locator('#cards .item:visible').first();
+  const first = page.locator('#recipe-cards .item:visible').first();
   await first.locator('[data-is="notes"]').fill('Smoke test note');
   await until(page, () => !document.querySelector('[data-save="saving"]'));
   await first.locator('.rating button').nth(6).click();
-  await until(page, () => /7\/10/.test(document.querySelector('#cards .item .rating output').textContent));
+  await until(page, () => /7\/10/.test(document.querySelector('#recipe-cards .item .rating output').textContent));
   const sent = asked.filter((a) => a.method === 'PATCH').map((a) => a.body);
   if (!sent.some((b) => b.notes === 'Smoke test note') || !sent.some((b) => b.rating === 7)) throw new Error(`notes and a rating sent ${JSON.stringify(sent)}`);
   step('notes saved as typed, and a rating');
 
   // a photo is shrunk to a JPEG, stored under recipes/<id>/, and the recipe points at it
   await first.locator('.photo-btn input').setInputFiles({ name: 'dinner.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') });
-  await until(page, () => document.querySelector('#cards .item .item__photo:not([hidden])'));
+  await until(page, () => document.querySelector('#recipe-cards .item .item__photo:not([hidden])'));
   const upload = asked.find((a) => a.method === 'POST' && a.path.includes('/object/photos/recipes/'));
   if (!upload || !upload.path.endsWith('.jpg') || !asked.some((a) => a.method === 'PATCH' && /^recipes\/.+\.jpg$/.test(a.body?.photo_path))) throw new Error(`adding a photo sent ${JSON.stringify(upload)}`);
   step('added a photo');
 
   // Enter in the dialog adds it (a link without https:// is fine); Cancel adds nothing
-  await page.click('#add');
-  await page.click('#add-dialog [data-close]');
-  await page.click('#add');
-  await page.fill('#add-dialog [name="title"]', 'Smoke test soup');
-  await page.fill('#add-dialog [name="link"]', 'example.com/soup');
+  await page.click('#recipe-add');
+  await page.click('#recipe-add-dialog [data-close]');
+  await page.click('#recipe-add');
+  await page.fill('#recipe-add-dialog [name="title"]', 'Smoke test soup');
+  await page.fill('#recipe-add-dialog [name="link"]', 'example.com/soup');
   await page.keyboard.press('Enter');
-  await until(page, () => document.querySelectorAll('#cards .item').length === 4);
+  await until(page, () => document.querySelectorAll('#recipe-cards .item').length === 4);
   if (asked.filter((a) => a.method === 'POST' && a.path.includes('/rest/v1/recipes')).length !== 1) throw new Error('cancelling the dialog added a recipe');
   await shot('added');
   step('added one with Enter; Cancel added nothing');
 
-  // an expired sign-in link says so
+  // pull to refresh on the recipes: they're asked for again, and it says so
+  const recipeGets = () => asked.filter((a) => a.method === 'GET' && a.path.startsWith('/rest/v1/recipes')).length;
+  const gotRecipes = recipeGets();
+  await page.evaluate(() => scrollTo(0, 0));
+  await pullDown(page);
+  await until(page, () => /^Updated/.test(document.getElementById('app-toast').textContent) && !document.getElementById('app-toast').hidden);
+  if (recipeGets() !== gotRecipes + 1) throw new Error(`pulling down should reload the recipes once: ${recipeGets() - gotRecipes}`);
+  step('pull to refresh reloads the recipes and says "Updated"');
+
+  // an expired sign-in link says so (through the old address, which keeps a sign-in link's hash)
   await page.goto(base + '/apps/recipes#error=access_denied&error_code=otp_expired&error_description=expired');
-  await page.reload();
+  await page.waitForURL(/\/apps\/wardrobe/);
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   if (!/expired/.test(await page.textContent('#gate-note')) || (await page.evaluate(() => location.hash))) throw new Error("an expired sign-in link wasn't explained");
   step('an expired sign-in link says so');
 
   // the wardrobe: the closet, a chip, an item's sheet saving as it's typed, adding from a store
   // link and from a photo (offline the cut-out can't load, so the photo is kept as taken), retiring.
-  // The clock is set to before the fixture's trip, so the wardrobe opens on the closet.
-  await page.clock.setFixedTime(new Date('2026-09-01T10:00:00'));
+  // The clock is set to five weeks before the fixture's trip: it opens on Today at home (the
+  // greeting, nothing planned to wear, the weather in Philadelphia, the next trip a tap away), with
+  // Steve's four tabs; then the closet.
+  await page.clock.setFixedTime(new Date('2026-09-01T10:00:00+02:00'));
   await page.goto(base + '/apps/wardrobe');
+  await until(page, () => document.querySelector('#today-view .sky-panel') && !document.getElementById('today-view').hidden);
+  const tabNames = await page.locator('#tabs a:visible').allTextContents();
+  if (tabNames.join() !== 'Today,Closet,Trips,Recipes' || !(await page.isVisible('#tabs a[data-value="today"][aria-current="page"]')) || (await page.evaluate(() => location.hash))) throw new Error(`Steve's tabs, Today first and open with no address: ${tabNames}`);
+  if ((await page.textContent('#app-title')) !== 'Good morning, Steve' || !/Tuesday/.test(await page.textContent('#app-over'))) throw new Error(`Today's greeting and date: ${await page.textContent('#app-title')} / ${await page.textContent('#app-over')}`);
+  const home = flatText(await page.textContent('#today-view'));
+  if (!/Nothing planned for today/.test(home) || (await page.textContent('.today-card__place')) !== 'Philadelphia' || !/Next trip.*Europe, autumn/.test(home) || (await page.locator('#today-view .trip-card').getAttribute('href')) !== '#trip/t1') throw new Error(`Today at home: ${home.slice(0, 400)}`);
+  await shot('today-home');
+  step('opens on Today with no address: "Good morning, Steve" and the date, what you\'re wearing, the weather at home, the next trip; four tabs');
+  await page.click('#tabs a[data-value="closet"]');
   await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
   if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
   if ((await page.textContent('#app-title')) !== 'Closet' || !(await page.isVisible('#tabs a[data-value="closet"][aria-current="page"]'))) throw new Error("the wardrobe doesn't say it's on the closet");
   await shot('wardrobe');
   step('wardrobe: 3 in the closet (the retired one hidden), chips counted, the title and tab say where it is');
+  // pull to refresh: from the top, the closet is asked for again and it says so; a drag that
+  // starts lower down the page scrolls, and reloads nothing
+  const closetGets = () => asked.filter((a) => a.method === 'GET' && a.path.startsWith('/rest/v1/wardrobe_closet')).length;
+  const gotCloset = closetGets();
+  await pullDown(page);
+  await until(page, () => /^Updated/.test(document.getElementById('app-toast').textContent) && !document.getElementById('app-toast').hidden);
+  if (closetGets() !== gotCloset + 1) throw new Error(`pulling down should reload the closet once: ${closetGets() - gotCloset}`);
+  await page.evaluate(() => { document.body.style.minHeight = '3000px'; scrollTo(0, 400); });
+  await pullDown(page);
+  await page.waitForTimeout(400);
+  await page.evaluate(() => { document.body.style.minHeight = ''; scrollTo(0, 0); });
+  if (closetGets() !== gotCloset + 1) throw new Error('a drag that starts down the page reloaded the closet');
+  step('pull to refresh on the closet reloads it ("Updated"); a drag further down the page doesn\'t');
   // a tile shows the photo's small copy, never the stored file (a 2 MB catalog PNG)
   const tileSrc = await page.getAttribute('#grid .tile img:not([hidden])', 'src');
   if (!/oxford\.jpg\.w512\?/.test(tileSrc || '')) throw new Error(`a tile shows ${tileSrc}, not the photo's small copy`);
@@ -635,6 +688,7 @@ async function apps(page, shot) {
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   await page.click('#tabs a[data-value="trips"]');
   await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
+  await shot('trips');
   await page.click('#trip-list .trip-card');
   await until(page, () => document.querySelectorAll('#legs .daylist__day').length > 30);
   if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 6 packed')) throw new Error(`the trip doesn't show its legs, days and packing (the entries, the one on a trip in the trash left out): ${JSON.stringify([await page.locator('#legs .leg').count(), await page.locator('#days .day').count(), await page.textContent('#pack-sum')])}`);
@@ -660,7 +714,7 @@ async function apps(page, shot) {
   // given there (an arrival on another day says which), the reference; past ones have no Calendar
   const goes = (await page.locator('#trip-go .journey').allTextContents()).map(flatText);
   if (goes.length !== 3 || !/^Flight: British Airways BA 66\s*Tue, Oct 6\s*PHL\s*Philadelphia\s*6:30 PM\s*to\s*LHR\s*London\s*6:45 AM\s*Wed, Oct 7.*Ref\s*XK7Q2B/.test(goes[0]) || !/^Train: Eurostar 9010.*London.*7:01 AM.*Florence.*7:30 PM/.test(goes[1]) || !/^Train: Trenitalia R 3127.*Firenze Santa Maria Novella.*9:10 AM.*Siena.*10:38 AM/.test(goes[2])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
-  if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
+  if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Google Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
   if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
   const stay = page.locator('#trip-stay .stay', { hasText: 'Florence Airbnb' });
   if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Lungarno%20Acciaiuoli%204%2C%2050123%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
@@ -773,6 +827,10 @@ async function apps(page, shot) {
   const flat = (x) => x.replace(/\s/g, ' '); // times keep their words together with a no-break space
   const today = flat(await page.textContent('#today-view'));
   if (!/Florence/.test(await page.textContent('.today-card__place')) || !/Uffizi/.test(today) || (await page.locator('.today-card .flatlay .outfit__item').count()) !== 2) throw new Error(`Today doesn't show the day, its outfit laid flat: ${today.slice(0, 200)}`);
+  if ((await page.textContent('#app-title')) !== 'Good morning, Steve' || !/Thursday/.test(await page.textContent('#app-over')) || !/Your trip\s*Europe, autumn/.test(today)) throw new Error(`Today on the trip: the greeting, the date, the trip: ${await page.textContent('#app-title')} / ${today.slice(0, 200)}`);
+  // the order: the next journey, what you're wearing, the weather there, then the trip
+  const order = await page.locator('#today-view .today__main > *').evaluateAll((els) => els.map((e) => (e.classList.contains('journey') ? 'journey' : e.classList.contains('today-card--wx') ? 'weather' : 'outfit')));
+  if (order.join() !== 'journey,outfit,weather') throw new Error(`Today's order: ${order}`);
   if (!/day 9 of 42/.test(today) || !/Rain likely from about 2 PM \(70%\), and nothing in this outfit is for rain/.test(today) || !/Maybe not Brown suede loafers/.test(today) || !/Dinner at Buca Mario at 20:00: about 51°, and nothing warm in this outfit/.test(today)) throw new Error(`Today's trip line or advice (the rain's timing, the evening plan's chill) is wrong: ${today.slice(0, 600)}`);
   // the weather now, there (11 AM in Florence: 14°C), its sky in words from the code, the day in a
   // sentence, and the hours: Now first, the rain's chance where it's likely, the sunset in its place
@@ -783,17 +841,16 @@ async function apps(page, shot) {
   if (hourWords.length !== 27 || hourWords[0] !== 'Now: cloudy, 57°' || !hourWords.includes('4 PM: rain, 62°, 80% chance of rain') || !hourWords.includes('Sunset at 6:39 PM') || !hourWords.includes('Sunrise at 7:21 AM') || !(await page.locator('.hours .hour--moment').count()) || (await page.getAttribute('.hours__list', 'aria-label')) !== 'Hour by hour, the next 24 hours') throw new Error(`the hours: ${hourWords.join(' | ')}`);
   await shot('today');
   // the train tomorrow, as a card above the day (it leaves within 48 hours): counting down, its
-  // reference a tap to copy, and Calendar gets it with its times in UTC; tonight's stay with its map;
+  // reference a tap to copy, and Google Calendar gets it with its times in UTC; tonight's stay with its map;
   // home and away in one line, the rate a tap to turn round
   const journey = page.locator('#today-view .journey--today');
   if ((await journey.count()) !== 1 || !(await journey.evaluate((j) => j.nextElementSibling?.classList.contains('today-card'))) || flatText(await journey.locator('.journey__soon').textContent()) !== 'Train to Siena in 22 h 10 min') throw new Error(`Today's next journey, above the day, counting down: ${await page.locator('#today-view').innerHTML().then((h) => h.slice(0, 400))}`);
   await journey.locator('.chip--ref').click();
   await until(page, () => /Copied PZ4K7M/.test(document.getElementById('app-toast').textContent));
   if ((await page.evaluate(() => navigator.clipboard.readText())) !== 'PZ4K7M') throw new Error("the reference wasn't copied");
-  const [download] = await Promise.all([page.waitForEvent('download'), journey.locator('.chip', { hasText: 'Add to Calendar' }).click()]);
-  const ics = readFileSync(await download.path(), 'utf8');
-  for (const want of ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:g3@stevenpisani.com', 'DTSTART:20261016T071000Z', 'DTEND:20261016T083800Z', 'SUMMARY:Train to Siena (Trenitalia R 3127)', 'LOCATION:Firenze Santa Maria Novella', 'Booking reference PZ4K7M', 'END:VCALENDAR']) if (!ics.replace(/\r\n /g, '').includes(want)) throw new Error(`the .ics has no ${want}:\n${ics}`);
-  if (!/\.ics$/.test(download.suggestedFilename()) || /[^\r]\n/.test(ics)) throw new Error(`the .ics is named ${download.suggestedFilename()}, or its lines don't end in CRLF`);
+  const cal = journey.locator('.chip', { hasText: 'Add to Google Calendar' });
+  const calUrl = new URL(await cal.getAttribute('href')), calQ = Object.fromEntries(calUrl.searchParams);
+  if (calUrl.origin + calUrl.pathname !== 'https://calendar.google.com/calendar/render' || (await cal.getAttribute('target')) !== '_blank' || calQ.action !== 'TEMPLATE' || calQ.dates !== '20261016T071000Z/20261016T083800Z' || calQ.text !== 'Train to Siena (Trenitalia R 3127)' || calQ.location !== 'Firenze Santa Maria Novella' || !/Booking reference PZ4K7M/.test(calQ.details)) throw new Error(`Google Calendar gets the journey, its times in UTC: ${calUrl}`);
   const tonight = page.locator('#today-view .stay--today');
   if (!/^Tonight\s*Florence Airbnb\s*Check out Saturday/.test(flatText(await tonight.textContent())) || !/^https:\/\/maps\.apple\.com\/\?q=Florence%20Airbnb&address=Lungarno/.test(await tonight.locator('.map-link').getAttribute('href'))) throw new Error(`tonight's stay on Today: ${await tonight.textContent()}`);
   if (flatText(await page.textContent('.home-away')) !== 'Florence 11:00 AM · Philadelphia 5:00 AM · €1 = $1.13') throw new Error(`home and away: ${await page.textContent('.home-away')}`);
@@ -806,10 +863,31 @@ async function apps(page, shot) {
   if (rates.length !== 1 || rates[0].path !== 'frankfurter:?base=EUR&symbols=USD') throw new Error(`the rate is asked for once a day: ${rates.map((a) => a.path)}`);
   await shot('today-journey');
   step('Today: the train tomorrow above the day, counting down; its reference copies; Calendar gets it in UTC; tonight\'s stay opens Maps; home and away, the rate asked once a day and turned round by a tap');
-  // a tap on a temperature switches to °C everywhere, and it's remembered
-  await page.click('.today-card__temp');
-  await until(page, () => document.querySelector('.today-card__temp')?.textContent.trim() === '14°' && /°C/.test(document.getElementById('app-toast').textContent));
+  // pull to refresh on Today: the data and the weather again; nothing else changed, so it says the weather did
+  const meteoNow = asked.filter((a) => a.path.startsWith('open-meteo:api')).length, closetNow = asked.filter((a) => a.method === 'GET' && a.path.startsWith('/rest/v1/wardrobe_closet')).length;
+  await pullDown(page);
+  await until(page, () => /^Weather updated/.test(document.getElementById('app-toast').textContent) && !document.getElementById('app-toast').hidden);
+  if (asked.filter((a) => a.path.startsWith('open-meteo:api')).length !== meteoNow + 1 || asked.filter((a) => a.method === 'GET' && a.path.startsWith('/rest/v1/wardrobe_closet')).length !== closetNow + 1) throw new Error('pulling down on Today should ask for the data and the weather again, once each');
+  step('pull to refresh on Today: the data and the weather again, "Weather updated"');
+  // Settings, from the badge: who's signed in, the theme (the site's own), °F or °C, the way to the site
+  await page.click('#app-me');
+  await until(page, () => document.getElementById('settings').open);
+  if ((await page.textContent('#app-name')) !== 'Steve' || (await page.textContent('#app-email')) !== 'member@example.com' || (await page.getAttribute('.settings__site a', 'href')) !== '/' || !(await page.isVisible('#app-signout'))) throw new Error('Settings should say who\'s signed in, offer Sign out and link to the site');
+  if ((await page.getAttribute('#settings-theme button[data-value=""]', 'aria-pressed')) !== 'true' || (await page.getAttribute('#settings-units button[data-value="F"]', 'aria-pressed')) !== 'true') throw new Error('Settings should show the theme (auto) and the unit (°F) in use');
+  await shot('settings');
+  await page.click('#settings-theme button[data-value="dark"]');
+  if ((await page.evaluate(() => [document.documentElement.dataset.theme, localStorage.getItem('theme')].join())) !== 'dark,dark') throw new Error('the theme in Settings should set the site\'s theme, and keep it');
+  // °C from Settings: every temperature at once, and it's remembered
+  await page.click('#settings-units button[data-value="C"]');
+  await page.click('#settings [data-close]');
+  await until(page, () => !document.getElementById('settings').open && document.querySelector('.today-card__temp')?.textContent.trim() === '14°');
   if (!/about 11°, and nothing warm/.test(await page.textContent('#today-view')) || (await page.evaluate(() => localStorage.getItem('wardrobe-units'))) !== 'C' || !(await page.locator('.hours .hour').first().textContent()).includes('14°')) throw new Error('switching to °C didn\'t reach every temperature, or wasn\'t kept');
+  await shot('today-dark');
+  await page.click('#app-me');
+  await page.click('#settings-theme button[data-value=""]');
+  await page.keyboard.press('Escape');
+  if (await page.evaluate(() => document.documentElement.dataset.theme || localStorage.getItem('theme'))) throw new Error('Auto should clear the theme');
+  step('Settings from the badge: who\'s signed in, the theme (dark, then auto), °C everywhere, the site');
   await page.locator('.today-card .outfit__item').first().click();
   await until(page, () => document.getElementById('sheet').open);
   await page.goBack();
@@ -829,6 +907,7 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/authorize?authorization_id=gpt');
   await until(page, () => !document.getElementById('consent').hidden);
   if (!(await page.textContent('#consent-client')).includes('ChatGPT') || (await page.textContent('#consent-host')) !== 'chatgpt.com') throw new Error("the consent page doesn't say who's asking");
+  if (await page.$('.site-head, .site-foot') || await page.isVisible('#tabs') || !(await page.isVisible('#app-me'))) throw new Error('the consent page should be in the app\'s own frame, with no tabs');
   await shot('consent');
   await page.route('https://chatgpt.com/**', (route) => route.fulfill({ contentType: 'text/html', body: '<p>ChatGPT, standing in</p>' }));
   await page.click('#consent-allow');
@@ -837,12 +916,34 @@ async function apps(page, shot) {
   await page.unroute('https://chatgpt.com/**');
   step('consent page: ChatGPT and Claude can be allowed (and you go back), anyone else can\'t');
 
+  // /apps was a list of apps; there's one now, and it goes there. The site's nav has it, signed in
   await page.goto(base + '/apps/');
-  await until(page, () => document.getElementById('app').dataset.state === 'in');
-  if (!(await page.isVisible('#app-main a[href="/apps/wardrobe"]'))) throw new Error("/apps doesn't list the wardrobe");
-  if (!(await page.isVisible('#app-main a[href="/apps/recipes"]')) || !(await page.isVisible('.site-nav [data-members]'))) throw new Error("/apps doesn't list the recipe tracker, or the nav has no Apps link");
-  await shot('home');
-  step('/apps lists it, and the nav has Apps');
+  await page.waitForURL(/\/apps\/wardrobe$/);
+  await until(page, () => document.getElementById('app').dataset.state === 'in' && !document.getElementById('today-view').hidden);
+  await page.goto(base + '/about');
+  if (!(await page.isVisible('.site-nav [data-members]')) || (await page.getAttribute('.site-nav [data-members]', 'href')) !== '/apps/wardrobe') throw new Error("the site's nav has no Apps link to SJPJr for someone signed in");
+  step('/apps goes to SJPJr (Today), and the site\'s nav has Apps');
+}
+
+// Someone who isn't Steve (Lexi, say): the wardrobe and trips are Steve's own, so they see what
+// they can use, Recipes, with no tab bar for one section, greeted by the start of their email
+// (no name stored yet); nothing of the wardrobe is even asked for
+async function another(page, shot) {
+  await page.goto(base + '/apps/wardrobe');
+  const asked = await member(page, page, { email: 'lexi@example.com', me: { name: null, sections: ['recipes'] } });
+  await page.goto(base + '/apps/wardrobe#today');
+  await page.reload(); // (the same page with another hash isn't loaded again)
+  await until(page, () => !document.getElementById('recipes-view').hidden && document.querySelectorAll('#recipe-cards .item').length === 3);
+  if ((await page.textContent('#app-title')) !== 'Recipes' || await page.isVisible('#tabs') || await page.isVisible('#today-view')) throw new Error('another member should land on Recipes, with no tabs and no Today');
+  if (asked.some((a) => /wardrobe_|\/trips|trip_/.test(a.path))) throw new Error(`the wardrobe was asked for, for someone who doesn't see it: ${asked.map((a) => a.path).filter((p) => /wardrobe_|trip/.test(p))}`);
+  await page.click('#app-me');
+  await until(page, () => document.getElementById('settings').open);
+  if ((await page.textContent('#app-name')) !== 'Lexi' || (await page.textContent('#app-email')) !== 'lexi@example.com' || await page.isVisible('#settings-units')) throw new Error(`Settings for another member: their name from the email, and no °F or °C (no weather): ${await page.textContent('#app-name')}`);
+  await page.keyboard.press('Escape');
+  await page.goto(base + '/apps/wardrobe#closet');
+  await until(page, () => !document.getElementById('recipes-view').hidden);
+  await shot('recipes-only');
+  step('another member: Recipes only, no tab bar, named from their email; the wardrobe is never asked for, and its address leads to Recipes');
 }
 
 // With no connection: the wardrobe opens on the copy it kept (through its service worker), a
@@ -878,6 +979,10 @@ async function offline(page, shot) {
   await until(page, () => /offline/i.test(document.getElementById('app-toast').textContent));
   if (asked.slice(before).some((a) => a.method === 'POST')) throw new Error('adding went out with no connection');
   await shot('offline-packing');
+  // a home-screen app installed from the old recipes page still lands on Recipes, which say they need a connection
+  await page.goto(base + '/apps/recipes');
+  await until(page, () => location.hash === '#recipes' && !document.getElementById('recipes-view').hidden && /offline/.test(document.getElementById('recipe-empty').textContent));
+  step('offline, /apps/recipes still lands on the Recipes tab (through the service worker), which says it needs a connection');
   await page.context().setOffline(false);
   await until(page, () => document.getElementById('offline-note').hidden);
   const sent = asked.slice(before).filter((a) => a.method === 'PATCH');
@@ -895,18 +1000,18 @@ async function install(page, shot) {
   await page.goto(base + '/apps/wardrobe');
   const href = await page.getAttribute('link[rel="manifest"]', 'href');
   const manifest = await page.evaluate((h) => fetch(h).then((r) => r.json()), href);
-  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'Wardrobe' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
+  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'SJPJr' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
   const sizes = manifest.icons.map((i) => `${i.sizes} ${i.purpose}`).join();
   if (sizes !== '192x192 any,512x512 any,512x512 maskable') throw new Error(`the manifest's icons: ${sizes}`);
   for (const src of [...manifest.icons.map((i) => i.src), await page.getAttribute('link[rel="apple-touch-icon"]', 'href')]) {
     const [ok, w] = await page.evaluate((u) => new Promise((r) => { const i = new Image(); i.onload = () => r([true, i.naturalWidth]); i.onerror = () => r([false, 0]); i.src = u; }), src);
     if (!ok || !src.includes(`-${w}.png`)) throw new Error(`the icon ${src} doesn't load at its size (${w})`);
   }
-  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-status-bar-style', 'black-translucent'], ['apple-mobile-web-app-title', 'Wardrobe']]) {
+  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-status-bar-style', 'black-translucent'], ['apple-mobile-web-app-title', 'SJPJr']]) {
     if ((await page.getAttribute(`meta[name="${name}"]`, 'content')) !== content) throw new Error(`the page's ${name} isn't ${content}`);
   }
   if ((await page.locator('meta[name="theme-color"][media]').count()) !== 2) throw new Error('no theme colour for light and dark');
-  step('manifest on the app pages only: Wardrobe, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
+  step('manifest on the app pages only: SJPJr, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
 
   // Supabase Auth, made up: the email goes; the code 123456 is right, any other isn't
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
@@ -947,6 +1052,21 @@ async function install(page, shot) {
   await page.reload();
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   if (await page.isVisible('#install-hint')) throw new Error('the hint came back after it was dismissed');
+  // signing out is in Settings, and asks first; after it (and on any later visit) the gate has the
+  // email filled in, so coming back is one tap and the code
+  await page.click('#app-me');
+  await until(page, () => document.getElementById('settings').open);
+  page.once('dialog', (d) => d.dismiss());
+  await page.click('#app-signout');
+  if ((await page.getAttribute('#app', 'data-state')) !== 'in') throw new Error('Sign out should ask first');
+  page.once('dialog', (d) => d.accept());
+  await page.click('#app-signout');
+  await until(page, () => document.getElementById('app').dataset.state === 'out');
+  await page.reload();
+  await until(page, () => document.getElementById('app').dataset.state === 'out');
+  if (!asked.some((a) => a.path.endsWith('/logout')) || (await page.inputValue('#gate-form [name="email"]')) !== 'member@example.com' || (await page.textContent('#gate-title')) !== 'Welcome back') throw new Error(`after signing out, the gate should remember the email: ${await page.inputValue('#gate-form [name="email"]')} / ${await page.textContent('#gate-title')}`);
+  await shot('gate-back');
+  step('Sign out, in Settings, asks first; then the gate remembers the email ("Welcome back")');
   // installed, there's no hint, and the email's link can't be used: the note says only the code
   const installed = await page.context().newPage();
   await installed.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { value: true }); localStorage.clear(); });
@@ -1089,6 +1209,7 @@ async function noWebGL(page, shot) {
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
+if (want('apps')) await session('another member', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US' }, another);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
 if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);

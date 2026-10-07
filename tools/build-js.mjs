@@ -7,8 +7,9 @@
 //   dist/rapier-*.js the physics engine, loaded once the planet is up (import() in physics.js)
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
-//   dist/apps/*.js  one per private app (every file in assets/js/apps/), with what they share
-//                   (lib/kit.js and the Supabase client) split into a chunk of its own
+//   dist/apps/*.js  one per app page (every file in assets/js/apps/: SJPJr, the consent page),
+//                   with what they share (lib/: the kit, the Supabase client, the sections SJPJr
+//                   mounts) split into chunks of their own
 //
 // First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
 // then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes.
