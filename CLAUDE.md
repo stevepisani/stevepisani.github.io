@@ -110,6 +110,7 @@ Design rules, from Krug's *Don't Make Me Think* and Apple's HIG. Keep them when 
 - The camera never moves on its own: no intro flights, no idle sway. It moves only when the guest asks (sitting, leaving, leaning in to watch a drink being made). Respect reduced motion.
 - The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one curve through a few poses in `bar.seat`, speeding up over its first quarter, steady, slowing over its last, so its peak is only 4/3 of its average speed) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
 - Tap targets at least 44px.
+- Nothing on the planet selects as text (`world.css`): a long press is a look and a held button is a throw, never a selection or the copy callout. Only a panel's content and what you type into select.
 
 How it's built, module by module: `docs/world.md`.
 

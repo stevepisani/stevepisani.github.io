@@ -201,6 +201,8 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag,
 
   const press = { id: null, x: 0, y: 0, lx: 0, ly: 0, dragged: false };
   const touchSens = 0.005, mouseSens = 0.004;
+  // a long press is a look, not a request for the browser's menu
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
     if (press.id !== null) return;
     press.id = e.pointerId; press.x = press.lx = e.clientX; press.y = press.ly = e.clientY; press.dragged = false;
