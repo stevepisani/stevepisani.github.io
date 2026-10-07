@@ -141,7 +141,8 @@ export function chalkboard(drinks) {
   g.beginPath(); g.moveTo(W / 2 - 190, 128); g.quadraticCurveTo(W / 2, 140, W / 2 + 190, 128); g.stroke();
   const list = drinks.slice(0, 6);
   const step = Math.min(72, 380 / Math.max(1, list.length));
-  list.forEach((name, i) => {
+  // where each name is, in the board's uv, so a tap on the board can tell which drink it's on
+  const rows = list.map((name, i) => {
     const y = 205 + i * step;
     g.fillStyle = '#ffd36e';
     g.font = `600 30px ${FONT_MONO}`;
@@ -149,8 +150,12 @@ export function chalkboard(drinks) {
     g.fillStyle = '#f7f3e8';
     g.font = `600 44px ${FONT_DISPLAY}`;
     g.fillText(name, W / 2, y, W - 200);
+    const half = Math.min(g.measureText(name).width, W - 200) / 2;
+    return { u0: (W / 2 - half) / W, u1: (W / 2 + half) / W, v0: 1 - (y + 14) / H, v1: 1 - (y - 44) / H, base: 1 - (y + 8) / H };
   });
-  return texture(c);
+  const t = texture(c);
+  t.userData.rows = rows;
+  return t;
 }
 
 const css = (n) => '#' + n.toString(16).padStart(6, '0');
