@@ -189,6 +189,22 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk', 120000);
   step('left the bar');
 
+  // from behind the bar, a tap on it walks you round to the front, not into the counter, and sits you
+  const back = await page.evaluate(() => {
+    const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
+    W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+    W.player.applyToCamera();
+    W.camera.updateMatrixWorld(true);
+    const p = b.localToWorld(new V(0, 1.6, -1.45)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+    return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
+  });
+  await tap(back);
+  await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
+  await expectState(page, 'seat', 600000);
+  await page.click('#seat-leave');
+  await expectState(page, 'walk', 120000);
+  step('from behind the bar: walked round to the front and sat down');
+
   // the campfire: sit, roast, eat, leave
   await page.evaluate(() => window.__world.sitAtFire());
   await expectState(page, 'camp');

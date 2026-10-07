@@ -15,7 +15,7 @@ const EYE = 1.6;
 const SPEED = 3.6;        // m/s
 const RUN = 1.7;          // shift multiplier
 const ACCEL = 8;          // how quickly velocity catches up with input
-const BODY = 0.32;        // player radius for collisions
+export const BODY = 0.32; // player radius for collisions
 const PITCH_LIMIT = 1.3;
 const TURN = 3.5;         // how quickly auto-walk turns you toward your path
 
@@ -73,9 +73,13 @@ export class Player {
     this.lookedAt = this.clock;
   }
 
-  /** Walk to a world point; stop within `arrive` metres and call onArrive. */
-  walkTo(point, { arrive = 0.35, onArrive } = {}) {
-    this.target = { point: point.clone(), arrive, onArrive };
+  /**
+   * Walk to a world point; stop within `arrive` metres and call onArrive. `via`: corners to walk
+   * through on the way (round something in between), passed without slowing down.
+   */
+  walkTo(point, { arrive = 0.35, onArrive, via = [] } = {}) {
+    const legs = [...via, point].map((p) => p.clone());
+    this.target = { point: legs[0], legs, arrive, onArrive };
     this._stuck = { t: this.clock, d: Infinity };
   }
 
@@ -95,12 +99,17 @@ export class Player {
       const to = this.target.point.clone().sub(this.pos);
       to.addScaledVector(up, -to.dot(up));
       const dist = to.length();
-      if (dist < this.target.arrive) {
+      const corner = this.target.legs.length > 1;
+      if (corner && dist < 0.5) { // round the corner, on to the next leg
+        this.target.legs.shift();
+        this.target.point = this.target.legs[0];
+        this._stuck = { t: this.clock, d: Infinity };
+      } else if (dist < this.target.arrive) {
         const done = this.target.onArrive;
         this.target = null;
         done && done();
       } else {
-        want.copy(to).normalize().multiplyScalar(SPEED * Math.min(1, dist / 1.4 + 0.25));
+        want.copy(to).normalize().multiplyScalar(SPEED * (corner ? 1 : Math.min(1, dist / 1.4 + 0.25)));
         // turn to face the path, unless they're looking around right now
         if (this.clock - this.lookedAt > 0.9) {
           const yaw = this.yawToward(this.target.point);

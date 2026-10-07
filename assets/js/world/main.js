@@ -17,7 +17,8 @@ import { buildPlanet, surfacePoint, surfaceRadius, POND, RADIUS } from './planet
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
-import { Player, bindInput } from './player.js';
+import { Player, bindInput, BODY } from './player.js';
+import { findRoute } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
@@ -522,10 +523,24 @@ async function start() {
   let destT = -1;
   const destAt = new THREE.Vector3();
   function showDest(point) { destAt.copy(point); standOn(destRing, point, 0.6); destT = 0; }
+  // Near the bar a straight line can run into the counter, a post or a palm: walk round instead
+  // (route.js). Worked out flat, in the bar's frame; anywhere else the way is open.
+  const nearBar = player.colliders
+    .map((c) => ({ c, p: bar.group.worldToLocal(c.center.clone()) }))
+    .filter(({ p }) => p.y > -4 && Math.hypot(p.x, p.z) < 11)
+    .map(({ c, p }) => ({ x: p.x, z: p.z, r: c.radius + BODY + 0.03 }));
+  function routeTo(point) {
+    const a = bar.group.worldToLocal(player.pos.clone()), b = bar.group.worldToLocal(point.clone());
+    if (a.y < -6 || Math.hypot(b.x, b.z) > 8) return [];
+    return findRoute([a.x, a.z], [b.x, b.z], nearBar).map(([x, z]) => {
+      const up = bar.group.localToWorld(new THREE.Vector3(x, 0, z)).normalize();
+      return up.multiplyScalar(surfaceRadius(up));
+    });
+  }
   function goUse(it) {
     clearHint('walk');
     if (player.pos.distanceTo(it.approach) < 0.6 || player.pos.distanceTo(it.point) < it.radius * 0.7) return use(it);
-    player.walkTo(it.approach, { arrive: 0.45, onArrive: () => use(it) });
+    player.walkTo(it.approach, { arrive: 0.45, onArrive: () => use(it), via: routeTo(it.approach) });
     showDest(it.approach);
   }
 
@@ -575,7 +590,7 @@ async function start() {
     if (p.loose) return goGrab(p.loose);
     clearHint('walk');
     const to = clearSpot(p.ground);
-    player.walkTo(to);
+    player.walkTo(to, { via: routeTo(to) });
     showDest(to);
   }
 
