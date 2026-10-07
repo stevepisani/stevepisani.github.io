@@ -400,6 +400,8 @@ async function start() {
   }
   addEventListener('resize', resize);
   resize();
+  // the world can change size without the window doing so (fitting above a phone's keyboard)
+  if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(root);
 
   /* ---------- Markers: where you're going, and where you could go ---------- */
   // Each ring is draped on the ground vertex by vertex (the analytic surface, like the trails), so
@@ -1108,7 +1110,47 @@ async function start() {
   // knows the site from /bartender.json). Your question and its answer stack up in a short
   // transcript just above the question box, on phones too, and the answer shows as it's said.
   // The rotating chatter stops once you've said something.
-  const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log');
+  const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log'), chatAsk = $('chat-ask');
+  // Typing on a phone: the keyboard takes the bottom of the screen and iOS would slide the page up
+  // to show the box (losing the top bar and the robot's head). Instead the world fits what's left
+  // above the keyboard (`.is-typing`: fixed to the visual viewport), so the bar stays whole.
+  const vv = window.visualViewport;
+  const fitView = () => {
+    if (!vv) return;
+    root.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    root.style.setProperty('--vv-h', `${vv.height}px`);
+  };
+  if (vv) { vv.addEventListener('resize', fitView); vv.addEventListener('scroll', fitView); }
+  // Face to face: when you go to ask something, you look the bartender in the eye (the same eased
+  // lean as watching a drink made: something you asked for, so the camera moves); you sit back
+  // when you're done typing and it's done talking.
+  let faceTimer = 0;
+  function faceRobot(on) {
+    clearTimeout(faceTimer);
+    if (on) {
+      if (state !== 'seat' || making || board.on || flight || leaving) return;
+      const head = bar.robot.head.getWorldPosition(new THREE.Vector3()), up = bar.seat.eye.clone().normalize();
+      view.job = null;
+      view.eye.copy(bar.seat.eye);
+      view.aim.copy(head).addScaledVector(up, -0.12); // the face in the upper part of the view, the talk below it
+      view.fov = BASE_FOV * 0.82;
+      view.want = 1;
+      view.hold = 0;
+      if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
+      seatLook.yaw = seatLook.pitch = 0;
+    } else if (!making && !board.on) view.want = 0;
+  }
+  chat.addEventListener('focusin', () => { root.classList.add('is-typing'); fitView(); faceRobot(true); });
+  chat.addEventListener('focusout', () => {
+    faceTimer = setTimeout(() => {
+      if (chat.contains(document.activeElement)) return;
+      root.classList.remove('is-typing');
+      if (!talking) faceRobot(false);
+    }, 350);
+  });
+  // something to ask, until you've asked something
+  chatAsk.replaceChildren(...(data.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
+    onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
   const talk = [];
   let talking = false, talked = false;
   const CLOSED = "The bar's closed for a moment. The menu's right in front of you.";
@@ -1126,6 +1168,7 @@ async function start() {
     const q = chatInput.value.trim();
     if (!q || talking) return;
     talked = true;
+    chatAsk.hidden = true;
     clearInterval(chatter);
     bubble.hidden = true;
     talking = true;
@@ -1145,6 +1188,7 @@ async function start() {
       if ((res.headers.get('content-type') || '').includes('application/json')) answer = (await res.json()).reply || '';
       else if (res.ok && res.body) { // plain text, streamed: show it as it comes
         const reader = res.body.getReader(), decoder = new TextDecoder();
+        bar.robot.talk(true); // its gauge flickers as the words come
         for (let r = await reader.read(); !r.done; r = await reader.read()) {
           answer += decoder.decode(r.value, { stream: true });
           line.classList.remove('is-thinking');
@@ -1160,7 +1204,9 @@ async function start() {
     line.classList.remove('is-thinking');
     line.textContent = answer || CLOSED;
     chatLog.scrollTop = chatLog.scrollHeight;
+    bar.robot.talk(false);
     talking = false;
+    if (!chat.contains(document.activeElement)) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
   });
   let leaving = false;
   function sitDown({ pickUp = false, then = null } = {}) {
@@ -2328,7 +2374,7 @@ async function start() {
     // a pool of light, and the bartender waves you over. The menu card gets one, until the first
     // time it's picked up.
     let label = null;
-    if (state === 'seat' && !held && !cardFlight && !flight && !making && !board.on && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
+    if (state === 'seat' && !held && !cardFlight && !flight && !making && !board.on && !root.classList.contains('is-typing') && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
@@ -2343,6 +2389,7 @@ async function start() {
     boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
+    chatAsk.hidden = chat.hidden || talked || !(data.ask || []).length;
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
@@ -2405,7 +2452,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), glints, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)

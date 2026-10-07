@@ -7,10 +7,20 @@
 /* over site.css's space-mode Milky Way: the canvas covers it, so don't download it (the fallback brings its own) */
 :root[data-theme] body.world-page { background: #05060f; }
 .world { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden;
+  /* on phones it fills what's visible above the keyboard (main.js sets --vv-top and --vv-h from visualViewport) */
   --neon: #ff4fa3; --teal: #3ff5e8; --glass: rgb(14 16 36 / .78); --paper: #f7ecd4; --ink-dark: #2a160a;
   /* the tiki menu: the world's PALETTE (assets/js/world/materials.js) */
   --bamboo: #c9a66b; --bamboo-hi: #e2c890; --bamboo-node: #6b4a22; --lacquer: #4a2c1a; --coral: #e8634a; --glaze: #0f5e63; --lava: #1b1412; --ink-soft: #7a5a3c;
   --font-script: "Pacifico", "Brush Script MT", cursive; }
+/* while a keyboard is up the world fits above it: nothing slides off the top, nothing zooms */
+/* room for the conversation while you type on a phone: "Leave the bar" steps aside (Done on the keyboard puts it back) and the box drops into its place */
+@media (max-width: 760px) {
+  .world.is-typing .seat-leave { display: none; }
+  .world.is-typing .chat { bottom: 12px; }
+  .world.is-typing .chat-ask { bottom: 68px; }
+  .world.is-typing .chat-log { bottom: 68px; max-height: calc(var(--vv-h, 100dvh) - 220px); }
+}
+.world.is-typing { position: fixed; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100dvh); }
 .world__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; outline: none; }
 /* Nothing on the planet selects as text: a long press to look, or holding a button, would
    otherwise start a selection (and on phones the copy callout) over the scene. What you'd want
@@ -196,10 +206,10 @@
    you write on the paper itself; the ink is the letter's ink colour. The controls sit below it. */
 .note { position: absolute; z-index: 4; margin: 0; --gap: 22px; }
 .note[hidden] { display: none; }
-.note textarea { position: absolute; left: 10%; right: 10%; top: calc(12% + var(--gap) * 0.12); height: calc(var(--gap) * 7); resize: none; overflow: hidden; border: 0; outline: 0; padding: 0; background: transparent; color: #2b1d12; font: 500 calc(var(--gap) * 0.78)/var(--gap) "Caveat", "Segoe Print", cursive; caret-color: #2b1d12; }
+.note textarea { position: absolute; left: 10%; right: 10%; top: calc(12% + var(--gap) * 0.12); height: calc(var(--gap) * 7); resize: none; overflow: hidden; border: 0; outline: 0; padding: 0; background: transparent; color: #2b1d12; font: 500 max(16px, calc(var(--gap) * 0.78))/var(--gap) "Caveat", "Segoe Print", cursive; caret-color: #2b1d12; }
 .note textarea::placeholder { color: rgb(43 29 18 / .45); }
 .note__sign { position: absolute; left: 10%; right: 10%; bottom: 7%; display: flex; justify-content: flex-end; gap: 6px; align-items: baseline; color: rgb(43 29 18 / .7); font: 500 calc(var(--gap) * 0.62) "Caveat", cursive; }
-.note__sign input { width: min(9em, 65%); border: 0; border-bottom: 1px solid rgb(43 29 18 / .35); background: transparent; color: #2b1d12; font: inherit; font-size: calc(var(--gap) * 0.75); outline: 0; padding: 0 2px; }
+.note__sign input { width: min(9em, 65%); border: 0; border-bottom: 1px solid rgb(43 29 18 / .35); background: transparent; color: #2b1d12; font: inherit; font-size: max(16px, calc(var(--gap) * 0.75)); outline: 0; padding: 0 2px; }
 .note textarea:focus-visible, .note__sign input:focus-visible { box-shadow: 0 2px 0 rgb(232 99 74 / .6); }
 .note__foot { position: absolute; left: 50%; top: calc(100% + 12px); transform: translateX(-50%); width: max(100%, 300px); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .note__foot button { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
@@ -210,7 +220,13 @@
    it on phones), the answer up where the robot's bubble is, on phones too; neither covers the menu card */
 .chat { position: absolute; z-index: 3; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(420px, calc(100vw - 360px)); display: flex; gap: 8px; margin: 0; }
 .chat[hidden] { display: none; }
-.chat input { flex: 1; min-width: 0; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 500 .95rem var(--font-body); }
+/* something to ask, until you've asked something: a row of chips just over the question box */
+.chat-ask { position: absolute; z-index: 3; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 56px); transform: translateX(-50%); width: min(420px, calc(100vw - 360px)); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chat-ask[hidden] { display: none; }
+.chat-ask button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .22); background: rgb(14 16 36 / .55); backdrop-filter: blur(10px); color: #eef0fa; font: 500 .85rem var(--font-body); cursor: pointer; }
+.chat-ask button:hover { background: rgb(14 16 36 / .8); color: #fff; }
+@media (pointer: coarse) { .chat-ask button { min-height: 44px; } }
+.chat input { flex: 1; min-width: 0; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 500 16px var(--font-body); } /* 16 px or iOS zooms in */
 .chat input::placeholder { color: rgb(255 255 255 / .72); }
 .chat input:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
 .chat button { min-height: 44px; min-width: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
@@ -224,9 +240,11 @@
 .chat-log__q { align-self: flex-end; border-bottom-right-radius: 6px; background: rgb(255 255 255 / .14); border: 1px solid rgb(255 255 255 / .18); backdrop-filter: blur(10px); color: #fff; }
 .chat-log__a { align-self: flex-start; border-bottom-left-radius: 6px; background: #fff; color: #1a1b2e; box-shadow: 0 8px 24px rgb(0 0 0 / .35); }
 .chat-log__a::before { content: "🤖 "; }
+.chat-log__a { position: relative; }
+.chat-log__a:not(.is-thinking)::after { content: ""; position: absolute; left: 14px; top: -7px; border: 7px solid transparent; border-top: 0; border-bottom-color: #fff; } /* said from up there, by the bartender */
 .chat-log__a.is-thinking::after { content: "…"; animation: think 1.2s ease-in-out infinite; }
 @keyframes think { 50% { opacity: .3; } }
-@media (max-width: 760px) { .chat { width: calc(100vw - 32px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); } .chat-log { width: calc(100vw - 32px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 116px); max-height: 38vh; } }
+@media (max-width: 760px) { .chat-ask { width: calc(100vw - 32px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 116px); } .chat { width: calc(100vw - 32px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); } .chat-log { width: calc(100vw - 32px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 116px); max-height: 38vh; } }
 .making { position: absolute; z-index: 3; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); transform: translateX(-50%); width: min(440px, calc(100vw - 32px)); margin: 0; padding: 12px 16px 14px; border-radius: 16px; background: rgb(14 16 36 / .72); backdrop-filter: blur(10px); border: 1px solid rgb(255 255 255 / .16); color: #fff; text-align: center; pointer-events: none; }
 .making[hidden] { display: none; }
 .making__count { margin: 0 0 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: rgb(255 255 255 / .7); }

@@ -169,8 +169,15 @@ async function planet(page, shot, { phone = false } = {}) {
   // ask the bartender: your question shows in the transcript and, with every request outside the
   // site refused here, the robot says the bar's closed
   await until(page, () => !document.getElementById('chat').hidden);
+  // something to ask is offered until you've asked; the box is 16 px (or iOS zooms in on it); going
+  // to type turns you to face the bartender
+  if (await page.isHidden('#chat-ask') || (await page.$$('#chat-ask button')).length < 2) throw new Error("the bar doesn't offer anything to ask");
+  if (await page.$eval('#chat-input', (el) => parseFloat(getComputedStyle(el).fontSize)) < 16) throw new Error('the question box is under 16 px: iOS zooms into it');
+  await page.focus('#chat-input');
+  await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', "What's on the chalkboard?");
   await page.click('#chat button[type="submit"]');
+  await until(page, () => document.getElementById('chat-ask').hidden);
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /closed/.test(l[1].textContent); }, null, 60000);
   await shot('asked');
   step('asked the bartender: the question showed, and offline the bar said it was closed');
