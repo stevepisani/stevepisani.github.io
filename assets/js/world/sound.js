@@ -247,6 +247,13 @@ export function createSound({ scene, camera, spots }) {
       o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.3);
       burst(inputs.loose, t, { type: 'lowpass', hz: 1400, dur: 0.3 + 0.2 * k, v: 0.15 + 0.25 * k });
     },
+    ratchet(seconds = 0.8) { // the telescope's gears as it swings round: a quick run of brass clicks, slowing at the end
+      const t = ctx.currentTime;
+      for (let s = 0, n = 0; s < seconds; n++) {
+        burst(inputs.everywhere, t + s, { type: 'bandpass', hz: 3400 - (n % 2) * 500, q: 5, dur: 0.012, v: 0.07 });
+        s += 0.045 + 0.06 * (s / seconds) ** 2;
+      }
+    },
     creak() { // rope taking weight round a palm
       const t = ctx.currentTime;
       for (let k = 0; k < 2; k++) {
@@ -284,7 +291,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,

@@ -246,13 +246,39 @@ async function planet(page, shot, { phone = false } = {}) {
     await page.click('#scope-next');
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
   }
+  if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
   await page.click('#scope-more');
   await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch');
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
   await page.keyboard.press('Escape');
   await expectState(page, 'walk');
-  step(`telescope: looked through it at ${firstSight.toLowerCase()}, stepped back`);
+  // again, with the live views answering (made up: tools/fixtures/sky.json, a full moon, and a
+  // stand-in picture for NASA's): the real moon goes over the drawn one with its landing sites;
+  // tap one and the view narrows onto it; Esc goes back to the whole moon, then steps back
+  const picture = readFileSync(join(root, 'assets/images/me-500.webp'));
+  await page.route(/functions\/v1\/sky$/, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/sky.json', import.meta.url)) }));
+  await page.route(/^https:\/\/(svs\.gsfc\.nasa\.gov|soho\.nascom\.nasa\.gov)\//, (route) => route.fulfill({ contentType: 'image/webp', body: picture }));
+  const live = await page.evaluate(() => window.__world.scope.targets.includes('moon'));
+  if (live) {
+    await page.evaluate(() => window.__world.scope.go());
+    await until(page, () => window.__world.scope.live && window.__world.scope.k === 1 && +document.getElementById('eyepiece-live').style.opacity > 0.9, null, 120000);
+    if (!/NASA/.test(await page.textContent('#scope-line'))) throw new Error("the card doesn't say the moon is NASA's picture");
+    const rings = await page.$$('.eyepiece__mark:not([hidden])');
+    if (!rings.length) throw new Error('no landing sites on the moon');
+    await shot('telescope-live');
+    const fovMoon = await page.evaluate(() => window.__world.camera.fov);
+    const ring = await rings[0].boundingBox();
+    await tap([ring.x + ring.width / 2, ring.y + ring.height / 2]); // where it is (it's laid out again every frame)
+    await until(page, (f) => window.__world.scope.site >= 0 && window.__world.camera.fov < f / 2, fovMoon, 60000);
+    if (!/^Apollo/.test(await page.textContent('#scope-name'))) throw new Error("a landing site's card doesn't name it");
+    await page.keyboard.press('Escape');
+    await until(page, () => window.__world.scope.site === -1 && window.__world.state === 'scope');
+    await page.keyboard.press('Escape');
+    await expectState(page, 'walk');
+  }
+  await page.unroute(/functions\/v1\/sky$/);
+  step(`telescope: looked through it at ${firstSight.toLowerCase()}${live ? ', then the real moon and a landing site' : ''}, stepped back`);
 
   // skip a stone
   await page.evaluate(() => window.__world.goToShore());

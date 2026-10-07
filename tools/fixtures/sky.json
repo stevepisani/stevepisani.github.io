@@ -1,0 +1,12 @@
+{
+  "moon": {
+    "time": "2026-10-25T20:00",
+    "image": "https://svs.gsfc.nasa.gov/vis/a000000/a005500/a005587/frames/730x730_1x1_30p/moon.7149.jpg",
+    "phase": 99.7,
+    "age": 14.9,
+    "diameter": 1936.5,
+    "posangle": 339.365,
+    "subearth": { "lon": -4.529, "lat": -5.711 },
+    "subsolar": { "lon": 0.072, "lat": -1.397 }
+  }
+}

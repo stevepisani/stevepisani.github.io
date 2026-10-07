@@ -74,6 +74,12 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: show first, the text supports: the chalkboard (lean in, pick a drink, watch it made),
+  the hammock (the stars first, a book easy to pick) and the telescope (look through it: the real
+  moon this hour with its landing sites, today's sun, the ringed planet; it swings round to them).
+  Telescope ideas still open: focus it yourself (a brass knob), the ISS when it's over
+  Philadelphia, and a postcard of what you saw.
+
 - Oct 2026: images that reach ChatGPT: vision-sized copies so six fit in one answer, `get_outfit_images`
   (each garment's current photo, named by slot), and `test_image(s)` to check what arrives.
 - Oct 2026: `get_photo` and `get_photos`: the model sees a garment's stored photo itself, not its

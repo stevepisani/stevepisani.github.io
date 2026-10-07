@@ -80,6 +80,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
   - `timeline.yml`: career timeline on /about
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
+  - `moon.yml`: the Apollo landing sites the telescope marks on the real moon (name, when, where, one line)
   - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from
   - `audible.json`: Steve's Audible library (finished and listening-now books), written daily by `tools/audible-sync.py` (`.github/workflows/audible.yml`); never edit it by hand. `audible_hide.yml` lists books never to show.
   - `books.yml`: Steve's shelves, the categories everywhere books show, in order: each with `hue`, `genres` (the Audible categories that land on it; `"*"` takes the rest) and `books` (a title listed here goes on that shelf, whether it's also on Audible or not; to move an Audible book, list it)

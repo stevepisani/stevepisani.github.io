@@ -151,10 +151,13 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <button type="submit" class="note__roll">Roll it up</button>
     </div>
   </form>
-  <div class="eyepiece" id="eyepiece" aria-hidden="true"></div>
+  <div class="eyepiece__live" id="eyepiece-live"></div>
+  <div class="eyepiece" id="eyepiece" aria-hidden="true">
+    <svg class="eyepiece__ring" viewBox="-100 -100 200 200"><defs><path id="eyepiece-arc" d="M -92 0 A 92 92 0 0 1 92 0"/></defs><text><textPath href="#eyepiece-arc" startOffset="50%" text-anchor="middle" id="eyepiece-mag">STEVE'S</textPath></text></svg>
+  </div>
   <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
   <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
-    <p class="scope-card__kicker">Through the telescope</p>
+    <p class="scope-card__kicker" id="scope-kicker">Through the telescope</p>
     <h2 class="scope-card__name" id="scope-name"></h2>
     <p class="scope-card__line" id="scope-line"></p>
     <div class="scope-card__foot">
@@ -202,7 +205,8 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
-  "drinks": {{ site.data.drinks | jsonify }}
+  "drinks": {{ site.data.drinks | jsonify }},
+  "moon": {{ site.data.moon | jsonify }}
 }
 </script>
 

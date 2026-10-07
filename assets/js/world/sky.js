@@ -92,6 +92,7 @@ export function buildSky({ quality }) {
     core.position.copy(sun.position);
     core.lookAt(0, 0, 0);
     group.add(core);
+    bodies.sun = { dir: sunDir.clone(), across: 2 * Math.atan(5 / 500), dist: 500 };
   }
 
   // Ringed gas giant, low on your left as you land (about 11° up), on the ecliptic, about 99°
@@ -183,7 +184,7 @@ export function buildSky({ quality }) {
     }));
     giant.add(ring);
     group.add(giant);
-    bodies.giant = { dir: GIANT_DIR.clone(), across: 2 * Math.atan(R2 / 360) };
+    bodies.giant = { dir: GIANT_DIR.clone(), across: 2 * Math.atan(R2 / 360), dist: 360 };
   }
 
   // The moon, in tonight's real phase: a phase is only where the moon is against the sun (new
@@ -223,7 +224,7 @@ export function buildSky({ quality }) {
         }`,
     }));
     moon.position.copy(MOON_DIR).multiplyScalar(300);
-    bodies.moon = { dir: MOON_DIR.clone(), across: 2 * Math.atan(14 / 300), tonight };
+    bodies.moon = { dir: MOON_DIR.clone(), across: 2 * Math.atan(14 / 300), dist: 300 };
     moon.rotation.y = 2.2;
     group.add(moon);
   }

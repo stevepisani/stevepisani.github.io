@@ -1,0 +1,39 @@
+# Where people have walked on the moon: marked on the real moon in the telescope on the homepage
+# (assets/js/world/eyepiece.js), at the landing site (selenographic latitude and longitude,
+# degrees, north and east positive, from NASA). Tap one in the eyepiece to look closer.
+#
+#   name:  what it's called
+#   when:  when they landed
+#   lat, lon: where
+#   line:  one plain sentence about it
+
+- name: Apollo 11
+  when: 20 July 1969
+  lat: 0.674
+  lon: 23.473
+  line: Armstrong and Aldrin landed here, on the Sea of Tranquillity. The first people on the moon.
+- name: Apollo 12
+  when: 19 November 1969
+  lat: -3.012
+  lon: -23.422
+  line: Conrad and Bean set down a short walk from Surveyor 3, a probe that landed two years before, and brought parts of it home.
+- name: Apollo 14
+  when: 5 February 1971
+  lat: -3.645
+  lon: -17.471
+  line: Shepard and Mitchell. Before they left, Shepard hit two golf balls.
+- name: Apollo 15
+  when: 30 July 1971
+  lat: 26.132
+  lon: 3.634
+  line: Scott and Irwin drove the first moon buggy here, at the foot of the Apennine mountains.
+- name: Apollo 16
+  when: 21 April 1972
+  lat: -8.973
+  lon: 15.500
+  line: Young and Duke, the only landing in the bright highlands.
+- name: Apollo 17
+  when: 11 December 1972
+  lat: 20.191
+  lon: 30.772
+  line: Cernan and Schmitt, in a valley between mountains. The last people to walk on the moon, so far.

@@ -28,6 +28,7 @@ import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
 import { createBookSky } from './booksky.js';
+import { createEyepiece } from './eyepiece.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -1168,7 +1169,7 @@ async function start() {
     else if (state === 'camp') leaveFire();
     else if (state === 'hammock') getOutOfHammock();
     else if (state === 'shore') leaveShore();
-    else if (state === 'scope') leaveScope();
+    else if (state === 'scope') { if (scope.site >= 0) closeSite(); else leaveScope(); } // a landing site first
     else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
     else if (state === 'walk' && carry) putDown();
   });
@@ -1571,40 +1572,112 @@ async function start() {
   }
 
   /* ---------- The telescope: look through it ---------- */
-  // Walk up and bend to the eyepiece: your gaze runs up the tube to what it's pointed at, then the
-  // view narrows into the eyepiece's round field (the same eased narrowing as leaning in
-  // elsewhere): tonight's moon, in its real phase, when it's above the horizon here, and the
-  // ringed planet. ‹ › swings it from one to the other. A card says what you're looking at, and
-  // "Next launch and the ISS" opens the launch panel: the text backs up the view, it isn't the
-  // way in. "Step back" or Esc stands you up again.
+  // Walk up and bend to the eyepiece: the telescope swings round to its first sight (with its
+  // gears' ratchet) as you step up, your gaze runs up the tube, and the view narrows into the
+  // eyepiece's round field (the same eased narrowing as leaning in elsewhere). What it can see
+  // from here: the moon, the real one this hour (eyepiece.js: NASA's picture over the drawn one,
+  // with rings where people landed; tap one to look closer), the real sun today through a solar
+  // filter, and the ringed planet. ‹ › swings it from one to the next. A card says what you're
+  // looking at, and "Next launch and the ISS" opens the launch panel: the text backs up the view,
+  // it isn't the way in. "Step back" or Esc stands you up again (Esc leaves a landing site first).
   const scopeSpot = interactables.find((i) => i.id === 'launch');
-  const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece');
-  const scopePrev = $('scope-prev'), scopeNext = $('scope-next');
-  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false };
+  const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), scopeMore = $('scope-more');
+  const scopePrev = $('scope-prev'), scopeNext = $('scope-next'), scopeMag = $('eyepiece-mag');
+  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '' };
+  const SITES = data.moon || [];
+  const liveLayer = $('eyepiece-live');
+  const live = createEyepiece({ layer: liveLayer, db: DB, sites: SITES, sunDir: sky.sunDir, onSite: (i) => openSite(i) });
+  const PHASES = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
   function scopeTargets(eye) {
-    const up = eye.clone().normalize(), m = window.moonTonight ? window.moonTonight() : null;
-    const moon = sky.bodies.moon, giant = sky.bodies.giant;
+    const up = eye.clone().normalize();
     const above = (b) => b && b.dir.dot(up) > Math.sin(THREE.MathUtils.degToRad(10)); // clear of the ground and the palms
+    const { moon, sun, giant } = sky.bodies;
     const list = [];
-    if (above(moon)) list.push({ body: moon, fill: 0.55, name: 'The moon', line: m ? `${m.name}, ${Math.round(m.lit * 100)}% lit. It's lit the way the real one is tonight.` : "Lit the way the real one is tonight." });
-    if (above(giant)) list.push({ body: giant, fill: 0.9, name: 'The ringed planet', line: `Lit by the same sun as the moon and this planet.${above(moon) ? '' : " The moon is below the horizon from here tonight."}` });
+    if (above(moon)) list.push({ id: 'moon', body: moon, fill: 0.55, name: 'The moon' });
+    if (above(sun)) list.push({ id: 'sun', body: sun, fill: 0.62, name: 'The sun' });
+    if (above(giant)) list.push({ id: 'giant', body: giant, fill: 0.9, name: 'The ringed planet', line: `Lit by the same sun as the moon and this planet.${above(moon) ? '' : ' The moon is below the horizon from here tonight.'}` });
     return list;
+  }
+  // what the card says about it: the moon and sun as they really are, once their pictures are in
+  function scopeLine(t) {
+    if (t.id === 'moon') {
+      const m = live.moon, est = window.moonTonight ? window.moonTonight() : null;
+      if (m) return `${PHASES[Math.round(m.age / 29.53 * 8) % 8]}, ${Math.round(m.phase)}% lit. NASA's picture of the real moon this hour.${SITES.length ? ' The rings are where people landed.' : ''}`;
+      return est ? `${est.name}, ${Math.round(est.lit * 100)}% lit, the way the real one is tonight.` : 'Lit the way the real one is tonight.';
+    }
+    if (t.id === 'sun') return 'The real sun today, through a solar filter (from NASA). The dark spots are sunspots, often wider than the Earth.';
+    return t.line;
   }
   // how narrow a view makes it fill `fill` of the eyepiece's round field
   function scopeFov(t) {
     const H = root.clientHeight, W = root.clientWidth, r = Math.min(0.4 * Math.min(W, H), 0.44 * W);
     return Math.min(BASE_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(t.body.across * H / (4 * t.fill * r))));
   }
+  function showScopeCard() {
+    const t = scope.targets[scope.i], s = SITES[scope.site];
+    $('scope-kicker').textContent = s ? `On the moon · ${s.when}` : 'Through the telescope';
+    $('scope-name').textContent = s ? s.name : t.name;
+    $('scope-line').textContent = s ? `${s.line}${live.lit(scope.site) ? '' : ' It\'s in the dark tonight.'}` : scopeLine(t);
+    scopeMore.textContent = s ? 'The whole moon' : 'Next launch and the ISS';
+    scopePrev.hidden = scopeNext.hidden = s ? SITES.length < 2 : scope.targets.length < 2;
+  }
   function pointScope(i) {
     const t = scope.targets[i];
     if (!t) return;
     scope.i = i;
+    scope.site = -1;
+    scope.aim = null;
     scope.fov = scopeFov(t);
-    $('scope-name').textContent = t.name;
-    $('scope-line').textContent = t.line;
-    scopePrev.hidden = scopeNext.hidden = scope.targets.length < 2;
+    aimMount(t.body.dir);
+    showScopeCard();
+    if (t.id === 'moon') live.load()?.then(() => { if (state === 'scope' && scope.targets[scope.i] === t) showScopeCard(); });
   }
-  const scopeLook = (t) => poseLooking(scope.eye, scope.eye.clone().add(t.body.dir)).quat;
+  // a landing site: the view narrows three times further, centred on it
+  function openSite(i) {
+    const t = scope.targets[scope.i];
+    if (state !== 'scope' || !t || t.id !== 'moon' || scope.leaving) return;
+    if (i === scope.site) return closeSite();
+    const at = scope.marks && scope.marks[i];
+    if (!at) return;
+    clearHint('moon-sites');
+    // aim at where it is on screen now (from the whole moon, or from another site)
+    const r = canvas.getBoundingClientRect();
+    scope.aim = new THREE.Vector3((at.x / r.width) * 2 - 1, 1 - (at.y / r.height) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+    scope.site = i;
+    scope.fov = scopeFov(t) / 3;
+    showScopeCard();
+  }
+  function closeSite() {
+    if (scope.site < 0) return;
+    scope.site = -1;
+    scope.aim = null;
+    scope.fov = scopeFov(scope.targets[scope.i]);
+    showScopeCard();
+  }
+  const scopeLook = (t) => poseLooking(scope.eye, scope.eye.clone().add(scope.aim || t.body.dir)).quat;
+  // the telescope itself swings round to look where you do, its gears ratcheting as it goes
+  const mount = scopeSpot && scopeSpot.mount;
+  const mountWant = { az: 0, alt: 0, on: false };
+  function aimMount(dir) {
+    if (!mount) return;
+    const g = scopeSpot.object;
+    g.updateMatrixWorld(true);
+    const local = dir.clone().applyQuaternion(g.getWorldQuaternion(new THREE.Quaternion()).invert());
+    let az = Math.atan2(local.x, local.z);
+    az = mount.az.rotation.y + Math.atan2(Math.sin(az - mount.az.rotation.y), Math.cos(az - mount.az.rotation.y)); // the short way round
+    const alt = -Math.asin(THREE.MathUtils.clamp(local.y, -1, 1));
+    const turn = Math.max(Math.abs(az - mount.az.rotation.y), Math.abs(alt - mount.alt.rotation.x));
+    Object.assign(mountWant, { az, alt, on: true });
+    mount.held = true;
+    if (turn > 0.05) sound.play('ratchet', Math.min(1.6, turn / 1.2 + 0.2));
+  }
+  function mountFrame(realDt) {
+    if (!mount || !mountWant.on) return;
+    const step = reducedMotion ? 9 : realDt * 1.2; // about 70°/s at most, as a hand would turn it
+    const toward = (v, w) => v + THREE.MathUtils.clamp(w - v, -step, step);
+    mount.az.rotation.y = toward(mount.az.rotation.y, mountWant.az);
+    mount.alt.rotation.x = toward(mount.alt.rotation.x, mountWant.alt);
+  }
   function lookThroughScope() {
     if (!scopeSpot || state !== 'walk') return;
     leaving = false;
@@ -1620,9 +1693,8 @@ async function start() {
     if (!scope.targets.length) { openPanel('launch'); return; } // nothing up there from here: just the panel
     setState('scope');
     scope.leaving = false;
-    pointScope(0);
-    const t = scope.targets[0];
-    scope.quat.copy(scopeLook(t));
+    pointScope(0); // and the telescope swings round to it as you step up
+    scope.quat.copy(scopeLook(scope.targets[0]));
     flyPath([
       { ...poseLooking(scope.eye, scopeSpot.point), ms: Math.min(900, Math.max(300, camera.position.distanceTo(scope.eye) * 420)) }, // step up to it
       { pos: scope.eye.clone(), quat: scope.quat.clone(), ms: 900 }, // and look up along the tube
@@ -1633,16 +1705,21 @@ async function start() {
     });
   }
   function stepScope(d) {
+    if (state !== 'scope' || scope.leaving) return;
+    if (scope.site >= 0) { const n = SITES.length; return openSite((scope.site + d + n) % n); }
     const n = scope.targets.length;
-    if (state === 'scope' && n > 1 && !scope.leaving) pointScope((scope.i + d + n) % n);
+    if (n > 1) pointScope((scope.i + d + n) % n);
   }
   function leaveScope() {
     if (state !== 'scope' || scope.leaving || flight) return;
     scope.leaving = true;
     scope.want = 0; // the field widens back out first (frame loop), then you stand up
     scopeCard.hidden = true;
+    if (hint.dataset.key === 'moon-sites') hint.hidden = true;
   }
   function standUpFromScope() {
+    live.hide();
+    if (mount) { mount.held = false; mountWant.on = false; } // and it goes back to slowly sweeping the sky
     player.spawn(scopeSpot.approach.clone().normalize(), scopeSpot.point, -0.1);
     const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
     const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
@@ -1654,20 +1731,27 @@ async function start() {
   scopeLeaveBtn.addEventListener('click', leaveScope);
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
-  $('scope-more').addEventListener('click', () => openPanel('launch'));
-  // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field
+  scopeMore.addEventListener('click', () => (scope.site >= 0 ? closeSite() : openPanel('launch')));
+  // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
+  // lay the real moon or sun over the drawn one
   function scopeFrame(realDt) {
     const t = scope.targets[scope.i];
     if (scope.k !== scope.want) scope.k = reducedMotion ? scope.want : THREE.MathUtils.clamp(scope.k + Math.sign(scope.want - scope.k) * realDt / 1.1, 0, 1);
     const ease = reducedMotion ? 1 : 1 - Math.exp(-realDt * 3);
     if (t) scope.quat.slerp(scopeLook(t), ease);
-    scope.cur += (scope.fov - scope.cur) * ease;
+    scope.cur += (scope.fov - scope.cur) * (reducedMotion ? 1 : 1 - Math.exp(-realDt * 2.5));
     const e = scope.k * scope.k * (3 - 2 * scope.k);
     camera.position.copy(scope.eye);
     camera.quaternion.copy(scope.quat);
     camera.fov = BASE_FOV + (scope.cur - BASE_FOV) * e;
     camera.updateProjectionMatrix();
     eyepiece.style.setProperty('--k', e.toFixed(3));
+    const rect = canvas.getBoundingClientRect();
+    scope.marks = t ? live.update(camera, rect, { id: t.id, ...t.body }, scope.leaving ? 0 : e, scope.site) : null;
+    liveLayer.classList.toggle('is-sun', !!t && t.id === 'sun');
+    const mag = `${Math.round(BASE_FOV / camera.fov * 10)}×`; // the eyepiece's power, engraved on its ring
+    if (mag !== scope.mag) { scope.mag = mag; scopeMag.textContent = `STEVE'S · ${mag}`; }
+    if (scope.marks && e === 1 && SITES.length) showHint(`${coarse ? 'Tap' : 'Click'} a ring to see where people landed.`, 'moon-sites');
     if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = BASE_FOV; camera.updateProjectionMatrix(); standUpFromScope(); }
   }
 
@@ -2012,6 +2096,7 @@ async function start() {
         inHand.position.set(HAND.x + 0.1 * k, HAND.y - 0.02 * k, HAND.z + 0.12 * k);
       }
     }
+    if (state === 'scope') mountFrame(realDt); // the telescope swings round even as you step up to it
     if (flight) flightStep(performance.now());
     else if (state === 'scope' && scope.eye) scopeFrame(realDt);
     else if ((state === 'shore' && shorePose) || (state === 'note' && notePose)) {
@@ -2181,7 +2266,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)

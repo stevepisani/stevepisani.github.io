@@ -270,8 +270,14 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   {
     const scope = brassTelescope();
     put(scope, SPOTS.telescope, { heading: 2.0, sink: footDrop(SPOTS.telescope, 0.58) + 0.01 }, 1.5);
-    const az = scope.userData.az, az0 = az.rotation.y;
-    animated.push((t) => { az.rotation.y = az0 + Math.sin(t * 0.2) * 0.3; });
+    // left alone it sweeps the sky slowly; at the eyepiece, main.js turns it (held) to what you look at
+    const mount = { az: scope.userData.az, alt: scope.userData.alt, held: false };
+    const az0 = mount.az.rotation.y, alt0 = mount.alt.rotation.x;
+    animated.push((t) => {
+      if (mount.held) return;
+      mount.az.rotation.y += (az0 + Math.sin(t * 0.2) * 0.3 - mount.az.rotation.y) * 0.05; // eases back from wherever it was left
+      mount.alt.rotation.x += (alt0 - mount.alt.rotation.x) * 0.05;
+    });
     // its lantern stands on the side you walk up from (towards the bar)
     {
       const up = SPOTS.telescope.clone().normalize();
@@ -280,7 +286,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       lantern(up.clone().multiplyScalar(RADIUS).addScaledVector(towardBar, 0.9).addScaledVector(side, 0.8).normalize());
     }
     colliders.push({ center: scope.position.clone(), radius: 0.6 });
-    interactables.push({ id: 'launch', label: 'Telescope', verb: 'Look through it', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2 });
+    interactables.push({ id: 'launch', label: 'Telescope', verb: 'Look through it', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2, mount });
   }
 
   // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
@@ -555,5 +561,6 @@ function brassTelescope() {
   mesh(new THREE.CircleGeometry(0.014, 16).rotateX(-Math.PI / 2), lens, [0, 0.281, -0.105], optic).castShadow = false;
   for (const y of [0.02, 0.22]) mesh(new THREE.BoxGeometry(0.014, 0.02, 0.04), brass, [0, y, -0.085], optic);
   g.userData.az = az;
+  g.userData.alt = alt;
   return g;
 }
