@@ -1,0 +1,19 @@
+{%- comment -%} A private app's web app manifest (docs/apps.md, "The home-screen app"): its name and blurb from _data/apps.yml, its icons from tools/app-icons.mjs. include.url is the app's address. {%- endcomment -%}
+{%- assign a = site.data.apps | where: "url", include.url | first -%}
+{%- assign name = include.url | split: "/" | last -%}
+{
+  "name": {{ a.title | jsonify }},
+  "short_name": {{ a.title | jsonify }},
+  "description": {{ a.blurb | jsonify }},
+  "id": {{ include.url | relative_url | jsonify }},
+  "start_url": {{ include.url | relative_url | jsonify }},
+  "scope": {{ '/apps/' | relative_url | jsonify }},
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#faf7f2",
+  "icons": [
+    { "src": {{ '/assets/images/app-' | append: name | append: '-192.png' | relative_url | jsonify }}, "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": {{ '/assets/images/app-' | append: name | append: '-512.png' | relative_url | jsonify }}, "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": {{ '/assets/images/app-' | append: name | append: '-512.png' | relative_url | jsonify }}, "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -12,13 +12,50 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear) and the script named by `app:`. An app may set the heading (`#app-title`) to say where you are and show `#app-back`, the way back up |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
+| `apps/<app>.webmanifest` | the home-screen app ("The home-screen app" below): one per installable app (wardrobe, recipes), each a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
 | `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
-Signing in is a link by email (Supabase magic link), sign-ups off. The session is kept in the
+Signing in is by email, sign-ups off: the email (Supabase's magic link, `supabase/templates/magic_link.html`)
+has a link and a 6-digit code. The link signs in the browser it opens in. The code is typed in the
+field the sign-in form shows once the email has gone ("Or type the 6-digit code from the email";
+`autocomplete="one-time-code"`, so iOS offers it from Mail where it can; six digits go by
+themselves), which calls `verifyOtp({ email, token, type: 'email' })`. That's the way into the
+home-screen app: iOS gives it its own storage, and the emailed link opens in Safari, which would
+sign in Safari, not the app. Either works once, within the hour. The session is kept in the
 browser for the whole site, so signing in once covers every app, and the site's nav shows "Apps"
-to someone signed in (`site.js`). Who's a member is the `members` table; every table's policy asks
+to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
+site build (`docs/backend.md`). Who's a member is the `members` table; every table's policy asks
 `is_member()`, and the page asks it too, only to decide what to show. The pages are `noindex`.
+
+## The home-screen app
+
+On an iPhone each app can be added to the Home Screen and opens full screen, with no Safari bars:
+
+- **The manifest** (`apps/wardrobe.webmanifest`, `apps/recipes.webmanifest`, from
+  `_includes/app-manifest.json`): the app's name ("Wardrobe"), `start_url` the app itself (so the
+  recipe tracker, added from its page, opens on recipes, not the wardrobe), `scope` `/apps/`,
+  `display: standalone`, the light theme's `--bg` as its colours, icons at 192 and 512 (the 512 also
+  maskable). `head.html` links it only on `layout: app` pages that have one, with
+  `apple-mobile-web-app-capable` (and `mobile-web-app-capable`), the status bar `black-translucent`
+  (the page runs under it; `apps.css` already keeps the safe areas clear, and in the light theme,
+  installed, a dark band sits under the status bar's white clock), `apple-mobile-web-app-title`
+  (the page's title), the app's `apple-touch-icon`, and `theme-color` for light and dark. The
+  public site has none of it.
+- **The icons** (`assets/images/app-<name>-{512,192,180}.png`): the app's line drawing (the
+  closet's hanger, a bowl) in the light theme's cream, the hook or the steam in the accent, on the
+  space theme's night blue, inside the middle 70% so a circle or squircle crop keeps it all.
+  `node tools/app-icons.mjs` draws them (SVG, through Playwright); they're committed. A new app
+  adds its drawing there, its line in `_data/apps.yml`, and a two-line manifest.
+- **Ways back** with no browser around it: every view has its own (the tabs, "‹ Trips" above the
+  title, Done or Cancel on every sheet, Back's history). Links that leave (Buy another, a booking,
+  a map, a recipe's page) open with `target="_blank"`, so iOS shows them over the app with a Done
+  button, or in Maps. The site's own nav leaves the app's scope; iOS shows those pages the same way.
+- **One hint**, on an iPhone in Safari (not installed, not dismissed), above everything, signed in
+  or not (installing before signing in is the better order): "Add to Home Screen for the
+  full-screen app: tap Share, then Add to Home Screen." × retires it for good on that phone
+  (`localStorage` `apps-install-hint`). Installed, it's never shown, and the sign-in note asks only
+  for the code.
 
 ## Adding an app (say, a wardrobe)
 
@@ -50,7 +87,8 @@ to someone signed in (`site.js`). Who's a member is the `members` table; every t
 3. **A script**, `assets/js/apps/<name>.js`: import from `./lib/kit.js`, and call
    `start(async () => { … load and draw … })`. Photos go in the shared private `photos` bucket,
    under `<name>/<row id>/` (`photos.put(file, folder)` shrinks them to 1600px first).
-4. **A line** in `_data/apps.yml`.
+4. **A line** in `_data/apps.yml`, and if it should install as its own app, a manifest and icon
+   ("The home-screen app" above).
 5. **A test**: a fixture in `tools/fixtures/` and a few steps in `apps()` in `tools/smoke.mjs`,
    which runs the apps against a made-up Supabase.
 

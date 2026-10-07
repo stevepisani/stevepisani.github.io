@@ -1,0 +1,10 @@
+<!-- The sign-in email (Supabase Auth's "magic link" template; tools/supabase.mjs applies it as
+     mailer_templates_magic_link_content). The link signs in the browser it opens in; the code is for
+     the home-screen app, which that browser isn't (docs/apps.md, "Signing in"). -->
+<div style="font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; color: #1d1b18; max-width: 28rem;">
+  <h2 style="font-size: 20px; margin: 0 0 16px;">Sign in to stevenpisani.com</h2>
+  <p style="margin: 0 0 16px;"><a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 12px 20px; border-radius: 999px; background: #e0531f; color: #ffffff; font-weight: 600; text-decoration: none;">Sign in</a></p>
+  <p style="margin: 0 0 8px;">Or type this code in the app:</p>
+  <p style="margin: 0 0 16px; font-family: Menlo, Consolas, monospace; font-size: 28px; font-weight: 700; letter-spacing: 6px;">{{ .Token }}</p>
+  <p style="margin: 0; color: #57524a; font-size: 14px;">Either works once, within the hour. If you didn't ask to sign in, ignore this.</p>
+</div>

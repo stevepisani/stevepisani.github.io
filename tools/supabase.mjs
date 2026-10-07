@@ -4,7 +4,9 @@
 //     supabase_migrations.schema_migrations (the table the Supabase CLI uses, so the two agree),
 //     in name order, each in its own transaction;
 //   - JWT signing keys: an asymmetric one in use (below);
-//   - the auth settings in supabase/auth.json.
+//   - the auth settings in supabase/auth.json, and the emails in supabase/templates/ (each
+//     <name>.html is the auth config's mailer_templates_<name>_content: magic_link.html is the
+//     sign-in email, with its link and its code).
 //
 //   SUPABASE_ACCESS_TOKEN=... node tools/supabase.mjs [--dry-run]
 import { readFileSync, readdirSync } from 'node:fs';
@@ -67,6 +69,8 @@ if (!keys.some((k) => k.algorithm !== 'HS256' && k.status === 'in_use')) {
 }
 
 const auth = JSON.parse(readFileSync(`${repo}/supabase/auth.json`, 'utf8'));
+const templates = `${repo}/supabase/templates`;
+for (const file of readdirSync(templates).filter((f) => f.endsWith('.html'))) auth[`mailer_templates_${file.slice(0, -5)}_content`] = readFileSync(`${templates}/${file}`, 'utf8');
 const current = await api('GET', '/config/auth');
 const changed = Object.fromEntries(Object.entries(auth).filter(([k, v]) => current[k] !== v));
 if (Object.keys(changed).length) {
