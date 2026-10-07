@@ -151,6 +151,17 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <button type="submit" class="note__roll">Roll it up</button>
     </div>
   </form>
+  <div class="eyepiece" id="eyepiece" aria-hidden="true"></div>
+  <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
+  <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
+    <p class="scope-card__kicker">Through the telescope</p>
+    <h2 class="scope-card__name" id="scope-name"></h2>
+    <p class="scope-card__line" id="scope-line"></p>
+    <div class="scope-card__foot">
+      <button type="button" class="scope-card__more" id="scope-more">Next launch and the ISS</button>
+      <span class="scope-card__steps"><button type="button" id="scope-prev" aria-label="Point it at the last one">‹</button><button type="button" id="scope-next" aria-label="Point it at the next one">›</button></span>
+    </div>
+  </aside>
   <button type="button" class="seat-leave" id="board-back" hidden>Back to the bar</button>
   <aside class="board-card" id="board-card" aria-live="polite" aria-labelledby="board-name" hidden>
     <h2 class="board-card__name" id="board-name"></h2>

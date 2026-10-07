@@ -384,3 +384,26 @@
 .board-card__steps button, .board-card__close { width: 44px; height: 44px; border: 0; background: none; color: rgb(247 243 232 / .7); font-size: 1.5rem; cursor: pointer; }
 .board-card__steps button:hover, .board-card__close:hover { color: #fff; }
 .board-card__close { position: absolute; top: 4px; right: 4px; font-size: 1.6rem; }
+
+/* ---------- Looking through the telescope: the eyepiece's round field, ringed in brass ----------
+   The view narrows onto what it's pointed at (main.js); this blacks out all but a circle in the
+   middle, and fades in with the narrowing (--k). A card under it says what you're looking at. */
+.eyepiece { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: var(--k, 0); --r: min(40vmin, 44vw);
+  background: radial-gradient(circle at 50% 50%, transparent calc(var(--r) - 1px), rgb(201 166 107 / .9) var(--r), #6b4a22 calc(var(--r) + 5px), #120b05 calc(var(--r) + 12px), #000 calc(var(--r) + 40px)); }
+.scope-card {
+  position: absolute; z-index: 3; left: 50%; translate: -50% 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+  width: min(420px, calc(100vw - 32px)); margin: 0; padding: 14px 16px 10px; border-radius: 14px;
+  background: rgb(14 16 36 / .86); border: 1px solid rgb(201 166 107 / .45); color: #eef0fa; box-shadow: 0 10px 30px rgb(0 0 0 / .45); backdrop-filter: blur(6px);
+}
+.scope-card[hidden] { display: none; }
+.scope-card__kicker { margin: 0; font: .72rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: #c9a66b; }
+.scope-card__name { margin: 2px 0 4px; font: 600 1.25rem/1.2 var(--font-display); color: #fff; }
+.scope-card__line { margin: 0; font: .92rem/1.45 var(--font-body); color: #cfd3ea; }
+.scope-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.scope-card__more { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(201 166 107 / .6); background: transparent; color: #f0e3c8; font: 600 .88rem var(--font-body); cursor: pointer; }
+.scope-card__more:hover { background: rgb(201 166 107 / .15); }
+.scope-card__steps { display: flex; }
+.scope-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #cfd3ea; font-size: 1.5rem; cursor: pointer; }
+.scope-card__steps button:hover { color: #fff; }
+.scope-card__steps button[hidden] { display: none; }
+@media (min-width: 900px) { .scope-card { left: auto; right: 24px; translate: 0 -50%; top: 50%; bottom: auto; width: min(340px, 26vw); } }

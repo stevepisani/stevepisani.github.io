@@ -235,6 +235,25 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk');
   step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
 
+  // the telescope: bend to the eyepiece and the view narrows onto what it's pointed at, a card
+  // says what; › swings it to the next; the launch panel is a button away; Esc steps back
+  await page.evaluate(() => window.__world.scope.go());
+  await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
+  const firstSight = await page.evaluate(() => window.__world.scope.target);
+  if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
+  await shot('telescope');
+  if (await page.evaluate(() => window.__world.scope.count) > 1) {
+    await page.click('#scope-next');
+    await until(page, (f) => window.__world.scope.target !== f, firstSight);
+  }
+  await page.click('#scope-more');
+  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch');
+  await page.click('#panel-close');
+  await until(page, () => document.getElementById('panel').hidden);
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  step(`telescope: looked through it at ${firstSight.toLowerCase()}, stepped back`);
+
   // skip a stone
   await page.evaluate(() => window.__world.goToShore());
   await until(page, () => window.__world.state === 'shore' && window.__world.stoneInHand, null, 120000);

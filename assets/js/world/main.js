@@ -447,6 +447,7 @@ async function start() {
     if (it.id === 'hammock') return lieInHammock();
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
+    if (it.id === 'launch') return lookThroughScope();
     openPanel(it.id);
   }
   let destT = -1;
@@ -581,6 +582,7 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
+    if (state === 'scope') return; // at the eyepiece: ‹ › moves the telescope
     if (state === 'seat' || state === 'camp' || state === 'hammock' || state === 'shore' || state === 'note') {
       if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
@@ -1166,6 +1168,7 @@ async function start() {
     else if (state === 'camp') leaveFire();
     else if (state === 'hammock') getOutOfHammock();
     else if (state === 'shore') leaveShore();
+    else if (state === 'scope') leaveScope();
     else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
     else if (state === 'walk' && carry) putDown();
   });
@@ -1567,6 +1570,107 @@ async function start() {
     for (let i = n; i < labelEls.length; i++) labelEls[i].hidden = true;
   }
 
+  /* ---------- The telescope: look through it ---------- */
+  // Walk up and bend to the eyepiece: your gaze runs up the tube to what it's pointed at, then the
+  // view narrows into the eyepiece's round field (the same eased narrowing as leaning in
+  // elsewhere): tonight's moon, in its real phase, when it's above the horizon here, and the
+  // ringed planet. ‹ › swings it from one to the other. A card says what you're looking at, and
+  // "Next launch and the ISS" opens the launch panel: the text backs up the view, it isn't the
+  // way in. "Step back" or Esc stands you up again.
+  const scopeSpot = interactables.find((i) => i.id === 'launch');
+  const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece');
+  const scopePrev = $('scope-prev'), scopeNext = $('scope-next');
+  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false };
+  function scopeTargets(eye) {
+    const up = eye.clone().normalize(), m = window.moonTonight ? window.moonTonight() : null;
+    const moon = sky.bodies.moon, giant = sky.bodies.giant;
+    const above = (b) => b && b.dir.dot(up) > Math.sin(THREE.MathUtils.degToRad(10)); // clear of the ground and the palms
+    const list = [];
+    if (above(moon)) list.push({ body: moon, fill: 0.55, name: 'The moon', line: m ? `${m.name}, ${Math.round(m.lit * 100)}% lit. It's lit the way the real one is tonight.` : "Lit the way the real one is tonight." });
+    if (above(giant)) list.push({ body: giant, fill: 0.9, name: 'The ringed planet', line: `Lit by the same sun as the moon and this planet.${above(moon) ? '' : " The moon is below the horizon from here tonight."}` });
+    return list;
+  }
+  // how narrow a view makes it fill `fill` of the eyepiece's round field
+  function scopeFov(t) {
+    const H = root.clientHeight, W = root.clientWidth, r = Math.min(0.4 * Math.min(W, H), 0.44 * W);
+    return Math.min(BASE_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(t.body.across * H / (4 * t.fill * r))));
+  }
+  function pointScope(i) {
+    const t = scope.targets[i];
+    if (!t) return;
+    scope.i = i;
+    scope.fov = scopeFov(t);
+    $('scope-name').textContent = t.name;
+    $('scope-line').textContent = t.line;
+    scopePrev.hidden = scopeNext.hidden = scope.targets.length < 2;
+  }
+  const scopeLook = (t) => poseLooking(scope.eye, scope.eye.clone().add(t.body.dir)).quat;
+  function lookThroughScope() {
+    if (!scopeSpot || state !== 'walk') return;
+    leaving = false;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    // bent to the eyepiece: a step in from where you walked up, a little under standing height
+    const up = scopeSpot.approach.clone().normalize();
+    const at = scopeSpot.approach.clone().lerp(scopeSpot.point, 0.45);
+    scope.eye = surfacePoint(at.clone().normalize()).addScaledVector(up, 1.38);
+    scope.targets = scopeTargets(scope.eye);
+    if (!scope.targets.length) { openPanel('launch'); return; } // nothing up there from here: just the panel
+    setState('scope');
+    scope.leaving = false;
+    pointScope(0);
+    const t = scope.targets[0];
+    scope.quat.copy(scopeLook(t));
+    flyPath([
+      { ...poseLooking(scope.eye, scopeSpot.point), ms: Math.min(900, Math.max(300, camera.position.distanceTo(scope.eye) * 420)) }, // step up to it
+      { pos: scope.eye.clone(), quat: scope.quat.clone(), ms: 900 }, // and look up along the tube
+    ], () => {
+      if (state !== 'scope') return;
+      scope.want = 1;
+      scopeCard.hidden = false;
+    });
+  }
+  function stepScope(d) {
+    const n = scope.targets.length;
+    if (state === 'scope' && n > 1 && !scope.leaving) pointScope((scope.i + d + n) % n);
+  }
+  function leaveScope() {
+    if (state !== 'scope' || scope.leaving || flight) return;
+    scope.leaving = true;
+    scope.want = 0; // the field widens back out first (frame loop), then you stand up
+    scopeCard.hidden = true;
+  }
+  function standUpFromScope() {
+    player.spawn(scopeSpot.approach.clone().normalize(), scopeSpot.point, -0.1);
+    const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
+    const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    flyPath([
+      { ...poseLooking(scope.eye, scopeSpot.point), ms: 800 }, // eyes down from the sky to the telescope
+      { pos: endPos, quat: endQuat, ms: 600 },
+    ], () => { scope.leaving = false; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
+  }
+  scopeLeaveBtn.addEventListener('click', leaveScope);
+  scopePrev.addEventListener('click', () => stepScope(-1));
+  scopeNext.addEventListener('click', () => stepScope(1));
+  $('scope-more').addEventListener('click', () => openPanel('launch'));
+  // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field
+  function scopeFrame(realDt) {
+    const t = scope.targets[scope.i];
+    if (scope.k !== scope.want) scope.k = reducedMotion ? scope.want : THREE.MathUtils.clamp(scope.k + Math.sign(scope.want - scope.k) * realDt / 1.1, 0, 1);
+    const ease = reducedMotion ? 1 : 1 - Math.exp(-realDt * 3);
+    if (t) scope.quat.slerp(scopeLook(t), ease);
+    scope.cur += (scope.fov - scope.cur) * ease;
+    const e = scope.k * scope.k * (3 - 2 * scope.k);
+    camera.position.copy(scope.eye);
+    camera.quaternion.copy(scope.quat);
+    camera.fov = BASE_FOV + (scope.cur - BASE_FOV) * e;
+    camera.updateProjectionMatrix();
+    eyepiece.style.setProperty('--k', e.toFixed(3));
+    if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = BASE_FOV; camera.updateProjectionMatrix(); standUpFromScope(); }
+  }
+
   /* ---------- Skipping stones at the lagoon ---------- */
   // Walk down to the pile at the waterline and crouch there, facing across the water, a flat
   // stone in your hand. Press and hold (the canvas, Space, or "Hold to throw") to wind up, let
@@ -1909,6 +2013,7 @@ async function start() {
       }
     }
     if (flight) flightStep(performance.now());
+    else if (state === 'scope' && scope.eye) scopeFrame(realDt);
     else if ((state === 'shore' && shorePose) || (state === 'note' && notePose)) {
       const pose = state === 'shore' ? shorePose : notePose;
       camera.position.copy(pose.pos);
@@ -2024,6 +2129,7 @@ async function start() {
     hmLeave.hidden = hmRead.hidden = !inHammock;
     const atShore = state === 'shore' && !flight && !leaving && panel.hidden && menu.hidden;
     shoreLeave.hidden = shoreThrow.hidden = !atShore;
+    scopeLeaveBtn.hidden = !(state === 'scope' && !flight && !scope.leaving && panel.hidden && menu.hidden);
     shoreThrow.classList.toggle('is-winding', windUp >= 0);
     carryDrop.hidden = carryThrow.hidden = !(state === 'walk' && carry && !flight && panel.hidden && menu.hidden);
     carryThrow.classList.toggle('is-winding', carryWind >= 0);
@@ -2075,7 +2181,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)

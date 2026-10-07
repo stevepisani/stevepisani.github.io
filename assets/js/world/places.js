@@ -280,7 +280,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       lantern(up.clone().multiplyScalar(RADIUS).addScaledVector(towardBar, 0.9).addScaledVector(side, 0.8).normalize());
     }
     colliders.push({ center: scope.position.clone(), radius: 0.6 });
-    interactables.push({ id: 'launch', label: 'Telescope', verb: 'See the next rocket launch', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2 });
+    interactables.push({ id: 'launch', label: 'Telescope', verb: 'Look through it', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2 });
   }
 
   // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
