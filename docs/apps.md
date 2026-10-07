@@ -203,22 +203,22 @@ wardrobe MCP server, signed in as him (below).
 - **Trips** (the Trips tab; table `trips` and its parts, private like the clothes; "Trips in
   detail" below has the model): a trip is its legs (a place, looked up for its latitude and
   longitude, and dates), who's going, its days (activities, the wardrobe items worn, a summary, a
-  note), and its own rows for packing, bags, transport, lodging and links. A trip shows each leg with its weather (a bar a day:
-  its height the high, its blue the chance of rain; dashed for typical days), the planned days
+  note), and its own rows for packing, bags, transport, lodging and links. A trip shows each leg with its weather (day by day, "Weather" below), the planned days
   with their outfits, and how the packing's going. Trips are mostly made in ChatGPT; "New trip"
   and "Edit" here take a name, places and dates, and notes.
 - **Today** (a tab only while a trip is on, or starts within two weeks; its heading is the trip's
   name): the trip's line, leg by leg, with the one you're on lit, a dot where you are in it and the
-  days left there; then a morning card for the day: the place, the weather (a sun, cloud or rain
-  drawing, the high, the low and the chance of rain), the advice in one box when the weather and
-  the outfit disagree, and what you're wearing laid flat (below), the occasion, the plan and the
+  days left there; then a morning card for the day: the place and its weather on a sky ("Weather" below), the
+  advice in one box when the weather and the outfit disagree, and what you're wearing laid flat (below), the occasion, the plan and the
   note. "Day before" and "Tomorrow" step through the trip, and so does a swipe across the card.
   Below, the next five days (weather and the outfit small; tap one to see it on the card) and the
   packing, as a ring that fills. Before the trip, the card shows its
-  first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say: rain of 50%
-  or more asks for something whose name, material or notes say rain, waterproof, shell, Gore-Tex,
-  trench, mac or umbrella, and warns off suede; a low under 8° with nothing from outerwear or
-  warm; a high of 26° or more with something warm.
+  first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say and what the
+  weather does: rain of 50% or more (saying from when, when the hours show it: "Rain likely from
+  about 2 PM (70%)") asks for something whose name, material or notes say rain, waterproof, shell,
+  Gore-Tex, trench, mac or umbrella, and warns off suede; with nothing from outerwear or warm, an
+  evening plan (from 5 PM) when it'll be under 12° then ("Dinner at Buca Mario at 20:00: about
+  11°"), or else a night under 8°; a high of 26° or more with something warm.
 - **An outfit laid flat** (`flatlay()` in `wardrobe.js`): its photos on one studio ground, like a
   lookbook page, top to toe (outerwear and tops, trousers, shoes, the rest): one alone, two
   staggered, three with the first big, four two and two, more three a row. Each piece opens the
@@ -249,7 +249,7 @@ wardrobe MCP server, signed in as him (below).
   the add form takes a label, whose and a category.
 - **With no connection** (a plane, a train abroad): every load keeps a copy on the phone
   (`localStorage` `wardrobe-copy:<user id>`: the rows, the trips' parts and the photo links; `wardrobe-wx`: the last
-  weather for each leg; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
+  weather for each leg, with today's and tomorrow's hours; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
   the page and its scripts. Offline, the app opens on that copy and a line under the tabs says how old it is and how many
   packing changes are waiting. Packing
   changes work and wait in `wardrobe-packing-queue`, by entry (the patches merged); they're sent,
@@ -260,6 +260,41 @@ wardrobe MCP server, signed in as him (below).
   the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
   the rest the same dates over the last three years, the temperatures averaged and the chance of
   rain being how many of those years it rained. Leg summaries count the expected days of rain.
+  A forecast day also has its WMO weather code (`conditionOf()` says it in words: "Light rain"),
+  feels-like, rain in mm, sunrise and sunset (local times there), UV and wind; a typical day has
+  only what was usual, never a condition. The app asks `legWeather(leg, today, { hourly: true })`
+  and gets each hour of today and tomorrow too, in the same one request a leg; the MCP server
+  never asks, so its answers stay as short as they were. The app draws it all with
+  `assets/js/apps/lib/sky.js`, on Apple Weather's patterns:
+  - **The sky drawings**: one per kind of sky in the page's sprite (`#i-sun`, `#i-moon`,
+    `#i-sun-cloud-s` mostly clear, `#i-sun-cloud` partly cloudy and their moon versions at night,
+    `#i-cloud`, `#i-fog`, `#i-drizzle`, `#i-rain`, `#i-heavy-rain`, `#i-showers`, `#i-snow`,
+    `#i-sleet`, `#i-thunder`; `#i-typical`, a thermometer, for a typical day; `#i-sunrise`,
+    `#i-sunset`, `#i-wind`), in the line style, the sun, moon, rain and snow in their own colours
+    (`--sun`, `--moon`, `--wet`, `--snow` on `.app`, per theme; all green in terminal).
+  - **Today's sky** (`.sky-panel`, the top of the card): the place, the temperature now there
+    (the hour at the place's own clock) with its sky in words, high and low, feels-like when it's
+    3° or more off; one or two sentences on the day ("Rain from about 2 PM, heaviest at 4 PM. Cool
+    evening, down to 48°."; late in the day, the night ahead); UV when 6 or more and wind from 30
+    km/h, only then; and the next 24 hours as a strip that scrolls sideways (Now, each hour's sky,
+    its chance of rain from 20%, its temperature on a line coloured by temperature, the sunrise
+    and sunset in their places). Its background is the sky there: clear, partly cloudy, cloudy,
+    fog, rain, snow or storm, by day, at golden hour or by night, each a gradient dark enough for
+    white text (4.5:1 at its lightest), with clouds drifting, rain or snow falling or stars
+    twinkling, faintly, only without reduced motion. A typical day, or none, gets the page's own
+    colours and "Typical, not a forecast". Another day shows its high, its sky and its sentence.
+  - **Day by day** (each leg on the trip page): weekday, sky, chance of rain from 20%, low, a bar
+    from low to high on the whole trip's one scale, filled by temperature (`HEAT` in `sky.js`:
+    deep blue below 0°, light blue to 15°, green to 20°, yellow to 25°, orange to 30°, red above;
+    data colours, like the clothes', the same in every theme but terminal), high. Today has a dot
+    where it is now; typical days come after a line saying what they are, faint and dashed. A leg
+    shows ten days and "All 31 days". Each row is one sentence for VoiceOver. The day cards and
+    "Next few days" use the same drawings: sky, high / low, rain from 20%.
+  - **°F or °C**: an American browser (en-US) gets °F, the rest °C; a tap on any temperature
+    switches every one, and it's kept (`localStorage` `wardrobe-units`). Everything is stored in
+    °C and turned into °F only when shown; wind follows (mph or km/h). The MCP server stays °C.
+  - **Offline**, the last weather each leg had (`wardrobe-wx`) includes its hours, so the sky,
+    the sentence and the strip are still there.
 
 ## ChatGPT and Claude: SJPJr, the MCP server
 

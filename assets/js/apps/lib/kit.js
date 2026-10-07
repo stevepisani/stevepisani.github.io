@@ -8,6 +8,17 @@ import { SIZES, QUALITY, copyPath, copyPaths } from './photo-sizes.js';
 const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
 export const db = createClient(meta('supabase-url'), meta('supabase-key'));
 export const $ = (sel, el = document) => el.querySelector(sel);
+// An element with a class and its text
+export const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});
+// An icon from the page's set (<svg class="icons"> with a <symbol id="i-…"> each), by name
+export function icon(name, cls = '') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+  svg.setAttribute('aria-hidden', 'true');
+  if (cls) svg.setAttribute('class', cls);
+  use.setAttribute('href', `#i-${name}`);
+  svg.append(use);
+  return svg;
+}
 
 // One line at the bottom of the screen, gone in a few seconds (longer when it's bad news, or
 // when it offers a way back: `undo` runs if its Undo button is pressed in time).
