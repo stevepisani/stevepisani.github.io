@@ -150,7 +150,7 @@ export function story(day, hours, now) {
 export function facts(day, { strip = false, now = null } = {}) {
   const out = [];
   if (!day || day.kind === 'typical') return out;
-  const sunDown = now && day.sunset && now > day.sunset; // the sun's done for the day
+  const sunDown = now && day.sunset && minutes(now) > minutes(day.sunset) - 120; // the sun's low or gone: no UV worth saying
   if (!strip && day.sunset) out.push(['sunset', `Sunset ${clockLabel(day.sunset)}`]);
   if (day.uv >= 6 && !sunDown) out.push(['sun', `UV ${Math.round(day.uv)}, ${day.uv >= 8 ? 'very high' : 'high'}`]);
   if (day.wind >= 30) out.push(['wind', `Wind up to ${speed(day.wind)}`]);
