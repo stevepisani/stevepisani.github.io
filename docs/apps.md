@@ -43,11 +43,11 @@ On an iPhone each app can be added to the Home Screen and opens full screen, wit
   installed, a dark band sits under the status bar's white clock), `apple-mobile-web-app-title`
   (the page's title), the app's `apple-touch-icon`, and `theme-color` for light and dark. The
   public site has none of it.
-- **The icons** (`assets/images/app-<name>-{512,192,180}.png`): the app's line drawing (the
-  closet's hanger, a bowl) in the light theme's cream, the hook or the steam in the accent, on the
-  space theme's night blue, inside the middle 70% so a circle or squircle crop keeps it all.
-  `node tools/app-icons.mjs` draws them (SVG, through Playwright); they're committed. A new app
-  adds its drawing there, its line in `_data/apps.yml`, and a two-line manifest.
+- **The icon** (`assets/images/app-icon-{512,192,180}.png`, `app-icon-maskable-512.png`): the
+  site's SJPJr badge (`sj-512.png`, as in the header) on the light theme's cream, since iOS fills a
+  transparent icon with black; 84% of the square, or 68% for the maskable one a launcher may cut to
+  a circle. Every app shares it. `node tools/app-icons.mjs` makes them (through Playwright); they're
+  committed. A new app needs only its line in `_data/apps.yml` and a two-line manifest.
 - **Ways back** with no browser around it: every view has its own (the tabs, "‹ Trips" above the
   title, Done or Cancel on every sheet, Back's history). Links that leave (Buy another, a booking,
   a map, a recipe's page) open with `target="_blank"`, so iOS shows them over the app with a Done
@@ -254,7 +254,7 @@ wardrobe MCP server, signed in as him (below).
   packing, as a ring that fills. Before the trip, the card shows its
   first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say and what the
   weather does: rain of 50% or more (saying from when, when the hours show it: "Rain likely from
-  about 2 PM (70%)") asks for something whose name, material or notes say rain, waterproof, shell,
+  about 2 PM (68%)") asks for something whose name, material or notes say rain, waterproof, shell,
   Gore-Tex, trench, mac or umbrella, and warns off suede; with nothing from outerwear or warm, an
   evening plan (from 5 PM) when it'll be under 12° then ("Dinner at Buca Mario at 20:00: about
   11°"), or else a night under 8°; a high of 26° or more with something warm.
