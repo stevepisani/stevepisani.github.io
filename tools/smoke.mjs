@@ -144,12 +144,26 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
   step('menu: picked up, ordered, served, put down');
 
-  // the robot makes a drink, skipped to the end
-  await page.evaluate(() => window.__world.make(0));
-  await until(page, () => window.__world.making);
+  // the chalkboard: tap it and you lean in on it; tap a name and its recipe is chalked on a card;
+  // Esc puts the card away; "Make me one" turns you to the robot, which makes it (skipped to the end)
+  await tap(await onScreen('drinks'));
+  await until(page, () => window.__world.board.on && !document.getElementById('board-back').hidden);
+  await page.waitForTimeout(1500); // a frame or two at the board's view
+  const nameAt = () => page.evaluate(() => { for (let y = 40; y < innerHeight; y += 5) for (let x = 10; x < innerWidth; x += 10) if (window.__world.board.rowAt(x, y) === 0) return [x, y]; return null; });
+  const name = await nameAt();
+  if (!name) throw new Error('chalkboard: no drink name on screen after leaning in');
+  await tap(name);
+  await until(page, () => !document.getElementById('board-card').hidden && window.__world.board.picked === 0);
+  await shot('chalkboard');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('board-card').hidden && window.__world.board.on);
+  await tap(name);
+  await until(page, () => !document.getElementById('board-card').hidden);
+  await page.click('#board-make');
+  await until(page, () => window.__world.making && !window.__world.board.on && document.querySelectorAll('#making-build li').length > 0);
   await page.keyboard.press('Escape');
   await until(page, () => !window.__world.making, null, 60000);
-  step('the robot made a drink');
+  step('chalkboard: leaned in, read a recipe, the robot made it');
 
   // ask the bartender: your question shows in the transcript and, with every request outside the
   // site refused here, the robot says the bar's closed

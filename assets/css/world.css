@@ -231,13 +231,19 @@
 .making[hidden] { display: none; }
 .making__count { margin: 0 0 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: rgb(255 255 255 / .7); }
 .making__text { margin: 0; font: 600 1.05rem/1.35 var(--font-body); text-wrap: balance; }
+/* the recipe while it's made: each pour lights up as it goes in, then ticks off */
+.making__build { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin: 10px 0 0; padding: 0; list-style: none; font: 500 .78rem/1.3 var(--font-body); }
+.making__build li { padding: 3px 9px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .14); color: rgb(255 255 255 / .55); transition: color .3s, border-color .3s, background .3s; }
+.making__build li.is-now { color: #fff; border-color: var(--accent); background: rgb(255 255 255 / .08); }
+.making__build li.is-done { color: rgb(255 255 255 / .85); }
+.making__build li.is-done::before { content: "✓ "; color: var(--accent); }
 .making__dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .making__dots li { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .25); transition: background .3s; }
 .making__dots li.is-done { background: var(--accent); }
 .camp-eat.is-burning { border-color: var(--coral); }
-/* above the bottom buttons (the fire's, the hammock's, the shore's, and a carried thing's) */
+/* above the bottom buttons (the fire's, the hammock's, the shore's, a carried thing's, the chalkboard's) */
 .world[data-state="camp"] .hint, .world[data-state="hammock"] .hint, .world[data-state="shore"] .hint,
-.world:has(#carry-throw:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
+.world:has(#carry-throw:not([hidden])) .hint, .world:has(#board-back:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
 
 /* ---------- Content panel ---------- */
 .panel { position: absolute; z-index: 5; top: 76px; right: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain;
@@ -349,3 +355,28 @@
 .sky-label.is-open { color: #fff; font-weight: 600; }
 @media (min-width: 901px) { .star-card { left: 16px; translate: 0 0; } }
 @media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } .sky-shelf { bottom: 76px; } }
+
+/* ---------- Leaning in on the chalkboard: a drink's recipe, chalked on a card ----------
+   Phones: a sheet along the bottom, the board above it. Wide screens: to the right of the board. */
+.board-card {
+  position: absolute; z-index: 3; left: 16px; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+  max-height: calc(50dvh - 60px); overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 16px 18px 12px;
+  border-radius: 6px; border: 8px solid #7a5230; background: #1d2a22; color: #f7f3e8;
+  box-shadow: 0 12px 34px rgb(0 0 0 / .5), inset 0 0 40px rgb(255 255 255 / .04);
+}
+.board-card[hidden] { display: none; }
+@media (min-width: 761px) { .board-card { left: auto; right: max(24px, 5vw); top: 96px; bottom: auto; width: min(400px, 40vw); max-height: calc(100dvh - 200px); } }
+.board-card__name { margin: 0 44px 2px 0; font: 800 1.5rem/1.15 var(--font-display); color: #f7f3e8; }
+.board-card__meta { margin: 0 0 10px; font: .75rem/1.45 var(--font-mono); color: rgb(247 243 232 / .62); }
+.board-card__build { margin: 0 0 10px; padding: 0; list-style: none; font: 500 1rem/1.5 var(--font-body); }
+.board-card__build li::before { content: "✶ "; color: #ffd36e; font-size: .8em; }
+.board-card__method { margin: 0 0 6px; font: .92rem/1.45 var(--font-body); color: rgb(247 243 232 / .85); }
+.board-card__note { margin: 0 0 6px; font: italic .88rem/1.45 var(--font-display); color: rgb(247 243 232 / .7); }
+.board-card__note:empty { display: none; }
+.board-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.board-card__make { min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid #ffd36e; background: #ffd36e; color: #1d2a22; font: 700 .95rem var(--font-body); cursor: pointer; }
+.board-card__make:hover { background: #ffe39a; }
+.board-card__steps { display: flex; }
+.board-card__steps button, .board-card__close { width: 44px; height: 44px; border: 0; background: none; color: rgb(247 243 232 / .7); font-size: 1.5rem; cursor: pointer; }
+.board-card__steps button:hover, .board-card__close:hover { color: #fff; }
+.board-card__close { position: absolute; top: 4px; right: 4px; font-size: 1.6rem; }

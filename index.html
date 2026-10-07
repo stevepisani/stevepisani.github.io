@@ -151,6 +151,19 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <button type="submit" class="note__roll">Roll it up</button>
     </div>
   </form>
+  <button type="button" class="seat-leave" id="board-back" hidden>Back to the bar</button>
+  <aside class="board-card" id="board-card" aria-live="polite" aria-labelledby="board-name" hidden>
+    <h2 class="board-card__name" id="board-name"></h2>
+    <p class="board-card__meta" id="board-meta"></p>
+    <ul class="board-card__build" id="board-build"></ul>
+    <p class="board-card__method" id="board-method"></p>
+    <p class="board-card__note" id="board-note"></p>
+    <div class="board-card__foot">
+      <button type="button" class="board-card__make" id="board-make">Make me one</button>
+      <span class="board-card__steps"><button type="button" id="board-prev" aria-label="Previous drink">‹</button><button type="button" id="board-next" aria-label="Next drink">›</button></span>
+    </div>
+    <button type="button" class="board-card__close" id="board-close" aria-label="Back to the board">×</button>
+  </aside>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
   <ol class="chat-log" id="chat-log" aria-live="polite" aria-label="Your conversation with the bartender" hidden></ol>
   <form class="chat" id="chat" hidden>
@@ -161,6 +174,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <div class="making" id="making" role="status" hidden>
     <p class="making__count" id="making-count"></p>
     <p class="making__text" id="making-text"></p>
+    <ul class="making__build" id="making-build" aria-hidden="true"></ul>
     <ol class="making__dots" id="making-dots" aria-hidden="true"></ol>
   </div>
 

@@ -132,9 +132,12 @@ addEventListener('popstate', () => {
   const id = location.hash.slice(1);
   if (id && $('panel-' + id)) openPanel(id, { push: false });
   else if (!panel.hidden) { pushed = false; closePanel({ fromHistory: true }); }
-  else if (id !== 'sky' && skyBack) skyBack(); // leaned in on a shelf of the book sky: Back leans out
+  else {
+    if (id !== 'sky' && skyBack) skyBack(); // leaned in on a shelf of the book sky: Back leans out
+    if (id !== 'board' && boardBack) boardBack(); // leaned in on the chalkboard: Back sits back
+  }
 });
-let skyBack = null; // the world sets it
+let skyBack = null, boardBack = null; // the world sets them
 
 // At the bar the menu is a card you pick up off the counter and put back down; the world
 // replaces these once it's built. Everywhere else it's just shown and hidden.
@@ -437,7 +440,7 @@ async function start() {
     player.stop();
     if (it.id === 'seat') return sitDown();
     if (it.id === 'menu') return sitDown({ pickUp: true });
-    if (it.id === 'drinks') return sitDown({ then: () => openPanel('drinks') });
+    if (it.id === 'drinks') return sitDown({ then: () => lookAtBoard() });
     if (it.id === 'make') return sitDown({ then: () => startMaking(it.make) });
     if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     if (it.id === 'campfire') return sitAtFire();
@@ -484,9 +487,14 @@ async function start() {
     }
     if (state === 'seat' && panel.hidden && menu.hidden) {
       if (making) return; // it's making you a drink
+      if (board.on) { // leaned in on the chalkboard: a name is its recipe, off the board closes the card
+        const i = boardRowAt(x, y);
+        if (i >= 0) { swallowNextClick(); showRecipe(i); } else if (board.pick >= 0) hideRecipe();
+        return;
+      }
       const p = pick(x, y);
       if (p && p.thing && p.thing.id === 'menu') { swallowNextClick(); pickUpMenu(); }
-      else if (p && p.thing && p.thing.id === 'drinks') { swallowNextClick(); openPanel('drinks'); }
+      else if (p && p.thing && p.thing.id === 'drinks') { swallowNextClick(); lookAtBoard(); }
       return;
     }
     if (state !== 'walk' || !panel.hidden || !menu.hidden) return;
@@ -516,6 +524,14 @@ async function start() {
         tip.querySelector('span').textContent = show[1];
         tip.style.transform = `translate(${x + 16}px, ${y + 14}px)`;
       }
+      return;
+    }
+    // leaned in on the chalkboard: the names are clickable
+    if (x !== null && state === 'seat' && board.on && panel.hidden && menu.hidden) {
+      const i = making ? -1 : boardRowAt(x, y);
+      canvas.style.cursor = i >= 0 ? 'pointer' : '';
+      bar.board.mark(i >= 0 ? i : board.pick);
+      tip.hidden = true;
       return;
     }
     // seated: only the menu card is clickable
@@ -590,6 +606,7 @@ async function start() {
     // Keyboard: E / Enter uses whatever you're next to, otherwise heads for the bar.
     onKeyAction: () => {
       if (state === 'note') return; // the bottles have their own keys (below)
+      if (state === 'seat' && panel.hidden && menu.hidden && board.on) { if (board.pick >= 0) startMaking(board.pick); return; } // on the board: make the one you're reading
       if (state === 'seat' && panel.hidden && menu.hidden) { if (!skipMaking()) pickUpMenu(); return; }
       if (state === 'camp' && panel.hidden && menu.hidden) { eatIt(); return; }
       if (state === 'hammock' && panel.hidden && menu.hidden) { readBook(); return; }
@@ -829,25 +846,28 @@ async function start() {
   // "Make me one" on a recipe: the robot makes it step by step (bar.make), a caption says what
   // it's doing, and Skip (or Esc) jumps to the finished drink. From anywhere on the planet it
   // walks you to your stool first. Leaving the bar stops it.
-  const makingCard = $('making'), makingCount = $('making-count'), makingText = $('making-text'), makingDots = $('making-dots'), makeSkip = $('make-skip');
+  const makingCard = $('making'), makingCount = $('making-count'), makingText = $('making-text'), makingDots = $('making-dots'), makingBuild = $('making-build'), makeSkip = $('make-skip');
   let making = null, makingDone;
   // The view while it's made: you lean in over the counter and your eyes follow the work, one
   // step at a time (bar.make's focus()), with the view narrowed like leaning in to watch closely.
   // Something you asked for, so the camera moves; eased like a head turn, snapped under
   // reduced motion. You sit back once the drink's in front of you.
   const BASE_FOV = camera.fov, LEAN_FOV = BASE_FOV * (coarse ? 0.66 : 0.52);
-  const view = { k: 0, want: 0, eye: new THREE.Vector3(), look: new THREE.Vector3(), aim: new THREE.Vector3(), hold: 0, job: null };
+  // `eye`, `aim` and `fov` are where it's headed; `eyeNow` and `fovNow` ease after them, so going
+  // from the chalkboard straight to the work is one head turn.
+  const view = { k: 0, want: 0, eye: new THREE.Vector3(), look: new THREE.Vector3(), aim: new THREE.Vector3(), hold: 0, job: null, fov: LEAN_FOV, eyeNow: new THREE.Vector3(), fovNow: LEAN_FOV };
   function leanIn(job) {
     view.job = job;
     view.want = 1;
     view.hold = 0;
+    view.fov = LEAN_FOV;
     // lean toward the work: a head's worth forward over the counter, a little lower
     const S = bar.seat, toward = job.center.clone().sub(S.eye);
     const up = S.eye.clone().normalize();
     toward.addScaledVector(up, -toward.dot(up)).normalize();
     view.eye.copy(S.eye).addScaledVector(toward, 0.32).addScaledVector(up, -0.06);
     view.aim.copy(job.focus());
-    if (view.k === 0 || reducedMotion) view.look.copy(view.aim);
+    if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
     seatLook.yaw = seatLook.pitch = 0;
   }
   function startMaking(idx) {
@@ -855,16 +875,23 @@ async function start() {
     if (!recipe) return;
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
     if (state !== 'seat' || ordering) return;
-    stopMaking();
+    if (making) making.cancel();
+    making = null;
+    if (board.on) leaveBoard({ keepView: true }); // from the board's card: turn straight to the work
     drinkBackOnBar();
     if (held) putDownMenu(); else hideMenu();
     bubble.hidden = true;
     clearTimeout(makingDone);
     makingDots.replaceChildren();
-    const job = (making = bar.make(recipe, {
+    // the recipe, a chip a pour: lit while it's poured, ticked once it's in
+    makingBuild.replaceChildren(...recipe.build.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
+    let job = null; // its steps say which are pours (onStep can come before it's assigned)
+    job = making = bar.make(recipe, {
       onStep(i, n, text) {
         if (makingDots.children.length !== n) makingDots.replaceChildren(...Array.from({ length: n }, () => document.createElement('li')));
         [...makingDots.children].forEach((li, k) => li.classList.toggle('is-done', k <= i));
+        const verbs = job ? job.steps : [], poured = verbs.slice(0, i + 1).filter((v) => v === 'pour').length, now = verbs[i] === 'pour';
+        [...makingBuild.children].forEach((li, k) => { li.classList.toggle('is-done', k < poured - (now ? 1 : 0)); li.classList.toggle('is-now', now && k === poured - 1); });
         makingCount.textContent = `${recipe.name} · ${i + 1} of ${n}`;
         makingText.textContent = text;
         makingCard.hidden = false;
@@ -872,21 +899,107 @@ async function start() {
       onDone() {
         making = null;
         [...makingDots.children].forEach((li) => li.classList.add('is-done'));
+        [...makingBuild.children].forEach((li) => { li.classList.remove('is-now'); li.classList.add('is-done'); });
         makingCount.textContent = recipe.name;
         makingText.textContent = 'There you go. Cheers!';
         makingDone = setTimeout(() => { if (!making) makingCard.hidden = true; }, 4000);
         view.hold = 1.4; // watch it arrive, then sit back
       },
-    }));
+    });
     leanIn(job);
   }
   function stopMaking() {
     if (making) making.cancel();
     making = null;
     makingCard.hidden = true;
+    leaveBoard({ keepView: true });
     view.want = 0; view.hold = 0;
     if (view.k) { view.k = 0; camera.fov = BASE_FOV; camera.updateProjectionMatrix(); }
   }
+
+  /* ---------- The chalkboard: lean in, read it, pick a drink ---------- */
+  // Tapping the board turns your head to it and narrows the view until it fills it (the same
+  // lean as watching a drink made). Its names are tap targets: one chalks its recipe onto a
+  // card (to the side on wide screens, below the board on phones), with "Make me one", which
+  // turns you straight to the robot to watch it made. ×, Esc and Back step back out.
+  const board = { on: false, pick: -1, pushed: false };
+  const boardCard = $('board-card'), boardBackBtn = $('board-back');
+  const _uvRay = new THREE.Raycaster();
+  function boardRowAt(x, y) {
+    const r = canvas.getBoundingClientRect();
+    _uvRay.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
+    const hit = _uvRay.intersectObject(bar.board.face, false)[0];
+    return hit && hit.uv ? bar.board.rowAt(hit.uv) : -1;
+  }
+  function lookAtBoard() {
+    if (state !== 'seat' || flight || making || ordering) return;
+    if (held) putDownMenu(); else hideMenu();
+    drinkBackOnBar();
+    bubble.hidden = true;
+    tip.hidden = true;
+    board.on = true;
+    board.pick = -1;
+    bar.board.mark(-1);
+    // where it is and how big, from your stool
+    const B = bar.board;
+    B.group.updateMatrixWorld(true);
+    const center = B.face.getWorldPosition(new THREE.Vector3());
+    const eye = bar.seat.eye.clone();
+    const d = eye.distanceTo(center), aspect = camera.aspect;
+    // narrow until the board fills the view (with room round it), leaving room for the recipe:
+    // below it on a tall screen, beside it on a wide one
+    const tall = aspect < 1;
+    const span = Math.max(B.size.y / (tall ? 0.36 : 0.62), B.size.x / ((tall ? 0.92 : 0.5) * aspect)); // metres of view, top to bottom
+    view.fov = Math.min(BASE_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(span / 2 / d)));
+    const pose = poseLooking(eye, center);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(pose.quat), camUp = new THREE.Vector3(0, 1, 0).applyQuaternion(pose.quat);
+    // aim off its centre so it sits up top (tall) or on the left (wide)
+    view.aim.copy(center);
+    if (tall) view.aim.addScaledVector(camUp, -span * 0.2);
+    else if (innerWidth > 760) view.aim.addScaledVector(right, span * aspect * 0.2);
+    view.eye.copy(eye);
+    view.job = null;
+    view.want = 1;
+    view.hold = 0;
+    if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
+    seatLook.yaw = seatLook.pitch = 0;
+    if (!board.pushed) { history.pushState({ board: true }, '', '#board'); board.pushed = true; }
+    showHint(`${coarse ? 'Tap' : 'Click'} a drink to see how it's made.`, 'board-pick');
+  }
+  function showRecipe(i) {
+    const r = (data.drinks || [])[i];
+    if (!r || !board.on) return;
+    clearHint('board-pick');
+    board.pick = i;
+    bar.board.mark(i);
+    $('board-name').textContent = r.name;
+    $('board-meta').textContent = [r.origin, r.glass].filter(Boolean).join(' · ');
+    $('board-build').replaceChildren(...r.build.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
+    $('board-method').textContent = r.method || '';
+    $('board-note').textContent = r.note || '';
+    boardCard.hidden = false;
+    boardCard.scrollTop = 0;
+  }
+  function hideRecipe() {
+    board.pick = -1;
+    bar.board.mark(-1);
+    boardCard.hidden = true;
+  }
+  function leaveBoard({ keepView = false, fromHistory = false } = {}) {
+    if (!board.on) return;
+    board.on = false;
+    hideRecipe();
+    if (hint.dataset.key === 'board-pick') hint.hidden = true;
+    if (!keepView) view.want = 0;
+    if (board.pushed) { board.pushed = false; if (!fromHistory) history.back(); }
+  }
+  boardBack = () => leaveBoard({ fromHistory: true });
+  const stepRecipe = (dir) => { const n = bar.board.rows; if (n) showRecipe((board.pick + dir + n) % n); };
+  $('board-prev').addEventListener('click', () => stepRecipe(-1));
+  $('board-next').addEventListener('click', () => stepRecipe(1));
+  $('board-close').addEventListener('click', hideRecipe);
+  $('board-make').addEventListener('click', () => { if (board.pick >= 0) startMaking(board.pick); });
+  boardBackBtn.addEventListener('click', () => leaveBoard());
   skipMaking = () => { if (!making) return false; making.skip(); return true; };
   makeSkip.addEventListener('click', skipMaking);
   decorateDrinks = () => {
@@ -992,12 +1105,12 @@ async function start() {
       say(data.bartender[0]);
       let i = 1;
       clearInterval(chatter);
-      if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making) say(data.bartender[i++ % data.bartender.length]); }, 12000);
+      if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making && !board.on) say(data.bartender[i++ % data.bartender.length]); }, 12000);
     });
   }
 
   leaveBar = () => {
-    stopMaking();
+    stopMaking(); // and leans back from the board
     drinkBackOnBar();
     ordering = false;
     hideMenu();
@@ -1044,6 +1157,7 @@ async function start() {
     if (e.target === chatInput) { chatInput.blur(); return; } // first Esc just leaves the question box
     if (!starCard.hidden) { closeStar(); return; } // first Esc puts the book's card away
     if (zoom.region && panel.hidden) { zoomOut(); return; } // the next leans back out to the whole sky
+    if (board.on && panel.hidden) { if (board.pick >= 0) hideRecipe(); else leaveBoard(); return; } // the card first, then the board
     if (!panel.hidden) closePanel();
     else if (making && menu.hidden) skipMaking(); // Esc while it's making one: straight to the drink
     else if (!menu.hidden && menuMode === 'nav') hideMenu();
@@ -1808,17 +1922,20 @@ async function start() {
         .multiply(_q2.setFromAxisAngle(X_AXIS, seatLook.pitch));
       // leaning in to watch a drink being made
       if (!making && view.hold > 0 && (view.hold -= realDt) <= 0) view.want = 0;
-      if (view.k !== view.want) {
-        view.k = reducedMotion ? view.want : THREE.MathUtils.clamp(view.k + Math.sign(view.want - view.k) * realDt / 1.1, 0, 1);
+      const moving = view.k !== view.want || Math.abs(view.fovNow - view.fov) > 0.01;
+      if (view.k !== view.want) view.k = reducedMotion ? view.want : THREE.MathUtils.clamp(view.k + Math.sign(view.want - view.k) * realDt / 1.1, 0, 1);
+      if (moving) {
+        const ease = reducedMotion ? 1 : 1 - Math.exp(-realDt * 3);
+        view.fovNow += (view.fov - view.fovNow) * ease;
         const e = view.k * view.k * (3 - 2 * view.k);
-        camera.fov = BASE_FOV + (LEAN_FOV - BASE_FOV) * e;
+        camera.fov = BASE_FOV + (view.fovNow - BASE_FOV) * e;
         camera.updateProjectionMatrix();
       }
       if (view.k > 0) {
         if (view.job) view.aim.copy(view.job.focus());
-        if (reducedMotion) view.look.copy(view.aim); else view.look.lerp(view.aim, 1 - Math.exp(-realDt * 3));
+        if (reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); } else { const ease = 1 - Math.exp(-realDt * 3); view.look.lerp(view.aim, ease); view.eyeNow.lerp(view.eye, ease); }
         const e = view.k * view.k * (3 - 2 * view.k);
-        camera.position.lerpVectors(seatPose.pos, view.eye, e);
+        camera.position.lerpVectors(seatPose.pos, view.eyeNow, e);
         camera.quaternion.slerp(poseLooking(camera.position, view.look).quat, e);
       }
       // arrow keys look around too
@@ -1859,7 +1976,7 @@ async function start() {
     // a pool of light, and the bartender waves you over. The menu card gets one, until the first
     // time it's picked up.
     let label = null;
-    if (state === 'seat' && !held && !cardFlight && !flight && !making && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
+    if (state === 'seat' && !held && !cardFlight && !flight && !making && !board.on && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
@@ -1870,9 +1987,10 @@ async function start() {
         beacon.style.transform = `translate(${((_v.x + 1) / 2 * root.clientWidth).toFixed(0)}px, ${((1 - _v.y) / 2 * root.clientHeight).toFixed(0)}px)`;
       }
     } else if (!beacon.hidden) beacon.hidden = true;
-    seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden);
+    seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden && !board.on);
+    boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
-    chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && panel.hidden && menu.hidden);
+    chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
@@ -1934,7 +2052,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown() };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
