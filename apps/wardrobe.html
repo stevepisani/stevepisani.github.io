@@ -2,12 +2,13 @@
 layout: app
 app: wardrobe
 title: SJPJr
-lede: "Steve's own things: his clothes, each with a photo, what it is, and where to buy another; and trips, with what to wear and pack."
+lede: "Your own things: your clothes, each with a photo, what it is and where to buy another; your trips, with what to wear and pack; and the recipes we're cooking through."
 ---
 {%- comment -%} Icons, drawn once and used by name (<use href="#i-…">): the tabs, the categories (a garment with no photo), the weather. Line drawings in the text's colour. {%- endcomment -%}
 <svg class="icons" aria-hidden="true" focusable="false">
   <symbol id="i-today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
   <symbol id="i-closet" viewBox="0 0 24 24"><path d="M12 7.5V7a2 2 0 1 0-2-2"/><path d="M12 7.5 2.8 14.6a1 1 0 0 0 .6 1.8h17.2a1 1 0 0 0 .6-1.8z"/></symbol>
+  <symbol id="i-recipes" viewBox="0 0 24 24"><path d="M4.5 11h15v4.5a4 4 0 0 1-4 4h-7a4 4 0 0 1-4-4z"/><path d="M2.5 11h19M9.5 7.5c0-1.2 1-1.6 1-2.8M13.5 7.5c0-1.2 1-1.6 1-2.8"/></symbol>
   <symbol id="i-trips" viewBox="0 0 24 24"><rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><path d="M9 7.5V5.2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2.3M8 7.5v12M16 7.5v12"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -55,18 +56,21 @@ lede: "Steve's own things: his clothes, each with a photo, what it is, and where
   <symbol id="i-offline" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 5-3M21.5 9a14 14 0 0 0-10-3.9M5.5 12.5a9 9 0 0 1 3.5-2M18.5 12.5a9 9 0 0 0-2-1.5M9 16a4.5 4.5 0 0 1 5.5-.5M12 19.5h.01M3 3l18 18"/></symbol>
 </svg>
 
-{%- comment -%} Where you are: the sections (a tab bar at the bottom on a phone, a segmented control on a wider screen) and, on a phone, the title settling into a bar at the top as you scroll {%- endcomment -%}
+{%- comment -%} Where you are: the sections (a tab bar at the bottom on a phone, a segmented control on a wider screen), each shown only to a member who sees it (me() in the database: Steve all four, Lexi Recipes) {%- endcomment -%}
 <nav class="tabbar wardrobe-tabs" id="tabs" aria-label="Sections">
   <a href="#today" data-value="today" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Today</span></a>
-  <a href="#closet" data-value="closet"><svg aria-hidden="true"><use href="#i-closet"/></svg><span>Closet</span></a>
-  <a href="#trips" data-value="trips"><svg aria-hidden="true"><use href="#i-trips"/></svg><span>Trips</span></a>
+  <a href="#closet" data-value="closet" hidden><svg aria-hidden="true"><use href="#i-closet"/></svg><span>Closet</span></a>
+  <a href="#trips" data-value="trips" hidden><svg aria-hidden="true"><use href="#i-trips"/></svg><span>Trips</span></a>
+  <a href="#recipes" data-value="recipes" hidden><svg aria-hidden="true"><use href="#i-recipes"/></svg><span>Recipes</span></a>
 </nav>
-<div class="mini-bar" id="mini-bar" aria-hidden="true"><a class="mini-bar__back" id="mini-back" href="#" tabindex="-1" hidden></a><span class="mini-bar__title" id="mini-title"></span></div>
 <p class="status-line" id="offline-note" role="status" hidden></p>
 
-<div id="today-view" hidden></div>
+<div id="today-view">
+  {%- comment -%} while it loads: the shape of what's coming {%- endcomment -%}
+  <div class="today__main" aria-hidden="true"><div class="ghost-card"><span class="ghost-line ghost-line--short"></span><span class="ghost-line"></span></div><div class="ghost-card ghost-card--sky"></div></div>
+</div>
 
-<div id="closet-view">
+<div id="closet-view" hidden>
 <div class="closet-bar">
   <label class="search"><svg aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search" aria-label="Search the wardrobe" enterkeyhint="search"></label>
   <button class="btn btn--small btn--icon" id="add" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg>Add</button>
@@ -167,6 +171,19 @@ lede: "Steve's own things: his clothes, each with a photo, what it is, and where
     </form>
   </article>
 </div>
+
+{% include recipes.html %}
+
+{%- comment -%} The app's own settings, moved into the settings sheet (kit.js): temperatures in °F or °C {%- endcomment %}
+<template id="settings-more">
+  <section class="settings__part" aria-labelledby="settings-units-title">
+    <h3 class="part-title" id="settings-units-title">Temperature</h3>
+    <div class="seg settings__seg" id="settings-units" role="group" aria-labelledby="settings-units-title">
+      <button type="button" data-value="F" aria-pressed="false">°F</button>
+      <button type="button" data-value="C" aria-pressed="false">°C</button>
+    </div>
+  </section>
+</template>
 
 <template id="tile">
   <li class="tile">

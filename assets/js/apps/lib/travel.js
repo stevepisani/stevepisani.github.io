@@ -4,8 +4,9 @@
 // and what the money's worth). Only what's stored is shown: no gates, platforms or boarding times.
 import { el, icon, toast } from './kit.js';
 
-// Home, in one place: where Steve lives, its clock and its money
-export const HOME = { place: 'Philadelphia', timezone: 'America/New_York', currency: 'USD' };
+// Home, in one place: where Steve lives, its clock, its money, and where it is (Today's weather
+// when he's not away)
+export const HOME = { place: 'Philadelphia', timezone: 'America/New_York', currency: 'USD', lat: 39.9526, lon: -75.1652 };
 
 // A country's money, by the name the place lookup gives (Open-Meteo's geocoding, in English).
 // Only currencies the rates come in (Frankfurter, the European Central Bank's daily rates).

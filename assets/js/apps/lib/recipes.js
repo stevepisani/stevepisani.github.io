@@ -1,12 +1,15 @@
-// The recipe tracker (/apps/recipes, apps/recipes.html): the recipes we're cooking through, each
-// with a photo, a rating out of 10, notes and the day it was cooked. Table public.recipes.
-import { $, start, fresh, rows, saver, ask, photos, toast, calm, celebrate } from './lib/kit.js';
+// Recipes, a section of SJPJr (the Recipes tab; its markup is _includes/recipes.html, in
+// apps/wardrobe.html): the recipes we're cooking through, each with a photo, a rating out of 10,
+// notes and the day it was cooked. Table public.recipes, shared by the members who see it.
+// wardrobe.js mounts it: load() when the tab is there for whoever signed in, clear() when they
+// sign out. (It was its own page, /apps/recipes, until Oct 2026; that address leads here.)
+import { $, rows, saver, ask, photos, toast, calm, celebrate } from './kit.js';
 
 const recipes = rows('recipes');
 const cards = new Map(); // recipe id → its card, built once so typing is never interrupted
 let list = [];
 let links = new Map(); // photo path → signed link
-let failed = false; // the list didn't load
+let failed = false; // the list didn't load ('offline': there's no connection)
 // what's shown and in what order, remembered on this phone
 let view = { filter: 'all', sort: 'title' };
 try { Object.assign(view, JSON.parse(localStorage.getItem('recipes-view'))); } catch (e) {}
@@ -31,13 +34,13 @@ function streak() {
 let picked = null;
 function summary() {
   const cooked = list.filter((r) => r.cooked), rated = list.filter((r) => r.rating > 0), left = todo(), weeks = streak();
-  $('#hero').hidden = !list.length;
-  $('#tally').textContent = [
+  $('#recipe-hero').hidden = !list.length;
+  $('#recipe-tally').textContent = [
     `${cooked.length} of ${list.length} cooked`,
     rated.length && `${(rated.reduce((a, r) => a + r.rating, 0) / rated.length).toFixed(1)} average`,
     weeks > 1 && `${weeks} weeks in a row`,
   ].filter(Boolean).join(' · ');
-  const bar = $('#progress');
+  const bar = $('#recipe-progress');
   bar.firstElementChild.style.setProperty('--p', `${list.length ? (100 * cooked.length) / list.length : 0}%`);
   bar.setAttribute('aria-valuemax', list.length);
   bar.setAttribute('aria-valuenow', cooked.length);
@@ -45,11 +48,11 @@ function summary() {
     const seed = [...today()].reduce((a, c) => a + c.charCodeAt(0), 0);
     picked = left.length ? [...left].sort((a, b) => a.id.localeCompare(b.id))[seed % left.length] : null;
   }
-  $('#pick').textContent = picked ? picked.title : "Everything's cooked.";
-  $('#pick').disabled = !picked;
-  $('#another').hidden = left.length < 2;
+  $('#recipe-pick').textContent = picked ? picked.title : "Everything's cooked.";
+  $('#recipe-pick').disabled = !picked;
+  $('#recipe-another').hidden = left.length < 2;
   const counts = { all: list.length, todo: left.length, cooked: cooked.length };
-  for (const b of $('#filter').children) {
+  for (const b of $('#recipe-filter').children) {
     b.setAttribute('aria-pressed', b.dataset.value === view.filter);
     $('span', b).textContent = counts[b.dataset.value];
   }
@@ -57,7 +60,7 @@ function summary() {
 
 // Scrolls to a recipe's card and rings it, clearing the search and filter if they hide it.
 function goTo(r) {
-  if (cards.get(r.id).hidden) { $('#search').value = ''; view.filter = 'all'; render(); }
+  if (cards.get(r.id).hidden) { $('#recipe-search').value = ''; view.filter = 'all'; render(); }
   const card = cards.get(r.id);
   card.scrollIntoView({ behavior: calm.matches ? 'auto' : 'smooth', block: 'center' });
   card.classList.add('is-picked');
@@ -95,7 +98,7 @@ function paint(r) {
 }
 
 function build(r) {
-  const card = $('#card').content.firstElementChild.cloneNode(true);
+  const card = $('#recipe-card').content.firstElementChild.cloneNode(true);
   cards.set(r.id, card);
   // save a change, then repaint what follows from it
   const set = async (patch) => {
@@ -163,7 +166,7 @@ function build(r) {
 
 // Puts the cards in order and hides the ones the search and filter leave out
 function render() {
-  const q = $('#search').value.trim().toLowerCase(), { filter } = view;
+  const q = $('#recipe-search').value.trim().toLowerCase(), { filter } = view;
   const by = {
     title: (a, b) => (a.title || '').localeCompare(b.title || ''),
     added: (a, b) => b.created_at.localeCompare(a.created_at),
@@ -176,10 +179,10 @@ function render() {
     const match = (!q || `${r.title} ${r.notes || ''}`.toLowerCase().includes(q)) && (filter === 'all' || (filter === 'cooked') === !!r.cooked);
     card.hidden = !match;
     if (match) shown++;
-    $('#cards').append(card);
+    $('#recipe-cards').append(card);
   }
-  $('#empty').hidden = shown > 0;
-  $('#empty').textContent = failed ? "The recipes didn't load. Reload the page to try again." : list.length ? 'Nothing matches that.' : 'No recipes yet. Add one, or import a list.';
+  $('#recipe-empty').hidden = shown > 0;
+  $('#recipe-empty').textContent = failed === 'offline' ? "You're offline. Recipes need a connection." : failed ? "The recipes didn't load. Pull down to try again." : list.length ? 'Nothing matches that.' : 'No recipes yet. Add one, or import a list.';
   summary();
 }
 
@@ -196,46 +199,47 @@ const look = (change) => {
   try { localStorage.setItem('recipes-view', JSON.stringify(view)); } catch (e) {}
   render();
 };
-$('#search').addEventListener('input', render);
-$('#sort').value = view.sort;
-$('#sort').addEventListener('input', (e) => look({ sort: e.target.value }));
-$('#filter').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) look({ filter: b.dataset.value }); });
-$('#pick').addEventListener('click', () => picked && goTo(picked));
-$('#another').addEventListener('click', () => {
+$('#recipe-search').addEventListener('input', render);
+$('#recipe-sort').value = view.sort;
+$('#recipe-sort').addEventListener('input', (e) => look({ sort: e.target.value }));
+$('#recipe-filter').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) look({ filter: b.dataset.value }); });
+$('#recipe-pick').addEventListener('click', () => picked && goTo(picked));
+$('#recipe-another').addEventListener('click', () => {
   const others = todo().filter((r) => r !== picked);
   if (others.length) picked = others[Math.floor(Math.random() * others.length)];
   summary();
   if (picked) goTo(picked);
 });
-$('#add').addEventListener('click', async () => {
-  const v = await ask($('#add-dialog'));
+$('#recipe-add').addEventListener('click', async () => {
+  const v = await ask($('#recipe-add-dialog'));
   const added = v && (await add([{ title: v.title.trim(), link: v.link.trim() }]));
   if (added) goTo(added[0]);
 });
-$('#import').addEventListener('click', async () => {
-  const v = await ask($('#import-dialog'));
+$('#recipe-import').addEventListener('click', async () => {
+  const v = await ask($('#recipe-import-dialog'));
   if (!v) return;
   const lines = v.list.split(/\r?\n/).map((line) => { const [title, ...rest] = line.split('|'); return { title: title.trim(), link: rest.join('|').trim() }; }).filter((r) => r.title);
   const added = lines.length && (await add(lines));
   if (added) toast(`Added ${added.length} recipe${added.length > 1 ? 's' : ''}.`);
 });
-// Ctrl/Cmd+K searches
+// Ctrl/Cmd+K searches, while the recipes are showing
 document.addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); $('#search').focus(); }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k' && !$('#recipes-view').hidden) { e.preventDefault(); $('#recipe-search').focus(); }
 });
 
-async function load() {
-  const got = await recipes.list();
-  failed = !got;
+// Loads (or reloads) the recipes and draws them; with no connection, says they need one
+export async function load({ offline = false } = {}) {
+  const got = offline ? null : await recipes.list();
+  failed = offline ? 'offline' : !got;
   list = got || [];
   links = await photos.urls(list.map((r) => r.photo_path).filter(Boolean));
-  clear();
+  cards.clear();
+  $('#recipe-cards').textContent = '';
   render();
 }
-function clear() {
+// Forgets them (signing out)
+export function clear() {
+  list = [];
   cards.clear();
-  $('#cards').textContent = '';
+  $('#recipe-cards').textContent = '';
 }
-
-start(load, () => { list = []; clear(); });
-fresh(load);
