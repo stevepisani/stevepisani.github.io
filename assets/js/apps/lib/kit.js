@@ -98,6 +98,12 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
     setTimeout(() => arrive(session).catch((e) => { console.error(e); toast("Something went wrong. Reload the page.", true); }), 0);
   });
 
+  // The email carries a link and a code (supabase/templates/magic_link.html). The link signs in
+  // the browser it opens in; on an iPhone that's Safari, whose storage a home-screen app doesn't
+  // share, so the app is signed in by typing the code instead (it fills itself from Mail where iOS
+  // can). Either works once.
+  let sentTo = '';
+  const code = $('#gate-code');
   $('#gate-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = String(new FormData(e.target).get('email')).trim().toLowerCase(), send = $('button', e.target);
@@ -109,10 +115,45 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
     });
     note.textContent = error
       ? "That didn't send. Only members can sign in; check the address."
-      : `Check ${email} for a sign-in link, and open it on this device.`;
+      : installed() ? `Check ${email} for the code.` : `Check ${email}. Open the link on this device, or type the code here.`;
     send.disabled = false;
+    if (error) return;
+    sentTo = email;
+    code.hidden = false;
+    code.reset();
+    code.code.focus();
   });
+  const enter = async () => {
+    const token = code.code.value.replace(/\D/g, ''), go = $('button', code);
+    if (!sentTo || token.length < 6 || go.disabled) return;
+    go.disabled = true;
+    note.textContent = 'Checking…';
+    const { error } = await db.auth.verifyOtp({ email: sentTo, token, type: 'email' });
+    go.disabled = false;
+    if (error) { note.textContent = "That code didn't work. Check it, or send a new one."; code.code.select(); return; }
+    note.textContent = '';
+    code.hidden = true; // the session arrives through onAuthStateChange, like the link's
+  };
+  code.addEventListener('submit', (e) => { e.preventDefault(); enter(); });
+  code.code.addEventListener('input', () => { if (/^\d{6}$/.test(code.code.value.trim())) enter(); }); // six digits typed or filled in: no need to press anything
+  hint();
   $('#app-signout').addEventListener('click', () => db.auth.signOut());
+}
+
+// Running as the home-screen app (no Safari around it)?
+export const installed = () => navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+// One hint, on an iPhone in Safari, for a page that can be installed (it has a manifest): Add to
+// Home Screen for the full-screen app. Shown until it's dismissed, then never again on that phone.
+function hint() {
+  const box = $('#install-hint');
+  let gone = false;
+  try { gone = localStorage.getItem('apps-install-hint') === 'no'; } catch (e) {}
+  if (!box || gone || installed() || !$('link[rel="manifest"]') || !/iPhone|iPod/.test(navigator.userAgent)) return;
+  box.hidden = false;
+  $('#install-hint-x').addEventListener('click', () => {
+    box.hidden = true;
+    try { localStorage.setItem('apps-install-hint', 'no'); } catch (e) {}
+  });
 }
 
 // A table. Every call says so (a toast) when it fails, and returns null or false. With trash,

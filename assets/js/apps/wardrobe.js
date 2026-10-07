@@ -14,6 +14,7 @@
 import { $, el, icon, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
 import { SIZES } from './lib/photo-sizes.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
+import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway } from './lib/travel.js';
 import { units, switchUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
@@ -577,7 +578,6 @@ const pad = (n) => String(n).padStart(2, '0');
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const daysBetween = (a, b) => Math.round((new Date(`${b}T12:00`) - new Date(`${a}T12:00`)) / 864e5);
 const addDays = (d, n) => { const x = new Date(`${d}T12:00`); x.setDate(x.getDate() + n); return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`; };
-const fmtDay = (d, opts = {}) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: opts.weekday || undefined, day: 'numeric', month: opts.month || 'short' });
 const span = (t) => (t.legs.length ? [t.legs[0].from, t.legs[t.legs.length - 1].to] : [null, null]);
 const legKey = (l) => `${l.lat},${l.lon},${l.from},${l.to}`;
 const legWeatherCached = (l) => {
@@ -701,10 +701,6 @@ function packCard(t) {
   return a;
 }
 
-// A time as given ("2026-10-13T11:15:00+01:00", or "11:15"): its clock time there, never moved
-// to another timezone; and its date, when it has one
-const clock = (s) => /(?:T|^)(\d\d:\d\d)/.exec(s || '')?.[1] || s || '';
-const dateOf = (s) => /^\d{4}-\d\d-\d\d/.exec(s || '')?.[0] || null;
 const spaced = (s) => (s || '').replace(/_/g, ' ');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // a row in one of the trip's short lists: what it is (a link if there's one), then the details
@@ -750,16 +746,11 @@ async function drawTrip() {
     return li;
   }));
   $('#trip-who').hidden = !people.length;
+  // getting there, as boarding cards in the order they happen; staying, each with its map and reference
   const goes = partsOf(t, 'trip_transport').sort((x, y) => x.date.localeCompare(y.date) || (x.departure_time || '').localeCompare(y.departure_time || ''));
-  part('trip-go', goes.map((g) => {
-    const dep = g.departure_time, arr = g.arrival_time, nextDay = dateOf(arr) && dateOf(arr) !== (dateOf(dep) || g.date);
-    const times = [dep && clock(dep), arr && `${clock(arr)}${nextDay ? ` (${fmtDay(dateOf(arr))})` : ''}`].filter(Boolean).join(' – ');
-    const end = (place, code) => (code ? `${place} ${code}` : place);
-    return infoRow(`${end(g.origin, g.origin_code)} → ${end(g.destination, g.destination_code)}`, g.booking_url, [
-      `${cap(spaced(g.type))}, ${fmtDay(g.date, { weekday: 'short' })}`, [g.carrier, g.number].filter(Boolean).join(' '), times, g.confirmation && `ref ${g.confirmation}`, g.notes]);
-  }));
+  part('trip-go', goes.map((g) => journeyCard(g, t.legs)));
   const stays = partsOf(t, 'trip_lodging').sort((x, y) => x.check_in.localeCompare(y.check_in));
-  part('trip-stay', stays.map((l) => infoRow(l.name, l.booking_url, [l.place, `${fmtDay(l.check_in)} – ${fmtDay(l.check_out)}`, l.confirmation && `ref ${l.confirmation}`, l.notes])));
+  part('trip-stay', stays.map((l) => stayCard(l, { date: today })));
   part('trip-links', partsOf(t, 'trip_resources').map((r) => infoRow(r.label, r.url, [r.notes])));
   const planned = [...t.days].sort((x, y) => x.date.localeCompare(y.date));
   $('#days-count').textContent = planned.length ? `${planned.length} of ${total} planned` : '';
@@ -843,7 +834,10 @@ async function drawToday() {
   if (!dayOn || dayOn < a || dayOn > b) dayOn = underway ? today : a;
   const date = dayOn, total = daysBetween(a, b) + 1;
   const ahead = Array.from({ length: Math.min(5, daysBetween(date, b)) }, (_, i) => addDays(date, i + 1));
-  const [{ w: lw, day: w }, ...wAhead] = await Promise.all([date, ...ahead].map((d) => wxAt(t, d))).then((r) => [r[0], ...r.slice(1).map((x) => x.day)]);
+  // where you are now (for its clock and money): on a travel day, where you left until you've arrived
+  let hereLeg = underway ? legOn(t, today) : null;
+  if (hereLeg && hereLeg.from === today && partsOf(t, 'trip_transport').some((g) => (g.date === today) && ['soon', 'on'].includes(journeyNow(g, t.legs).state))) hereLeg = t.legs[t.legs.indexOf(hereLeg) - 1] || hereLeg;
+  const [hereW, { w: lw, day: w }, ...wAhead] = await Promise.all([hereLeg ? legWeatherCached(hereLeg) : null, ...[date, ...ahead].map((d) => wxAt(t, d))]).then((r) => [r[0], r[1], ...r.slice(2).map((x) => x.day)]);
   if (openTrip !== t || shown !== 'today' || dayOn !== date) return;
   const planned = (d) => t.days.find((x) => x.date === d);
   const wearing = (d) => (planned(d)?.items || []).map((id) => list.find((x) => x.id === id)).filter(Boolean);
@@ -864,6 +858,13 @@ async function drawToday() {
     line.append(li);
   });
   head.append(line);
+  // home and away: the time here and at home, and what the money's worth
+  const away = homeAway(hereLeg, hereW?.timezone);
+  if (away) head.append(away);
+
+  // the next journey, when it's within two days (or under way): the thing to act on comes first
+  const goes = partsOf(t, 'trip_transport'), next1 = nextJourney(goes, t.legs);
+  const journey = next1 ? journeyCard(next1, t.legs, { today: true }) : null;
 
   // the day, like a morning card: where, the weather on its own sky, one word of warning, the
   // outfit laid flat
@@ -966,11 +967,17 @@ async function drawToday() {
   });
   if (ahead.length) next.append(nextHead, strip);
 
+  // where you sleep that night, its address a tap from Maps
+  const bed = partsOf(t, 'trip_lodging').find((l) => l.check_in <= date && date < l.check_out);
+  const stay = bed ? stayCard(bed, { date, today: true, kicker: date === today ? (bed.check_in === date ? 'Tonight · check in today' : 'Tonight') : `${fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]} night` }) : null;
+  if (stay) stay.classList.add('today__part');
+  if (journey) journey.classList.add('today__part');
+
   // the packing, and the way to it
   const pack = el('section', 'today__part');
   pack.append(packCard(t));
 
-  box.replaceChildren(head, card, ...(ahead.length ? [next] : []), pack);
+  box.replaceChildren(head, ...(journey ? [journey] : []), card, ...(stay ? [stay] : []), ...(ahead.length ? [next] : []), pack);
 }
 
 // ---------- The Packing Board: everyone's things, by category, a tap to move each one on ----------
