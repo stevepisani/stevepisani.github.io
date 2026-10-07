@@ -49,8 +49,8 @@ rather than leaving it in a chat.
    - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
    - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
-   - polish still open: repack before each move, pull to refresh with "weather updated", a journal
-     line per day, smarter search, a phone test checklist.
+   - polish still open: repack before each move, a journal line per day, smarter search, a phone
+     test checklist, and the recipes kept on the phone for opening with no connection.
 
 1. **Read bottles on the planet.** Approved bottles (`bottles.approved`) wash up at the waterline
    for the next visitor to open and read, with the same unrolling letter as writing one
@@ -93,6 +93,13 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: SJPJr as one app, tailored to whoever's signed in: its own shell (no site nav or
+  footer; the badge opens Settings: theme, °F or °C, who's signed in, Sign out, the site), Today
+  always first with a greeting by name and the next thing first (the journey, the outfit, the
+  weather where you are, at home too), Recipes as a tab (`/apps` and `/apps/recipes` lead in),
+  tabs per member (Steve all four, Lexi Recipes; `members.name` and `sections`, read by `me()`),
+  the last email remembered at sign-in, pull to refresh, controls that don't select as text, and
+  sessions that last months, as code.
 - Oct 2026: show first, the text supports: the chalkboard (lean in, pick a drink, watch it made),
   the hammock (the stars first, a book easy to pick) and the telescope (look through it: the real
   moon this hour with its landing sites, today's sun, the ringed planet; it swings round to them).
@@ -102,7 +109,7 @@ rather than leaving it in a chat.
   Telescope ideas still open: focus it yourself (a brass knob), the ISS when it's over
   Philadelphia, and a postcard of what you saw.
 - Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed
-  code there, journeys as boarding cards (countdown, copy the reference, Add to Calendar), stays
+  code there, journeys as boarding cards (countdown, copy the reference, Add to Google Calendar), stays
   with a map, and a home-and-away line (local and home time, the exchange rate).
 - Oct 2026: weather done properly (real conditions, Today's sky and hourly strip, Apple-style day
   lists, °F or °C), photos from small WebP copies, and the redesign on Apple's HIG and Krug.

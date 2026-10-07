@@ -1,11 +1,26 @@
----
-layout: default
----
-{%- comment -%} A private app (docs/apps.md): the page's content is the app, hidden until a member signs in. `app:` names its script in assets/js/apps/. An app may change the heading (#app-title) to say where you are, and show #app-back, the way back up. {%- endcomment -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {% include head.html %}
+</head>
+{%- comment -%} A private app (docs/apps.md, "The shell"): its own frame, not the public site's (no site nav, no footer). A slim bar on top: the SJPJr badge, which opens the settings sheet, the way back up ("‹ Trips") when there is one, and where you are once the heading has scrolled away. The page's content is the app, hidden until a member signs in. `app:` names its script in assets/js/apps/; the script says where you are with here() (kit.js). {%- endcomment %}
+<body class="app-page">
+<header class="app-top" id="app-top">
+  <div class="app-top__lead">
+    <button class="app-top__me" id="app-me" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings">
+      <img src="{{ '/assets/images/sj-64.png' | relative_url }}" srcset="{{ '/assets/images/sj-64.png' | relative_url }} 2x, {{ '/assets/images/sj-180.png' | relative_url }} 3x" alt="" width="32" height="32">
+    </button>
+    <a class="app-top__back" id="app-back" href="#" hidden></a>
+  </div>
+  <span class="app-top__title" id="app-bar-title" aria-hidden="true">{{ page.heading | default: page.title }}</span>
+</header>
+{%- comment -%} Pull to refresh: the ring that comes down with a pull at the top of the page (pull() in kit.js) {%- endcomment %}
+<div class="pull" id="app-pull" aria-hidden="true" hidden><svg viewBox="0 0 24 24"><path d="M12 5v13M6.5 12.5 12 18l5.5-5.5"/></svg></div>
+
+<main id="main">
 <article class="wrap page app" id="app" data-state="loading">
   <header class="page-head">
-    <a class="app-back" id="app-back" href="#" hidden></a>
-    <p class="kicker" id="app-kicker">{% unless page.url == '/apps/' %}<a href="{{ '/apps/' | relative_url }}">Apps</a> · {% endunless %}Members only</p>
+    <p class="app-over" id="app-over" hidden></p>
     <h1 id="app-title" tabindex="-1">{{ page.heading | default: page.title }}</h1>
   </header>
 
@@ -16,12 +31,13 @@ layout: default
     <button class="install-hint__x" id="install-hint-x" type="button" aria-label="Don't show this again">×</button>
   </aside>
 
+  {%- comment -%} The way in: an email, then the code from it. The last email used here is filled in (kit.js), so coming back it's one tap and the code {%- endcomment %}
   <section class="card app-gate" id="app-gate" hidden>
-    <h2>Sign in</h2>
-    <p>{{ page.lede }} It's private: only members can sign in. Enter your email and you'll get a link and a code.</p>
+    <h2 id="gate-title">Sign in</h2>
+    <p id="gate-ask">Enter your email to get a sign-in code.</p>
     <form id="gate-form">
       <label>Email <input name="email" type="email" autocomplete="email" required></label>
-      <button class="btn" type="submit">Email me</button>
+      <button class="btn" type="submit">Email me a code</button>
     </form>
     <p id="gate-note" role="status"></p>
     {%- comment -%} The code from the same email: the way in from the home-screen app, which the emailed link (opening in Safari) can't reach (kit.js) {%- endcomment %}
@@ -35,9 +51,39 @@ layout: default
     {{ content }}
   </div>
 
-  <p class="app-who" id="app-who" hidden>Signed in as <span id="app-email"></span> <button class="link-btn" id="app-signout" type="button">Sign out</button></p>
+  {%- comment -%} Settings, from the badge: the theme, what the app adds (a page's <template id="settings-more">, moved in here), who's signed in, and the site {%- endcomment %}
+  <dialog class="app-dialog settings" id="settings" aria-labelledby="settings-title">
+    <div class="settings__body">
+      <header class="dialog-bar">
+        <span></span>
+        <h2 id="settings-title">Settings</h2>
+        <button class="link-btn dialog-bar__ok" type="button" data-close>Done</button>
+      </header>
+      <section class="settings__part" aria-labelledby="settings-look">
+        <h3 class="part-title" id="settings-look">Theme</h3>
+        <div class="seg settings__seg" id="settings-theme" role="group" aria-labelledby="settings-look">
+          <button type="button" data-value="" aria-pressed="false">Auto</button>
+          <button type="button" data-value="light" aria-pressed="false">Light</button>
+          <button type="button" data-value="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-value="terminal" aria-pressed="false">Terminal</button>
+        </div>
+        <p class="settings__note">Auto follows your phone.</p>
+      </section>
+      <div id="settings-app"></div>
+      <section class="settings__part" id="settings-who" aria-labelledby="settings-who-title" hidden>
+        <h3 class="part-title" id="settings-who-title">Signed in</h3>
+        <p class="settings__who"><strong id="app-name"></strong> <span id="app-email"></span></p>
+        <button class="btn btn--ghost btn--small" id="app-signout" type="button">Sign out</button>
+      </section>
+      <p class="settings__site"><a href="{{ '/' | relative_url }}" target="_blank" rel="noopener">stevenpisani.com</a></p>
+    </div>
+  </dialog>
 
   <noscript><p>This needs JavaScript.</p></noscript>
   <p class="app-toast" id="app-toast" role="status" hidden></p>
 </article>
+</main>
+<script src="{{ '/assets/js/dist/site.js' | relative_url }}?v={{ site.time | date: '%s' }}" defer></script>
 <script type="module" src="{{ '/assets/js/dist/apps/' | append: page.app | append: '.js' | relative_url }}?v={{ site.time | date: '%s' }}"></script>
+</body>
+</html>

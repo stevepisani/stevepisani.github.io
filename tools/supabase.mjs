@@ -72,7 +72,10 @@ const auth = JSON.parse(readFileSync(`${repo}/supabase/auth.json`, 'utf8'));
 const templates = `${repo}/supabase/templates`;
 for (const file of readdirSync(templates).filter((f) => f.endsWith('.html'))) auth[`mailer_templates_${file.slice(0, -5)}_content`] = readFileSync(`${templates}/${file}`, 'utf8');
 const current = await api('GET', '/config/auth');
-const changed = Object.fromEntries(Object.entries(auth).filter(([k, v]) => current[k] !== v));
+// "no limit" reads back as null, 0 or nothing at all; those are the same setting, so a session
+// limit left off (a Pro-plan field) is never sent
+const unset = (x) => x == null || x === 0;
+const changed = Object.fromEntries(Object.entries(auth).filter(([k, v]) => current[k] !== v && !(unset(current[k]) && unset(v))));
 if (Object.keys(changed).length) {
   console.log(`${dry ? 'would set' : 'setting'} auth: ${Object.keys(changed).join(', ')}`);
   if (!dry) await api('PATCH', '/config/auth', changed);
