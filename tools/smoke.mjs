@@ -351,8 +351,8 @@ async function planet(page, shot, { phone = false } = {}) {
   if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
   step(`threw a coconut ${landed.moved.toFixed(1)} m`);
 
-  // the second coconut picked up brings the neon hoop down from the sky, clear of everything;
-  // one dropped down through its rim sets off the fireworks, and it goes back up
+  // the second coconut picked up brings the neon hoop, clear of everything; one dropped down
+  // through its rim sets off the fireworks, and it flickers back out
   await page.evaluate(() => window.__world.goGrab(0));
   await until(page, () => window.__world.carrying, null, 300000);
   await until(page, () => window.__world.hoop.state === 'up', null, 60000);
@@ -371,7 +371,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__hoopScored === 1, null, 120000);
   await shot('fireworks');
   await until(page, () => window.__world.hoop.state === 'off', null, 120000);
-  step('a second coconut brought the hoop down; one through it set off fireworks, and it left');
+  step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole

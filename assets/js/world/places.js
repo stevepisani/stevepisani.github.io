@@ -52,8 +52,10 @@ export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
 // the boat and the telescope (they're placed before any of these exist).
 const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+/** True within `margin` metres of a landmark's footprint. */
+export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
-export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
+export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || nearLandmark(dir, margin);
 
 // How far the ground falls away (along `dir`'s up) within `r` metres of it: sink something by
 // this and no edge of its footprint hangs in the air.
