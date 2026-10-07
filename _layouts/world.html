@@ -11,6 +11,11 @@
   belong to the same build: GitHub Pages caches each for ten minutes, and a page from one build with the
   script from another stalls on the first frame. {%- endcomment -%}
   <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}">
+  {%- comment -%} The hero models the first frame needs (written by npm run build from their manifest):
+  fetched alongside the script rather than after it has run. {%- endcomment %}
+  {%- for f in site.data.hero_preload %}
+  <link rel="preload" href="{{ '/assets/models/hero/' | append: f | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
+  {%- endfor %}
 </head>
 <body class="world-page">
   <a class="skip-link" href="#topbar">Skip to the sections</a>

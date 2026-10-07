@@ -32,6 +32,7 @@ import { createBookSky } from './booksky.js';
 import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
 import { createHoop } from './hoop.js';
+import { createBatcher } from './batch.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -450,6 +451,7 @@ async function start() {
 
   /* ---------- Picking ---------- */
   const raycaster = new THREE.Raycaster();
+  raycaster.layers.enableAll(); // the batched originals are on a layer of their own (batch.js)
   raycaster.far = 60;
   const ndc = new THREE.Vector2();
   const ground = planet.group.getObjectByName('ground');
@@ -1018,6 +1020,7 @@ async function start() {
   const board = { on: false, pick: -1 };
   const boardCard = $('board-card'), boardBackBtn = $('board-back');
   const _uvRay = new THREE.Raycaster();
+  _uvRay.layers.enableAll();
   function boardRowAt(x, y) {
     const r = canvas.getBoundingClientRect();
     _uvRay.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
@@ -2260,6 +2263,10 @@ async function start() {
   addEventListener('keyup', (e) => seatArrow(e, false));
   let beckoned = false;
   let firstFrames = null, framesDrawn = 0; // the reveal waits for these
+  // the bar and the landmarks: still meshes that look alike drawn as one, patch by patch
+  const batcher = createBatcher();
+  batcher.add(bar.group, places.group);
+  for (const o of [bar.board && bar.board.group, bar.menu.card].filter(Boolean)) o.userData.noBatch = true; // they change as you use them
 
   function frame(now) {
     timer.update(now);
@@ -2475,7 +2482,14 @@ async function start() {
     // (the map must exist first: an unrendered shadow map is a sampler with no texture)
     for (const [l, p] of pointShadows) l.shadow.autoUpdate = !l.shadow.map || camera.position.distanceToSquared(p) < 28 * 28;
     pipeline.render(dt);
-    if (firstFrames && ++framesDrawn >= 3) { firstFrames(); firstFrames = null; }
+    batcher.watch();
+    // the first frames: note where everything is, merge what hasn't moved (batch.js), then reveal
+    if (firstFrames) {
+      ++framesDrawn;
+      if (framesDrawn === 1) batcher.note();
+      if (framesDrawn === 4) window.__batched = batcher.bake();
+      if (framesDrawn >= 5) { firstFrames(); firstFrames = null; }
+    }
   }
 
   player.applyToCamera();
@@ -2498,14 +2512,16 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
   fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
 
-  // The physics engine: a megabyte of WebAssembly nobody needs for the first frame
-  physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e));
+  // What can wait for the browser to be idle, so none of it lands on your first steps: the
+  // physics engine (a megabyte of WebAssembly and its ground), then the bottles' shaders
+  const whenIdle = (fn, after = 0) => setTimeout(() => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 3000 }) : fn()), after);
+  whenIdle(() => physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e)), 1200);
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
   fireflies = createFireflies(scene, DB);
@@ -2523,18 +2539,21 @@ async function start() {
 
   // The real bottles the robot pours from: nobody needs them until they order, so they load
   // once the scene is up, and their shaders compile off to the side before they're shown.
-  loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
+  whenIdle(() => loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
     if (!bottles.size) return;
-    const staging = new THREE.Group();
-    for (const b of bottles.values()) staging.add(b);
-    try {
-      if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(staging, camera, scene);
-      else renderer.compile(staging, camera, scene);
-    } catch (e) {}
-    for (const b of [...staging.children]) staging.remove(b);
+    // one at a time, each when the browser's idle (where shaders can't compile in parallel, each is a pause)
+    const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
+    for (const b of bottles.values()) {
+      const staging = new THREE.Group().add(b);
+      try {
+        if (parallel) await renderer.compileAsync(staging, camera, scene);
+        else await new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));
+      } catch (e) {}
+      staging.remove(b);
+    }
     bar.setBottles(bottles);
     window.__world.bottles = bottles.size;
-  });
+  }), 2500);
 }
 
 start().catch((err) => {

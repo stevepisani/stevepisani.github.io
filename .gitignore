@@ -11,3 +11,4 @@ smoke-failed-*.png
 __pycache__
 deno.lock
 _data/library.json
+_data/hero_preload.json
