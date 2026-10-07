@@ -189,6 +189,22 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk', 120000);
   step('left the bar');
 
+  // from behind the bar, a tap on it walks you round to the front, not into the counter, and sits you
+  const back = await page.evaluate(() => {
+    const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
+    W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+    W.player.applyToCamera();
+    W.camera.updateMatrixWorld(true);
+    const p = b.localToWorld(new V(0, 1.6, -1.45)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+    return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
+  });
+  await tap(back);
+  await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
+  await expectState(page, 'seat', 600000);
+  await page.click('#seat-leave');
+  await expectState(page, 'walk', 120000);
+  step('from behind the bar: walked round to the front and sat down');
+
   // the campfire: sit, roast, eat, leave
   await page.evaluate(() => window.__world.sitAtFire());
   await expectState(page, 'camp');
@@ -334,6 +350,28 @@ async function planet(page, shot, { phone = false } = {}) {
   });
   if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
   step(`threw a coconut ${landed.moved.toFixed(1)} m`);
+
+  // the second coconut picked up brings the neon hoop down from the sky, clear of everything;
+  // one dropped down through its rim sets off the fireworks, and it goes back up
+  await page.evaluate(() => window.__world.goGrab(0));
+  await until(page, () => window.__world.carrying, null, 300000);
+  await until(page, () => window.__world.hoop.state === 'up', null, 60000);
+  const clearOf = await page.evaluate(() => {
+    const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
+    return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
+  });
+  if (!(clearOf > 2)) throw new Error(`the hoop came down on top of something (${clearOf.toFixed(1)} m from it)`);
+  await shot('hoop');
+  await page.evaluate(() => {
+    const W = window.__world, it = W.physics.items[0];
+    W.putDown();
+    W.physics.take(it);
+    W.physics.release(it, W.hoop.rim.addScaledVector(W.hoop.up, 0.7), W.hoop.up.multiplyScalar(-1));
+  });
+  await until(page, () => window.__hoopScored === 1, null, 120000);
+  await shot('fireworks');
+  await until(page, () => window.__world.hoop.state === 'off', null, 120000);
+  step('a second coconut brought the hoop down; one through it set off fireworks, and it left');
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole

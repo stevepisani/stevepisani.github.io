@@ -158,6 +158,21 @@ export function createPhysics({ scene, loose, posts, solids = [], on = () => {} 
       world.timestep = step;
       for (let k = 0; k < n; k++) substep(step);
     },
+    /**
+     * Something solid that comes and goes (the hoop): one fixed body at `at` turned by `quat`, its
+     * parts in that frame ({ ball: r | cuboid: [hx, hy, hz] | cylinder: [half, r], at: [x, y, z] }).
+     * Wakes anything resting nearby. Returns { remove() }.
+     */
+    addFixed(at, quat, parts) {
+      if (!world) return null;
+      const body = world.createRigidBody(R.RigidBodyDesc.fixed().setTranslation(at.x, at.y, at.z).setRotation({ x: quat.x, y: quat.y, z: quat.z, w: quat.w }));
+      for (const p of parts) {
+        const d = p.ball ? R.ColliderDesc.ball(p.ball) : p.cuboid ? R.ColliderDesc.cuboid(...p.cuboid) : R.ColliderDesc.cylinder(...p.cylinder);
+        world.createCollider(d.setTranslation(...p.at).setFriction(0.5).setRestitution(0.45), body);
+      }
+      for (const it of items) if (it.body && it.object.position.distanceTo(at) < 4) it.body.wakeUp();
+      return { remove() { if (world) { world.removeRigidBody(body); for (const it of items) if (it.body) it.body.wakeUp(); } } };
+    },
     /** Take it out of the world and into your hands (the caller parents the object). */
     take(it) {
       if (!world || it.held) return false;
