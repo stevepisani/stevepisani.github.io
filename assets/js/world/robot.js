@@ -289,6 +289,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const garnish = tool(left.hand, 0.03, 1.2), garnishR = tool(right.hand, 0.03, 1.2); // whatever bar.js hands it
     const real = tool(left.hand, 0.2, 1.05); // a real bottle (a hero model), held round the body, neck first
     Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { bottle, spoon, swizzle, garnish, garnishR, real }, bottleGlass });
+    // what comes and goes, blinks or changes colour as it works: never merged with the rest (batch.js)
+    for (const o of [antenna, shaker, rig.towel, ...lamps, ...Object.values(rig.tools)]) if (o) o.userData.noBatch = true;
   }
 
   /* ---------- Poses ---------- */
