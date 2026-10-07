@@ -1,4 +1,4 @@
-// SJPJr (/apps/wardrobe, apps/wardrobe.html), the app: Today (the next thing to do, what you're
+// SJPJr (/apps, apps/index.html), the app: Today (the next thing to do, what you're
 // wearing, the weather where you are), the Closet (your clothes, each with a photo cut out of its
 // background, what it is, and where to buy another), Trips (the weather, what to wear each day and
 // what to pack) and Recipes (lib/recipes.js, shared). Each member sees only their sections (me()

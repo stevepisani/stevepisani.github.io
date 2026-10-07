@@ -248,7 +248,7 @@ body:has(.app-dialog[open]) { overflow: hidden; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme]) .app-toast.is-bad { color: #15171c; } }
 
 /* ==========================================================================
-   The wardrobe (apps/wardrobe.html). The clothes are the content: photos on
+   The wardrobe (apps/index.html). The clothes are the content: photos on
    one studio ground, chrome kept quiet around them. On a phone it's laid out
    like an app: tabs at the bottom in thumb reach, the title settling into a
    bar as you scroll, sheets from the bottom. Wider, the tabs sit under the

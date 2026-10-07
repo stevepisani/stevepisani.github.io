@@ -1,6 +1,6 @@
 # The private app (docs/apps.md): its home-screen name and description, for its manifest
 # (_includes/app-manifest.json). There's one, SJPJr; recipes are a tab in it.
 - title: SJPJr
-  url: /apps/wardrobe
+  url: /apps/
   emoji: "🧳"
   blurb: My own things, each with photos and the facts; my clothes and trips, and our recipes. ChatGPT and Claude can see it too.

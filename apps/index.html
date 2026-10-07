@@ -1,12 +1,329 @@
 ---
-# /apps was a list of the private apps until Oct 2026; there's one now, SJPJr (docs/apps.md).
-# Bookmarks and the site nav's link land on it, signing in included (search and hash kept).
+layout: app
+app: wardrobe
+title: SJPJr
+lede: "Your own things: your clothes, each with a photo, what it is and where to buy another; your trips, with what to wear and pack; and the recipes we're cooking through."
 ---
-<!doctype html>
-<html lang="en">
-<meta charset="utf-8">
-<title>SJPJr</title>
-<meta name="robots" content="noindex">
-<script>location.replace("{{ '/apps/wardrobe' | relative_url }}" + location.search + location.hash);</script>
-<p><a href="{{ '/apps/wardrobe' | relative_url }}">Open SJPJr.</a></p>
-</html>
+{%- comment -%} Icons, drawn once and used by name (<use href="#i-…">): the tabs, the categories (a garment with no photo), the weather. Line drawings in the text's colour. {%- endcomment -%}
+<svg class="icons" aria-hidden="true" focusable="false">
+  <symbol id="i-today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
+  <symbol id="i-closet" viewBox="0 0 24 24"><path d="M12 7.5V7a2 2 0 1 0-2-2"/><path d="M12 7.5 2.8 14.6a1 1 0 0 0 .6 1.8h17.2a1 1 0 0 0 .6-1.8z"/></symbol>
+  <symbol id="i-recipes" viewBox="0 0 24 24"><path d="M4.5 11h15v4.5a4 4 0 0 1-4 4h-7a4 4 0 0 1-4-4z"/><path d="M2.5 11h19M9.5 7.5c0-1.2 1-1.6 1-2.8M13.5 7.5c0-1.2 1-1.6 1-2.8"/></symbol>
+  <symbol id="i-trips" viewBox="0 0 24 24"><rect x="3.5" y="7.5" width="17" height="12" rx="2.5"/><path d="M9 7.5V5.2a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2.3M8 7.5v12M16 7.5v12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5a2 2 0 0 1 2-2h2l1.5-2h5l1.5 2h2a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-tops" viewBox="0 0 24 24"><path d="M8.5 3.5 3 6.5l2 4.2 2.5-1V20.5h9V9.7l2.5 1 2-4.2-5.5-3c-.7 1.5-2 2.3-3.5 2.3s-2.8-.8-3.5-2.3z"/></symbol>
+  <symbol id="i-bottoms" viewBox="0 0 24 24"><path d="M6.5 3.5h11l1 17h-4.3L12 9.5l-2.2 11H5.5zM6.5 6.5h11"/></symbol>
+  <symbol id="i-outerwear" viewBox="0 0 24 24"><path d="M8.5 3.5 3.5 6.5v14h17v-14l-5-3L12 8z"/><path d="M12 8v12.5M8.5 3.5 7 10M15.5 3.5 17 10"/></symbol>
+  <symbol id="i-suits" viewBox="0 0 24 24"><path d="M8.5 3.5 3.5 6.5v14h17v-14l-5-3"/><path d="M8.5 3.5 12 12l3.5-8.5M12 12v8.5M10.8 8l1.2 1.6L13.2 8"/></symbol>
+  <symbol id="i-shoes" viewBox="0 0 24 24"><path d="M3 17.5v-4.8c2.6 0 4.7-1.3 6.4-4.2l3.1 1.2c1 2 3.6 3.2 7.2 3.9a1.6 1.6 0 0 1 1.3 1.6v2.3z"/><path d="M3 17.5h18.5M11 10.5l-1 1.5M13 11.6l-1 1.4"/></symbol>
+  <symbol id="i-accessories" viewBox="0 0 24 24"><path d="M3.5 15.5a8.5 8.5 0 0 1 17 0z"/><path d="M2 15.5h13.5M12 7v-1"/></symbol>
+  <symbol id="i-workout" viewBox="0 0 24 24"><path d="M2.5 10v4M6 7v10M18 7v10M21.5 10v4M6 12h12"/></symbol>
+  <symbol id="i-swim" viewBox="0 0 24 24"><path d="M2.5 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0M2.5 19.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0M9 12V6a2.5 2.5 0 0 1 5 0"/></symbol>
+  <!-- the weather: one drawing for each kind of sky (WMO codes, skyIcon() in wardrobe.js); the sun, moon, rain and snow in their own colours (--sun, --moon, --wet, --snow), the cloud in the text's -->
+  <symbol id="i-sun" viewBox="0 0 24 24"><g style="stroke:var(--sun,currentColor)"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path style="stroke:var(--moon,currentColor)" d="M20.5 13.3A8.5 8.5 0 1 1 10.7 3.5a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-sun-cloud-s" viewBox="0 0 24 24"><mask id="m-sc-s" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M14 20.5a2.6 2.6 0 0 1-.2-5.2 3.6 3.6 0 0 1 6.9.9 2.2 2.2 0 0 1-.4 4.3z" fill="#000" stroke="#000" stroke-width="4"/></mask><g style="stroke:var(--sun,currentColor)" mask="url(#m-sc-s)"><circle cx="10" cy="10" r="4"/><path d="M10 2.5v1.9M10 15.6v1.9M2.5 10h1.9M15.6 10h1.9M4.7 4.7l1.3 1.3M15.3 4.7 14 6M4.7 15.3 6 14M14 14l1.3 1.3"/></g><path d="M14 20.5a2.6 2.6 0 0 1-.2-5.2 3.6 3.6 0 0 1 6.9.9 2.2 2.2 0 0 1-.4 4.3z"/></symbol>
+  <symbol id="i-moon-cloud-s" viewBox="0 0 24 24"><mask id="m-mc-s" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M14 20.5a2.6 2.6 0 0 1-.2-5.2 3.6 3.6 0 0 1 6.9.9 2.2 2.2 0 0 1-.4 4.3z" fill="#000" stroke="#000" stroke-width="4"/></mask><path style="stroke:var(--moon,currentColor)" mask="url(#m-mc-s)" d="M15.5 11.4A6 6 0 1 1 8.6 4.5a5 5 0 0 0 6.9 6.9z"/><path d="M14 20.5a2.6 2.6 0 0 1-.2-5.2 3.6 3.6 0 0 1 6.9.9 2.2 2.2 0 0 1-.4 4.3z"/></symbol>
+  <symbol id="i-sun-cloud" viewBox="0 0 24 24"><mask id="m-sc" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M10 20a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 13.3a3.4 3.4 0 0 1-.4 6.7z" fill="#000" stroke="#000" stroke-width="4"/></mask><g style="stroke:var(--sun,currentColor)" mask="url(#m-sc)"><circle cx="9" cy="9" r="3.4"/><path d="M9 2.4v1.6M2.4 9H4M4.3 4.3l1.1 1.1M13.7 4.3l-1.1 1.1M4.3 13.7l1.1-1.1M14 9h1.6"/></g><path d="M10 20a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 13.3a3.4 3.4 0 0 1-.4 6.7z"/></symbol>
+  <symbol id="i-moon-cloud" viewBox="0 0 24 24"><mask id="m-mc" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M10 20a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 13.3a3.4 3.4 0 0 1-.4 6.7z" fill="#000" stroke="#000" stroke-width="4"/></mask><path style="stroke:var(--moon,currentColor)" mask="url(#m-mc)" d="M14.2 10.2A5.4 5.4 0 1 1 8 4a4.4 4.4 0 0 0 6.2 6.2z"/><path d="M10 20a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 13.3a3.4 3.4 0 0 1-.4 6.7z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 10.5a4 4 0 0 1-.5 8z"/></symbol>
+  <symbol id="i-fog" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path d="M4.5 18h15M7.5 21.5h9"/></symbol>
+  <symbol id="i-drizzle" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--wet,currentColor);stroke-width:2.3" d="M8.5 18v.01M12.5 18.5v.01M16.5 18v.01M10.5 21.5v.01M14.5 21.5v.01"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--wet,currentColor)" d="m8.5 17.5-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></symbol>
+  <symbol id="i-heavy-rain" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--wet,currentColor)" d="M8 17l-1.8 4.5M12 17l-1.8 4.5M16 17l-1.8 4.5"/></symbol>
+  <symbol id="i-showers" viewBox="0 0 24 24"><mask id="m-sh" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="#fff"/><path d="M10 16a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 9.3a3.4 3.4 0 0 1-.4 6.7z" fill="#000" stroke="#000" stroke-width="4"/></mask><g style="stroke:var(--sun,currentColor)" mask="url(#m-sh)"><circle cx="7.5" cy="7" r="3"/><path d="M7.5 1.4v1.2M1.9 7h1.2M3.5 3l.9.9M11.5 3l-.9.9M3.5 11l.9-.9"/></g><path d="M10 16a3.8 3.8 0 0 1-.3-7.6A5 5 0 0 1 19.2 9.3a3.4 3.4 0 0 1-.4 6.7z"/><path style="stroke:var(--wet,currentColor)" d="m11 18.5-1 2.5M15 18.5l-1 2.5M19 18.5l-1 2.5"/></symbol>
+  <symbol id="i-snow" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--snow,currentColor)" d="M8.5 17.80v3.60M6.94 18.70l3.12 1.80M6.94 20.50l3.12-1.80M15.5 17.80v3.60M13.94 18.70l3.12 1.80M13.94 20.50l3.12-1.80"/></symbol>
+  <symbol id="i-sleet" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--wet,currentColor)" d="m9.5 17.5-1.2 3"/><path style="stroke:var(--snow,currentColor)" d="M15.5 17.80v3.60M13.94 18.70l3.12 1.80M13.94 20.50l3.12-1.80"/></symbol>
+  <symbol id="i-thunder" viewBox="0 0 24 24"><path d="M7 14.5a4.5 4.5 0 0 1-.4-9A6 6 0 0 1 18 6.5a4 4 0 0 1-.5 8z"/><path style="stroke:var(--sun,currentColor)" d="M12.8 13.5 10 18h4l-2.6 4.5"/></symbol>
+  <symbol id="i-typical" viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 0 1 4 0v9.6a4 4 0 1 1-4 0z"/><path d="M12 9.5v7"/></symbol>
+  <symbol id="i-sunrise" viewBox="0 0 24 24"><path d="M3 19h18"/><g style="stroke:var(--sun,currentColor)"><path d="M7.5 19a4.5 4.5 0 0 1 9 0M4.5 15.2l1.2.8M19.5 15.2l-1.2.8"/><path d="M12 11V4M9.5 6.5 12 4l2.5 2.5"/></g></symbol>
+  <symbol id="i-sunset" viewBox="0 0 24 24"><path d="M3 19h18"/><g style="stroke:var(--sun,currentColor)"><path d="M7.5 19a4.5 4.5 0 0 1 9 0M4.5 15.2l1.2.8M19.5 15.2l-1.2.8"/><path d="M12 4v7M9.5 8.5 12 11l2.5-2.5"/></g></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 9h10.5a2.5 2.5 0 1 0-2.5-2.5M3 13h15a2.5 2.5 0 1 1-2.5 2.5M3 17h7"/></symbol>
+  <symbol id="i-umbrella" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 18 0z"/><path d="M12 12v6.5a2 2 0 0 1-4 0M12 3v-.5"/></symbol>
+  <!-- getting there and staying: the kinds of journey, and what a card does (copy, add to Calendar, open a link, show on a map) -->
+  <symbol id="i-flight" viewBox="0 0 24 24"><path d="M21 12c0-.8-.8-1.5-2-1.5h-4.5l-4-7h-2l2.5 7H6L4.5 8H3l1 4-1 4h1.5L6 13.5h5l-2.5 7h2l4-7H19c1.2 0 2-.7 2-1.5z"/></symbol>
+  <symbol id="i-train" viewBox="0 0 24 24"><rect x="5.5" y="3.5" width="13" height="14" rx="3"/><path d="M5.5 11h13M9 14.5h.01M15 14.5h.01M8.5 17.5 6.5 21M15.5 17.5l2 3.5"/></symbol>
+  <symbol id="i-bus" viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="14.5" rx="2.5"/><path d="M4.5 12h15M4.5 7.5h15M8 15h.01M16 15h.01M7 18v2.5M17 18v2.5"/></symbol>
+  <symbol id="i-car" viewBox="0 0 24 24"><path d="M4 16.5V12l2-5a2 2 0 0 1 1.9-1.3h8.2A2 2 0 0 1 18 7l2 5v4.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1V15h-9v1.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 12h16M7.5 13.5h.01M16.5 13.5h.01"/></symbol>
+  <symbol id="i-ferry" viewBox="0 0 24 24"><path d="M3 15.5l1.5 4h15l1.5-4zM6 15.5V10h12v5.5M9 10V6.5h6V10M12 3.5v3"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><path d="M4 12h15M14 7l5 5-5 5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M12 12.5v5M9.5 15h5"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5l-8 8M17 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7H10"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z"/><circle cx="12" cy="9.8" r="2.3"/></symbol>
+  <symbol id="i-offline" viewBox="0 0 24 24"><path d="M2.5 9a14 14 0 0 1 5-3M21.5 9a14 14 0 0 0-10-3.9M5.5 12.5a9 9 0 0 1 3.5-2M18.5 12.5a9 9 0 0 0-2-1.5M9 16a4.5 4.5 0 0 1 5.5-.5M12 19.5h.01M3 3l18 18"/></symbol>
+</svg>
+
+{%- comment -%} Where you are: the sections (a tab bar at the bottom on a phone, a segmented control on a wider screen), each shown only to a member who sees it (me() in the database: Steve all four, Lexi Recipes) {%- endcomment -%}
+<nav class="tabbar wardrobe-tabs" id="tabs" aria-label="Sections">
+  <a href="#today" data-value="today" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Today</span></a>
+  <a href="#closet" data-value="closet" hidden><svg aria-hidden="true"><use href="#i-closet"/></svg><span>Closet</span></a>
+  <a href="#trips" data-value="trips" hidden><svg aria-hidden="true"><use href="#i-trips"/></svg><span>Trips</span></a>
+  <a href="#recipes" data-value="recipes" hidden><svg aria-hidden="true"><use href="#i-recipes"/></svg><span>Recipes</span></a>
+</nav>
+<p class="status-line" id="offline-note" role="status" hidden></p>
+
+<div id="today-view">
+  {%- comment -%} while it loads: the shape of what's coming {%- endcomment -%}
+  <div class="today__main" aria-hidden="true"><div class="ghost-card"><span class="ghost-line ghost-line--short"></span><span class="ghost-line"></span></div><div class="ghost-card ghost-card--sky"></div></div>
+</div>
+
+<div id="closet-view" hidden>
+<div class="closet-bar">
+  <label class="search"><svg aria-hidden="true"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Search" aria-label="Search the wardrobe" enterkeyhint="search"></label>
+  <button class="btn btn--small btn--icon" id="add" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg>Add</button>
+</div>
+<div class="cats" id="cats" role="group" aria-label="Category"></div>
+<div class="swatches" id="swatches" role="group" aria-label="Colour" hidden></div>
+<details class="closet-filters" id="filters">
+  <summary>More filters <span id="filter-n"></span></summary>
+  <div class="closet-filters__body">
+  <select id="season" aria-label="Season">
+    <option value="">Any season</option><option value="spring">Spring</option><option value="summer">Summer</option><option value="autumn">Autumn</option><option value="winter">Winter</option>
+  </select>
+  <select id="dress" aria-label="How dressy">
+    <option value="">Any dressiness</option><option value="casual">Casual</option><option value="smart casual">Smart casual</option><option value="smart">Smart</option><option value="formal">Formal</option>
+  </select>
+  <select id="shelf" aria-label="Show">
+    <option value="in">In the closet</option><option value="retired">Retired</option>
+  </select>
+  </div>
+</details>
+
+<ul class="closet" id="grid" aria-busy="true">
+  {%- comment -%} while it loads: the shape of what's coming {%- endcomment -%}
+  {% for i in (1..6) %}<li class="tile tile--ghost" aria-hidden="true"><span class="tile__photo"></span><span class="ghost-line"></span><span class="ghost-line ghost-line--short"></span></li>{% endfor %}
+</ul>
+<p class="app-empty" id="empty" hidden></p>
+</div>
+
+<div id="trips-view" hidden>
+  <div id="trip-list-view">
+    <div class="trips-bar"><button class="btn btn--small btn--icon" id="new-trip" type="button"><svg aria-hidden="true"><use href="#i-plus"/></svg>New trip</button></div>
+    <div class="trip-list" id="trip-list"></div>
+    <p class="app-empty" id="trips-empty" hidden></p>
+  </div>
+
+  <article class="trip" id="trip" hidden>
+    <header class="trip__head">
+      <p class="trip__when" id="trip-when"></p>
+      <button class="link-btn" id="trip-edit" type="button">Edit</button>
+      <ul class="people" id="trip-who" aria-label="Who's going" hidden></ul>
+    </header>
+    <a class="pack-card" id="pack-open" href="#">
+      <span class="ring" id="pack-ring" aria-hidden="true"></span>
+      <span class="pack-card__text"><span class="pack-card__title">Packing</span><span id="pack-sum"></span></span>
+      <span class="pack-card__go" aria-hidden="true">›</span>
+    </a>
+    <section class="trip__part trip__places" aria-labelledby="places-title">
+      <h2 class="part-title" id="places-title">Places and weather</h2>
+      <ol class="legs" id="legs"></ol>
+    </section>
+    <section class="trip__part trip__days" aria-labelledby="days-title">
+      <h2 class="part-title" id="days-title">Day by day <span class="part-title__more" id="days-count"></span></h2>
+      <ol class="days" id="days"></ol>
+      <p class="app-empty" id="days-empty" hidden></p>
+    </section>
+    <section class="trip__part" id="trip-go-part" aria-labelledby="go-title" hidden>
+      <h2 class="part-title" id="go-title">Getting there</h2>
+      <ol class="journeys" id="trip-go"></ol>
+    </section>
+    <section class="trip__part" id="trip-stay-part" aria-labelledby="stay-title" hidden>
+      <h2 class="part-title" id="stay-title">Staying</h2>
+      <ul class="journeys" id="trip-stay"></ul>
+    </section>
+    <section class="trip__part" id="trip-links-part" aria-labelledby="links-title" hidden>
+      <h2 class="part-title" id="links-title">Links</h2>
+      <ul class="info-rows" id="trip-links"></ul>
+    </section>
+    <section class="trip__part" id="trip-notes-part" aria-labelledby="notes-title" hidden>
+      <h2 class="part-title" id="notes-title">Notes</h2>
+      <p class="trip__notes" id="trip-notes"></p>
+    </section>
+  </article>
+
+  <article class="pack-view" id="pack-view" hidden>
+    <header class="pack-hero">
+      <div class="suitcase" id="pack-progress" role="progressbar" aria-label="Packed" aria-valuemin="0"><div></div></div>
+      <div class="pack-hero__text">
+        <p class="pack-view__count" id="pack-count"></p>
+        <p class="pack-view__leave" id="pack-leave"></p>
+      </div>
+    </header>
+    <div class="cats pack-status" id="pack-status" role="group" aria-label="Show"></div>
+    <div class="pack-filters" id="pack-filters">
+      <div class="cats pack-who" id="pack-who" role="group" aria-label="Whose"></div>
+      <div class="pack-filters__pick">
+        <select id="pack-cat" aria-label="Category"></select>
+        <select id="pack-bag" aria-label="Bag"></select>
+      </div>
+    </div>
+    <button class="btn btn--ghost btn--small btn--icon" id="pack-from-plan" type="button" hidden>Make the list from the planned outfits</button>
+    <div id="pack-groups"></div>
+    <p class="app-empty" id="pack-empty" hidden></p>
+    <form class="pack-add" id="pack-add">
+      <label class="pack-add__label">Add something <input name="label" type="text" maxlength="120" placeholder="Charger, sunscreen…" enterkeyhint="done"></label>
+      <select name="traveler" id="pack-add-who" aria-label="Whose"></select>
+      <select name="category" id="pack-add-cat" aria-label="Category"></select>
+      <button class="btn btn--small" type="submit">Add</button>
+    </form>
+  </article>
+</div>
+
+{% include recipes.html %}
+
+{%- comment -%} The app's own settings, moved into the settings sheet (kit.js): temperatures in °F or °C {%- endcomment %}
+<template id="settings-more">
+  <section class="settings__part" aria-labelledby="settings-units-title">
+    <h3 class="part-title" id="settings-units-title">Temperature</h3>
+    <div class="seg settings__seg" id="settings-units" role="group" aria-labelledby="settings-units-title">
+      <button type="button" data-value="F" aria-pressed="false">°F</button>
+      <button type="button" data-value="C" aria-pressed="false">°C</button>
+    </div>
+  </section>
+</template>
+
+<template id="tile">
+  <li class="tile">
+    <button class="tile__open" type="button">
+      <span class="tile__photo studio"><img alt="" loading="lazy" decoding="async" hidden><svg class="tile__none" aria-hidden="true"><use href=""/></svg></span>
+      <span class="tile__name"></span>
+      <span class="tile__meta"></span>
+    </button>
+  </li>
+</template>
+
+<dialog class="app-dialog" id="add-dialog" aria-labelledby="add-title">
+  <form method="dialog">
+    <header class="dialog-bar">
+      <button class="link-btn" type="button" data-close>Cancel</button>
+      <h2 id="add-title">Add a garment</h2>
+      <button class="link-btn dialog-bar__ok" type="submit" value="ok" id="add-ok">Add</button>
+    </header>
+    <label class="drop studio" id="add-photo">
+      <span class="drop__ask"><svg aria-hidden="true"><use href="#i-camera"/></svg><span>Take or choose a photo</span></span>
+      <img class="drop__img" alt="" hidden>
+      <input class="visually-hidden" name="photo" type="file" accept="image/*">
+    </label>
+    <p class="add-status" id="add-status" role="status" hidden></p>
+    <div class="add-link">
+      <label>Or a store link <input name="link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
+      <button class="btn btn--ghost btn--small" id="read-link" type="button">Read it</button>
+    </div>
+    <label>Name <input name="name" type="text" required maxlength="120"></label>
+    <label>Category <select name="category" id="add-category"></select></label>
+  </form>
+</dialog>
+
+<dialog class="app-dialog sheet" id="sheet" aria-labelledby="sv-name" data-mode="view">
+  <form method="dialog" class="sheet__form">
+    <header class="dialog-bar">
+      <button class="link-btn sheet__view" id="sheet-edit" type="button">Edit</button>
+      <span class="dialog-bar__state sheet__edit" id="sheet-state" aria-live="polite">Saves as you type</span>
+      <button class="link-btn dialog-bar__ok sheet__view" type="button" data-close>Done</button>
+      <button class="link-btn dialog-bar__ok sheet__edit" id="sheet-finish" type="button">Done</button>
+    </header>
+    <div class="sheet__top">
+      <span class="tile__photo studio sheet__photo"><img alt="" hidden><svg class="tile__none" aria-hidden="true"><use href=""/></svg></span>
+      <div class="sheet__head">
+        <div class="sheet__view">
+          <p class="sheet__cat" id="sv-cat"></p>
+          <h2 class="sheet__name" id="sv-name"></h2>
+          <p class="sheet__facts" id="sv-facts"></p>
+          <p id="sv-fit"></p>
+          <p class="sheet__tags" id="sv-tags"></p>
+          <p id="sv-bought"></p>
+        </div>
+        <div class="sheet__edit sheet__head">
+          <label>Name <input data-is="name" type="text" maxlength="120"></label>
+          <label>Category <select data-is="category"></select></label>
+        </div>
+        <div class="sheet__buy sheet__view">
+          <a class="btn btn--small" id="buy" target="_blank" rel="noopener">Buy another</a>
+          <a class="link-btn" id="find" target="_blank" rel="noopener">Find another</a>
+        </div>
+        <label class="btn btn--ghost btn--small photo-btn sheet__edit" id="sheet-photo"><span>Add a photo</span><input class="visually-hidden" type="file" accept="image/*"></label>
+      </div>
+    </div>
+    <div class="photo-strip" id="sheet-photos" role="group" aria-label="Photos" hidden></div>
+    <div class="photo-tools" id="photo-tools" hidden>
+      <label>This photo is <select id="photo-role"><option value="garment">The garment</option><option value="tag">A tag</option><option value="care_label">A care label</option><option value="detail">A detail</option><option value="other">Something else</option></select></label>
+      <button class="btn btn--ghost btn--small" id="photo-show" type="button">Show this one</button>
+      <button class="link-btn link-btn--bad" id="photo-remove" type="button">Remove</button>
+    </div>
+    <p class="sheet__view sheet__notes" id="sv-notes"></p>
+    <p class="sheet__edit sheet__shared" id="sheet-shared" hidden>Changes here are for this piece only. To change a fact for every colour and size of it, ask in ChatGPT or Claude.</p>
+    <div class="sheet__grid sheet__edit">
+      <label>Brand <input data-is="brand" type="text"></label>
+      <label>Colour <input data-is="colour" type="text"></label>
+      <label>Size <input data-is="size" type="text"></label>
+      <label>Material <input data-is="material" type="text"></label>
+      <label>Condition <input data-is="condition" type="text" placeholder="Good"></label>
+      <label class="sheet__wide">Fit <input data-is="fit" type="text" placeholder="Runs small, size up"></label>
+      <fieldset class="sheet__wide sheet__seasons"><legend>Seasons</legend>
+        <label><input type="checkbox" value="spring"> Spring</label><label><input type="checkbox" value="summer"> Summer</label><label><input type="checkbox" value="autumn"> Autumn</label><label><input type="checkbox" value="winter"> Winter</label>
+      </fieldset>
+      <label>Warmth <select data-is="warmth"><option value="">Not set</option><option value="light">Light</option><option value="mid">Mid</option><option value="warm">Warm</option></select></label>
+      <label>Dressiness <select data-is="dressiness"><option value="">Not set</option><option value="casual">Casual</option><option value="smart casual">Smart casual</option><option value="smart">Smart</option><option value="formal">Formal</option></select></label>
+      <label>Price <input data-is="price" type="text" inputmode="decimal"></label>
+      <label>Currency <input data-is="currency" type="text" maxlength="3" autocapitalize="characters"></label>
+      <label>Bought on <input data-is="bought_on" type="date"></label>
+      <label class="sheet__wide">Where to buy another <input data-is="buy_link" type="text" inputmode="url" autocapitalize="off" autocorrect="off" placeholder="https://"></label>
+      <label class="sheet__wide">Notes <textarea data-is="notes" rows="3"></textarea></label>
+    </div>
+    <div class="sheet__foot sheet__edit">
+      <button class="btn btn--ghost btn--small" id="retire" type="button"></button>
+      <button class="link-btn link-btn--bad" id="remove" type="button">Delete it</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog pack-sheet" id="pack-sheet" aria-labelledby="ps-name">
+  <form method="dialog">
+    <header class="dialog-bar">
+      <span></span>
+      <span class="dialog-bar__state" aria-live="polite">Saves as you go</span>
+      <button class="link-btn dialog-bar__ok" type="button" data-close>Done</button>
+    </header>
+    <div class="pack-sheet__top">
+      <span id="ps-photo"></span>
+      <div>
+        <p class="sheet__cat" id="ps-cat"></p>
+        <h2 id="ps-name"></h2>
+        <button class="link-btn" id="ps-garment" type="button">See the garment</button>
+      </div>
+    </div>
+    <div class="seg pack-sheet__status" id="ps-status" role="group" aria-label="Status"></div>
+    <div class="pack-sheet__grid">
+      <label>Whose <select id="ps-who"></select></label>
+      <label>Bag <select id="ps-bag"></select></label>
+      <div class="pack-sheet__qty" role="group" aria-labelledby="ps-qty-label">
+        <span class="pack-sheet__label" id="ps-qty-label">How many</span>
+        <div class="stepper"><button class="btn btn--ghost btn--small" id="ps-less" type="button" aria-label="One fewer">−</button><output id="ps-qty" aria-live="polite"></output><button class="btn btn--ghost btn--small" id="ps-more" type="button" aria-label="One more">+</button></div>
+      </div>
+      <label class="pack-sheet__check"><input id="ps-essential" type="checkbox"> Essential</label>
+      <label class="sheet__wide">Notes <textarea id="ps-notes" rows="2"></textarea></label>
+    </div>
+    <div class="sheet__foot">
+      <button class="link-btn link-btn--bad" id="ps-remove" type="button">Take it off the list</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="app-dialog" id="trip-dialog" aria-labelledby="trip-dialog-title">
+  <form method="dialog">
+    <header class="dialog-bar">
+      <button class="link-btn" type="button" data-close>Cancel</button>
+      <h2 id="trip-dialog-title">New trip</h2>
+      <button class="link-btn dialog-bar__ok" type="submit" value="ok">Save</button>
+    </header>
+    <label>Name <input name="name" type="text" required maxlength="120" placeholder="Europe, autumn"></label>
+    <fieldset class="leg-rows" id="leg-rows"><legend>Where and when, in order</legend></fieldset>
+    <button class="link-btn" id="add-leg" type="button">Add a place</button>
+    <label>Notes <textarea name="notes" rows="2"></textarea></label>
+    <div class="sheet__foot"><button class="link-btn link-btn--bad" id="trip-remove" type="button" hidden>Delete this trip</button></div>
+  </form>
+</dialog>
+<template id="leg-row"><div class="leg-row"><label>Place <input data-k="place" type="text" required placeholder="Florence, Italy"></label><label>From <input data-k="from" type="date" required></label><label>To <input data-k="to" type="date" required></label><button class="link-btn leg-row__x" type="button" aria-label="Remove this place">×</button></div></template>

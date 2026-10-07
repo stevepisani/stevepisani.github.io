@@ -1,4 +1,4 @@
 ---
 layout: null
 ---
-{% include app-manifest.json url="/apps/wardrobe" %}
+{% include app-manifest.json url="/apps/" %}
