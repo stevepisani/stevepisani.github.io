@@ -538,13 +538,15 @@ function showView(name, id) {
     document.startViewTransition(swap).finished.finally(() => { delete document.documentElement.dataset.vt; });
   } else swap();
 }
+// The app's name, from the page (apps/wardrobe.html's title)
+const APP = document.querySelector('meta[name="apple-mobile-web-app-title"]').content;
 // The heading says where you are, and the way back up sits above it; on a phone both settle into
 // a bar at the top as you scroll
 function title() {
   const t = openTrip, back = shown === 'trip' ? ['#trips', 'Trips'] : shown === 'pack' && t ? [`#trip/${t.id}`, t.name] : null;
   const name = shown === 'today' && t ? t.name : shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : 'Closet';
   $('#app-title').textContent = name;
-  document.title = `${name} · Wardrobe`;
+  document.title = `${name} · ${APP}`;
   $('#app-kicker').hidden = !!back;
   for (const a of [$('#app-back'), $('#mini-back')]) {
     a.hidden = !back;
@@ -552,7 +554,7 @@ function title() {
   }
   $('#mini-title').textContent = name;
 }
-$('#app-kicker').lastChild.textContent = ' · Wardrobe';
+$('#app-kicker').lastChild.textContent = ` · ${APP}`;
 new IntersectionObserver(([e]) => $('#mini-bar').classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0)).observe($('#app-title'));
 // the tab you're on, tapped again, goes back to its top
 $('#tabs').addEventListener('click', (e) => {

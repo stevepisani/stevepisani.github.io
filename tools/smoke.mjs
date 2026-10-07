@@ -589,7 +589,7 @@ async function apps(page, shot) {
   // given there (an arrival on another day says which), the reference; past ones have no Calendar
   const goes = (await page.locator('#trip-go .journey').allTextContents()).map(flatText);
   if (goes.length !== 3 || !/^Flight: British Airways BA 66\s*Tue, Oct 6\s*PHL\s*Philadelphia\s*6:30 PM\s*to\s*LHR\s*London\s*6:45 AM\s*Wed, Oct 7.*Ref\s*XK7Q2B/.test(goes[0]) || !/^Train: Eurostar 9010.*London.*7:01 AM.*Florence.*7:30 PM/.test(goes[1]) || !/^Train: Trenitalia R 3127.*Firenze Santa Maria Novella.*9:10 AM.*Siena.*10:38 AM/.test(goes[2])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
-  if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
+  if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Google Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
   if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
   const stay = page.locator('#trip-stay .stay', { hasText: 'Florence Airbnb' });
   if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Lungarno%20Acciaiuoli%204%2C%2050123%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
@@ -712,17 +712,16 @@ async function apps(page, shot) {
   if (hourWords.length !== 27 || hourWords[0] !== 'Now: cloudy, 57°' || !hourWords.includes('4 PM: rain, 62°, 80% chance of rain') || !hourWords.includes('Sunset at 6:39 PM') || !hourWords.includes('Sunrise at 7:21 AM') || !(await page.locator('.hours .hour--moment').count()) || (await page.getAttribute('.hours__list', 'aria-label')) !== 'Hour by hour, the next 24 hours') throw new Error(`the hours: ${hourWords.join(' | ')}`);
   await shot('today');
   // the train tomorrow, as a card above the day (it leaves within 48 hours): counting down, its
-  // reference a tap to copy, and Calendar gets it with its times in UTC; tonight's stay with its map;
+  // reference a tap to copy, and Google Calendar gets it with its times in UTC; tonight's stay with its map;
   // home and away in one line, the rate a tap to turn round
   const journey = page.locator('#today-view .journey--today');
   if ((await journey.count()) !== 1 || !(await journey.evaluate((j) => j.nextElementSibling?.classList.contains('today-card'))) || flatText(await journey.locator('.journey__soon').textContent()) !== 'Train to Siena in 22 h 10 min') throw new Error(`Today's next journey, above the day, counting down: ${await page.locator('#today-view').innerHTML().then((h) => h.slice(0, 400))}`);
   await journey.locator('.chip--ref').click();
   await until(page, () => /Copied PZ4K7M/.test(document.getElementById('app-toast').textContent));
   if ((await page.evaluate(() => navigator.clipboard.readText())) !== 'PZ4K7M') throw new Error("the reference wasn't copied");
-  const [download] = await Promise.all([page.waitForEvent('download'), journey.locator('.chip', { hasText: 'Add to Calendar' }).click()]);
-  const ics = readFileSync(await download.path(), 'utf8');
-  for (const want of ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:g3@stevenpisani.com', 'DTSTART:20261016T071000Z', 'DTEND:20261016T083800Z', 'SUMMARY:Train to Siena (Trenitalia R 3127)', 'LOCATION:Firenze Santa Maria Novella', 'Booking reference PZ4K7M', 'END:VCALENDAR']) if (!ics.replace(/\r\n /g, '').includes(want)) throw new Error(`the .ics has no ${want}:\n${ics}`);
-  if (!/\.ics$/.test(download.suggestedFilename()) || /[^\r]\n/.test(ics)) throw new Error(`the .ics is named ${download.suggestedFilename()}, or its lines don't end in CRLF`);
+  const cal = journey.locator('.chip', { hasText: 'Add to Google Calendar' });
+  const calUrl = new URL(await cal.getAttribute('href')), calQ = Object.fromEntries(calUrl.searchParams);
+  if (calUrl.origin + calUrl.pathname !== 'https://calendar.google.com/calendar/render' || (await cal.getAttribute('target')) !== '_blank' || calQ.action !== 'TEMPLATE' || calQ.dates !== '20261016T071000Z/20261016T083800Z' || calQ.text !== 'Train to Siena (Trenitalia R 3127)' || calQ.location !== 'Firenze Santa Maria Novella' || !/Booking reference PZ4K7M/.test(calQ.details)) throw new Error(`Google Calendar gets the journey, its times in UTC: ${calUrl}`);
   const tonight = page.locator('#today-view .stay--today');
   if (!/^Tonight\s*Florence Airbnb\s*Check out Saturday/.test(flatText(await tonight.textContent())) || !/^https:\/\/maps\.apple\.com\/\?q=Florence%20Airbnb&address=Lungarno/.test(await tonight.locator('.map-link').getAttribute('href'))) throw new Error(`tonight's stay on Today: ${await tonight.textContent()}`);
   if (flatText(await page.textContent('.home-away')) !== 'Florence 11:00 AM · Philadelphia 5:00 AM · €1 = $1.13') throw new Error(`home and away: ${await page.textContent('.home-away')}`);
@@ -824,18 +823,18 @@ async function install(page, shot) {
   await page.goto(base + '/apps/wardrobe');
   const href = await page.getAttribute('link[rel="manifest"]', 'href');
   const manifest = await page.evaluate((h) => fetch(h).then((r) => r.json()), href);
-  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'Wardrobe' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
+  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'SJPJr' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
   const sizes = manifest.icons.map((i) => `${i.sizes} ${i.purpose}`).join();
   if (sizes !== '192x192 any,512x512 any,512x512 maskable') throw new Error(`the manifest's icons: ${sizes}`);
   for (const src of [...manifest.icons.map((i) => i.src), await page.getAttribute('link[rel="apple-touch-icon"]', 'href')]) {
     const [ok, w] = await page.evaluate((u) => new Promise((r) => { const i = new Image(); i.onload = () => r([true, i.naturalWidth]); i.onerror = () => r([false, 0]); i.src = u; }), src);
     if (!ok || !src.includes(`-${w}.png`)) throw new Error(`the icon ${src} doesn't load at its size (${w})`);
   }
-  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-status-bar-style', 'black-translucent'], ['apple-mobile-web-app-title', 'Wardrobe']]) {
+  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-status-bar-style', 'black-translucent'], ['apple-mobile-web-app-title', 'SJPJr']]) {
     if ((await page.getAttribute(`meta[name="${name}"]`, 'content')) !== content) throw new Error(`the page's ${name} isn't ${content}`);
   }
   if ((await page.locator('meta[name="theme-color"][media]').count()) !== 2) throw new Error('no theme colour for light and dark');
-  step('manifest on the app pages only: Wardrobe, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
+  step('manifest on the app pages only: SJPJr, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
 
   // Supabase Auth, made up: the email goes; the code 123456 is right, any other isn't
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
