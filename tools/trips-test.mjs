@@ -8,6 +8,7 @@
 //   node tools/trips-test.mjs
 import { rpc } from '../supabase/functions/mcp/server.js';
 import { wardrobeDb, STEVE, OTHER, IDS } from './wardrobe-db.mjs';
+import { legWeather, conditionOf } from '../supabase/functions/_shared/weather.js';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`trips: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 900)}` : ''}`); passed++; };
@@ -244,4 +245,43 @@ ok(!(await tool('remove_transport', { id: ba3279.id })).error && !(await tool('r
   await as(STEVE, 'steve@example.com');
 }
 
-console.log(`trips: ${passed} checks against the real schema: the London and Florence trip end to end (travelers, transport, lodging, links, bags, packing per traveler and bag, statuses, days with activities, get_trip, analyze_trip_packing), older calls, references, removing and deleting, and each person's own`);
+// ---------- The weather (_shared/weather.js, against a made-up Open-Meteo) ----------
+// What the MCP server has always had stays as it was, the conditions come with it, and the hours
+// are only for whoever asks (the app): the server's answers stay short.
+{
+  const fetched = [], realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = new URL(url), P = u.searchParams, time = [];
+    fetched.push(u);
+    for (let d = new Date(`${P.get('start_date')}T12:00:00Z`); d <= new Date(`${P.get('end_date')}T12:00:00Z`); d = new Date(d.getTime() + 864e5)) time.push(d.toISOString().slice(0, 10));
+    const fill = (v) => time.map(() => v), daily = { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_sum: time.map((_, i) => (i % 3 ? 0 : 4)) };
+    if (u.hostname.startsWith('archive')) return new Response(JSON.stringify({ timezone: 'Europe/Rome', daily }));
+    Object.assign(daily, { weather_code: fill(61), precipitation_probability_max: fill(70), apparent_temperature_max: fill(17), apparent_temperature_min: fill(6), sunrise: time.map((d) => `${d}T07:21`), sunset: time.map((d) => `${d}T18:39`), uv_index_max: fill(3), wind_speed_10m_max: fill(20) });
+    const out = { timezone: 'Europe/Rome', daily };
+    if (P.get('hourly')) {
+      const hours = [];
+      for (let t = new Date(`${P.get('start_hour')}:00Z`); t <= new Date(`${P.get('end_hour')}:00Z`); t = new Date(t.getTime() + 36e5)) hours.push(t.toISOString().slice(0, 16));
+      out.hourly = { time: hours, temperature_2m: hours.map(() => 12), apparent_temperature: hours.map(() => 10), precipitation_probability: hours.map(() => 40), precipitation: hours.map(() => 0.2), weather_code: hours.map(() => 61), is_day: hours.map((t) => (+t.slice(11, 13) >= 7 && +t.slice(11, 13) <= 18 ? 1 : 0)), wind_speed_10m: hours.map(() => 8) };
+    }
+    return new Response(JSON.stringify(out));
+  };
+  try {
+    const leg = { lat: 43.78, lon: 11.25, from: '2026-10-14', to: '2026-11-14' };
+    const w = await legWeather(leg, '2026-10-15');
+    ok(w.kind === 'mixed' && w.days.length === 31 && w.days[0].date === '2026-10-15' && w.summary.hi === 18 && w.summary.lo === 9, 'weather: a leg past the forecast is forecast, then typical, from today', w.summary);
+    const f = w.days[0], t = w.days[w.days.length - 1];
+    ok(f.kind === 'forecast' && f.hi === 18 && f.lo === 9 && f.rain === 70 && f.code === 61 && f.feelsLo === 6 && f.sunset === '2026-10-15T18:39' && f.uv === 3 && f.wind === 20 && f.mm === 4, 'weather: a forecast day has its condition, feels-like, rain, sun times, UV and wind', f);
+    ok(t.kind === 'typical' && t.code === undefined && t.rain != null && t.mm != null, 'weather: a typical day says what was usual, never a condition', t);
+    ok(w.timezone === 'Europe/Rome' && !('hours' in w) && !fetched.some((u) => u.searchParams.has('hourly')), 'weather: no hours unless asked (the MCP server never asks)', fetched.map(String));
+    fetched.length = 0;
+    const h = await legWeather(leg, '2026-10-15', { hourly: true });
+    const forecasts = fetched.filter((u) => u.hostname.startsWith('api'));
+    ok(forecasts.length === 1 && forecasts[0].searchParams.get('start_hour') === '2026-10-15T00:00' && forecasts[0].searchParams.get('end_hour') === '2026-10-16T23:00', 'weather: the hours come in the same one request, today and tomorrow only', forecasts.map(String));
+    ok(h.hours.length === 48 && h.hours[0].time === '2026-10-15T00:00' && h.hours[0].day === false && h.hours[12].day === true && h.hours[12].code === 61 && h.hours[12].feels === 10, 'weather: each hour has its temperature, feels-like, rain, sky and daylight', h.hours[12]);
+    const later = await legWeather({ ...leg, from: '2026-10-20' }, '2026-10-15', { hourly: true });
+    ok(!later.hours, 'weather: a leg that starts after tomorrow has no hours yet');
+    ok(conditionOf(0) === 'Sunny' && conditionOf(0, false) === 'Clear' && conditionOf(61) === 'Light rain' && conditionOf(95) === 'Thunderstorms' && conditionOf(42) === null, 'weather: WMO codes in plain words');
+  } finally { globalThis.fetch = realFetch; }
+}
+
+console.log(`trips: ${passed} checks against the real schema: the London and Florence trip end to end (travelers, transport, lodging, links, bags, packing per traveler and bag, statuses, days with activities, get_trip, analyze_trip_packing), older calls, references, removing and deleting, each person's own, and the weather (what the server has always had, the conditions, the hours only when asked)`);

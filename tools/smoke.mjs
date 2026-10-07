@@ -255,8 +255,9 @@ async function planet(page, shot, { phone = false } = {}) {
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
-// context so the service worker's requests are caught too) and a made-up Open-Meteo where every
-// day is 18° / 9° with a 40% chance of rain (70% on 15 October). The trip has three travelers,
+// context so the service worker's requests are caught too) and a made-up Open-Meteo in Florence's
+// timezone where every day is partly cloudy, 18° / 9° with a 40% chance of rain, except 15
+// October: rain (70%), dry and cloudy until 2 PM, then rain, heaviest at 4, 10.5° by 8 PM. The trip has three travelers,
 // two bags, a packing list (a garment, a baby's thing, a shared one, one nobody's, one of Lexi's,
 // and one on a trip that isn't loaded, never shown), two journeys, a hotel and a link. Returns what was asked of it.
 async function member(page, target) {
@@ -350,14 +351,26 @@ async function member(page, target) {
     return json([]); // signed links for photos: none
   });
 
-  // Open-Meteo, made up: a place is wherever you ask
+  // Open-Meteo, made up: a place is wherever you ask; every request is kept in asked (as GET open-meteo)
   await target.route(/open-meteo\.com/, (route) => {
     const u = new URL(route.request().url()), json = (b) => route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) });
+    asked.push({ method: 'GET', path: `open-meteo:${u.hostname.split('.')[0]}${u.search}` });
     if (u.hostname.startsWith('geocoding')) return json({ results: [{ name: u.searchParams.get('name').split(',')[0], country: 'Somewhere', latitude: 45, longitude: 9, timezone: 'Europe/Rome' }] });
     const from = new Date(u.searchParams.get('start_date') + 'T12:00:00Z'), to = new Date(u.searchParams.get('end_date') + 'T12:00:00Z'), time = [];
     for (let d = from; d <= to; d = new Date(d.getTime() + 864e5)) time.push(d.toISOString().slice(0, 10));
-    const fill = (v) => time.map(() => v);
-    return json({ daily: { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_probability_max: time.map((d) => (d === '2026-10-15' ? 70 : 40)), precipitation_sum: fill(u.searchParams.get('start_date').endsWith('5') ? 3 : 0) } });
+    const fill = (v) => time.map(() => v), wet = (d) => d === '2026-10-15';
+    const daily = { time, temperature_2m_max: fill(18), temperature_2m_min: fill(9), precipitation_probability_max: time.map((d) => (wet(d) ? 70 : 40)), precipitation_sum: fill(u.searchParams.get('start_date').endsWith('5') ? 3 : 0) };
+    if (u.hostname.startsWith('archive')) return json({ timezone: 'Europe/Rome', daily });
+    Object.assign(daily, { weather_code: time.map((d) => (wet(d) ? 63 : 2)), apparent_temperature_max: fill(17), apparent_temperature_min: fill(7), sunrise: time.map((d) => `${d}T07:21`), sunset: time.map((d) => `${d}T18:39`), uv_index_max: fill(3), wind_speed_10m_max: fill(14) });
+    const out = { timezone: 'Europe/Rome', utc_offset_seconds: 7200, daily };
+    if (u.searchParams.get('hourly')) {
+      const hours = [];
+      for (let t = new Date(u.searchParams.get('start_hour') + ':00Z'); t <= new Date(u.searchParams.get('end_hour') + ':00Z'); t = new Date(t.getTime() + 36e5)) hours.push(t.toISOString().slice(0, 16));
+      const at = (t) => { const d = t.slice(0, 10), h = +t.slice(11, 13), rain = wet(d) && h >= 14 && h <= 18 ? [60, 70, 80, 70, 60][h - 14] : 10; return { temp: h <= 6 ? 9 : h <= 15 ? 9 + h - 6 : Math.max(9, 18 - 1.5 * (h - 15)), rain, mm: rain >= 50 ? (h === 16 ? 2.5 : 0.8) : 0, code: rain >= 50 ? (h === 16 ? 63 : 61) : wet(d) ? 3 : 2, day: h >= 7 && h <= 18 ? 1 : 0 }; };
+      const H = hours.map(at);
+      out.hourly = { time: hours, temperature_2m: H.map((x) => x.temp), apparent_temperature: H.map((x) => x.temp - 1), precipitation_probability: H.map((x) => x.rain), precipitation: H.map((x) => x.mm), weather_code: H.map((x) => x.code), is_day: H.map((x) => x.day), wind_speed_10m: H.map(() => 8) };
+    }
+    return json(out);
   });
   return asked;
 }
@@ -530,15 +543,31 @@ async function apps(page, shot) {
 
   // trips: the list, a trip with its legs and weather, who's going, getting there (in order),
   // staying, links, its days and their plans; then the Packing Board (below); a new trip looks its
-  // places up
+  // places up. The weather: each leg's days in a list (the sky from its code, the bars on one
+  // scale, today with a dot, the typical days marked), in °F for an American browser; one
+  // forecast request a leg, the hours with it
+  await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
+  const meteoBefore = asked.length;
   await page.goto(base + '/apps/wardrobe');
   await until(page, () => document.getElementById('app').dataset.state === 'in');
   await page.click('#tabs a[data-value="trips"]');
   await until(page, () => document.querySelectorAll('#trip-list .trip-card').length === 1);
   await page.click('#trip-list .trip-card');
-  await until(page, () => document.querySelectorAll('#legs .leg__days li').length > 30);
+  await until(page, () => document.querySelectorAll('#legs .daylist__day').length > 30);
   if ((await page.locator('#legs .leg').count()) !== 3 || (await page.locator('#days .day').count()) !== 2 || !(await page.textContent('#pack-sum')).includes('1 of 6 packed')) throw new Error(`the trip doesn't show its legs, days and packing (the entries, the one on a trip in the trash left out): ${JSON.stringify([await page.locator('#legs .leg').count(), await page.locator('#days .day').count(), await page.textContent('#pack-sum')])}`);
-  if (!/highs 18°, lows 9°/.test(await page.textContent('#legs'))) throw new Error("the trip's weather isn't shown");
+  if (!/highs 64°, lows 48°/.test(await page.textContent('#legs'))) throw new Error(`the trip's weather isn't shown, in °F: ${await page.textContent('#legs')}`);
+  const florence = page.locator('#legs .leg').nth(1), dayRows = florence.locator('.daylist__day');
+  if ((await dayRows.count()) !== 31 || (await florence.locator('.daylist__day:visible').count()) !== 10 || !/All 31 days/.test(await florence.locator('.daylist__more').textContent())) throw new Error(`a long leg shows ten days and a way to the rest: ${await dayRows.count()} days, ${await florence.locator('.daylist__day:visible').count()} showing`);
+  const todayRow = florence.locator('.daylist__day.is-today');
+  if (!/Today/.test(await todayRow.textContent()) || !(await todayRow.locator('.daylist__now').count()) || (await todayRow.locator('use').getAttribute('href')) !== '#i-rain' || !/rain, high 64°, low 48°, 70% chance of rain/.test(await todayRow.locator('.visually-hidden').textContent())) throw new Error(`today's row: its sky from the code (rain), a dot where it is now, and in words: ${await todayRow.innerHTML()}`);
+  if ((await dayRows.nth(1).locator('use').getAttribute('href')) !== '#i-sun-cloud' || !/partly cloudy/.test(await dayRows.nth(1).locator('.visually-hidden').textContent())) throw new Error("a day's sky isn't from its weather code");
+  await florence.locator('.daylist__more button').click();
+  await until(page, () => document.querySelectorAll('#legs .leg:nth-child(2) .daylist__day:not([hidden])').length === 31);
+  const typical = florence.locator('.daylist__day.is-typical');
+  if (!(await typical.count()) || (await typical.first().locator('use').getAttribute('href')) !== '#i-typical' || !/last three years/.test(await florence.locator('.daylist__note').textContent()) || !/typically/.test(await typical.first().locator('.visually-hidden').textContent())) throw new Error('the typical days (beyond the forecast) aren\'t marked as typical');
+  if (!/70% chance of rain/.test(await page.getAttribute('#days .day.is-today .day__wx', 'aria-label'))) throw new Error("today's day card doesn't say its weather");
+  const meteo = asked.slice(meteoBefore).filter((a) => a.path.startsWith('open-meteo:api'));
+  if (meteo.length !== 1 || !/weather_code/.test(meteo[0].path) || !/hourly=.*start_hour=2026-10-15T00:00&end_hour=2026-10-16T23:00/.test(meteo[0].path)) throw new Error(`one forecast request a leg that has forecast days (London's is over, Paris's beyond the forecast), with the hours of today and tomorrow: ${meteo.map((a) => a.path).join('\n')}`);
   const who = await page.locator('#trip-who .person').evaluateAll((ps) => ps.map((p) => [p.querySelector('.person__name').textContent, p.querySelector('.person__type')?.textContent].filter(Boolean).join(' ')));
   if (who.join(', ') !== 'Steve, Lexi, Dominic child') throw new Error(`who's going: ${who}`);
   if ((await page.textContent('#app-title')) !== 'Europe, autumn' || (await page.getAttribute('#app-back', 'href')) !== '#trips') throw new Error("the trip's title, or the way back to the trips, is wrong");
@@ -650,13 +679,25 @@ async function apps(page, shot) {
 
   // Today, mid-trip: where you are, the weather and what you're wearing, with a word about the rain
   // (and the suede); the next day is a tap away; an item opens over it and Back closes it
-  await page.clock.setFixedTime(new Date('2026-10-15T09:00:00'));
+  await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
   await page.goto(base + '/apps/wardrobe');
-  await until(page, () => document.querySelector('.today-card') && location.hash === '');
-  const today = await page.textContent('#today-view');
+  await until(page, () => document.querySelector('.today-card .hours') && location.hash === '');
+  const flat = (x) => x.replace(/\s/g, ' '); // times keep their words together with a no-break space
+  const today = flat(await page.textContent('#today-view'));
   if (!/Florence/.test(await page.textContent('.today-card__place')) || !/Uffizi/.test(today) || (await page.locator('.today-card .flatlay .outfit__item').count()) !== 2) throw new Error(`Today doesn't show the day, its outfit laid flat: ${today.slice(0, 200)}`);
-  if (!/day 9 of 42/.test(today) || !/Rain likely \(70%\), and nothing in this outfit is for rain/.test(today) || !/Maybe not Brown suede loafers/.test(today)) throw new Error(`Today's trip line or advice is wrong: ${today.slice(0, 400)}`);
+  if (!/day 9 of 42/.test(today) || !/Rain likely from about 2 PM \(70%\), and nothing in this outfit is for rain/.test(today) || !/Maybe not Brown suede loafers/.test(today) || !/Dinner at Buca Mario at 20:00: about 51°, and nothing warm in this outfit/.test(today)) throw new Error(`Today's trip line or advice (the rain's timing, the evening plan's chill) is wrong: ${today.slice(0, 600)}`);
+  // the weather now, there (11 AM in Florence: 14°C), its sky in words from the code, the day in a
+  // sentence, and the hours: Now first, the rain's chance where it's likely, the sunset in its place
+  const panel = page.locator('.today-card .sky-panel');
+  if ((await page.textContent('.today-card__temp')).trim() !== '57°' || (await page.textContent('.today-card__word')) !== 'Cloudy' || (await panel.getAttribute('data-sky')) !== 'cloudy' || (await panel.getAttribute('data-time')) !== 'day') throw new Error(`the weather now: ${await page.textContent('.today-card__wx')} (${await panel.getAttribute('data-sky')}, ${await panel.getAttribute('data-time')})`);
+  if (!/^Rain from about 2 PM, heaviest at 4 PM\. Cool evening, down to 4\d°\.$/.test(flat(await page.textContent('.today-card__story')))) throw new Error(`the day in a sentence: ${await page.textContent('.today-card__story')}`);
+  const hourWords = (await page.locator('.hours .hour .visually-hidden').allTextContents()).map(flat);
+  if (hourWords.length !== 27 || hourWords[0] !== 'Now: cloudy, 57°' || !hourWords.includes('4 PM: rain, 62°, 80% chance of rain') || !hourWords.includes('Sunset at 6:39 PM') || !hourWords.includes('Sunrise at 7:21 AM') || !(await page.locator('.hours .hour--moment').count()) || (await page.getAttribute('.hours__list', 'aria-label')) !== 'Hour by hour, the next 24 hours') throw new Error(`the hours: ${hourWords.join(' | ')}`);
   await shot('today');
+  // a tap on a temperature switches to °C everywhere, and it's remembered
+  await page.click('.today-card__temp');
+  await until(page, () => document.querySelector('.today-card__temp')?.textContent.trim() === '14°' && /°C/.test(document.getElementById('app-toast').textContent));
+  if (!/about 11°, and nothing warm/.test(await page.textContent('#today-view')) || (await page.evaluate(() => localStorage.getItem('wardrobe-units'))) !== 'C' || !(await page.locator('.hours .hour').first().textContent()).includes('14°')) throw new Error('switching to °C didn\'t reach every temperature, or wasn\'t kept');
   await page.locator('.today-card .outfit__item').first().click();
   await until(page, () => document.getElementById('sheet').open);
   await page.goBack();
@@ -695,7 +736,7 @@ async function apps(page, shot) {
 // With no connection: the wardrobe opens on the copy it kept (through its service worker), a
 // change to a packing entry is kept, and it's sent when the connection's back
 async function offline(page, shot) {
-  await page.clock.setFixedTime(new Date('2026-10-15T09:00:00'));
+  await page.clock.setFixedTime(new Date('2026-10-15T11:00:00+02:00'));
   await page.goto(base + '/apps/wardrobe');
   const asked = await member(page, page.context());
   await page.goto(base + '/apps/wardrobe');
@@ -707,6 +748,7 @@ async function offline(page, shot) {
   await page.reload();
   await until(page, () => document.querySelector('.today-card') && !document.getElementById('offline-note').hidden);
   if (!/Florence/.test(await page.textContent('.today-card__place'))) throw new Error("offline, Today isn't there");
+  if ((await page.textContent('.today-card__temp')).trim() !== '57°' || !/^Rain from about\s2\sPM/.test(await page.textContent('.today-card__story')) || (await page.locator('.hours .hour').count()) < 25) throw new Error(`offline, Today doesn't show the last weather kept (now, the sentence, the hours): ${await page.textContent('.today-card .sky-panel')}`);
   await shot('offline');
   step('offline: the page, its scripts and the data come from the copy on the phone');
   await page.click('.today__part a[href$="/pack"]');
@@ -859,9 +901,9 @@ async function noWebGL(page, shot) {
 
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
-if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block' }, apps);
+if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome' }, apps);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
-if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, offline);
+if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

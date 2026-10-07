@@ -11,9 +11,10 @@
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
 // answers from), and with no connection the app opens on that copy. Changes to packing entries
 // made then are kept and sent when the connection's back.
-import { $, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
+import { $, el, icon, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
 import { SIZES } from './lib/photo-sizes.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
+import { units, switchUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
 const closet = rows('wardrobe_closet'); // (the view leaves the trash out) // the same, with its product's and variant's facts filled in; read here
@@ -34,20 +35,9 @@ const href = (link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
 const folder = () => `wardrobe/${uid}`;
 const keep = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
 const kept = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } };
-const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 for (const sel of ['#add-category', '[data-is="category"]']) $(sel).append(...CATS.map(([v, t]) => new Option(t, v)));
 
-// An icon from the page's set (apps/wardrobe.html): a category, a tab, the weather
-const SVG = 'http://www.w3.org/2000/svg';
-function icon(name, cls = '') {
-  const svg = document.createElementNS(SVG, 'svg'), use = document.createElementNS(SVG, 'use');
-  svg.setAttribute('aria-hidden', 'true');
-  if (cls) svg.setAttribute('class', cls);
-  use.setAttribute('href', `#i-${name}`);
-  svg.append(use);
-  return svg;
-}
 const catIcon = (it) => (catName[it?.category] ? it.category : 'tops');
 
 // A photo, small: the garment on the studio ground every catalog photo shares, or, with no photo
@@ -581,6 +571,7 @@ function redraw() {
 // Mostly built in ChatGPT (the MCP server's trip tools); here they're shown, the packing is ticked
 // off, and a trip can be started or its places and dates changed.
 const weatherCache = new Map(); // leg key → Promise of its weather
+const openLegs = new Set(); // the legs whose every day is showing ("All 31 days")
 const wxKept = kept('wardrobe-wx') || {}; // the last weather each leg had, for when there's no connection
 const pad = (n) => String(n).padStart(2, '0');
 const isoToday = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -592,7 +583,8 @@ const legKey = (l) => `${l.lat},${l.lon},${l.from},${l.to}`;
 const legWeatherCached = (l) => {
   const key = legKey(l);
   if (!weatherCache.has(key)) {
-    weatherCache.set(key, (navigator.onLine ? legWeather(l) : Promise.reject(new Error('offline')))
+    // the days, and the hours of today and tomorrow (for Today), in one request a leg
+    weatherCache.set(key, (navigator.onLine ? legWeather(l, isoToday(), { hourly: true }) : Promise.reject(new Error('offline')))
       .then((w) => { if (w) { wxKept[key] = w; keep('wardrobe-wx', wxKept); } return w; })
       .catch(() => wxKept[key] || null));
   }
@@ -602,7 +594,9 @@ const legWeatherCached = (l) => {
 const partsOf = (t, part) => parts[part].filter((r) => r.trip_id === t.id);
 // where you are on a date: on a travel day, the place you're going to
 const legOn = (t, date) => [...t.legs].reverse().find((l) => l.from <= date && date <= l.to);
-const wxOn = async (t, date) => { const l = legOn(t, date); return l ? (await legWeatherCached(l))?.days.find((d) => d.date === date) || null : null; };
+const wxOn = async (t, date) => (await wxAt(t, date)).day;
+// the same, with the leg's whole weather (its hours and timezone)
+const wxAt = async (t, date) => { const l = legOn(t, date), w = l ? await legWeatherCached(l) : null; return { w, day: w?.days.find((d) => d.date === date) || null }; };
 // the trip that's on, or else the next one if it starts within two weeks
 function nowTrip() {
   const today = isoToday(), dated = trips.filter((t) => t.legs.length).map((t) => [t, ...span(t)]);
@@ -612,9 +606,24 @@ function nowTrip() {
 }
 const leaving = (a) => { const d = daysBetween(isoToday(), a); return d > 1 ? `you leave in ${d} days` : d === 1 ? 'you leave tomorrow' : d === 0 ? 'you leave today' : ''; };
 
-// the weather as a picture: rain likely, maybe, or not
-const sky = (w) => (!w ? 'cloud' : w.rain >= 50 ? 'rain' : w.rain >= 25 ? 'cloud' : 'sun');
-const deg = (n) => (n == null ? '–' : `${Math.round(n)}°`);
+// a day's weather, small: its sky, high and low, and the chance of rain when it's 20% or more
+function wxSmall(w, cls) {
+  const box = el('span', cls);
+  box.append(skyIcon(w), tempEl(w.hi), el('span', 'wx-sep', '/'), tempEl(w.lo));
+  if ((w.rain ?? 0) >= 20) box.append(el('span', w.kind === 'typical' ? 'wx-typical' : 'wx-rain', `${w.rain}%`));
+  if (w.kind === 'typical') box.append(el('span', 'wx-typical', 'typical'));
+  box.setAttribute('role', 'img');
+  box.setAttribute('aria-label', dayWords(w, 'Weather'));
+  return box;
+}
+// a tap on any temperature switches °C and °F, everywhere, and it's remembered
+document.addEventListener('click', (e) => {
+  const t = e.target.closest?.('.t');
+  if (!t || (!t.matches('button') && t.closest('button, a'))) return; // inside a button that does something else
+  const u = switchUnits();
+  redraw();
+  toast(`Temperatures in °${u}. Tap one to switch back.`);
+});
 
 function drawTrips() {
   const box = $('#trip-list'), today = isoToday();
@@ -754,32 +763,25 @@ async function drawTrip() {
   part('trip-links', partsOf(t, 'trip_resources').map((r) => infoRow(r.label, r.url, [r.notes])));
   const planned = [...t.days].sort((x, y) => x.date.localeCompare(y.date));
   $('#days-count').textContent = planned.length ? `${planned.length} of ${total} planned` : '';
-  // the legs, each with its weather
+  // the legs, each with its weather day by day, every leg's bars on the trip's one scale
   const weather = await Promise.all(t.legs.map(legWeatherCached));
   if (openTrip !== t || shown !== 'trip') return;
-  const legs = $('#legs');
+  const legs = $('#legs'), scale = scaleOf(weather);
   legs.textContent = '';
   t.legs.forEach((l, i) => {
-    const w = weather[i], here = l.from <= today && today <= l.to, li = el('li', `leg${here ? ' is-here' : ''}`);
+    const w = weather[i], here = l.from <= today && today <= l.to, past = l.to < today, li = el('li', `leg${here ? ' is-here' : ''}${past ? ' is-past' : ''}`);
     const head = el('div', 'leg__head');
-    head.append(el('h3', 'leg__place', `${l.place}${l.country ? `, ${l.country}` : ''}`), el('p', 'leg__when', `${fmtDay(l.from)} – ${fmtDay(l.to)} · ${plural(daysBetween(l.from, l.to), 'night')}${here ? ' · you\'re here' : ''}`));
+    head.append(el('h3', 'leg__place', `${l.place}${l.country ? `, ${l.country}` : ''}`), el('p', 'leg__when', `${fmtDay(l.from)} – ${fmtDay(l.to)} · ${plural(daysBetween(l.from, l.to), 'night')}${here ? ' · you\'re here' : past ? ' · been' : ''}`));
     li.append(head);
     if (w) {
-      const s = w.summary;
-      li.append(el('p', 'leg__weather', `${w.kind === 'forecast' ? 'Forecast' : w.kind === 'mixed' ? 'Forecast, then typical' : 'Typically'}: highs ${s.hi}°, lows ${s.lo}°, about ${plural(s.wet, 'day')} of rain`));
-      const strip = el('ol', 'leg__days');
-      strip.setAttribute('aria-label', `Day by day in ${l.place}`);
-      const top = Math.max(...w.days.map((d) => d.hi ?? 0), 1), low = Math.min(...w.days.map((d) => d.lo ?? d.hi ?? 0));
-      for (const d of w.days) {
-        const day = el('li', `wx${d.kind === 'typical' ? ' wx--typical' : ''}${d.date === today ? ' is-today' : ''}`);
-        day.title = `${fmtDay(d.date, { weekday: 'short' })}: ${d.hi}° / ${d.lo}°, ${d.rain}% chance of rain${d.kind === 'typical' ? ' (typical)' : ''}`;
-        day.style.setProperty('--h', Math.max(0.15, ((d.hi ?? low) - low + 2) / (top - low + 2)));
-        day.style.setProperty('--rain', (d.rain ?? 0) / 100);
-        day.append(el('span', 'visually-hidden', day.title));
-        strip.append(day);
-      }
-      li.append(strip);
-    } else li.append(el('p', 'leg__weather', 'Weather unavailable right now.'));
+      const s = w.summary, line = el('p', 'leg__weather');
+      line.append(`${w.kind === 'forecast' ? 'Forecast' : w.kind === 'mixed' ? 'Forecast, then typical' : 'Typically'}: highs `, tempEl(s.hi), ', lows ', tempEl(s.lo), `, about ${plural(s.wet, 'day')} of rain`);
+      li.append(line);
+      const nowT = here ? hourNow(w.hours, placeNow(w.timezone))?.temp ?? null : null;
+      const list = dayList(w, { scale, today, nowTemp: nowT, show: 10, open: openLegs.has(legKey(l)), onOpen: () => openLegs.add(legKey(l)) });
+      list.setAttribute('aria-label', `Day by day in ${l.place}`);
+      li.append(list);
+    } else if (!past) li.append(el('p', 'leg__weather', 'Weather unavailable right now.'));
     legs.append(li);
   });
   // day by day: the planned days, each with its place, weather and outfit laid flat
@@ -791,7 +793,7 @@ async function drawTrip() {
     const head = el('div', 'day__head'), when = el('p', 'day__date');
     when.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}`);
     head.append(when);
-    if (w) { const wx = el('p', 'day__wx'); wx.append(icon(sky(w), `sky sky--${sky(w)}`), `${deg(w.hi)}/${deg(w.lo)} · ${w.rain}%`); wx.setAttribute('aria-label', `${deg(w.hi)} high, ${deg(w.lo)} low, ${w.rain}% chance of rain`); head.append(wx); }
+    if (w) head.append(wxSmall(w, 'day__wx'));
     li.append(head);
     if (d.occasion) li.append(el('p', 'day__occasion', d.occasion));
     const acts = activities(d);
@@ -808,17 +810,28 @@ async function drawTrip() {
 // A line or two of advice when the weather and the outfit don't agree. The words in an item's
 // name, material and notes are all it knows about what's for rain.
 const words = (it) => [it.name, it.material, it.notes].join(' ').toLowerCase();
-function advice(w, outfit) {
+function advice(w, outfit, { hours = [], now = null, plan = null } = {}) {
   if (!w) return [];
-  const out = [];
+  const out = [], left = hoursLeft(hours, w.date, now), spell = left.length >= 3 ? wetSpell(left) : null;
   if (w.rain >= 50) {
+    // when it starts, from the hours (today and tomorrow have them)
+    const word = spell?.word || 'Rain', started = spell && now && spell.from <= now;
+    const what = spell && !spell.all ? (started ? `${word} now (${w.rain}%)` : `${word} likely from about ${hourLabel(spell.from)} (${w.rain}%)`) : `${word} likely (${w.rain}%)`;
     const shell = outfit.find((it) => /rain|waterproof|shell|gore-?tex|trench|\bmac\b|umbrella/.test(words(it)));
-    out.push(shell ? `Rain likely (${w.rain}%). ${shell.name} is in the outfit.` : outfit.length ? `Rain likely (${w.rain}%), and nothing in this outfit is for rain.` : `Rain likely (${w.rain}%).`);
+    out.push(shell ? `${what}. ${shell.name} is in the outfit.` : outfit.length ? `${what}, and nothing in this outfit is for rain.` : `${what}.`);
     const suede = outfit.find((it) => /suede/.test(words(it)));
     if (suede) out.push(`Maybe not ${suede.name} in the rain.`);
   }
-  if (w.lo != null && w.lo < 8 && outfit.length && !outfit.some((it) => it.category === 'outerwear' || it.warmth === 'warm')) out.push(`Down to ${Math.round(w.lo)}° later, and nothing warm in this outfit.`);
-  if (w.hi != null && w.hi >= 26) { const hot = outfit.find((it) => it.warmth === 'warm'); if (hot) out.push(`Up to ${Math.round(w.hi)}°: warm for ${hot.name}.`); }
+  if (outfit.length && !outfit.some((it) => it.category === 'outerwear' || it.warmth === 'warm')) {
+    // an evening plan, and how cool it'll be by then; or else how cold the night gets
+    const eve = [...(plan?.activities || [])].filter((a) => (a.start_time || '') >= '17:00').sort((x, y) => x.start_time.localeCompare(y.start_time))[0];
+    const then = eve && hours.find((h) => h.time === `${w.date}T${eve.start_time.slice(0, 2)}:00`);
+    const coldest = left.length ? left.reduce((a, b) => (b.temp < a.temp ? b : a)) : null;
+    if (then && then.temp < 12) out.push(`${eve.title || 'The evening'} at ${eve.start_time}: about ${temp(then.temp)}, and nothing warm in this outfit.`);
+    else if (coldest && coldest.temp < 8) out.push(`Down to ${temp(coldest.temp)} by ${hourLabel(coldest.time)}, and nothing warm in this outfit.`);
+    else if (!coldest && w.lo != null && w.lo < 8) out.push(`Down to ${temp(w.lo)} later, and nothing warm in this outfit.`);
+  }
+  if (w.hi != null && w.hi >= 26) { const hot = outfit.find((it) => it.warmth === 'warm'); if (hot) out.push(`Up to ${temp(w.hi)}: warm for ${hot.name}.`); }
   return out;
 }
 
@@ -830,7 +843,7 @@ async function drawToday() {
   if (!dayOn || dayOn < a || dayOn > b) dayOn = underway ? today : a;
   const date = dayOn, total = daysBetween(a, b) + 1;
   const ahead = Array.from({ length: Math.min(5, daysBetween(date, b)) }, (_, i) => addDays(date, i + 1));
-  const [w, ...wAhead] = await Promise.all([date, ...ahead].map((d) => wxOn(t, d)));
+  const [{ w: lw, day: w }, ...wAhead] = await Promise.all([date, ...ahead].map((d) => wxAt(t, d))).then((r) => [r[0], ...r.slice(1).map((x) => x.day)]);
   if (openTrip !== t || shown !== 'today' || dayOn !== date) return;
   const planned = (d) => t.days.find((x) => x.date === d);
   const wearing = (d) => (planned(d)?.items || []).map((id) => list.find((x) => x.id === id)).filter(Boolean);
@@ -852,26 +865,53 @@ async function drawToday() {
   });
   head.append(line);
 
-  // the day, like a morning card: where, the weather, one word of warning, the outfit laid flat
-  const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`), top = el('div', 'today-card__top'), where = el('div');
+  // the day, like a morning card: where, the weather on its own sky, one word of warning, the
+  // outfit laid flat
+  const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`), panel = el('div', 'sky-panel'), top = el('div', 'today-card__top'), where = el('div');
   slide = '';
   card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : fmtDay(date, { weekday: 'long' })}`);
   const dayNo = daysBetween(a, date) + 1;
   where.append(el('p', 'today-card__kicker', `${date === today ? 'Today' : date === a && !underway ? 'First day' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]} · day ${dayNo}`),
     el('h2', 'today-card__place', legOn(t, date)?.place || ''), el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
+  // now, as it is there: this hour's sky and temperature (today), or the day's
+  const there = lw ? placeNow(lw.timezone) : null, isNow = date === today && there?.startsWith(date);
+  const hours = lw?.hours || [], nowH = isNow ? hourNow(hours, there) : null;
+  const m = mood(w, nowH, isNow ? there : null);
+  panel.dataset.sky = m.sky;
+  panel.dataset.time = m.time;
+  const fx = el('div', 'sky-panel__fx');
+  fx.setAttribute('aria-hidden', 'true');
+  panel.append(fx);
   const wx = el('div', 'today-card__wx');
   if (w) {
-    const big = el('span', 'today-card__hi');
-    big.append(icon(sky(w), `sky sky--${sky(w)} today-card__sky`), deg(w.hi));
-    const rain = el('span', `today-card__rain${w.rain >= 50 ? ' is-wet' : ''}`, `${w.rain}% rain`);
-    const low = el('span', 'today-card__low', `low ${deg(w.lo)} · `);
-    low.append(rain);
-    wx.append(big, low);
-    if (w.kind === 'typical') wx.append(el('span', 'today-card__typical', 'typical, not a forecast yet'));
-  } else wx.append(el('span', 'today-card__low', 'No weather yet'));
+    const cur = nowH ? { ...nowH, kind: 'forecast' } : w, sk = skyOf(cur, nowH ? nowH.day : m.time !== 'night'), big = nowH ? nowH.temp : w.hi;
+    const btn = el('button', 't today-card__temp');
+    btn.type = 'button';
+    btn.setAttribute('aria-label', `${temp(big)}${nowH ? ' now' : ' high'}${sk.word && w.kind !== 'typical' ? `, ${sk.word.toLowerCase()}` : ''}. Show in °${units() === 'F' ? 'C' : 'F'}`);
+    btn.append(skyIcon(cur, '', nowH ? nowH.day : m.time !== 'night'), temp(big));
+    wx.append(btn);
+    if (w.kind === 'typical') wx.append(el('span', 'today-card__typical', 'Typical, not a forecast'));
+    else if (sk.word) wx.append(el('span', 'today-card__word', sk.word));
+    const range = el('span', 'today-card__range');
+    range.append('H ', tempEl(w.hi), '  L ', tempEl(w.lo));
+    wx.append(range);
+    if (nowH?.feels != null && Math.abs(nowH.feels - nowH.temp) >= 3) { const f = el('span', 'today-card__feels', 'Feels like '); f.append(tempEl(nowH.feels)); wx.append(f); }
+  } else wx.append(el('span', 'today-card__range', 'No weather yet'));
   top.append(where, wx);
-  card.append(top);
-  const outfit = wearing(date), plan = planned(date), warn = advice(w, outfit);
+  panel.append(top);
+  if (w) {
+    panel.append(el('p', 'today-card__story', story(w, hours, isNow ? there : null)));
+    const strip = nowH ? hourStrip(hours, [w, wAhead[0]], there) : null;
+    const small = facts(w, { strip: !!strip, now: isNow ? there : null });
+    if (small.length) {
+      const ul = el('ul', 'sky-facts');
+      for (const [ic, text] of small) { const li = el('li'); li.append(icon(ic, 'sky'), text); ul.append(li); }
+      panel.append(ul);
+    }
+    if (strip) panel.append(strip);
+  }
+  card.append(panel);
+  const outfit = wearing(date), plan = planned(date), warn = advice(w, outfit, { hours, now: isNow ? there : null, plan });
   if (warn.length) {
     const box2 = el('div', 'advice');
     box2.setAttribute('role', 'note');
@@ -917,8 +957,7 @@ async function drawToday() {
   ahead.forEach((d, i) => {
     const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = planned(d)?.items || [];
     btn.type = 'button';
-    const wxLine = el('span', 'next-day__wx');
-    if (dw) wxLine.append(icon(sky(dw), `sky sky--${sky(dw)}`), `${deg(dw.hi)} · ${dw.rain}%`); else wxLine.append('–');
+    const wxLine = dw ? wxSmall(dw, 'next-day__wx') : el('span', 'next-day__wx', '–');
     btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), wxLine);
     btn.append(on.length ? flatlay(on, { mini: true }) : el('span', 'next-day__none', 'Nothing planned'));
     btn.addEventListener('click', () => { dayOn = d; slide = 'on'; drawToday(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); });

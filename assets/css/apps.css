@@ -6,14 +6,17 @@
 
 .app {
   --ok: #1f7a45; --ok-soft: #d9f5e3; --bad: #b3261e; --wet: #2f6fc4;
+  /* the weather's own colours, in its icons: the sun, the moon, snow (rain is --wet) */
+  --sun: #d98a00; --moon: #6f7bb0; --snow: #5b8fd1;
   /* the studio: the pale grey every catalog photo is shot on, so a photo's own ground and the tile
      it sits on are one surface (the same in every theme: it's part of the picture); and the ink
      drawn on it */
   --studio: #eff0f0; --studio-ink: #6b6f72;
   --dock: 0px; /* the tab bar's height, on a phone (the toast sits above it) */
 }
-:root[data-theme="dark"] .app, :root[data-theme="terminal"] .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; --wet: #8cb8ff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; --wet: #8cb8ff; } }
+:root[data-theme="dark"] .app, :root[data-theme="terminal"] .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; --wet: #8cb8ff; --sun: #ffc94a; --moon: #d9dcf2; --snow: #cfe3ff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme]) .app { --ok: #7fe0a6; --ok-soft: #173a26; --bad: #ff8a80; --wet: #8cb8ff; --sun: #ffc94a; --moon: #d9dcf2; --snow: #cfe3ff; } }
+:root[data-theme="terminal"] .app { --sun: var(--ink); --moon: var(--ink); --snow: var(--ink); }
 :root[data-theme="terminal"] .app { --studio: var(--bg-2); --studio-ink: var(--ink-2); }
 /* .studio: anything on that ground */
 .studio { background: var(--studio); }
@@ -412,18 +415,42 @@ html.vt-zoom .app-dialog { transition: none; }
 .ring.is-done::after { inset: 0; background: var(--ok); }
 .ring.is-done::before { content: ""; position: absolute; z-index: 1; left: 17px; top: 12px; width: 9px; height: 16px; border: solid var(--bg); border-width: 0 3px 3px 0; rotate: 45deg; }
 
-/* the places, each with its weather: a bar a day, its height the high, its blue the chance of rain;
-   typical days fainter; today outlined */
+/* the places, each with its weather, day by day as Apple Weather lists them: the weekday, the sky,
+   the chance of rain (20% or more), the low, a bar from low to high on the trip's one scale coloured
+   by temperature (HEAT in lib/sky.js), the high. Today has a dot where it is now; typical days come
+   after a line saying so, faint, their bars dashed */
 .legs { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.leg { display: grid; gap: 4px; padding: 14px 16px 16px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); }
+.leg { display: grid; gap: 4px; padding: 14px 16px 10px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); min-width: 0; }
 .leg.is-here { border-color: var(--accent); }
+.leg.is-past { padding-bottom: 14px; }
+.leg.is-past :is(.leg__place, .leg__when) { color: var(--ink-2); }
 .app .leg__place { margin: 0; font-size: 1.2rem; }
 .leg__when, .leg__weather { margin: 0; color: var(--ink-2); font-size: .92rem; }
-.leg__days { list-style: none; display: flex; align-items: end; gap: 2px; height: 52px; margin: 8px 0 0; padding: 0; }
-.wx { position: relative; flex: 1 1 0; min-width: 3px; max-width: 18px; height: calc(var(--h) * 100%); border-radius: 4px 4px 2px 2px; background: color-mix(in srgb, var(--accent) 28%, var(--bg-2)); overflow: hidden; }
-.wx::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--rain) * 100%); background: color-mix(in srgb, var(--wet) 65%, transparent); }
-.wx--typical { opacity: .5; }
-.wx.is-today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.daylist { list-style: none; margin: 6px 0 0; padding: 0; display: grid; font-variant-numeric: tabular-nums; }
+.daylist__day { display: grid; grid-template-columns: 3.7em 3.6em 2.4em minmax(40px, 1fr) 2.6em; align-items: center; column-gap: 8px; min-height: 46px; border-top: 1px solid var(--line); }
+.daylist > :first-child { border-top: 0; }
+.daylist__when { display: grid; line-height: 1.15; }
+.daylist__wd { font-weight: 600; }
+.daylist__date { color: var(--ink-2); font-size: .74rem; }
+.daylist__day.is-today .daylist__wd { color: var(--accent); }
+.daylist__sky { display: flex; align-items: center; gap: 3px; }
+.daylist__sky .sky { width: 22px; height: 22px; }
+.daylist__rain { color: var(--wet); font-size: .74rem; font-weight: 600; }
+.daylist__lo { color: var(--ink-2); text-align: right; }
+.daylist__hi { font-weight: 600; text-align: right; }
+.daylist__track { position: relative; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.daylist__bar { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--heat); }
+.daylist__now { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--card), 0 0 0 3px color-mix(in srgb, var(--ink) 35%, transparent); }
+.daylist__day.is-typical :is(.daylist__wd, .daylist__hi) { font-weight: 500; color: var(--ink-2); }
+.daylist__day.is-typical .daylist__bar { background: none; border: 1.5px dashed color-mix(in srgb, var(--ink) 40%, transparent); }
+.daylist__day.is-typical .daylist__rain { color: var(--ink-2); font-weight: 500; }
+.daylist__note { padding: 10px 0 6px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: .8rem; line-height: 1.4; }
+.daylist__more { border-top: 1px solid var(--line); }
+.daylist__more .link-btn { min-height: 44px; padding: 0; text-decoration: none; font-weight: 500; }
+:root[data-theme="terminal"] .daylist__bar { background: var(--ink-2); }
+:root[data-theme="terminal"] .daylist__now { background: var(--ink); }
+/* any temperature: a tap switches °C and °F everywhere */
+.t { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
 /* the days, each a card: when and where, the weather, the plan, the outfit laid flat */
 .days { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
@@ -438,8 +465,7 @@ html.vt-zoom .app-dialog { transition: none; }
 .day__note { color: var(--ink-2); font-size: .92rem; }
 .day .look { max-width: 26rem; }
 .sky { flex: none; width: 18px; height: 18px; color: var(--ink-2); }
-.sky--rain { color: var(--wet); }
-.sky--sun { color: var(--accent); }
+.sky--typical { color: var(--ink-3); }
 
 /* an outfit laid flat: the photos on one ground, like a lookbook page. Two stagger, three put the
    first big beside the others, four sit two and two, more three a row */
@@ -484,16 +510,91 @@ button.flatlay__piece:active { transform: scale(.96); }
 .legline__left { display: block; color: var(--ink-2); font-size: .8rem; white-space: nowrap; }
 .today-card { position: relative; display: grid; gap: 14px; padding: 20px; border: 1px solid var(--line); border-radius: 24px; background: var(--card); box-shadow: var(--shadow); touch-action: pan-y; }
 .today-card p { margin: 0; }
-.today-card__top { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
-.today-card__kicker { font: 600 .74rem/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
-.app .today-card__place { margin: 2px 0 0; font-size: 2.1rem; line-height: 1.05; }
-.today-card__date { margin-top: 4px !important; color: var(--ink-2); }
-.today-card__wx { display: grid; justify-items: end; gap: 4px; text-align: right; }
-.today-card__hi { display: inline-flex; align-items: center; gap: 8px; font: 600 2.7rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
-.today-card__sky { width: 36px; height: 36px; stroke-width: 1.5; }
-.today-card__low { color: var(--ink-2); font-size: .92rem; white-space: nowrap; }
-.today-card__rain.is-wet { color: var(--wet); font-weight: 600; }
-.today-card__typical { color: var(--ink-2); font-size: .78rem; }
+/* the sky: the top of the card, the condition and time of day there as a gradient (light text on
+   it, at least 4.5:1 at its lightest; each sky's colours are its own, like a photo's, in every
+   theme but terminal), with a little weather moving in it when motion's welcome */
+.sky-panel { --on: #fff; --on-2: rgb(255 255 255 / .86); --sun: #ffd166; --moon: #f1ead0; --wet: #b5d6ff; --snow: #fff;
+  --sky-a: #1b4a86; --sky-b: #2e64a3;
+  position: relative; display: grid; gap: 12px; margin: -20px -20px 0; padding: 20px 20px 14px; border-radius: 23px 23px 0 0; overflow: hidden; isolation: isolate;
+  background: linear-gradient(170deg, var(--sky-a), var(--sky-b)); color: var(--on); }
+.sky-panel[data-sky="partly"] { --sky-a: #24507f; --sky-b: #41648c; }
+.sky-panel[data-sky="cloudy"] { --sky-a: #3f4855; --sky-b: #57606c; }
+.sky-panel[data-sky="fog"] { --sky-a: #4a5059; --sky-b: #5b6068; }
+.sky-panel[data-sky="rain"] { --sky-a: #26344a; --sky-b: #3d4c62; }
+.sky-panel[data-sky="snow"] { --sky-a: #3a4d66; --sky-b: #52657e; }
+.sky-panel[data-sky="storm"] { --sky-a: #201b33; --sky-b: #37304d; }
+.sky-panel[data-time="golden"] { --sky-a: #2f3266; --sky-b: #9a4f33; }
+.sky-panel[data-time="night"] { --sky-a: #070d24; --sky-b: #17224a; }
+.sky-panel[data-time="night"]:is([data-sky="cloudy"], [data-sky="fog"]) { --sky-a: #161a26; --sky-b: #2a303e; }
+.sky-panel[data-time="night"][data-sky="rain"] { --sky-a: #0f1626; --sky-b: #222d40; }
+.sky-panel[data-time="night"][data-sky="snow"] { --sky-a: #19212f; --sky-b: #2f3a4d; }
+.sky-panel[data-time="night"][data-sky="storm"] { --sky-a: #0e0b1a; --sky-b: #241f38; }
+/* typical, or no weather: no sky to show, so the page's own colours */
+.sky-panel:is([data-sky="typical"], [data-sky="none"]) { --on: var(--ink); --on-2: var(--ink-2); --sun: inherit; --moon: inherit; --wet: inherit; --snow: inherit; background: var(--bg-2); border-bottom: 1px solid var(--line); }
+:root[data-theme="terminal"] .sky-panel { --on: var(--ink); --on-2: var(--ink-2); --sun: var(--ink); --moon: var(--ink); --wet: var(--ink); --snow: var(--ink); background: var(--bg-2); border-bottom: 1px solid var(--line); }
+.today-card__top { position: relative; display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.today-card__kicker { font: 600 .74rem/1.3 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--on-2); }
+.sky-panel:is([data-sky="typical"], [data-sky="none"]) .today-card__kicker { color: var(--accent); }
+.app .today-card__place { margin: 2px 0 0; font-size: 2.1rem; line-height: 1.05; color: var(--on); }
+.today-card__date { margin-top: 4px !important; color: var(--on-2); }
+.today-card__wx { display: grid; justify-items: end; gap: 2px; text-align: right; flex: none; }
+.today-card__temp { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0; border: 0; background: none; color: var(--on); font: 600 2.9rem/1 var(--font-display); font-variant-numeric: tabular-nums; cursor: pointer; }
+.today-card__temp .sky { width: 38px; height: 38px; stroke-width: 1.5; color: var(--on); }
+.today-card__word { font-weight: 600; color: var(--on); }
+.today-card__range, .today-card__feels { color: var(--on-2); font-size: .9rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.today-card__typical { justify-self: end; padding: 2px 8px; border: 1px dashed var(--ink-3); border-radius: 99px; color: var(--ink-2); font-size: .76rem; }
+.today-card__story { position: relative; color: var(--on); font-size: 1.02rem; line-height: 1.4; text-wrap: pretty; }
+.sky-facts { position: relative; list-style: none; margin: -4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--on-2); font-size: .86rem; }
+.sky-facts li { display: inline-flex; align-items: center; gap: 5px; }
+.sky-facts .sky { width: 16px; height: 16px; color: var(--on-2); }
+/* the hours: a strip that scrolls sideways under the sentence, a line through the temperatures */
+.hours { --chart-top: 84px; position: relative; margin: 0 -20px -14px; padding: 0 12px 10px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; border-top: 1px solid rgb(255 255 255 / .14); }
+.hours::-webkit-scrollbar { display: none; }
+.hours__inner { position: relative; }
+.hours__chart { position: absolute; left: 0; top: var(--chart-top); overflow: visible; }
+.hours__line { fill: none; stroke-width: 2.5; }
+.hours__dot { fill: var(--on); stroke: none; opacity: .9; }
+.hours__dot.is-now { stroke: var(--sky-b); stroke-width: 2; opacity: 1; }
+.hours__wet { fill: var(--wet); stroke: none; opacity: .45; }
+.hours__list { position: relative; list-style: none; display: flex; margin: 0; padding: 0; }
+.hour { flex: none; width: var(--cell); height: calc(var(--chart-top) + 58px); }
+.hour__vis { position: relative; display: grid; justify-items: center; grid-template-rows: 24px 28px 16px; align-items: center; padding-top: 10px; height: 100%; }
+.hour__time { color: var(--on-2); font-size: .78rem; font-weight: 500; white-space: nowrap; }
+.hour.is-now .hour__time { color: var(--on); font-weight: 700; }
+.hour__sky { width: 22px !important; height: 22px !important; color: var(--on); }
+.hour__rain { color: var(--wet); font-size: .7rem; font-weight: 700; }
+.hour__temp { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; font-size: .92rem; color: var(--on); font-variant-numeric: tabular-nums; }
+.hour__word { position: absolute; left: 0; right: 0; top: calc(var(--chart-top) - 8px); text-align: center; color: var(--on-2); font-size: .7rem; font-weight: 600; }
+.hour--moment .hour__time { color: var(--on); }
+:root[data-theme="terminal"] .hours__line { stroke: var(--ink); }
+:root[data-theme="terminal"] .hours { border-top-color: var(--line); }
+/* the weather moving in the sky, gently: clouds drifting, rain or snow falling, stars at night.
+   Pictures only (aria-hidden), faint, under the words; none at all with reduced motion */
+.sky-panel__fx { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.sky-panel__fx::before, .sky-panel__fx::after { content: ""; position: absolute; }
+/* clouds: two soft shapes that drift */
+.sky-panel:is([data-sky="partly"], [data-sky="cloudy"], [data-sky="fog"], [data-sky="rain"], [data-sky="storm"], [data-sky="snow"]) .sky-panel__fx::before {
+  inset: -10% -40% 45% -10%; background: radial-gradient(closest-side at 30% 55%, rgb(255 255 255 / .09), transparent), radial-gradient(closest-side at 72% 35%, rgb(255 255 255 / .07), transparent);
+  animation: sky-drift 48s ease-in-out infinite alternate; }
+/* the sun's warmth, or the moon's glow, in the corner */
+.sky-panel:is([data-sky="clear"], [data-sky="partly"]) .sky-panel__fx { background: radial-gradient(circle at 92% 6%, rgb(255 214 120 / .22), transparent 42%); }
+.sky-panel[data-time="night"] .sky-panel__fx { background: radial-gradient(circle at 92% 6%, rgb(220 228 255 / .12), transparent 38%); }
+/* stars, on a clear night */
+.sky-panel[data-time="night"]:is([data-sky="clear"], [data-sky="partly"]) .sky-panel__fx::after { inset: 0;
+  background-image: radial-gradient(1px 1px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 34% 8%, #fff, transparent), radial-gradient(1.5px 1.5px at 56% 24%, #fff, transparent), radial-gradient(1px 1px at 71% 12%, #fff, transparent), radial-gradient(1px 1px at 22% 40%, #fff, transparent), radial-gradient(1px 1px at 48% 44%, #fff, transparent), radial-gradient(1.5px 1.5px at 84% 36%, #fff, transparent);
+  opacity: .55; animation: sky-twinkle 6s ease-in-out infinite alternate; }
+/* rain: thin slanted lines falling; snow: soft dots, slower */
+.sky-panel:is([data-sky="rain"], [data-sky="storm"]) .sky-panel__fx::after { left: 0; right: 0; top: -48px; bottom: 0; opacity: .5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='48'%3E%3Cg stroke='%23fff' stroke-opacity='.35' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M8 4l-2 9M26 22l-2 9M17 36l-2 9'/%3E%3C/g%3E%3C/svg%3E");
+  animation: sky-fall .9s linear infinite; }
+.sky-panel[data-sky="snow"] .sky-panel__fx::after { left: 0; right: 0; top: -48px; bottom: 0; opacity: .6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='48'%3E%3Cg fill='%23fff' fill-opacity='.45'%3E%3Ccircle cx='8' cy='8' r='1.6'/%3E%3Ccircle cx='30' cy='22' r='1.2'/%3E%3Ccircle cx='18' cy='38' r='1.4'/%3E%3C/g%3E%3C/svg%3E");
+  animation: sky-fall 5s linear infinite; }
+@keyframes sky-drift { to { transform: translateX(-22%); } }
+@keyframes sky-fall { to { transform: translateY(48px); } }
+@keyframes sky-twinkle { to { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .sky-panel__fx::before, .sky-panel__fx::after { animation: none !important; } }
+:root[data-theme="terminal"] .sky-panel__fx { display: none; }
 .advice { display: flex; gap: 12px; align-items: start; padding: 12px 14px; border-radius: 16px; background: color-mix(in srgb, var(--wet) 13%, var(--card)); }
 .advice__icon { flex: none; width: 24px; height: 24px; margin-top: 1px; color: var(--wet); }
 .advice div { display: grid; gap: 4px; }
@@ -528,7 +629,9 @@ button.flatlay__piece:active { transform: scale(.96); }
 .next-day:active { transform: scale(.97); }
 .next-day__date { font-weight: 600; }
 .next-day__wx { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: .86rem; font-variant-numeric: tabular-nums; }
-.next-day__wx .sky { width: 16px; height: 16px; }
+.next-day__wx .sky { width: 18px; height: 18px; }
+.wx-rain { color: var(--wet); font-weight: 600; }
+.wx-typical { color: var(--ink-3); font-size: .78rem; }
 .next-day__none { display: grid; place-items: center; aspect-ratio: 1; border-radius: 12px; border: 1.5px dashed var(--line); color: var(--ink-2); font-size: .82rem; text-align: center; padding: 8px; }
 
 /* ---------- The trip's short lists: getting there, staying, links ---------- */
