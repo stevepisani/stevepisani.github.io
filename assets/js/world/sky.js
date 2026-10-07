@@ -72,9 +72,14 @@ export function buildSky({ quality }) {
     group.add(stars);
   }
 
-  // The sun: a glowing disc plus the key light that goes with it. (First: the planet and moon
-  // are lit by it.)
+  // One sun lights everything: the asteroid (main.js's key light), the gas giant and the moon.
+  // It's far away next to all three, so its light comes from the same direction for each, and
+  // what you see of each body's lit side follows from where it is in the sky against the sun.
+  // The gas giant and the moon go round in (nearly) one plane through the sun, like real
+  // planets and moons: across the sky they lie along one line, the ecliptic.
   const sunDir = new THREE.Vector3(0.55, 0.62, 0.56).normalize();
+  const GIANT_DIR = new THREE.Vector3(-0.422, 0.674, -0.607).normalize();
+  const ecliptic = sunDir.clone().cross(GIANT_DIR).normalize(); // the orbital plane's normal
   {
     // a cool, distant blue-white star: the source of the moonlight
     const sun = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.glow('rgba(170,195,255,0.9)'), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
@@ -87,14 +92,15 @@ export function buildSky({ quality }) {
     group.add(core);
   }
 
-  // Ringed gas giant, low on your left as you land (about 13° up), half lit by the star.
+  // Ringed gas giant, low on your left as you land (about 11° up), on the ecliptic, about 99°
+  // round the sky from the sun, so a little more than half of it is lit.
   // Shaded by hand: warped, turbulent bands and a storm, a soft terminator (it has an
   // atmosphere), darkening toward the limb, the rings' shadow across the globe and the globe's
   // shadow across the rings.
   {
     const R = 34, R1 = 45, R2 = 74;
     const giant = new THREE.Group();
-    giant.position.set(-0.422, 0.674, -0.607).normalize().multiplyScalar(360);
+    giant.position.copy(GIANT_DIR).multiplyScalar(360);
     giant.rotation.set(0.42, 0.5, 0.36);
     giant.updateMatrixWorld(true);
     const sunLocal = { value: sunDir.clone().applyQuaternion(giant.quaternion.clone().invert()) };
@@ -177,23 +183,21 @@ export function buildSky({ quality }) {
     group.add(giant);
   }
 
-  // A small moon up on your right as you land (about 20° up), in tonight's real phase: craters
-  // and dark seas, lit with a moon's flat, bright-to-the-edge look
-  // (Lommel-Seeliger), and the gas giant's shine faintly lighting its dark side.
+  // The moon, in tonight's real phase: a phase is only where the moon is against the sun (new
+  // beside it, full opposite it), so it's placed that far round the ecliptic from the sun,
+  // tonight.phase of a turn, and lit by the same sun as everything else. Its orbit is tilted 5°
+  // from the ecliptic, like ours, so a new moon passes beside the sun rather than over it. It
+  // moves night to night: up ahead as you land for part of the month, over the far side of the
+  // planet (where the campfire is) for the rest. Craters and dark seas, lit with a moon's flat,
+  // bright-to-the-edge look (Lommel-Seeliger), and the gas giant's shine faintly lighting its
+  // dark side.
   {
     const { map, height } = T.moonMaps();
-    // Lit the way the real moon is tonight (site.js moonTonight(): its phase from the date). The
-    // light comes from behind it at new moon, from over your shoulder at full, and from the
-    // right while it's waxing, the left while it wanes; it stays where it is in the sky.
-    const MOON_DIR = new THREE.Vector3(0.47, 0.757, -0.459).normalize();
-    const tonight = window.moonTonight ? window.moonTonight() : { phase: 0.18, waxing: true };
-    const e = tonight.phase * Math.PI * 2;                                   // elongation from the sun
-    const alpha = Math.PI - (tonight.waxing ? e : Math.PI * 2 - e);          // angle between the light and you, seen from the moon
-    const toYou = MOON_DIR.clone().negate();
-    const right = MOON_DIR.clone().cross(new THREE.Vector3(0, 1, 0)).normalize(); // your right, looking at it
-    const moonLight = toYou.multiplyScalar(Math.cos(alpha)).addScaledVector(right, (tonight.waxing ? 1 : -1) * Math.sin(alpha)).normalize();
+    const tonight = window.moonTonight ? window.moonTonight() : { phase: 0.18 };
+    const orbit = ecliptic.clone().applyAxisAngle(GIANT_DIR, THREE.MathUtils.degToRad(5));
+    const MOON_DIR = sunDir.clone().projectOnPlane(orbit).normalize().applyAxisAngle(orbit, -tonight.phase * Math.PI * 2);
     const moon = new THREE.Mesh(new THREE.SphereGeometry(14, 64, 48), new THREE.ShaderMaterial({
-      uniforms: { map: { value: map }, height: { value: height }, sun: { value: moonLight } },
+      uniforms: { map: { value: map }, height: { value: height }, sun: { value: sunDir } },
       fog: false,
       vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vW; varying vec3 vV;
         void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz;

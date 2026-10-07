@@ -291,7 +291,12 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     put(camp, SPOTS.campfire, { heading: 0.8 }, 3);
     camp.updateMatrixWorld(true);
     const trailEnd = camp.worldToLocal(surfacePoint(dirFrom(2.43, -1.58)));
-    const local = cf.seatToward(trailEnd.x, trailEnd.z);
+    // the real ground's height in the camp's frame: it falls away from the camp's flat plane
+    const groundY = (x, z) => {
+      const dir = camp.localToWorld(new THREE.Vector3(x, 0, z)).normalize();
+      return camp.worldToLocal(surfacePoint(dir)).y;
+    };
+    const local = cf.seatToward(trailEnd.x, trailEnd.z, groundY);
     camp.updateMatrixWorld(true);
     const toWorld = (v) => camp.localToWorld(v.clone());
     const seat = { eye: toWorld(local.eye), look: toWorld(local.look), stand: toWorld(local.stand), dip: toWorld(local.dip), rise: toWorld(local.rise) };
