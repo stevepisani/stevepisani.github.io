@@ -81,6 +81,7 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
 }
 
 const until = (page, fn, arg, timeout = 120000) => page.waitForFunction(fn, arg, { timeout });
+const flatText = (x) => x.replace(/\s+/g, ' ').trim(); // no-break spaces and line breaks as plain spaces
 const expectState = async (page, s, timeout) => { await until(page, (s) => window.__world.state === s && !window.__world.cameraFlying, s, timeout); };
 
 // Every page loads without a script error
@@ -259,7 +260,8 @@ async function planet(page, shot, { phone = false } = {}) {
 // timezone where every day is partly cloudy, 18° / 9° with a 40% chance of rain, except 15
 // October: rain (70%), dry and cloudy until 2 PM, then rain, heaviest at 4, 10.5° by 8 PM. The trip has three travelers,
 // two bags, a packing list (a garment, a baby's thing, a shared one, one nobody's, one of Lexi's,
-// and one on a trip that isn't loaded, never shown), two journeys, a hotel and a link. Returns what was asked of it.
+// and one on a trip that isn't loaded, never shown), three journeys (the last a train to Siena on
+// 16 October), two stays and a link; the euro is $1.1269 (Frankfurter, made up). Returns what was asked of it.
 async function member(page, target) {
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
@@ -287,8 +289,12 @@ async function member(page, target) {
     trip_transport: [
       { id: 'g2', type: 'train', date: '2026-10-14', origin: 'London', destination: 'Florence', departure_time: '2026-10-14T07:01:00+01:00', arrival_time: '2026-10-14T19:30:00+02:00', carrier: 'Eurostar', number: '9010' },
       { id: 'g1', type: 'flight', date: '2026-10-06', origin: 'Philadelphia', destination: 'London', origin_code: 'PHL', destination_code: 'LHR', departure_time: '2026-10-06T18:30:00-04:00', arrival_time: '2026-10-07T06:45:00+01:00', carrier: 'British Airways', number: 'BA 66', confirmation: 'XK7Q2B' },
+      { id: 'g3', type: 'train', date: '2026-10-16', origin: 'Firenze Santa Maria Novella', destination: 'Siena', departure_time: '2026-10-16T09:10:00+02:00', arrival_time: '2026-10-16T10:38:00+02:00', carrier: 'Trenitalia', number: 'R 3127', confirmation: 'PZ4K7M' },
     ],
-    trip_lodging: [{ id: 'l1', name: 'Hotel Bloomsbury', place: 'London', check_in: '2026-10-07', check_out: '2026-10-14' }],
+    trip_lodging: [
+      { id: 'l1', name: 'Hotel Bloomsbury', place: 'London', check_in: '2026-10-07', check_out: '2026-10-14' },
+      { id: 'l2', name: 'Florence Airbnb', place: 'Florence', address: 'Lungarno Acciaiuoli 4, 50123 Firenze', check_in: '2026-10-14', check_out: '2026-11-14', confirmation: 'HMQ3X9TZ', booking_url: 'https://www.airbnb.com/trips' },
+    ],
     trip_resources: [{ id: 'r1', type: 'insurance', label: 'Travel insurance', url: 'https://insurance.example/policy' }],
   };
   for (const [k, rows] of Object.entries(tripParts)) tripParts[k] = rows.map((r, i) => ({ ...mine, created_at: `2026-10-01T12:00:0${i}Z`, ...r }));
@@ -371,6 +377,12 @@ async function member(page, target) {
       out.hourly = { time: hours, temperature_2m: H.map((x) => x.temp), apparent_temperature: H.map((x) => x.temp - 1), precipitation_probability: H.map((x) => x.rain), precipitation: H.map((x) => x.mm), weather_code: H.map((x) => x.code), is_day: H.map((x) => x.day), wind_speed_10m: H.map(() => 8) };
     }
     return json(out);
+  });
+  // the day's exchange rate (Frankfurter, the ECB's): one euro in dollars; each request kept in asked
+  await target.route(/api\.frankfurter\.dev/, (route) => {
+    const u = new URL(route.request().url());
+    asked.push({ method: 'GET', path: `frankfurter:${u.search}` });
+    return route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ amount: 1, base: u.searchParams.get('base'), date: '2026-10-14', rates: { [u.searchParams.get('symbols')]: 1.1269 } }) });
   });
   return asked;
 }
@@ -573,13 +585,18 @@ async function apps(page, shot) {
   if ((await page.textContent('#app-title')) !== 'Europe, autumn' || (await page.getAttribute('#app-back', 'href')) !== '#trips') throw new Error("the trip's title, or the way back to the trips, is wrong");
   // each planned day's outfit laid flat, its pieces opening the garments
   if ((await page.locator('#days .day').first().locator('.flatlay .flatlay__piece').count()) !== 2) throw new Error("a day's outfit isn't laid out");
-  const goes = await page.locator('#trip-go .info-row').allTextContents();
-  if (goes.length !== 2 || !/^Philadelphia PHL → London LHR.*British Airways BA 66.*18:30 – 06:45 \(.*7.*\).*ref XK7Q2B/.test(goes[0]) || !/London → Florence.*07:01 – 19:30/.test(goes[1])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
+  // getting there, as boarding cards in order: the ends (codes big, names under), the times as
+  // given there (an arrival on another day says which), the reference; past ones have no Calendar
+  const goes = (await page.locator('#trip-go .journey').allTextContents()).map(flatText);
+  if (goes.length !== 3 || !/^Flight: British Airways BA 66\s*Tue, Oct 6\s*PHL\s*Philadelphia\s*6:30 PM\s*to\s*LHR\s*London\s*6:45 AM\s*Wed, Oct 7.*Ref\s*XK7Q2B/.test(goes[0]) || !/^Train: Eurostar 9010.*London.*7:01 AM.*Florence.*7:30 PM/.test(goes[1]) || !/^Train: Trenitalia R 3127.*Firenze Santa Maria Novella.*9:10 AM.*Siena.*10:38 AM/.test(goes[2])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
+  if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
   if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
+  const stay = page.locator('#trip-stay .stay', { hasText: 'Florence Airbnb' });
+  if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Lungarno%20Acciaiuoli%204%2C%2050123%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
   if (!/09:30–12:00\s*Uffizi\s*sightseeing\s*20:00\s*Dinner at Buca Mario/.test(await page.textContent('#days'))) throw new Error(`a day's plans, in time order: ${await page.textContent('#days')}`);
   await page.locator('#trip-go-part').scrollIntoViewIfNeeded();
   await shot('trip');
-  step('a trip: legs with weather, who\'s going, getting there in order with times as given, staying, links, each day\'s plans');
+  step('a trip: legs with weather, who\'s going, getting there as boarding cards in order with times as given, staying with a map, links, each day\'s plans');
 
   // the Packing Board: status counts, filters that narrow it (and stay), a tap that moves one on
   // (one PATCH of that entry) with Undo, an entry's sheet (a bag, how many), adding from the planned
@@ -694,6 +711,30 @@ async function apps(page, shot) {
   const hourWords = (await page.locator('.hours .hour .visually-hidden').allTextContents()).map(flat);
   if (hourWords.length !== 27 || hourWords[0] !== 'Now: cloudy, 57°' || !hourWords.includes('4 PM: rain, 62°, 80% chance of rain') || !hourWords.includes('Sunset at 6:39 PM') || !hourWords.includes('Sunrise at 7:21 AM') || !(await page.locator('.hours .hour--moment').count()) || (await page.getAttribute('.hours__list', 'aria-label')) !== 'Hour by hour, the next 24 hours') throw new Error(`the hours: ${hourWords.join(' | ')}`);
   await shot('today');
+  // the train tomorrow, as a card above the day (it leaves within 48 hours): counting down, its
+  // reference a tap to copy, and Calendar gets it with its times in UTC; tonight's stay with its map;
+  // home and away in one line, the rate a tap to turn round
+  const journey = page.locator('#today-view .journey--today');
+  if ((await journey.count()) !== 1 || !(await journey.evaluate((j) => j.nextElementSibling?.classList.contains('today-card'))) || flatText(await journey.locator('.journey__soon').textContent()) !== 'Train to Siena in 22 h 10 min') throw new Error(`Today's next journey, above the day, counting down: ${await page.locator('#today-view').innerHTML().then((h) => h.slice(0, 400))}`);
+  await journey.locator('.chip--ref').click();
+  await until(page, () => /Copied PZ4K7M/.test(document.getElementById('app-toast').textContent));
+  if ((await page.evaluate(() => navigator.clipboard.readText())) !== 'PZ4K7M') throw new Error("the reference wasn't copied");
+  const [download] = await Promise.all([page.waitForEvent('download'), journey.locator('.chip', { hasText: 'Add to Calendar' }).click()]);
+  const ics = readFileSync(await download.path(), 'utf8');
+  for (const want of ['BEGIN:VCALENDAR', 'BEGIN:VEVENT', 'UID:g3@stevenpisani.com', 'DTSTART:20261016T071000Z', 'DTEND:20261016T083800Z', 'SUMMARY:Train to Siena (Trenitalia R 3127)', 'LOCATION:Firenze Santa Maria Novella', 'Booking reference PZ4K7M', 'END:VCALENDAR']) if (!ics.replace(/\r\n /g, '').includes(want)) throw new Error(`the .ics has no ${want}:\n${ics}`);
+  if (!/\.ics$/.test(download.suggestedFilename()) || /[^\r]\n/.test(ics)) throw new Error(`the .ics is named ${download.suggestedFilename()}, or its lines don't end in CRLF`);
+  const tonight = page.locator('#today-view .stay--today');
+  if (!/^Tonight\s*Florence Airbnb\s*Check out Saturday/.test(flatText(await tonight.textContent())) || !/^https:\/\/maps\.apple\.com\/\?q=Florence%20Airbnb&address=Lungarno/.test(await tonight.locator('.map-link').getAttribute('href'))) throw new Error(`tonight's stay on Today: ${await tonight.textContent()}`);
+  if (flatText(await page.textContent('.home-away')) !== 'Florence 11:00 AM · Philadelphia 5:00 AM · €1 = $1.13') throw new Error(`home and away: ${await page.textContent('.home-away')}`);
+  await page.click('.home-away__rate');
+  if (flatText(await page.textContent('.home-away__rate')) !== '$1 = €0.89') throw new Error(`the rate, turned round: ${await page.textContent('.home-away__rate')}`);
+  await page.click('.home-away__rate');
+  await page.reload();
+  await until(page, () => document.querySelector('.home-away__rate'));
+  const rates = asked.filter((a) => a.path.startsWith('frankfurter:'));
+  if (rates.length !== 1 || rates[0].path !== 'frankfurter:?base=EUR&symbols=USD') throw new Error(`the rate is asked for once a day: ${rates.map((a) => a.path)}`);
+  await shot('today-journey');
+  step('Today: the train tomorrow above the day, counting down; its reference copies; Calendar gets it in UTC; tonight\'s stay opens Maps; home and away, the rate asked once a day and turned round by a tap');
   // a tap on a temperature switches to °C everywhere, and it's remembered
   await page.click('.today-card__temp');
   await until(page, () => document.querySelector('.today-card__temp')?.textContent.trim() === '14°' && /°C/.test(document.getElementById('app-toast').textContent));
@@ -749,8 +790,9 @@ async function offline(page, shot) {
   await until(page, () => document.querySelector('.today-card') && !document.getElementById('offline-note').hidden);
   if (!/Florence/.test(await page.textContent('.today-card__place'))) throw new Error("offline, Today isn't there");
   if ((await page.textContent('.today-card__temp')).trim() !== '57°' || !/^Rain from about\s2\sPM/.test(await page.textContent('.today-card__story')) || (await page.locator('.hours .hour').count()) < 25) throw new Error(`offline, Today doesn't show the last weather kept (now, the sentence, the hours): ${await page.textContent('.today-card .sky-panel')}`);
+  if (!/€1 = \$1\.13/.test(flatText(await page.textContent('.home-away'))) || asked.filter((a) => a.path.startsWith('frankfurter:')).length !== 1) throw new Error(`offline, the rate kept on the phone isn't shown: ${await page.textContent('#today-view .today__trip')}`);
   await shot('offline');
-  step('offline: the page, its scripts and the data come from the copy on the phone');
+  step('offline: the page, its scripts and the data come from the copy on the phone, and the rate from the one kept');
   await page.click('.today__part a[href$="/pack"]');
   await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 5);
   const before = asked.length;
@@ -975,7 +1017,7 @@ async function noWebGL(page, shot) {
 
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
-if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome' }, apps);
+if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
 if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
