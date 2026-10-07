@@ -16,12 +16,18 @@ design: row-level security guards every table.
   (`create … if not exists`, `drop policy if exists` before `create policy`), so a re-run is safe.
   To change the schema, add a new migration; never edit one that has run.
 - `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off, the OAuth server for
-  ChatGPT and its consent page).
+  ChatGPT and its consent page, the sign-in email's subject, a 6-digit code).
+- `templates/<name>.html`: Auth's emails, each the auth config's `mailer_templates_<name>_content`.
+  `magic_link.html` is the sign-in email: the link and the code (`{{ .ConfirmationURL }}`,
+  `{{ .Token }}`), the code being how the home-screen app signs in (`docs/apps.md`, "Signing in").
+  Like `auth.json`, it reaches Supabase only when the Supabase workflow runs (on a merge to main
+  that touches `supabase/`, or by hand), never with the site build; until then the email has only
+  the link, and the code field has nothing to take.
 - `functions/<name>/index.ts`: edge functions, Deno TypeScript. Type-check with
   `deno check --node-modules-dir=none supabase/functions/<name>/index.ts` (the flag keeps Deno from
   looking for the site's own `node_modules`).
 - `tools/supabase.mjs` applies the migrations, the JWT signing keys (one ES256 key in use, the old
-  secret still trusted) and `auth.json` through the Management API with
+  secret still trusted), `auth.json` and the email templates through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
   copies the `ANTHROPIC_API_KEY` repo secret into the project's function secrets, and deploys
@@ -134,6 +140,7 @@ and the bartender.
 | What | How | When |
 |---|---|---|
 | The site | `.github/workflows/site.yml`: bundle (`npm run build`), Jekyll, link check, smoke test, then `actions/deploy-pages` | every push to main; PRs build and test only |
+| Exchange rates (Today's home and away line) | none: the browser asks Frankfurter (free, no key) at most once a day | — |
 | Supabase | `.github/workflows/supabase.yml` | merges touching `supabase/` |
 | mcp.stevenpisani.com (the wardrobe MCP server's address, `proxy/`) | `.github/workflows/mcp-proxy.yml`: Cloudflare Pages | merges touching `proxy/`; skipped without the Cloudflare secrets |
 | Audible library | `.github/workflows/audible.yml` (`tools/audible-sync.py`); commits `_data/audible.json` and starts the site workflow | daily |

@@ -34,11 +34,23 @@ rather than leaving it in a chat.
    - Dress Me (shuffle an outfit, pin the pieces you like), a warning when the same thing is in
      too many photos, and Trip Wrapped at the end (most worn, never worn, a picture per city).
 
-0. **Sign in to the apps with a code.** The emailed link opens in the phone's browser, so an app
-   saved to the home screen (which keeps its own storage on iOS) never gets signed in. Put the
-   six-digit code in the email (`mailer_templates_magic_link_content` in `supabase/auth.json`) and
-   a field for it on the gate (`verifyOtp` in `kit.js`); then add a web app manifest so /apps
-   installs properly.
+0. **The private apps, by the vision** (`docs/vision.md`: keep the evidence, record what happens
+   passively, tools not features, one inbox, trust on a dial, measure before switching). In order:
+   - events, "wore it today" first (one tap on Today's outfit; then visits, cooking, buying), which
+     also gives cost per wear and packed versus worn;
+   - one inbox for raw evidence, and visibility (private, shared, public) on every record;
+   - **places v1:** Google Maps saved lists and starred places from a Takeout file dropped into a
+     private import screen; every place private until approved in review; home, work, lodging, any
+     trip hotel and anything near home can never be public; coordinates from the Places API (New)
+     on the server (inside its free monthly caps, with a quota set), once Steve has the key; in the
+     wardrobe, "Saved nearby" on Today and each leg, and "Add to this day"; on the public site, a
+     map of the lists Steve marks public. v2: Google's Data Portability API if it reaches US
+     accounts;
+   - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
+   - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
+     the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
+   - polish still open: repack before each move, pull to refresh with "weather updated", a journal
+     line per day, smarter search, a phone test checklist.
 
 1. **Read bottles on the planet.** Approved bottles (`bottles.approved`) wash up at the waterline
    for the next visitor to open and read, with the same unrolling letter as writing one
@@ -59,6 +71,11 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **A Google Maps key for places:** a Google Cloud project with the Places API (New) on, a key
+  restricted to it, a daily quota, saved as a GitHub repo secret (steps when we start places).
+- **For passive capture:** the office camera's make and model, which stores' grocery receipts come
+  by email, and which card or bank to export.
+
 - **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
   with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a
   doorway (Spark or gsplat.js).
@@ -67,6 +84,8 @@ rather than leaving it in a chat.
 
 ## Parked on purpose
 
+- **Apple Photos:** an iOS Shortcut ("Send to Wardrobe") that uploads picked photos to the inbox
+  with a personal key; parked by Steve, Oct 2026.
 - [TabbyStack/panthera#32](https://github.com/TabbyStack/panthera/issues/32): a weekly, high-level,
   client-free "what I'm working on" that updates `focus:` in `_data/profile.yml` (and so /about,
   the bartender and the GitHub README). It lives in Panthera because that's where transcripts may be
@@ -79,6 +98,11 @@ rather than leaving it in a chat.
   moon this hour with its landing sites, today's sun, the ringed planet; it swings round to them).
   Telescope ideas still open: focus it yourself (a brass knob), the ISS when it's over
   Philadelphia, and a postcard of what you saw.
+- Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed
+  code there, journeys as boarding cards (countdown, copy the reference, Add to Calendar), stays
+  with a map, and a home-and-away line (local and home time, the exchange rate).
+- Oct 2026: weather done properly (real conditions, Today's sky and hourly strip, Apple-style day
+  lists, °F or °C), photos from small WebP copies, and the redesign on Apple's HIG and Krug.
 
 - Oct 2026: images that reach ChatGPT: vision-sized copies so six fit in one answer, `get_outfit_images`
   (each garment's current photo, named by slot), and `test_image(s)` to check what arrives.
