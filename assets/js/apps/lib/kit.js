@@ -1,7 +1,7 @@
 // What every private app at /apps is built on (docs/apps.md): the Supabase client, the
-// members-only gate, a table with its failures said out loud, saving as you type, photos, and a
-// form in a dialog. An app is a page with `layout: app` and a script beside this folder that
-// calls start().
+// members-only gate, the shell (where you are, the settings sheet, pull to refresh), a table with
+// its failures said out loud, saving as you type, photos, and a form in a dialog. An app is a page
+// with `layout: app` and a script beside this folder that calls start().
 import { createClient } from '@supabase/supabase-js';
 import { SIZES, QUALITY, copyPath, copyPaths } from './photo-sizes.js';
 
@@ -37,42 +37,62 @@ export function toast(text, bad = false, undo = null) {
   toastTimer = setTimeout(() => { el.hidden = true; }, bad || undo ? 6000 : 3000);
 }
 
+// Kept on this phone, never anything that matters if it's lost (private windows refuse it)
+const keep = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {} };
+const kept = (key) => { try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; } };
+
+// The name to greet someone by: the one stored with them (public.members, through me()), else the
+// start of their email, capitalised ("lexi.p@…" is Lexi)
+export const nameFrom = (email) => { const w = String(email || '').split('@')[0].split(/[._+-]/)[0]; return w.charAt(0).toUpperCase() + w.slice(1); };
+
 // The gate: the sign-in form until a member is signed in, then the app. Who's a member is the
 // database's call (public.members, through is_member()); row-level security enforces it, this
 // only decides what to show. `open(user)` runs each time a member arrives, `close()` when they
-// sign out (so nothing of theirs is left in the page). An app that keeps a copy of its data on
-// the phone passes `{ offline: true }`: then with no connection it opens for whoever was last
-// signed in on this browser (the database can't be asked, and its token may have run out), with
-// `user.offline` set, and shows what it kept. (Row-level security still decides what any change
-// it sends later may touch.)
+// sign out (so nothing of theirs is left in the page). The user comes with `name` and `sections`
+// (me(): which parts of the app they see; null if it can't say, meaning all). An app that keeps a
+// copy of its data on the phone passes `{ offline: true }`: then with no connection it opens for
+// whoever was last signed in on this browser (the database can't be asked, and its token may have
+// run out), with `user.offline` set, and shows what it kept. (Row-level security still decides
+// what any change it sends later may touch.)
 export function start(open = () => {}, close = () => {}, { offline = false } = {}) {
-  const app = $('#app'), note = $('#gate-note');
+  const app = $('#app'), note = $('#gate-note'), form = $('#gate-form');
   let current; // the address the page is showing things for (null: nobody; undefined: not asked yet)
-  const show = (state) => {
+  const show = (state, who = null) => {
     app.dataset.state = state;
     $('#app-gate').hidden = state !== 'out';
     $('#app-main').hidden = state !== 'in';
-    $('#app-who').hidden = state !== 'in';
-    const nav = $('[data-members]'); // the nav's Apps link (site.js shows it on the other pages)
-    if (nav) nav.hidden = state !== 'in';
+    $('#settings-who').hidden = state !== 'in';
+    if (who) { $('#app-name').textContent = who.name; $('#app-email').textContent = who.email; }
+    if (state === 'out') {
+      // the last email used here, so coming back it's one tap and the code
+      const last = kept('apps-email');
+      if (last && !form.email.value) form.email.value = last;
+      $('#gate-title').textContent = last ? 'Welcome back' : 'Sign in';
+      $('#gate-ask').textContent = last ? 'Get a code by email to sign in.' : 'Enter your email to get a sign-in code.';
+    }
+  };
+  // who they are to the app: their name and what they see, kept for opening with no connection
+  const who = (user, me) => {
+    if (me) keep(`apps-me:${user.email}`, me); else me = kept(`apps-me:${user.email}`);
+    return { ...user, name: me?.name || nameFrom(user.email), sections: Array.isArray(me?.sections) ? me.sections : null };
   };
 
-  const kept = () => { // the person last signed in here, from supabase-js's own copy of the session
+  const lastUser = () => { // the person last signed in here, from supabase-js's own copy of the session
     try { return JSON.parse(localStorage.getItem(Object.keys(localStorage).find((k) => /^sb-.+-auth-token$/.test(k))))?.user || null; } catch (e) { return null; }
   };
   const cut = (error) => !navigator.onLine || /fetch|network|load failed/i.test(error?.message || '');
   async function arrive(session) {
-    if (!session && offline && !navigator.onLine && kept()) session = { user: { ...kept(), offline: true } };
+    if (!session && offline && !navigator.onLine && lastUser()) session = { user: { ...lastUser(), offline: true } };
     const email = session?.user?.email || null;
     if (email === current) return; // a refreshed token, not a new person
     current = email;
     if (!email) { close(); return show('out'); }
-    const { data, error } = session.user.offline ? { error: { message: 'offline' } } : await db.rpc('is_member');
+    const [{ data, error }, me] = session.user.offline ? [{ error: { message: 'offline' } }, {}] : await Promise.all([db.rpc('is_member'), db.rpc('me')]);
     if (current !== email) return; // someone else arrived while it was asking
     if (offline && error && (session.user.offline || cut(error))) {
-      $('#app-email').textContent = email;
-      show('in');
-      return open({ ...session.user, offline: true });
+      const user = who({ ...session.user, offline: true });
+      show('in', user);
+      return open(user);
     }
     if (error || data !== true) {
       current = null;
@@ -80,9 +100,9 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
       note.textContent = error ? "Couldn't reach the database. Try again in a minute." : `${email} isn't on the list.`;
       return show('out');
     }
-    $('#app-email').textContent = email;
-    show('in');
-    await open(session.user);
+    const user = who(session.user, me.error ? null : me.data);
+    show('in', user);
+    await open(user);
   }
 
   // A sign-in link that's expired or been used (mail apps that preview links use them up) comes
@@ -118,6 +138,7 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
       : installed() ? `Check ${email} for the code.` : `Check ${email}. Open the link on this device, or type the code here.`;
     send.disabled = false;
     if (error) return;
+    keep('apps-email', email);
     sentTo = email;
     code.hidden = false;
     code.reset();
@@ -137,7 +158,87 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
   code.addEventListener('submit', (e) => { e.preventDefault(); enter(); });
   code.code.addEventListener('input', () => { if (/^\d{6}$/.test(code.code.value.trim())) enter(); }); // six digits typed or filled in: no need to press anything
   hint();
-  $('#app-signout').addEventListener('click', () => db.auth.signOut());
+  $('#app-signout').addEventListener('click', () => {
+    if (!confirm("Sign out? You'll need a code from your email to sign back in.")) return;
+    $('#settings').close();
+    db.auth.signOut();
+  });
+}
+
+// ---------- The shell: where you are, settings, pull to refresh ----------
+// Where you are: the heading (with a line over it, if any), the bar's title (it shows once the
+// heading has scrolled away), the way back up in the bar beside the badge (`back`: [href, name]),
+// and the window's title
+const APP = meta('apple-mobile-web-app-title');
+export function here({ title, over = '', bar = title, back = null }) {
+  $('#app-title').textContent = title;
+  $('#app-over').textContent = over;
+  $('#app-over').hidden = !over;
+  $('#app-bar-title').textContent = bar;
+  const a = $('#app-back');
+  a.hidden = !back;
+  if (back) { a.href = back[0]; a.textContent = `‹ ${back[1]}`; }
+  document.title = bar && bar !== APP ? `${bar} · ${APP}` : APP;
+}
+if ($('#app-top')) new IntersectionObserver(([e]) => $('#app-top').classList.toggle('is-scrolled', !e.isIntersecting && e.boundingClientRect.top < 60), { rootMargin: '-60px 0px 0px 0px' }).observe($('#app-title'));
+
+// Settings, from the badge (top left): the theme (site.js keeps it, for the whole site), what the
+// app adds (its <template id="settings-more">: the wardrobe's °F or °C), who's signed in, and the
+// way to the site. Everything takes effect at once; Done (or a swipe, Esc, a tap outside) closes it.
+const settings = $('#settings');
+if (settings) {
+  const more = $('#settings-more');
+  if (more) $('#settings-app').replaceWith(more.content);
+  const theme = $('#settings-theme');
+  const paint = () => { const t = window.siteTheme?.get() ?? (document.documentElement.dataset.theme || null); for (const b of theme.children) b.setAttribute('aria-pressed', (b.dataset.value || null) === t); };
+  theme.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b || !window.siteTheme) return; window.siteTheme.set(b.dataset.value || null); paint(); });
+  sheet(settings);
+  $('#app-me').addEventListener('click', () => { paint(); open(settings); });
+}
+
+// Pull to refresh (docs/apps.md): at the very top of the page, a pull down past the line reloads
+// what's showing. Only a pull that starts at the top and goes mostly down counts (a strip that
+// scrolls sideways keeps its sideways drags), never one from a field being typed in or with a sheet
+// open, so scrolling is left alone.
+// `refresh()` reloads and answers what to say ("Updated"); the ring spins until it's done (with
+// reduced motion it only shows).
+export function pull(refresh) {
+  const ring = $('#app-pull'), LINE = 64;
+  let y0 = null, x0 = 0, d = 0, live = false, busy = false;
+  const set = (px) => { ring.style.setProperty('--pull', `${px}px`); ring.classList.toggle('is-ready', px >= LINE); };
+  addEventListener('touchstart', (e) => {
+    y0 = null;
+    if (busy || e.touches.length !== 1 || scrollY > 0 || $('dialog[open]') || $('#app').dataset.state !== 'in') return;
+    if (e.target.closest('textarea, select, [contenteditable]') || e.target === document.activeElement) return; // not while typing
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; d = 0; live = false;
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
+    if (!live) {
+      if (dy < 0 || Math.abs(dx) > Math.abs(dy)) { y0 = null; return; } // up, or sideways: not a pull
+      if (dy < 8) return;
+      live = true;
+      ring.hidden = false;
+    }
+    e.preventDefault();
+    d = Math.min(LINE * 1.5, Math.max(0, dy) * 0.5); // it gets heavier as it comes
+    set(d);
+  }, { passive: false });
+  const end = async () => {
+    if (y0 == null || !live) { y0 = null; return; }
+    y0 = null;
+    if (d < LINE) { set(0); ring.hidden = true; return; }
+    busy = true;
+    buzz();
+    ring.classList.add('is-busy');
+    set(LINE);
+    try { const said = await refresh(); if (said) toast(said); }
+    catch (e) { console.error(e); toast("That didn't reload. Try again in a minute.", true); }
+    finally { busy = false; ring.classList.remove('is-busy', 'is-ready'); set(0); ring.hidden = true; }
+  };
+  addEventListener('touchend', end);
+  addEventListener('touchcancel', () => { if (!busy) { y0 = null; set(0); ring.hidden = true; } });
 }
 
 // Running as the home-screen app (no Safari around it)?
@@ -159,9 +260,15 @@ function hint() {
 // A table. Every call says so (a toast) when it fails, and returns null or false. With trash,
 // remove moves a row to the trash (deleted_at; restorable for 30 days, docs/apps.md) and list leaves
 // the trash out.
+// (a request cut off because the page is going away isn't a failure, and isn't said)
+let leaving = false;
+addEventListener('beforeunload', () => { leaving = true; });
+addEventListener('pagehide', () => { leaving = true; });
+addEventListener('pageshow', () => { leaving = false; });
 export function rows(table, { trash = false } = {}) {
   const done = ({ data, error }, doing) => {
     if (!error) return data ?? true;
+    if (leaving) return null;
     console.error(error);
     toast(`${doing} didn't work: ${error.message}`, true);
     return null;
@@ -376,7 +483,7 @@ export const photos = {
     if (!paths.length) return new Map();
     const ask = px ? paths.flatMap((p) => [p, copyPath(p, px)]) : paths;
     const { data, error } = await db.storage.from(BUCKET).createSignedUrls(ask, WEEK);
-    if (error) { console.error(error); return new Map(); }
+    if (error) { if (!/fetch|network|load failed/i.test(error.message)) console.error(error); return new Map(); } // a cut connection (offline, or the page left): no links, said nowhere
     const got = new Map(data.filter((d) => d.signedUrl).map((d) => [d.path, d.signedUrl]));
     return new Map(paths.filter((p) => got.has(p)).map((p) => [p, (px && got.get(copyPath(p, px))) || got.get(p)]));
   },

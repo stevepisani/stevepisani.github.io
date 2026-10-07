@@ -1,11 +1,12 @@
 ---
-layout: app
-app: home
-title: Apps
-lede: Small tools for life at home.
+# /apps was a list of the private apps until Oct 2026; there's one now, SJPJr (docs/apps.md).
+# Bookmarks and the site nav's link land on it, signing in included (search and hash kept).
 ---
-<div class="lab-grid">
-  {% for item in site.data.apps %}
-    {% include lab-card.html item=item %}
-  {% endfor %}
-</div>
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>SJPJr</title>
+<meta name="robots" content="noindex">
+<script>location.replace("{{ '/apps/wardrobe' | relative_url }}" + location.search + location.hash);</script>
+<p><a href="{{ '/apps/wardrobe' | relative_url }}">Open SJPJr.</a></p>
+</html>

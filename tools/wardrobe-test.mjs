@@ -467,6 +467,19 @@ const up = await tool('add_item', { name: 'Grey overshirt', category: 'outerwear
 ok((await tool('add_item', { name: 'Grey overshirt', category: 'outerwear', photo: file('overshirt') })).item.id === up.item.id, 'add_item: the same upload twice is one item');
 ok((await tool('add_item', { name: 'x', category: 'tops', dressiness: 'black tie' })).error, 'add_item: a value that isn\'t one is refused');
 
+// ---------- Who's signed in (me(), the app's greeting and tabs) ----------
+{
+  const me = (await q(`select public.me() as me`))[0].me;
+  ok(me && me.name === null && JSON.stringify(me.sections) === '["recipes"]', 'me(): a member with no name yet, and the default sections (Recipes)', me);
+  await as(OTHER, 'nobody@example.com');
+  ok((await q(`select public.me() as me`))[0].me === null, 'me(): nothing for someone who isn\'t a member');
+  let odd = false;
+  try { await db.exec(`reset role; update public.members set sections = '{closet,laundry}' where email = 'other@example.com'`); } catch (e) { odd = true; }
+  await db.exec(`set role authenticated`);
+  ok(odd, 'members: only the sections the app has');
+  await as(STEVE, 'steve@example.com');
+}
+
 // ---------- Each person's own ----------
 await as(OTHER, 'other@example.com');
 ok((await tool('find_items', { include_retired: true })).count === 0 && (await tool('get_item', { id: IDS.darkBrown })).error, 'someone else sees none of Steve\'s clothes');
@@ -491,4 +504,4 @@ let refused = false;
 try { await insert('wardrobe_items', { name: 'x', category: 'tops', variant_id: steveVariant }); } catch (e) { refused = e.code === '42501'; }
 ok(refused, 'and can\'t point an item at Steve\'s variant');
 
-console.log(`wardrobe: ${passed} checks against the real schema: the Uniqlo migration, ingesting (new, new colour, second piece, no brand, photos with roles, duplicates and retries, dry run), sources, flat and whole reads, scoped changes, retiring, trips, and each person's own`);
+console.log(`wardrobe: ${passed} checks against the real schema: the Uniqlo migration, ingesting (new, new colour, second piece, no brand, photos with roles, duplicates and retries, dry run), sources, flat and whole reads, scoped changes, retiring, trips, who's signed in (me()), and each person's own`);

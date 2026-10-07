@@ -1,6 +1,8 @@
-// The wardrobe (/apps/wardrobe, apps/wardrobe.html): Steve's clothes, each with a photo cut out
-// of its background, what it is, and where to buy another; and his trips, with the weather, what
-// to wear each day and what to pack. Private to its owner (tables public.wardrobe_items,
+// SJPJr (/apps/wardrobe, apps/wardrobe.html), the app: Today (the next thing to do, what you're
+// wearing, the weather where you are), the Closet (your clothes, each with a photo cut out of its
+// background, what it is, and where to buy another), Trips (the weather, what to wear each day and
+// what to pack) and Recipes (lib/recipes.js, shared). Each member sees only their sections (me()
+// in the database). The wardrobe and trips are private to their owner (tables public.wardrobe_items,
 // public.trips and the trip's parts: trip_packing, trip_bags, trip_transport, trip_lodging,
 // trip_resources; photos under photos/wardrobe/<owner id>/). A garment may belong to a variant and
 // product (wardrobe_variants, wardrobe_products: the maker's facts, filed by ChatGPT); the app
@@ -11,11 +13,12 @@
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
 // answers from), and with no connection the app opens on that copy. Changes to packing entries
 // made then are kept and sent when the connection's back.
-import { $, el, icon, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate } from './lib/kit.js';
+import { $, el, icon, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate, here, pull } from './lib/kit.js';
 import { SIZES } from './lib/photo-sizes.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
-import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway } from './lib/travel.js';
-import { units, switchUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
+import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway, HOME } from './lib/travel.js';
+import * as recipes from './lib/recipes.js';
+import { units, setUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
 const closet = rows('wardrobe_closet'); // (the view leaves the trash out) // the same, with its product's and variant's facts filled in; read here
@@ -27,9 +30,13 @@ const partRows = Object.fromEntries(PARTS.map((p) => [p, rows(p)]));
 const noParts = () => Object.fromEntries(PARTS.map((p) => [p, []]));
 const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear'], ['suits', 'Suits'], ['shoes', 'Shoes'], ['accessories', 'Accessories'], ['workout', 'Workout'], ['swim', 'Swim']];
 const catName = Object.fromEntries(CATS);
-let list = [], links = new Map(), failed = false, uid = null, offline = false;
-let view = { cat: '', colour: '', season: '', dress: '', shelf: 'in', tab: 'closet' };
-try { Object.assign(view, JSON.parse(localStorage.getItem('wardrobe-view'))); } catch (e) {}
+let list = [], links = new Map(), failed = false, uid = null, offline = false, me = null;
+// the sections, in the tabs' order; each member sees the ones me() names (null: all of them)
+const SECTIONS = ['today', 'closet', 'trips', 'recipes'];
+let sections = SECTIONS;
+const can = (s) => sections.includes(s);
+let view = { cat: '', colour: '', season: '', dress: '', shelf: 'in' };
+try { const { tab, ...v } = JSON.parse(localStorage.getItem('wardrobe-view')) || {}; Object.assign(view, v); } catch (e) {} // (it once kept the tab last used; it always opens on Today now)
 const tiles = new Map(); // item id → its tile
 
 const href = (link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`);
@@ -128,8 +135,8 @@ function render() {
   $('#grid').setAttribute('aria-busy', 'false');
   const narrowed = q || view.cat || view.colour || on;
   $('#empty').hidden = shown > 0;
-  $('#empty').replaceChildren(failed ? "The wardrobe didn't load. Reload the page to try again."
-    : !list.length ? 'Nothing here yet. Add something: a photo, or a link to it in a shop.'
+  $('#empty').replaceChildren(failed ? "Your closet didn't load. Pull down to try again."
+    : !list.length ? 'Nothing in your closet yet. Add something: a photo, or a link to it in a shop.'
     : view.shelf === 'retired' && !shelf.length ? 'Nothing retired.' : 'Nothing matches that. ');
   if (shown === 0 && narrowed && list.length && !failed) {
     const all = el('button', 'link-btn', 'Show everything');
@@ -366,7 +373,7 @@ $('.sheet__seasons', sheet).addEventListener('change', () => save({ seasons: [..
 // address goes back to the view underneath
 sheet.addEventListener('close', () => {
   if (sheet.dataset.mode === 'edit') for (const field of TEXT) $(`[data-is="${field}"]`, sheet).dispatchEvent(new Event('change'));
-  if (here()[0] === 'item') { if (pushedItem) history.back(); else history.replaceState(null, '', `#${shownHash}`); }
+  if (address()[0] === 'item') { if (pushedItem) history.back(); else history.replaceState(null, '', `#${shownHash}`); }
   pushedItem = false;
   setTimeout(() => { if (!sheet.open) { current = null; redraw(); } }, 0);
 });
@@ -465,9 +472,10 @@ $('#photo-remove').addEventListener('click', async () => {
   paintSheet();
 });
 // ---------- Where you are: the address says, so Back works and any view can be linked ----------
-// #today, #closet, #trips, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over the view)
+// #today, #closet, #trips, #recipes, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over
+// the view). A section the member doesn't see isn't there: its address goes home.
 let trips = [], parts = noParts(), openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
-const here = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
+const address = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
 // an item opens over the view, its photo growing out of the one tapped (where the browser can)
 let zoomFrom = null;
 const openItem = (it, mode = 'view', from = null) => { nextMode = mode; pushedItem = true; zoomFrom = from; location.hash = `item/${it.id}`; };
@@ -476,8 +484,8 @@ const motion = () => !!document.startViewTransition && !calm.matches;
 
 function route() {
   if (!ready) return;
-  const [where, id, part] = here();
-  if (where === 'item') {
+  const [where, id, part] = address();
+  if (where === 'item' && can('closet')) {
     if (!shown) showView(...home());
     const it = list.find((x) => x.id === id), from = zoomFrom;
     zoomFrom = null;
@@ -494,13 +502,14 @@ function route() {
     return;
   }
   if (sheet.open) sheet.close();
-  if (where === 'trip' && trips.some((t) => t.id === id)) return showView(part === 'pack' ? 'pack' : 'trip', id);
-  if (where === 'closet' || where === 'trips' || (where === 'today' && nowTrip())) return showView(where);
+  if (where === 'trip' && can('trips') && trips.some((t) => t.id === id)) return showView(part === 'pack' ? 'pack' : 'trip', id);
+  if (SECTIONS.includes(where) && can(where)) return showView(where);
   showView(...home());
 }
-// with a trip on (or about to be), Today; otherwise wherever you were last
-const home = () => [nowTrip() ? 'today' : view.tab === 'trips' ? 'trips' : 'closet'];
-const DEPTH = { today: 0, closet: 0, trips: 0, trip: 1, pack: 2 };
+// with no address (opening the app, from the Home Screen or a link), Today; for a member without
+// Today, their first section
+const home = () => [SECTIONS.find(can) || 'recipes'];
+const DEPTH = { today: 0, closet: 0, trips: 0, recipes: 0, trip: 1, pack: 2 };
 const scrolls = {}; // where each view was scrolled to, so coming back to it lands there
 function showView(name, id) {
   const was = shown, wasHash = shownHash, hash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
@@ -509,19 +518,14 @@ function showView(name, id) {
     shown = name;
     shownHash = hash;
     const tab = name === 'trip' || name === 'pack' ? 'trips' : name;
-    if (tab !== 'today') { view.tab = tab; saveView(); }
-    const now = nowTrip();
     for (const a of $('#tabs').children) {
       if (a.dataset.value === tab) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-      if (a.dataset.value === 'today') a.hidden = !now;
     }
-    $('#today-view').hidden = tab !== 'today';
-    $('#closet-view').hidden = tab !== 'closet';
-    $('#trips-view').hidden = tab !== 'trips';
+    for (const s of SECTIONS) $(`#${s}-view`).hidden = tab !== s;
     $('#trip-list-view').hidden = name !== 'trips';
     $('#trip').hidden = name !== 'trip';
     $('#pack-view').hidden = name !== 'pack';
-    openTrip = id ? trips.find((t) => t.id === id) : name === 'today' ? now : null;
+    openTrip = id ? trips.find((t) => t.id === id) : name === 'today' ? nowTrip() : null;
     title();
     const drawn = redraw();
     if (hash !== wasHash) {
@@ -538,24 +542,20 @@ function showView(name, id) {
     document.startViewTransition(swap).finished.finally(() => { delete document.documentElement.dataset.vt; });
   } else swap();
 }
-// The app's name, from the page (apps/wardrobe.html's title)
-const APP = document.querySelector('meta[name="apple-mobile-web-app-title"]').content;
-// The heading says where you are, and the way back up sits above it; on a phone both settle into
-// a bar at the top as you scroll
+// The heading says where you are (on Today, hello, with the date over it), and the way back up
+// sits in the bar at the top, beside the badge (kit.js, here())
+const hello = (d = new Date()) => `${d.getHours() >= 5 && d.getHours() < 12 ? 'Good morning' : d.getHours() >= 12 && d.getHours() < 17 ? 'Good afternoon' : 'Good evening'}, ${me?.name || 'you'}`;
 function title() {
   const t = openTrip, back = shown === 'trip' ? ['#trips', 'Trips'] : shown === 'pack' && t ? [`#trip/${t.id}`, t.name] : null;
-  const name = shown === 'today' && t ? t.name : shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : 'Closet';
-  $('#app-title').textContent = name;
-  document.title = `${name} · ${APP}`;
-  $('#app-kicker').hidden = !!back;
-  for (const a of [$('#app-back'), $('#mini-back')]) {
-    a.hidden = !back;
-    if (back) { a.href = back[0]; a.textContent = `‹ ${back[1]}`; }
-  }
-  $('#mini-title').textContent = name;
+  if (shown === 'today') return here({ title: hello(), over: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), bar: 'Today' });
+  const name = shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : shown === 'recipes' ? 'Recipes' : 'Closet';
+  here({ title: name, back });
 }
-$('#app-kicker').lastChild.textContent = ` · ${APP}`;
-new IntersectionObserver(([e]) => $('#mini-bar').classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0)).observe($('#app-title'));
+// only the sections this member sees, and no tab bar for just one
+function tabs() {
+  for (const a of $('#tabs').children) a.hidden = !can(a.dataset.value);
+  $('#tabs').hidden = sections.length < 2;
+}
 // the tab you're on, tapped again, goes back to its top
 $('#tabs').addEventListener('click', (e) => {
   const a = e.target.closest('a');
@@ -567,6 +567,7 @@ function redraw() {
   if (shown === 'trips') return drawTrips();
   if (shown === 'trip') return drawTrip();
   if (shown === 'pack') return drawPack();
+  if (shown === 'recipes') return null; // it draws itself (lib/recipes.js)
   return render();
 }
 
@@ -618,13 +619,16 @@ function wxSmall(w, cls) {
   box.setAttribute('aria-label', dayWords(w, 'Weather'));
   return box;
 }
-// a tap on any temperature switches °C and °F, everywhere, and it's remembered
-document.addEventListener('click', (e) => {
-  const t = e.target.closest?.('.t');
-  if (!t || (!t.matches('button') && t.closest('button, a'))) return; // inside a button that does something else
-  const u = switchUnits();
-  redraw();
-  toast(`Temperatures in °${u}. Tap one to switch back.`);
+// °F or °C, in Settings (the badge): every temperature at once, and it's remembered
+const unitsSeg = $('#settings-units');
+const paintUnits = () => { for (const b of unitsSeg.children) b.setAttribute('aria-pressed', b.dataset.value === units()); };
+paintUnits();
+unitsSeg.addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.value === units()) return;
+  setUnits(b.dataset.value);
+  paintUnits();
+  if (ready) redraw();
 });
 
 function drawTrips() {
@@ -636,24 +640,25 @@ function drawTrips() {
   for (const [name, ts] of groups) {
     if (groups.length > 1) box.append(el('h2', 'part-title', name));
     const ul = el('ul', 'trip-cards');
-    for (const t of ts) {
-      const [a, b] = span(t), li = el('li'), card = el('a', 'trip-card');
-      card.href = `#trip/${t.id}`;
-      const on = a && a <= today && today <= b;
-      const status = !a ? 'No dates yet' : on ? `On now · day ${daysBetween(a, today) + 1} of ${daysBetween(a, b) + 1}` : a > today ? cap(leaving(a) || `in ${daysBetween(today, a)} days`) : `${daysBetween(a, b) + 1} days`;
-      card.append(el('span', `trip-card__status${on ? ' is-on' : ''}`, status), el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : ''), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
-      // the outfits planned, as a row of small photos
-      const worn = [...new Set(t.days.flatMap((d) => d.items || []))].map((id) => list.find((x) => x.id === id)).filter(Boolean).slice(0, 5);
-      if (worn.length) { const row = el('span', 'trip-card__worn'); worn.forEach((it) => row.append(thumb(it, 'trip-card__thumb studio'))); card.append(row); }
-      card.append(el('span', 'trip-card__go', '›'));
-      card.lastChild.setAttribute('aria-hidden', 'true');
-      li.append(card);
-      ul.append(li);
-    }
+    for (const t of ts) { const li = el('li'); li.append(tripCard(t)); ul.append(li); }
     box.append(ul);
   }
   $('#trips-empty').hidden = trips.length > 0;
   $('#trips-empty').textContent = 'No trips yet. Start one here, or ask ChatGPT or Claude to plan one.';
+}
+// a trip as a card to tap: how far off it is, its name, dates and places, the outfits planned
+function tripCard(t) {
+  const [a, b] = span(t), today = isoToday(), card = el('a', 'trip-card');
+  card.href = `#trip/${t.id}`;
+  const on = a && a <= today && today <= b;
+  const status = !a ? 'No dates yet' : on ? `On now · day ${daysBetween(a, today) + 1} of ${daysBetween(a, b) + 1}` : a > today ? cap(leaving(a) || `in ${daysBetween(today, a)} days`) : `${daysBetween(a, b) + 1} days`;
+  card.append(el('span', `trip-card__status${on ? ' is-on' : ''}`, status), el('span', 'trip-card__name', t.name), el('span', 'trip-card__when', a ? `${fmtDay(a)} – ${fmtDay(b)}` : ''), el('span', 'trip-card__legs', t.legs.map((l) => l.place).join(' → ')));
+  // the outfits planned, as a row of small photos
+  const worn = [...new Set(t.days.flatMap((d) => d.items || []))].map((id) => list.find((x) => x.id === id)).filter(Boolean).slice(0, 5);
+  if (worn.length) { const row = el('span', 'trip-card__worn'); worn.forEach((it) => row.append(thumb(it, 'trip-card__thumb studio'))); card.append(row); }
+  card.append(el('span', 'trip-card__go', '›'));
+  card.lastChild.setAttribute('aria-hidden', 'true');
+  return card;
 }
 
 // An outfit laid flat: its photos on one shared ground, like a lookbook page, top to toe (a jacket
@@ -828,57 +833,61 @@ function advice(w, outfit, { hours = [], now = null, plan = null } = {}) {
   return out;
 }
 
-let dayOn = null, slide = ''; // the date the Today card shows (it steps through the trip), and which way it came in
+let dayOn = null, slide = ''; // the date Today shows (on a trip it steps through the days), and which way it came in
+// home, today and tomorrow, as a leg of its own: the weather where you are when you're not away
+const homeLeg = () => ({ place: HOME.place, lat: HOME.lat, lon: HOME.lon, from: isoToday(), to: addDays(isoToday(), 1) });
 async function drawToday() {
-  const t = openTrip, box = $('#today-view');
-  if (!t) return;
-  const [a, b] = span(t), today = isoToday(), underway = a <= today;
-  if (!dayOn || dayOn < a || dayOn > b) dayOn = underway ? today : a;
-  const date = dayOn, total = daysBetween(a, b) + 1;
-  const ahead = Array.from({ length: Math.min(5, daysBetween(date, b)) }, (_, i) => addDays(date, i + 1));
+  const t = openTrip, box = $('#today-view'), today = isoToday();
+  const [a, b] = t ? span(t) : [null, null], away = !!t && a <= today; // a trip that's on, or one coming within two weeks (nowTrip)
+  if (!away || !dayOn || dayOn < a || dayOn > b) dayOn = today;
+  const date = dayOn;
+  const ahead = away ? Array.from({ length: Math.min(5, daysBetween(date, b)) }, (_, i) => addDays(date, i + 1)) : [];
   // where you are now (for its clock and money): on a travel day, where you left until you've arrived
-  let hereLeg = underway ? legOn(t, today) : null;
+  let hereLeg = away ? legOn(t, today) : null;
   if (hereLeg && hereLeg.from === today && partsOf(t, 'trip_transport').some((g) => (g.date === today) && ['soon', 'on'].includes(journeyNow(g, t.legs).state))) hereLeg = t.legs[t.legs.indexOf(hereLeg) - 1] || hereLeg;
-  const [hereW, { w: lw, day: w }, ...wAhead] = await Promise.all([hereLeg ? legWeatherCached(hereLeg) : null, ...[date, ...ahead].map((d) => wxAt(t, d))]).then((r) => [r[0], r[1], ...r.slice(2).map((x) => x.day)]);
+  const wxFor = (d) => (away ? wxAt(t, d) : legWeatherCached(homeLeg()).then((w) => ({ w, day: w?.days.find((x) => x.date === d) || null })));
+  const [hereW, { w: lw, day: w }, ...wAhead] = await Promise.all([hereLeg ? legWeatherCached(hereLeg) : null, ...[date, ...ahead].map(wxFor)]).then((r) => [r[0], r[1], ...r.slice(2).map((x) => x.day)]);
   if (openTrip !== t || shown !== 'today' || dayOn !== date) return;
-  const planned = (d) => t.days.find((x) => x.date === d);
+  const planned = (d) => (away ? t.days.find((x) => x.date === d) : null);
   const wearing = (d) => (planned(d)?.items || []).map((id) => list.find((x) => x.id === id)).filter(Boolean);
+  const weekday = (d) => fmtDay(d, { weekday: 'long', month: 'long' }).split(',')[0];
 
-  // the trip, and where you are on it: a line in legs, the one you're on lit
-  const head = el('header', 'today__trip');
-  head.append(el('p', 'today__when', `${fmtDay(a)} – ${fmtDay(b)} · ${underway ? `day ${daysBetween(a, today) + 1} of ${total}` : leaving(a)}`));
-  const line = el('ol', 'legline');
-  line.setAttribute('aria-label', 'The trip, place by place');
-  t.legs.forEach((l, i) => {
-    const last = i === t.legs.length - 1, end = last ? l.to : t.legs[i + 1].from;
-    const now = underway && l.from <= today && (today < end || (last && today <= end));
-    const li = el('li', `legline__leg${underway && end <= today && !now ? ' is-past' : ''}${now ? ' is-now' : ''}`);
-    li.style.flexGrow = Math.max(1, daysBetween(l.from, end));
-    if (now) li.style.setProperty('--at', Math.min(1, daysBetween(l.from, today) / Math.max(1, daysBetween(l.from, end))));
-    li.append(el('span', 'legline__place', l.place));
-    if (now) li.append(el('span', 'legline__left', `${plural(daysBetween(today, end), 'day')} left`));
-    line.append(li);
-  });
-  head.append(line);
-  // home and away: the time here and at home, and what the money's worth
-  const away = homeAway(hereLeg, hereW?.timezone);
-  if (away) head.append(away);
-
-  // the next journey, when it's within two days (or under way): the thing to act on comes first
-  const goes = partsOf(t, 'trip_transport'), next1 = nextJourney(goes, t.legs);
+  // 1. the next journey, when it's within two days (or under way): the thing to act on comes first
+  const goes = t ? partsOf(t, 'trip_transport') : [], next1 = t && nextJourney(goes, t.legs);
   const journey = next1 ? journeyCard(next1, t.legs, { today: true }) : null;
 
-  // the day, like a morning card: where, the weather on its own sky, one word of warning, the
-  // outfit laid flat
-  const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`), panel = el('div', 'sky-panel'), top = el('div', 'today-card__top'), where = el('div');
-  slide = '';
-  card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : fmtDay(date, { weekday: 'long' })}`);
-  const dayNo = daysBetween(a, date) + 1;
-  where.append(el('p', 'today-card__kicker', `${date === today ? 'Today' : date === a && !underway ? 'First day' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]} · day ${dayNo}`),
-    el('h2', 'today-card__place', legOn(t, date)?.place || ''), el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
-  // now, as it is there: this hour's sky and temperature (today), or the day's
+  // 2. what you're wearing: the outfit laid flat, what the day holds, and a word when the weather
+  // and the outfit disagree. (Next: "Wore it", one tap, goes under the outfit; docs/roadmap.md.)
+  const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`);
+  card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : weekday(date)}`);
+  card.append(el('h2', 'part-title', date === today ? "What you're wearing" : `Planned for ${weekday(date)}`));
+  const outfit = wearing(date), plan = planned(date);
   const there = lw ? placeNow(lw.timezone) : null, isNow = date === today && there?.startsWith(date);
   const hours = lw?.hours || [], nowH = isNow ? hourNow(hours, there) : null;
+  if (plan?.items?.length) card.append(flatlay(plan.items));
+  else card.append(el('p', 'today-card__none', away ? 'Nothing planned to wear. Ask ChatGPT or Claude to plan it.' : 'Nothing planned for today.'));
+  if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
+  const acts = plan && activities(plan);
+  if (acts) card.append(acts);
+  if (plan?.note) card.append(el('p', 'today-card__note', plan.note));
+  const warn = advice(w, outfit, { hours, now: isNow ? there : null, plan });
+  if (warn.length) {
+    const box2 = el('div', 'advice');
+    box2.setAttribute('role', 'note');
+    const lines = el('div');
+    for (const l of warn) lines.append(el('p', 'today-card__advice', l));
+    box2.append(icon('umbrella', 'advice__icon'), lines);
+    card.append(box2);
+  }
+
+  // 3. the weather where you are (or will be that day), on its own sky
+  const wxCard = el('section', `today-card today-card--wx${slide ? ` slide-${slide}` : ''}`), panel = el('div', 'sky-panel'), top = el('div', 'today-card__top'), where = el('div');
+  slide = '';
+  const place = away ? legOn(t, date)?.place || '' : HOME.place;
+  wxCard.setAttribute('aria-label', `The weather in ${place}`);
+  where.append(el('p', 'today-card__kicker', `${date === today ? 'Today' : weekday(date)}${away ? ` · day ${daysBetween(a, date) + 1}` : ''}`), el('h2', 'today-card__place', place));
+  if (date !== today) where.append(el('p', 'today-card__date', fmtDay(date, { weekday: 'long' })));
+  // now, as it is there: this hour's sky and temperature (today), or the day's
   const m = mood(w, nowH, isNow ? there : null);
   panel.dataset.sky = m.sky;
   panel.dataset.time = m.time;
@@ -888,11 +897,9 @@ async function drawToday() {
   const wx = el('div', 'today-card__wx');
   if (w) {
     const cur = nowH ? { ...nowH, kind: 'forecast' } : w, sk = skyOf(cur, nowH ? nowH.day : m.time !== 'night'), big = nowH ? nowH.temp : w.hi;
-    const btn = el('button', 't today-card__temp');
-    btn.type = 'button';
-    btn.setAttribute('aria-label', `${temp(big)}${nowH ? ' now' : ' high'}${sk.word && w.kind !== 'typical' ? `, ${sk.word.toLowerCase()}` : ''}. Show in °${units() === 'F' ? 'C' : 'F'}`);
-    btn.append(skyIcon(cur, '', nowH ? nowH.day : m.time !== 'night'), temp(big));
-    wx.append(btn);
+    const now = el('p', 'today-card__temp');
+    now.append(skyIcon(cur, '', nowH ? nowH.day : m.time !== 'night'), temp(big));
+    wx.append(now);
     if (w.kind === 'typical') wx.append(el('span', 'today-card__typical', 'Typical, not a forecast'));
     else if (sk.word) wx.append(el('span', 'today-card__word', sk.word));
     const range = el('span', 'today-card__range');
@@ -904,7 +911,7 @@ async function drawToday() {
   panel.append(top);
   if (w) {
     panel.append(el('p', 'today-card__story', story(w, hours, isNow ? there : null)));
-    const strip = nowH ? hourStrip(hours, [w, wAhead[0]], there) : null;
+    const strip = nowH ? hourStrip(hours, [w, away ? wAhead[0] : lw.days.find((x) => x.date === addDays(date, 1))], there) : null;
     const small = facts(w, { strip: !!strip, now: isNow ? there : null });
     if (small.length) {
       const ul = el('ul', 'sky-facts');
@@ -913,73 +920,94 @@ async function drawToday() {
     }
     if (strip) panel.append(strip);
   }
-  card.append(panel);
-  const outfit = wearing(date), plan = planned(date), warn = advice(w, outfit, { hours, now: isNow ? there : null, plan });
-  if (warn.length) {
-    const box2 = el('div', 'advice');
-    box2.setAttribute('role', 'note');
-    const lines = el('div');
-    for (const l of warn) lines.append(el('p', 'today-card__advice', l));
-    box2.append(icon('umbrella', 'advice__icon'), lines);
-    card.append(box2);
+  wxCard.append(panel);
+
+  // on a trip, "Day before" and "Tomorrow" step through it, and so does a swipe across either card
+  if (away) {
+    const step = el('div', 'today-card__step');
+    const go = (d, text, dir) => {
+      const btn = el('button', 'link-btn', text);
+      btn.type = 'button';
+      btn.disabled = d < a || d > b;
+      btn.addEventListener('click', () => { dayOn = d; slide = dir; drawToday(); });
+      return btn;
+    };
+    step.append(go(addDays(date, -1), '‹ Day before', 'back'), go(addDays(date, 1), date === today ? 'Tomorrow ›' : 'Next day ›', 'on'));
+    card.append(step);
+    for (const c of [card, wxCard]) {
+      let x0 = null, y0 = 0;
+      c.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+      c.addEventListener('touchend', (e) => {
+        if (x0 == null || e.target.closest('.hours')) return;
+        const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+        x0 = null;
+        if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+        const btn = step.children[dx < 0 ? 1 : 0];
+        if (!btn.disabled) { buzz(); btn.click(); }
+      });
+    }
   }
-  if (plan?.items?.length) card.append(flatlay(plan.items));
-  if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
-  const acts = plan && activities(plan);
-  if (acts) card.append(acts);
-  if (!plan?.items?.length) card.append(el('p', 'today-card__none', 'Nothing planned to wear. Ask ChatGPT or Claude to plan it.'));
-  if (plan?.note) card.append(el('p', 'today-card__note', plan.note));
-  const step = el('div', 'today-card__step');
-  const go = (d, text, dir) => {
-    const btn = el('button', 'link-btn', text);
-    btn.type = 'button';
-    btn.disabled = d < a || d > b;
-    btn.addEventListener('click', () => { dayOn = d; slide = dir; drawToday(); });
-    return btn;
-  };
-  step.append(go(addDays(date, -1), '‹ Day before', 'back'), go(addDays(date, 1), date === today ? 'Tomorrow ›' : 'Next day ›', 'on'));
-  card.append(step);
-  // a swipe across the card steps a day, as the buttons do
-  let x0 = null, y0 = 0;
-  card.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
-  card.addEventListener('touchend', (e) => {
-    if (x0 == null) return;
-    const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
-    x0 = null;
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-    const btn = step.children[dx < 0 ? 1 : 0];
-    if (!btn.disabled) { buzz(); btn.click(); }
-  });
 
-  // the next few days, a tap away
-  const next = el('section', 'today__part'), nextHead = el('div', 'today__part-head');
-  const allDays = el('a', 'link-btn', 'All days ›');
-  allDays.href = `#trip/${t.id}`;
-  nextHead.append(el('h2', 'part-title', 'Next few days'), allDays);
-  const strip = el('ol', 'next-days');
-  ahead.forEach((d, i) => {
-    const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = planned(d)?.items || [];
-    btn.type = 'button';
-    const wxLine = dw ? wxSmall(dw, 'next-day__wx') : el('span', 'next-day__wx', '–');
-    btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), wxLine);
-    btn.append(on.length ? flatlay(on, { mini: true }) : el('span', 'next-day__none', 'Nothing planned'));
-    btn.addEventListener('click', () => { dayOn = d; slide = 'on'; drawToday(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); });
-    li.append(btn);
-    strip.append(li);
-  });
-  if (ahead.length) next.append(nextHead, strip);
-
-  // where you sleep that night, its address a tap from Maps
-  const bed = partsOf(t, 'trip_lodging').find((l) => l.check_in <= date && date < l.check_out);
-  const stay = bed ? stayCard(bed, { date, today: true, kicker: date === today ? (bed.check_in === date ? 'Tonight · check in today' : 'Tonight') : `${fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0]} night` }) : null;
-  if (stay) stay.classList.add('today__part');
+  // 4. the trip: where you are on it (a line in legs, the one you're on lit), or that it's coming
+  const side = [];
+  if (t) {
+    const head = el('section', 'today__trip today__part'), name = el('a', 'today__trip-name', t.name);
+    name.href = `#trip/${t.id}`;
+    head.append(el('h2', 'part-title', away ? 'Your trip' : 'Coming up'), name, el('p', 'today__when', `${fmtDay(a)} – ${fmtDay(b)} · ${away ? `day ${daysBetween(a, today) + 1} of ${daysBetween(a, b) + 1}` : leaving(a)}`));
+    const line = el('ol', 'legline');
+    line.setAttribute('aria-label', 'The trip, place by place');
+    t.legs.forEach((l, i) => {
+      const last = i === t.legs.length - 1, end = last ? l.to : t.legs[i + 1].from;
+      const now = away && l.from <= today && (today < end || (last && today <= end));
+      const li = el('li', `legline__leg${away && end <= today && !now ? ' is-past' : ''}${now ? ' is-now' : ''}`);
+      li.style.flexGrow = Math.max(1, daysBetween(l.from, end));
+      if (now) li.style.setProperty('--at', Math.min(1, daysBetween(l.from, today) / Math.max(1, daysBetween(l.from, end))));
+      li.append(el('span', 'legline__place', l.place));
+      if (now) li.append(el('span', 'legline__left', `${plural(daysBetween(today, end), 'day')} left`));
+      line.append(li);
+    });
+    head.append(line);
+    // home and away: the time here and at home, and what the money's worth
+    const far = homeAway(hereLeg, hereW?.timezone);
+    if (far) head.append(far);
+    side.push(head);
+    // where you sleep that night, its address a tap from Maps
+    const bed = partsOf(t, 'trip_lodging').find((l) => l.check_in <= date && date < l.check_out);
+    const stay = bed ? stayCard(bed, { date, today: true, kicker: date === today ? (bed.check_in === date ? 'Tonight · check in today' : 'Tonight') : `${weekday(date)} night` }) : null;
+    if (stay) { stay.classList.add('today__part'); side.push(stay); }
+    // the next few days, a tap away
+    if (ahead.length) {
+      const next = el('section', 'today__part'), nextHead = el('div', 'today__part-head');
+      const allDays = el('a', 'link-btn', 'All days ›');
+      allDays.href = `#trip/${t.id}`;
+      nextHead.append(el('h2', 'part-title', 'Next few days'), allDays);
+      const strip = el('ol', 'next-days');
+      ahead.forEach((d, i) => {
+        const li = el('li'), btn = el('button', 'next-day'), dw = wAhead[i], on = planned(d)?.items || [];
+        btn.type = 'button';
+        btn.append(el('span', 'next-day__date', fmtDay(d, { weekday: 'short' })), dw ? wxSmall(dw, 'next-day__wx') : el('span', 'next-day__wx', '–'));
+        btn.append(on.length ? flatlay(on, { mini: true }) : el('span', 'next-day__none', 'Nothing planned'));
+        btn.addEventListener('click', () => { dayOn = d; slide = 'on'; drawToday(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); });
+        li.append(btn);
+        strip.append(li);
+      });
+      next.append(nextHead, strip);
+      side.push(next);
+    }
+    // the packing, and the way to it
+    const pack = el('section', 'today__part');
+    pack.append(packCard(t));
+    side.push(pack);
+  } else {
+    // no trip on or close: the next one, if there is one, a tap away
+    const later = trips.filter((x) => span(x)[0] > today).sort((x, y) => span(x)[0].localeCompare(span(y)[0]))[0];
+    if (later) { const part2 = el('section', 'today__part'); part2.append(el('h2', 'part-title', 'Next trip'), tripCard(later)); side.push(part2); }
+  }
+  const main = el('div', 'today__main'), aside = el('div', 'today__side');
+  main.append(...(journey ? [journey] : []), card, wxCard);
   if (journey) journey.classList.add('today__part');
-
-  // the packing, and the way to it
-  const pack = el('section', 'today__part');
-  pack.append(packCard(t));
-
-  box.replaceChildren(head, ...(journey ? [journey] : []), card, ...(stay ? [stay] : []), ...(ahead.length ? [next] : []), pack);
+  aside.append(...side);
+  box.replaceChildren(main, ...(side.length ? [aside] : []));
 }
 
 // ---------- The Packing Board: everyone's things, by category, a tap to move each one on ----------
@@ -1319,8 +1347,10 @@ async function keepPhotos() {
 const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 2 ? 'just now' : m < 60 ? `${m} minutes ago` : m < 48 * 60 ? `${Math.round(m / 60)} hours ago` : `${Math.round(m / 1440)} days ago`; };
 
 // ---------- Loading ----------
+const mine = () => can('today') || can('closet') || can('trips'); // the wardrobe and trips, not only recipes
 async function load() {
   let got = null, gotTrips = null, gotParts = null;
+  if (!mine()) { ready = true; route(); return; }
   if (navigator.onLine && (await db.auth.getSession()).data.session) {
     const waiting = Object.keys(queue).length;
     await sendQueue(); // what was changed offline goes first, so what comes back has it
@@ -1363,11 +1393,34 @@ async function load() {
   ready = true;
   route();
 }
-addEventListener('online', () => { if (uid) load(); });
-start(async (user) => { uid = user.id; await load(); }, () => {
-  list = []; trips = []; parts = noParts(); openTrip = null; uid = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+const loadRecipes = () => (can('recipes') ? recipes.load({ offline: offline || !navigator.onLine }) : null);
+addEventListener('online', () => { if (uid) { load(); loadRecipes(); } });
+start(async (user) => {
+  uid = user.id;
+  me = user;
+  sections = user.sections ? SECTIONS.filter((x) => user.sections.includes(x)) : SECTIONS;
+  if (!sections.length) sections = ['recipes'];
+  tabs();
+  unitsSeg.closest('.settings__part').hidden = !mine(); // no weather, no °F or °C
+  await load();
+  loadRecipes();
+}, () => {
+  list = []; trips = []; parts = noParts(); openTrip = null; uid = null; me = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+  recipes.clear();
 }, { offline: true });
-fresh(load);
+fresh(() => { load(); loadRecipes(); });
+
+// Pull to refresh, at the top of any section: the data again, and the weather (it's what changes
+// on Today and a trip when nothing else has); a toast says which
+pull(async () => {
+  if (shown === 'recipes') { await recipes.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
+  const before = JSON.stringify([list, trips, parts]), weathered = ['today', 'trip'].includes(shown);
+  weatherCache.clear();
+  await load();
+  await redraw();
+  if (offline) return "You're offline. This is the copy on your phone.";
+  return weathered && before === JSON.stringify([list, trips, parts]) ? 'Weather updated' : 'Updated';
+});
 
 // The service worker that answers from the copy when there's no connection (apps/offline.js)
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/apps/offline.js', { scope: '/apps/' }).catch(() => {});

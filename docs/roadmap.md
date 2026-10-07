@@ -49,8 +49,8 @@ rather than leaving it in a chat.
    - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
    - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
-   - polish still open: repack before each move, pull to refresh with "weather updated", a journal
-     line per day, smarter search, a phone test checklist.
+   - polish still open: repack before each move, a journal line per day, smarter search, a phone
+     test checklist, and the recipes kept on the phone for opening with no connection.
 
 1. **Read bottles on the planet.** Approved bottles (`bottles.approved`) wash up at the waterline
    for the next visitor to open and read, with the same unrolling letter as writing one
@@ -92,6 +92,14 @@ rather than leaving it in a chat.
   read; it opens a PR here and merges it once the site's checks pass.
 
 ## Done lately
+
+- Oct 2026: SJPJr as one app, tailored to whoever's signed in: its own shell (no site nav or
+  footer; the badge opens Settings: theme, °F or °C, who's signed in, Sign out, the site), Today
+  always first with a greeting by name and the next thing first (the journey, the outfit, the
+  weather where you are, at home too), Recipes as a tab (`/apps` and `/apps/recipes` lead in),
+  tabs per member (Steve all four, Lexi Recipes; `members.name` and `sections`, read by `me()`),
+  the last email remembered at sign-in, pull to refresh, controls that don't select as text, and
+  sessions that last months, as code.
 
 - Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed
   code there, journeys as boarding cards (countdown, copy the reference, Add to Google Calendar), stays

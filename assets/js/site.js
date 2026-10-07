@@ -12,6 +12,9 @@
     if (btn) btn.setAttribute('aria-label', 'Change theme (current: ' + (t || 'auto') + ')');
   }
 
+  // The private apps' settings sheet picks one by name (kit.js); null is auto
+  window.siteTheme = { list: THEMES, get: function () { return root.dataset.theme || null; }, set: setTheme };
+
   if (btn) {
     btn.addEventListener('click', function () {
       var i = THEMES.indexOf(root.dataset.theme || null);
