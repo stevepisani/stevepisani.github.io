@@ -1,5 +1,5 @@
 // Recipes, a section of SJPJr (the Recipes tab; its markup is _includes/recipes.html, in
-// apps/wardrobe.html): the recipes we're cooking through, each with a photo, a rating out of 10,
+// apps/index.html): the recipes we're cooking through, each with a photo, a rating out of 10,
 // notes and the day it was cooked. Table public.recipes, shared by the members who see it.
 // wardrobe.js mounts it: load() when the tab is there for whoever signed in, clear() when they
 // sign out. (It was its own page, /apps/recipes, until Oct 2026; that address leads here.)

@@ -1,7 +1,7 @@
 # The private apps (`/apps`)
 
 Small tools for life at home, on the site but only for members: Steve and Lexi today. Since Oct
-2026 they're one app, **SJPJr** (`/apps/wardrobe`, installed full screen on Steve's iPhone), in
+2026 they're one app, **SJPJr** (`/apps`, installed full screen on Steve's iPhone), in
 sections: Today, Closet, Trips and Recipes. Each member sees the sections that are theirs (Steve
 all four, Lexi Recipes). One sign-in, one look, one small kit, so a new section is a table, some
 markup and a module, and nothing else.
@@ -12,7 +12,7 @@ markup and a module, and nothing else.
 |---|---|
 | `_data/apps.yml` | the app's home-screen name and description, for its manifest (one entry: SJPJr) |
 | `_layouts/app.html` | the shell ("The shell" below): its own document, not the site's (no site nav, no footer): the bar on top with the badge, the heading, the sign-in form, the settings sheet, the pull-to-refresh ring, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear), `site.js` (the themes) and the script named by `app:` |
-| `apps/index.html`, `apps/recipes.html` | only redirect: `/apps` to SJPJr, `/apps/recipes` to its Recipes tab (`recipe_tracker/` leads to the second) |
+| `apps/wardrobe.html`, `apps/recipes.html` | only redirect: `/apps/wardrobe` (SJPJr's address until Oct 2026) to SJPJr at `/apps`, its hash kept; `/apps/recipes` to its Recipes tab (`recipe_tracker/` leads to the second) |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; the user comes with `name` and `sections` from `me()`; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `here({ title, over, bar, back })` (where you are: the heading, the line over it, the bar's title, the way back up), the settings sheet (wired on load), `pull(refresh)` (pull to refresh), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
 | `assets/js/apps/lib/recipes.js` | Recipes, a section SJPJr mounts (`load()`, `clear()`); its markup is `_includes/recipes.html`, ids starting `recipe-` |
@@ -30,7 +30,7 @@ home-screen app: iOS gives it its own storage, and the emailed link opens in Saf
 sign in Safari, not the app. Either works once, within the hour. The last email sent to on that
 phone is kept (`localStorage` `apps-email`) and filled in next time, with "Welcome back" over it,
 so coming back is one tap and the code. The session is kept in the browser for the whole site, and
-the site's nav shows "Apps" (to `/apps/wardrobe`) to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
+the site's nav shows "Apps" (to `/apps`) to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
 site build (`docs/backend.md`). Who's a member is the `members` table; every table's policy asks
 `is_member()`, and the page asks it too, only to decide what to show. The pages are `noindex`.
 
@@ -90,8 +90,8 @@ Resume…), no footer, no "members only" line.
 On an iPhone each app can be added to the Home Screen and opens full screen, with no Safari bars:
 
 - **The manifest** (`apps/wardrobe.webmanifest`, from `_includes/app-manifest.json`): the app's
-  name, "SJPJr" (its address stays `/apps/wardrobe`, so nothing installed breaks), `start_url` the
-  app itself (no hash, so it opens on Today), `scope` `/apps/`,
+  name, "SJPJr", `start_url` the
+  app itself (`/apps/`; it was `/apps/wardrobe` until Oct 2026, which forwards, so an older install still opens it) (no hash, so it opens on Today), `scope` `/apps/`,
   `display: standalone`, the light theme's `--bg` as its colours, icons at 192 and 512 (the 512 also
   maskable). `head.html` links it only on `layout: app` pages that have one, with
   `apple-mobile-web-app-capable` (and `mobile-web-app-capable`), the status bar `black-translucent`
@@ -117,7 +117,7 @@ On an iPhone each app can be added to the Home Screen and opens full screen, wit
 
 ## Adding a section (or an app)
 
-A new section of SJPJr is a table (below), its markup in `apps/wardrobe.html` (an include, like
+A new section of SJPJr is a table (below), its markup in `apps/index.html` (an include, like
 `_includes/recipes.html`), a module in `lib/` that `wardrobe.js` mounts, a tab, its name in
 `SECTIONS` and in the `members_sections_known` check, and the members who see it. A separate app
 is what follows: a page with `layout: app` gets the same shell.
@@ -228,7 +228,7 @@ offers the library too). The old page could also fetch an NYT Cooking collection
 dropped (third-party proxies, and no way to test it). If it's missed, the way to do it is an edge
 function.
 
-## The wardrobe (`/apps/wardrobe`: Today, the Closet and Trips)
+## The wardrobe (`/apps`: Today, the Closet and Trips)
 
 Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned by `auth.uid()`;
 photos under `photos/wardrobe/<user id>/`). ChatGPT reads and edits the same rows through the
@@ -753,7 +753,7 @@ sent.
   sources drop their dates, the same photo link is sent once, and a trip names each garment once
   (`trip.garments`) with its days and packing pointing at it by id, and its legs' weather as a
   summary. A trip with twenty planned days of five garments went from about 25 KB to 11 KB.
-  Results give Steve links into the app instead: `stevenpisani.com/apps/wardrobe#item/<id>`,
+  Results give Steve links into the app instead: `stevenpisani.com/apps/#item/<id>`,
   `#trip/<id>`, `#closet`.
 - **Transport checks** (MCP 2025-11-25, in `index.ts`): a request from a browser page on another
   site (an `Origin` that isn't ChatGPT's, OpenAI's, Claude's, Anthropic's or this site's) gets a

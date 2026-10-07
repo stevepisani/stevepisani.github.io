@@ -25,7 +25,7 @@ export const temp = (c) => (c == null ? '–' : `${toUnit(c)}°`);
 export const tempEl = (c, cls = '') => el('span', `t${cls ? ` ${cls}` : ''}`, temp(c));
 export const speed = (kmh) => (unit === 'F' ? `${Math.round(kmh / 1.609)} mph` : `${Math.round(kmh)} km/h`);
 
-// ---------- What the sky is: a word and a drawing (apps/wardrobe.html's sprite) ----------
+// ---------- What the sky is: a word and a drawing (apps/index.html's sprite) ----------
 const SNOW = new Set([71, 73, 75, 77, 85, 86]), FREEZING = new Set([56, 57, 66, 67]);
 function iconOf(code, day) {
   if (code == null) return null;

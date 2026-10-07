@@ -5,7 +5,7 @@
 // x-mcp-public-host so the server gives out this address (RFC 9728's resource must be the URL
 // the app used). Someone opening the address in a browser is sent to the app instead.
 const SUPABASE = "__SUPABASE_URL__"; // from _config.yml, filled in at deploy
-const APP = "https://stevenpisani.com/apps/wardrobe";
+const APP = "https://stevenpisani.com/apps/";
 
 export default {
   async fetch(request) {
