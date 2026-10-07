@@ -145,12 +145,26 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
   step('menu: picked up, ordered, served, put down');
 
-  // the robot makes a drink, skipped to the end
-  await page.evaluate(() => window.__world.make(0));
-  await until(page, () => window.__world.making);
+  // the chalkboard: tap it and you lean in on it; tap a name and its recipe is chalked on a card;
+  // Esc puts the card away; "Make me one" turns you to the robot, which makes it (skipped to the end)
+  await tap(await onScreen('drinks'));
+  await until(page, () => window.__world.board.on && !document.getElementById('board-back').hidden);
+  await page.waitForTimeout(1500); // a frame or two at the board's view
+  const nameAt = () => page.evaluate(() => { for (let y = 40; y < innerHeight; y += 5) for (let x = 10; x < innerWidth; x += 10) if (window.__world.board.rowAt(x, y) === 0) return [x, y]; return null; });
+  const name = await nameAt();
+  if (!name) throw new Error('chalkboard: no drink name on screen after leaning in');
+  await tap(name);
+  await until(page, () => !document.getElementById('board-card').hidden && window.__world.board.picked === 0);
+  await shot('chalkboard');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('board-card').hidden && window.__world.board.on);
+  await tap(name);
+  await until(page, () => !document.getElementById('board-card').hidden);
+  await page.click('#board-make');
+  await until(page, () => window.__world.making && !window.__world.board.on && document.querySelectorAll('#making-build li').length > 0);
   await page.keyboard.press('Escape');
   await until(page, () => !window.__world.making, null, 60000);
-  step('the robot made a drink');
+  step('chalkboard: leaned in, read a recipe, the robot made it');
 
   // ask the bartender: your question shows in the transcript and, with every request outside the
   // site refused here, the robot says the bar's closed
@@ -175,26 +189,35 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk');
   step('campfire: sat, ate one, left');
 
-  // the hammock: lie in it, the reading list, get up
+  // the hammock: lie in it, the stars, the reading list, get up
   await page.evaluate(() => window.__world.lieInHammock());
   await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
   await shot('hammock');
-  // the book sky: the stars gather once the list closes; lean in on a shelf (the view narrows, its titles come up, the strip names it),
-  // step to the next shelf, open a book and step to the next one; Esc puts the card away, Esc
-  // again leans out; Back leans out too
-  await until(page, () => window.__world.stars > 0 && !document.getElementById('panel').hidden, null, 60000); // the reading list opens out of the book
+  // the book sky: lying back you look up and the stars gather into their shelves (the reading
+  // list is a button away, and closing it brings you back to them); lean in on a shelf (the view
+  // narrows, its titles come up, the strip names it, its newest book's card opens), step to the
+  // next shelf, step through its books; Esc puts the card away, Esc again leans out; Back leans out too
+  await until(page, () => window.__world.stars > 0, null, 60000);
+  if (!(await page.isHidden('#panel'))) throw new Error('lying back opened the reading list: the stars come first');
+  await until(page, () => window.__world.sky.settled, null, 60000);
+  await page.click('#hammock-read');
+  await until(page, () => !document.getElementById('panel').hidden, null, 60000);
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
-  await until(page, () => window.__world.sky.settled, null, 60000); // the loose stars gather into their shelves once the list closes
   const fov0 = await page.evaluate(() => window.__world.camera.fov);
   await page.evaluate(() => window.__world.zoom('science-fiction'));
   await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
   if (await page.isHidden('#sky-shelf') || !(await page.textContent('#sky-name')).includes('Science Fiction')) throw new Error("leaning in on a shelf didn't show its name");
+  await until(page, () => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'science-fiction'); return W.starCard === r.books[0].book.title; }, null, 60000); // its newest book, without hunting for it
   await shot('shelf');
+  // a title on screen is a tap target for its book
+  const label = await page.evaluate(() => { const el = [...document.querySelectorAll('.sky-label:not([hidden]):not(.is-open)')][0]; if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.left + 8, y: b.top + b.height / 2, title: el.textContent }; });
+  if (!label) throw new Error('leaned in, no other titles showed');
+  await tap([label.x, label.y]);
+  await until(page, (t) => window.__world.starCard === t, label.title);
   await page.evaluate(() => window.__world.stepShelf(1));
   await until(page, () => window.__world.zoomed === 'fiction');
-  await page.evaluate(() => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'fiction'); W.openStar(W.sky.books.indexOf(r.books[0])); });
-  if (await page.isHidden('#star-card')) throw new Error("a star's card didn't open");
+  await until(page, () => !document.getElementById('star-card').hidden, null, 60000);
   if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
   const first = await page.textContent('#star-title');
   await page.click('#star-next');
@@ -209,9 +232,57 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.zoomed === 'fiction' && location.hash === '#sky');
   await page.goBack();
   await until(page, () => !window.__world.zoomed && document.getElementById('sky-shelf').hidden);
-  await page.evaluate(() => window.__world.getOutOfHammock());
+  await page.goBack(); // and Back again gets you up
   await expectState(page, 'walk');
   step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
+
+  // the telescope: bend to the eyepiece and the view narrows onto what it's pointed at, a card
+  // says what; › swings it to the next; the launch panel is a button away; Esc steps back
+  await page.evaluate(() => window.__world.scope.go());
+  await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
+  const firstSight = await page.evaluate(() => window.__world.scope.target);
+  if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
+  await shot('telescope');
+  if (await page.evaluate(() => window.__world.scope.count) > 1) {
+    await page.click('#scope-next');
+    await until(page, (f) => window.__world.scope.target !== f, firstSight);
+  }
+  if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
+  await page.click('#scope-more');
+  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch');
+  await page.click('#panel-close');
+  await until(page, () => document.getElementById('panel').hidden);
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
+  // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
+  // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in
+  // daylight (the full moon's picture); Esc goes back to the whole moon, then Back steps back
+  const picture = readFileSync(join(root, 'assets/images/saturn-v-800.webp'));
+  await page.route(/functions\/v1\/sky$/, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/sky.json', import.meta.url)) }));
+  await page.route(/^https:\/\/(svs\.gsfc\.nasa\.gov|soho\.nascom\.nasa\.gov)\//, (route) => route.fulfill({ contentType: 'image/webp', body: picture }));
+  const live = await page.evaluate(() => window.__world.scope.targets.includes('moon'));
+  if (live) {
+    await page.evaluate(() => window.__world.scope.go());
+    await until(page, () => window.__world.scope.live && window.__world.scope.k === 1 && +document.getElementById('eyepiece-live').style.opacity > 0.9, null, 120000);
+    if (await page.isHidden('#scope-live')) throw new Error("the card doesn't say the moon is live");
+    const rings = await page.$$('.eyepiece__mark:not([hidden])');
+    if (!rings.length) throw new Error('no landing sites on the moon');
+    await shot('telescope-live');
+    const fovMoon = await page.evaluate(() => window.__world.camera.fov);
+    const ring = await rings[0].boundingBox();
+    await tap([ring.x + ring.width / 2, ring.y + ring.height / 2]); // where it is (it's laid out again every frame)
+    await until(page, (f) => window.__world.scope.site >= 0 && window.__world.camera.fov < f / 2, fovMoon, 60000);
+    if (!/^Apollo/.test(await page.textContent('#scope-name'))) throw new Error("a landing site's card doesn't name it");
+    if (!/full moon/.test(await page.textContent('#scope-note'))) throw new Error('a landing site in the dark should be shown at full moon');
+    await shot('landing-site');
+    await page.keyboard.press('Escape');
+    await until(page, () => window.__world.scope.site === -1 && window.__world.state === 'scope');
+    await page.goBack(); // Back steps back from the telescope
+    await expectState(page, 'walk');
+  }
+  await page.unroute(/functions\/v1\/sky$/);
+  step(`telescope: looked through it at ${firstSight.toLowerCase()}${live ? ', then the real moon and a landing site' : ''}, stepped back`);
 
   // skip a stone
   await page.evaluate(() => window.__world.goToShore());

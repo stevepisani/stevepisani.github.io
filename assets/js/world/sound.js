@@ -247,6 +247,28 @@ export function createSound({ scene, camera, spots }) {
       o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.3);
       burst(inputs.loose, t, { type: 'lowpass', hz: 1400, dur: 0.3 + 0.2 * k, v: 0.15 + 0.25 * k });
     },
+    ratchet(seconds = 0.8) { // the telescope's gears as it swings round: a quick run of brass clicks, slowing at the end
+      const t = ctx.currentTime;
+      for (let s = 0, n = 0; s < seconds; n++) {
+        burst(inputs.everywhere, t + s, { type: 'bandpass', hz: 3400 - (n % 2) * 500, q: 5, dur: 0.012, v: 0.07 });
+        s += 0.045 + 0.06 * (s / seconds) ** 2;
+      }
+    },
+    tick() { // a soft brass click: the telescope settling on a landing site
+      burst(inputs.everywhere, ctx.currentTime, { type: 'bandpass', hz: 2600, q: 6, dur: 0.02, v: 0.12 });
+    },
+    chalk() { // a piece of chalk tapping the board, twice
+      const t = ctx.currentTime;
+      burst(inputs.everywhere, t, { type: 'bandpass', hz: 1500, q: 2, dur: 0.025, v: 0.14 });
+      burst(inputs.everywhere, t + 0.07, { type: 'bandpass', hz: 1800, q: 2, dur: 0.02, v: 0.09 });
+    },
+    page() { // a page turning: a soft rising brush of paper
+      const t = ctx.currentTime, s = noiseSource(noiseWhite, false), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      f.type = 'bandpass'; f.Q.value = 0.9;
+      f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(3200, t + 0.22);
+      env(g, t, 0.09, 0.05, 0.25);
+      s.connect(f).connect(g).connect(inputs.everywhere); s.start(t); s.stop(t + 0.32);
+    },
     creak() { // rope taking weight round a palm
       const t = ctx.currentTime;
       for (let k = 0; k < 2; k++) {
@@ -284,7 +306,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,

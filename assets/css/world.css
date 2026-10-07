@@ -231,13 +231,21 @@
 .making[hidden] { display: none; }
 .making__count { margin: 0 0 4px; font: 600 .72rem/1.3 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: rgb(255 255 255 / .7); }
 .making__text { margin: 0; font: 600 1.05rem/1.35 var(--font-body); text-wrap: balance; }
+/* the recipe while it's made: each pour lights up as it goes in, then ticks off */
+.making__build { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin: 10px 0 0; padding: 0; list-style: none; font: 500 .78rem/1.3 var(--font-body); }
+.making__build li { padding: 3px 9px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .14); color: rgb(255 255 255 / .55); transition: color .3s, border-color .3s, background .3s; }
+.making__build li.is-now { color: #fff; border-color: var(--accent); background: rgb(255 255 255 / .08); }
+.making__build li.is-done { color: rgb(255 255 255 / .85); }
+.making__build li.is-done::before { content: "✓ "; color: var(--accent); }
 .making__dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .making__dots li { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .25); transition: background .3s; }
 .making__dots li.is-done { background: var(--accent); }
 .camp-eat.is-burning { border-color: var(--coral); }
-/* above the bottom buttons (the fire's, the hammock's, the shore's, and a carried thing's) */
+/* above the bottom buttons (the fire's, the hammock's, the shore's, a carried thing's, the chalkboard's) */
 .world[data-state="camp"] .hint, .world[data-state="hammock"] .hint, .world[data-state="shore"] .hint,
-.world:has(#carry-throw:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
+.world:has(#carry-throw:not([hidden])) .hint, .world:has(#board-back:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
+/* leaned in on a shelf of the book sky, or at the eyepiece, the bottom is taken (a strip, a card): the hint goes up top */
+.world:has(#sky-shelf:not([hidden])) .hint, .world[data-state="scope"] .hint { bottom: auto; top: 84px; }
 
 /* ---------- Content panel ---------- */
 .panel { position: absolute; z-index: 5; top: 76px; right: 16px; bottom: 16px; width: min(460px, calc(100vw - 32px)); overflow-y: auto; overscroll-behavior: contain;
@@ -323,10 +331,12 @@
 .star-card .book__sample { background: transparent; color: #eef0fa; border-color: rgb(143 162 255 / .45); }
 .star-card .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .star-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
-/* on wide screens, lower left: clear of the book in your hands and the middle of the sky */
 .star-card__steps { position: absolute; right: 4px; bottom: 4px; display: flex; }
 .star-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.5rem; cursor: pointer; }
 .star-card__steps button:hover { color: #fff; }
+.star-card__steps { align-items: center; }
+.star-card__pos { font: .72rem var(--font-mono); color: #9aa1c4; white-space: nowrap; }
+.star-card__pos:empty { display: none; }
 .star-card__steps button[hidden] { display: none; }
 /* leaned in on a shelf of the book sky: its name, a step either way, and the way back out */
 .sky-shelf {
@@ -349,3 +359,85 @@
 .sky-label.is-open { color: #fff; font-weight: 600; }
 @media (min-width: 901px) { .star-card { left: 16px; translate: 0 0; } }
 @media (max-width: 600px) { .star-card { grid-template-columns: 72px 1fr; bottom: 76px; } .sky-shelf { bottom: 76px; } }
+/* leaned in on a shelf, the book's card sits above the shelf's strip */
+.world:has(#sky-shelf:not([hidden])) .star-card { bottom: 136px; }
+@media (max-width: 600px) { .world:has(#sky-shelf:not([hidden])) .star-card { bottom: 128px; } }
+
+/* ---------- Leaning in on the chalkboard: a drink's recipe, chalked on a card ----------
+   Phones: a sheet along the bottom, the board above it. Wide screens: to the right of the board. */
+.board-card {
+  position: absolute; z-index: 3; left: 16px; right: 16px; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+  max-height: calc(50dvh - 60px); overflow-y: auto; overscroll-behavior: contain; margin: 0; padding: 16px 18px 12px;
+  border-radius: 6px; border: 8px solid #7a5230; background: #1d2a22; color: #f7f3e8;
+  box-shadow: 0 12px 34px rgb(0 0 0 / .5), inset 0 0 40px rgb(255 255 255 / .04);
+}
+.board-card[hidden] { display: none; }
+@media (min-width: 761px) { .board-card { left: auto; right: max(24px, 5vw); top: 96px; bottom: auto; width: min(400px, 40vw); max-height: calc(100dvh - 200px); } }
+.board-card__name { margin: 0 44px 2px 0; font: 800 1.5rem/1.15 var(--font-display); color: #f7f3e8; }
+.board-card__meta { margin: 0 0 10px; font: .75rem/1.45 var(--font-mono); color: rgb(247 243 232 / .62); }
+.board-card__build { margin: 0 0 10px; padding: 0; list-style: none; font: 500 1rem/1.5 var(--font-body); }
+.board-card__build li::before { content: "✶ "; color: #ffd36e; font-size: .8em; }
+.board-card__method { margin: 0 0 6px; font: .92rem/1.45 var(--font-body); color: rgb(247 243 232 / .85); }
+.board-card__note { margin: 0 0 6px; font: italic .88rem/1.45 var(--font-display); color: rgb(247 243 232 / .7); }
+.board-card__note:empty { display: none; }
+.board-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.board-card__make { min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid #ffd36e; background: #ffd36e; color: #1d2a22; font: 700 .95rem var(--font-body); cursor: pointer; }
+.board-card__make:hover { background: #ffe39a; }
+.board-card__steps { display: flex; }
+.board-card__steps button, .board-card__close { width: 44px; height: 44px; border: 0; background: none; color: rgb(247 243 232 / .7); font-size: 1.5rem; cursor: pointer; }
+.board-card__steps button:hover, .board-card__close:hover { color: #fff; }
+.board-card__close { position: absolute; top: 4px; right: 4px; font-size: 1.6rem; }
+
+/* ---------- Looking through the telescope: the eyepiece's round field, ringed in brass ----------
+   The view narrows onto what it's pointed at (main.js); this blacks out all but a circle in the
+   middle, and fades in with the narrowing (--k). A card under it says what you're looking at. */
+.eyepiece { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: var(--k, 0); --r: min(40vmin, 44vw);
+  background:
+    /* the glass: a soft fall-off toward the edge of the field, and a faint colour fringe right at it */
+    radial-gradient(circle at 50% 50%, transparent calc(var(--r) * .62), rgb(0 0 0 / .32) calc(var(--r) - 4px), rgb(110 150 255 / .28) calc(var(--r) - 2.5px), rgb(255 160 80 / .3) calc(var(--r) - 1px), transparent var(--r)),
+    /* the brass ring, and the dark tube round it */
+    radial-gradient(circle at 50% 50%, transparent calc(var(--r) - 1px), rgb(201 166 107 / .95) var(--r), #6b4a22 calc(var(--r) + 6px), #120b05 calc(var(--r) + 14px), #000 calc(var(--r) + 40px)); }
+/* the engraving on the brass ring: whose it is and its power, along the top */
+.eyepiece__ring { position: absolute; left: 50%; top: 50%; width: calc(2 * var(--r) + 60px); height: calc(2 * var(--r) + 60px); translate: -50% -50%; overflow: visible; }
+.eyepiece__ring text { font: 600 5px var(--font-mono); letter-spacing: 1.4px; fill: rgb(216 184 120 / .75); }
+/* the real moon or sun, laid over the drawn one (eyepiece.js); under the ring, over the canvas */
+.eyepiece__live { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .6s; overflow: hidden; }
+.eyepiece__live.is-sun { background: #000; } /* through the solar filter, the sky round the sun is black */
+.eyepiece__disc { position: absolute; left: 0; top: 0; border-radius: 50%; overflow: hidden; }
+.eyepiece__disc img { position: absolute; left: 0; top: 0; max-width: none; display: block; animation: seeing 2.6s ease-in-out infinite; }
+/* the air between: the faintest shimmer, like a real night's seeing */
+@keyframes seeing { 0%, 100% { translate: 0 0; } 25% { translate: .35px -.25px; } 50% { translate: -.2px .3px; } 75% { translate: .25px .15px; } }
+/* where people landed: a ring you can tap (44 px), dimmer where it's night on the moon */
+.eyepiece__mark { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto; }
+.eyepiece__mark::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 2px solid #ffd36e; box-shadow: 0 0 0 1.5px rgb(0 0 0 / .75), inset 0 0 0 1px rgb(0 0 0 / .5); }
+.eyepiece__mark.is-dark::before { border-color: rgb(255 211 110 / .8); border-style: dashed; }
+.eyepiece__mark.is-open::before { inset: 12px; border-width: 2px; border-color: #ffd36e; }
+.eyepiece__mark[hidden] { display: none; }
+.eyepiece__label { position: absolute; left: 0; top: 0; padding: 1px 7px; border-radius: 4px; background: rgb(0 0 0 / .65); color: #ffd36e; font: 600 .75rem/1.4 var(--font-body); white-space: nowrap; pointer-events: none; }
+.eyepiece__label[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .eyepiece__disc img { animation: none; } .eyepiece__live { transition: none; } }
+.scope-card {
+  position: absolute; z-index: 3; left: 50%; translate: -50% 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+  width: min(420px, calc(100vw - 32px)); margin: 0; padding: 14px 16px 10px; border-radius: 14px;
+  background: rgb(14 16 36 / .86); border: 1px solid rgb(201 166 107 / .45); color: #eef0fa; box-shadow: 0 10px 30px rgb(0 0 0 / .45); backdrop-filter: blur(6px);
+}
+.scope-card[hidden] { display: none; }
+.scope-card__top { margin: 0 40px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.scope-card__live { padding: 1px 7px; border-radius: 999px; background: rgb(255 79 79 / .16); color: #ff8a8a; font: 600 .66rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.scope-card__live::before { content: "● "; }
+.scope-card__live[hidden] { display: none; }
+.scope-card__note { margin: 4px 0 0; font: .8rem/1.4 var(--font-body); color: #9aa1c4; }
+.scope-card__note:empty { display: none; }
+.scope-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
+.scope-card__close:hover { color: #fff; }
+.scope-card__kicker { margin: 0; font: .72rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: #c9a66b; }
+.scope-card__name { margin: 2px 0 4px; font: 600 1.25rem/1.2 var(--font-display); color: #fff; }
+.scope-card__line { margin: 0; font: .92rem/1.45 var(--font-body); color: #cfd3ea; }
+.scope-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.scope-card__more { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(201 166 107 / .6); background: transparent; color: #f0e3c8; font: 600 .88rem var(--font-body); cursor: pointer; }
+.scope-card__more:hover { background: rgb(201 166 107 / .15); }
+.scope-card__steps { display: flex; }
+.scope-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #cfd3ea; font-size: 1.5rem; cursor: pointer; }
+.scope-card__steps button:hover { color: #fff; }
+.scope-card__steps button[hidden] { display: none; }
+@media (min-width: 900px) { .scope-card { left: auto; right: 24px; translate: 0 -50%; top: 50%; bottom: auto; width: min(340px, 26vw); } }
