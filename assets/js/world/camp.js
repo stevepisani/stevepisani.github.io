@@ -53,8 +53,10 @@ function log(length, radius, bark, end) {
 
 /**
  * Build the camp around its fire, at the origin. `quality` from main. Returns { group, fire,
- * update(t), seatToward(x, z) }: seatToward puts the bench you sit on toward local direction
- * (x, z) and returns the seat's poses (local): { eye, look, stand, dip, rise }.
+ * update(t), seatToward(x, z, groundY) }: seatToward puts the bench you sit on toward local
+ * direction (x, z), lays the benches, bag and skewers on the real ground (`groundY(x, z)`: its
+ * local height under that point, once the camp is placed) and returns the seat's poses (local):
+ * { eye, look, stand, dip, rise }.
  */
 export function buildCampfire({ quality, heroes }) {
   const group = new THREE.Group();
@@ -103,11 +105,15 @@ export function buildCampfire({ quality, heroes }) {
   sparks.frustumCulled = false;
   group.add(sparks);
 
-  // benches: logs round the fire. The one you sit on is placed by seatToward().
-  const bench = (a, r = 1.55) => {
+  // benches: logs round the fire, bedded into the real ground under both ends (it falls away
+  // from the camp's flat plane). The one you sit on is placed by seatToward().
+  const bench = (a, groundY, r = 1.55) => {
     const b = log(1.5, 0.17, bark, endGrain);
-    b.position.set(Math.cos(a) * r, 0.14, Math.sin(a) * r);
+    b.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     b.rotation.y = -a + Math.PI / 2; // lies across the line to the fire
+    b.updateMatrix();
+    const end = (s) => new THREE.Vector3(s * 0.75, 0, 0).applyMatrix4(b.matrix);
+    b.position.y = Math.min(...[-1, 0, 1].map((s) => { const p = end(s); return groundY(p.x, p.z); })) + 0.14;
     group.add(b);
     return b;
   };
@@ -137,25 +143,29 @@ export function buildCampfire({ quality, heroes }) {
       }
       sparkGeo.attributes.position.needsUpdate = true;
     },
-    seatToward(x, z) {
+    seatToward(x, z, groundY = () => 0) {
       const a = Math.atan2(z, x);
       // no log leans straight at you (end on, it would stand in front of the fire like a post)
       teepee.rotation.y = -(a + Math.PI / 5);
-      bench(a);
+      bench(a, groundY);
       faceFire(thinker, a + 2.45, 1.8); // his rock is his seat
-      bench(a - 2.2);
+      bench(a - 2.2, groundY);
       faceFire(watcher, a - 2.5, 2.8); // behind the log
       // a bag of marshmallows and a couple of spare skewers at the end of your log
       const side = new THREE.Vector3(-Math.sin(a), 0, Math.cos(a));
       const out = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
       const bagAt = out.clone().multiplyScalar(1.5).addScaledVector(side, 0.95);
-      const bag = mesh(new THREE.BoxGeometry(0.16, 0.2, 0.08), pbr({ color: PALETTE.cream, roughness: 0.6 }), group, [bagAt.x, 0.1, bagAt.z]);
+      const bag = mesh(new THREE.BoxGeometry(0.16, 0.2, 0.08), pbr({ color: PALETTE.cream, roughness: 0.6 }), group, [bagAt.x, groundY(bagAt.x, bagAt.z) + 0.09, bagAt.z]);
       bag.rotation.y = -a;
       mesh(new THREE.BoxGeometry(0.162, 0.05, 0.082), pbr({ color: PALETTE.teal, roughness: 0.6 }), bag, [0, 0.02, 0]);
+      // the skewers lie on the ground from end to end, wherever it slopes
       const spare = pbr({ color: PALETTE.bamboo, roughness: 0.8 });
+      const onGround = (p) => p.setY(groundY(p.x, p.z) + 0.006);
       for (const k of [-1, 1]) {
-        const st = mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.1, 5), spare, group, [bagAt.x + side.x * 0.12 * k, 0.03, bagAt.z + side.z * 0.12 * k]);
-        st.rotation.set(Math.PI / 2 - 0.05, 0, -a + 0.1 * k);
+        const mid = bagAt.clone().addScaledVector(side, 0.12 * k), along = out.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.1 * k);
+        const p0 = onGround(mid.clone().addScaledVector(along, -0.55)), p1 = onGround(mid.clone().addScaledVector(along, 0.55));
+        const st = mesh(new THREE.CylinderGeometry(0.006, 0.006, p0.distanceTo(p1), 5), spare, group, [(p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2]);
+        st.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p1.clone().sub(p0).normalize());
       }
       // your seat: on the log, eyes a sitting height up, looking into the fire
       const r = 1.42;
