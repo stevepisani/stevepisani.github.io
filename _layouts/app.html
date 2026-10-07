@@ -9,14 +9,26 @@ layout: default
     <h1 id="app-title" tabindex="-1">{{ page.heading | default: page.title }}</h1>
   </header>
 
+  {%- comment -%} One hint, on an iPhone in Safari, until it's dismissed: the full-screen app is a Share away (kit.js) {%- endcomment %}
+  <aside class="install-hint" id="install-hint" aria-label="Add to Home Screen" hidden>
+    <svg class="install-hint__icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg>
+    <p><strong>Add to Home Screen</strong> for the full-screen app: tap Share <svg class="install-hint__share" viewBox="0 0 24 24" aria-label="(the square with an arrow)" role="img"><path d="M12 3.5v11M8 7.5l4-4 4 4M7.5 10.5H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 20.5h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 10.5h-1.5"/></svg>, then Add to Home Screen.</p>
+    <button class="install-hint__x" id="install-hint-x" type="button" aria-label="Don't show this again">×</button>
+  </aside>
+
   <section class="card app-gate" id="app-gate" hidden>
     <h2>Sign in</h2>
-    <p>{{ page.lede }} It's private: only members can sign in. Enter your email and you'll get a link.</p>
+    <p>{{ page.lede }} It's private: only members can sign in. Enter your email and you'll get a link and a code.</p>
     <form id="gate-form">
       <label>Email <input name="email" type="email" autocomplete="email" required></label>
-      <button class="btn" type="submit">Email me a link</button>
+      <button class="btn" type="submit">Email me</button>
     </form>
     <p id="gate-note" role="status"></p>
+    {%- comment -%} The code from the same email: the way in from the home-screen app, which the emailed link (opening in Safari) can't reach (kit.js) {%- endcomment %}
+    <form class="gate-code" id="gate-code" hidden>
+      <label>Or type the 6-digit code from the email <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,10}" maxlength="10" required></label>
+      <button class="btn" type="submit">Sign in</button>
+    </form>
   </section>
 
   <div id="app-main" hidden>

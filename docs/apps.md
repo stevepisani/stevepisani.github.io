@@ -12,13 +12,51 @@ one small kit, so a new app is a table, a page and a script, and nothing else.
 | `_layouts/app.html` | the shell: the site's nav and themes, the heading, the sign-in form, and the page's content hidden until a member is signed in. It loads `apps.css` (through `head.html`, with `viewport-fit=cover` so a phone's safe areas are the app's to keep clear) and the script named by `app:`. An app may set the heading (`#app-title`) to say where you are and show `#app-back`, the way back up |
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
+| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the `.ics`, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
+| `apps/<app>.webmanifest` | the home-screen app ("The home-screen app" below): one per installable app (wardrobe, recipes), each a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
 | `apps/offline.js` | the service worker for `/apps/` (registered by the wardrobe): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token) |
 | `assets/js/apps/<name>.js` | one app. `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
 
-Signing in is a link by email (Supabase magic link), sign-ups off. The session is kept in the
+Signing in is by email, sign-ups off: the email (Supabase's magic link, `supabase/templates/magic_link.html`)
+has a link and a 6-digit code. The link signs in the browser it opens in. The code is typed in the
+field the sign-in form shows once the email has gone ("Or type the 6-digit code from the email";
+`autocomplete="one-time-code"`, so iOS offers it from Mail where it can; six digits go by
+themselves), which calls `verifyOtp({ email, token, type: 'email' })`. That's the way into the
+home-screen app: iOS gives it its own storage, and the emailed link opens in Safari, which would
+sign in Safari, not the app. Either works once, within the hour. The session is kept in the
 browser for the whole site, so signing in once covers every app, and the site's nav shows "Apps"
-to someone signed in (`site.js`). Who's a member is the `members` table; every table's policy asks
+to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the
+site build (`docs/backend.md`). Who's a member is the `members` table; every table's policy asks
 `is_member()`, and the page asks it too, only to decide what to show. The pages are `noindex`.
+
+## The home-screen app
+
+On an iPhone each app can be added to the Home Screen and opens full screen, with no Safari bars:
+
+- **The manifest** (`apps/wardrobe.webmanifest`, `apps/recipes.webmanifest`, from
+  `_includes/app-manifest.json`): the app's name ("Wardrobe"), `start_url` the app itself (so the
+  recipe tracker, added from its page, opens on recipes, not the wardrobe), `scope` `/apps/`,
+  `display: standalone`, the light theme's `--bg` as its colours, icons at 192 and 512 (the 512 also
+  maskable). `head.html` links it only on `layout: app` pages that have one, with
+  `apple-mobile-web-app-capable` (and `mobile-web-app-capable`), the status bar `black-translucent`
+  (the page runs under it; `apps.css` already keeps the safe areas clear, and in the light theme,
+  installed, a dark band sits under the status bar's white clock), `apple-mobile-web-app-title`
+  (the page's title), the app's `apple-touch-icon`, and `theme-color` for light and dark. The
+  public site has none of it.
+- **The icon** (`assets/images/app-icon-{512,192,180}.png`, `app-icon-maskable-512.png`): the
+  site's SJPJr badge (`sj-512.png`, as in the header) on the light theme's cream, since iOS fills a
+  transparent icon with black; 84% of the square, or 68% for the maskable one a launcher may cut to
+  a circle. Every app shares it. `node tools/app-icons.mjs` makes them (through Playwright); they're
+  committed. A new app needs only its line in `_data/apps.yml` and a two-line manifest.
+- **Ways back** with no browser around it: every view has its own (the tabs, "‹ Trips" above the
+  title, Done or Cancel on every sheet, Back's history). Links that leave (Buy another, a booking,
+  a map, a recipe's page) open with `target="_blank"`, so iOS shows them over the app with a Done
+  button, or in Maps. The site's own nav leaves the app's scope; iOS shows those pages the same way.
+- **One hint**, on an iPhone in Safari (not installed, not dismissed), above everything, signed in
+  or not (installing before signing in is the better order): "Add to Home Screen for the
+  full-screen app: tap Share, then Add to Home Screen." × retires it for good on that phone
+  (`localStorage` `apps-install-hint`). Installed, it's never shown, and the sign-in note asks only
+  for the code.
 
 ## Adding an app (say, a wardrobe)
 
@@ -50,7 +88,8 @@ to someone signed in (`site.js`). Who's a member is the `members` table; every t
 3. **A script**, `assets/js/apps/<name>.js`: import from `./lib/kit.js`, and call
    `start(async () => { … load and draw … })`. Photos go in the shared private `photos` bucket,
    under `<name>/<row id>/` (`photos.put(file, folder)` shrinks them to 1600px first).
-4. **A line** in `_data/apps.yml`.
+4. **A line** in `_data/apps.yml`, and if it should install as its own app, a manifest and icon
+   ("The home-screen app" above).
 5. **A test**: a fixture in `tools/fixtures/` and a few steps in `apps()` in `tools/smoke.mjs`,
    which runs the apps against a made-up Supabase.
 
@@ -215,7 +254,7 @@ wardrobe MCP server, signed in as him (below).
   packing, as a ring that fills. Before the trip, the card shows its
   first day. The advice (`advice()` in `wardrobe.js`) knows only what the items say and what the
   weather does: rain of 50% or more (saying from when, when the hours show it: "Rain likely from
-  about 2 PM (70%)") asks for something whose name, material or notes say rain, waterproof, shell,
+  about 2 PM (68%)") asks for something whose name, material or notes say rain, waterproof, shell,
   Gore-Tex, trench, mac or umbrella, and warns off suede; with nothing from outerwear or warm, an
   evening plan (from 5 PM) when it'll be under 12° then ("Dinner at Buca Mario at 20:00: about
   11°"), or else a night under 8°; a high of 26° or more with something warm.
@@ -227,10 +266,44 @@ wardrobe MCP server, signed in as him (below).
 - **The trip page** (its heading the trip's name) starts with the dates, who's going (a face and
   a name each) and Edit, then Packing as a card with a ring, the places with their weather, and
   the days, each a card with its weather, plan and outfit laid flat (today's outlined). Wider, the
-  days are on the left and the rest beside them. It adds, when there are any: Who's going, Getting there (transport in date and
-  time order, times as given, never converted: an arrival on another day says its date), Staying
-  (lodging) and Links; each day shows its activities under its summary, in time order (Today's
+  days are on the left and the rest beside them. It adds, when there are any: Who's going, Getting there (transport as boarding
+  cards in date and time order, "On the road" below), Staying (a card a stay) and Links; each day shows its activities under its summary, in time order (Today's
   card too).
+- **On the road** (`lib/travel.js`). Only what's stored is shown: no gates, platforms or boarding
+  times, which aren't known.
+  - **Getting there, as boarding cards**: what it is (carrier and number, else the kind: Flight,
+    Train, Transfer…, with its drawing) and its day; the two ends big (the codes, LCY → FLR, the
+    names under; with no code, the name before its first comma, "St James House"); the times there,
+    as given, never moved to another zone (an arrival on another day says which, under it); a
+    countdown inside 48 hours ("Train to Paris in 3 h 20 min", moving each half minute; "On the
+    way to Florence. Arrives in 1 h 10 min" once it's left), only for times stored with their UTC
+    offset (one without is a clock time somewhere, so it only says "today at 13:00" or
+    "tomorrow"); then, under a perforation, the booking reference as a chip a tap copies
+    (Clipboard API, "Copied X9NF5P"), "Add to Calendar" and the booking link. A journey that's
+    happened is quieter and offers no Calendar.
+  - **Add to Calendar** makes an `.ics` (one VEVENT: the times in UTC from the stored offsets; a
+    time with no offset as a floating local time; a journey with no time as an all-day event; no
+    end unless there's an arrival; the summary "Train to Paris (Frecciarossa 9581)", the place you
+    leave from, and a description with the times there and the reference) and opens it as a Blob:
+    on an iPhone Safari offers "Add to Calendar", elsewhere it downloads.
+  - **Staying**: the name, the dates and nights ("staying now" outlined), the address as a tap that
+    opens Apple Maps (`https://maps.apple.com/?q=<name>&address=<address>`, which is the web map
+    off Apple's devices; no address, no map: a name alone finds nothing), notes, the reference to
+    copy and the booking.
+  - **On Today**: the next journey within 48 hours (or under way) as the first card, above the day,
+    since it's the thing to act on (the Florence → Paris train the afternoon before); after the
+    day, "Tonight" (that day's stay: "Check out tomorrow", the map, the reference).
+  - **Home and away**, one quiet line under the trip's line: "Florence 15:40 · Philadelphia 09:40
+    · €1 = $1.13". Home is `HOME` in `travel.js`. Where you are is the leg you're on (on a travel
+    day, the one you're leaving until the journey's arrived), its clock the timezone its weather
+    came with, its money from its country (`MONEY` in `travel.js`: euro countries EUR, United
+    Kingdom GBP, Switzerland CHF and so on, by the name the place lookup gives; a country not there
+    shows no rate). The times move on the minute while it's showing (the same width: no jump). The
+    rate is Frankfurter's (the European Central Bank's, free, no key:
+    `api.frankfurter.dev/v1/latest?base=EUR&symbols=USD`), asked at most once a day and kept
+    (`localStorage` `wardrobe-rate:EUR-USD`), so offline it shows the last one; with none it's
+    left out, and at home (or where the money's the same) there's no line or no rate. A tap turns
+    it round ("$1 = €0.89"); a currency worth under a dime reads the other way to start with.
 - **The Packing Board** (`#trip/<id>/pack`, headed Packing, "‹ <trip>" above): a suitcase that
   fills as things are packed, how many are and how long until you leave; the status as a row of
   chips with counts (To pack, the
@@ -249,7 +322,7 @@ wardrobe MCP server, signed in as him (below).
   the add form takes a label, whose and a category.
 - **With no connection** (a plane, a train abroad): every load keeps a copy on the phone
   (`localStorage` `wardrobe-copy:<user id>`: the rows, the trips' parts and the photo links; `wardrobe-wx`: the last
-  weather for each leg, with today's and tomorrow's hours; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
+  weather for each leg, with today's and tomorrow's hours; `wardrobe-rate:<from>-<to>`: the last rate; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
   the page and its scripts. Offline, the app opens on that copy and a line under the tabs says how old it is and how many
   packing changes are waiting. Packing
   changes work and wait in `wardrobe-packing-queue`, by entry (the patches merged); they're sent,
