@@ -19,6 +19,7 @@ merging Steve's books into `_data/library.json`.
 | `docs/world.md` | before changing anything on the planet (`assets/js/world/`): every module, and how each thing a visitor does works |
 | `docs/apps.md` | before touching the private apps (`/apps`: the recipe tracker, and whatever's next), or adding one |
 | `docs/backend.md` | Supabase, the bartender, deploys, secrets, the monthly budget |
+| `docs/vision.md` | what the private apps are becoming, and the six rules that keep them improving as AI models do |
 | `docs/roadmap.md` | what to build next, what's waiting on Steve, what's parked |
 | `.claude/skills/verify-world` | how to see a change to the planet working (and the sandbox's quirks) |
 | `.claude/skills/steward` | branches, PRs, CI, merging and the deploy afterwards |
