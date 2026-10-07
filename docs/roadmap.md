@@ -96,6 +96,9 @@ rather than leaving it in a chat.
 - Oct 2026: show first, the text supports: the chalkboard (lean in, pick a drink, watch it made),
   the hammock (the stars first, a book easy to pick) and the telescope (look through it: the real
   moon this hour with its landing sites, today's sun, the ringed planet; it swings round to them).
+  Then a pass on Krug and the HIG: glints on things you can use, Back steps out of every place,
+  landing sites in the dark shown at full moon, swipes and ← → on every card, "Live · NASA", the
+  bartender pointing at the telescope, chalk and page sounds, and a buzz on Android.
   Telescope ideas still open: focus it yourself (a brass knob), the ISS when it's over
   Philadelphia, and a postcard of what you saw.
 - Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed

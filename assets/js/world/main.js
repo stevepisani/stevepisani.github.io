@@ -29,6 +29,7 @@ import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
 import { createBookSky } from './booksky.js';
 import { createEyepiece } from './eyepiece.js';
+import { createGlints } from './glints.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -38,6 +39,20 @@ const data = JSON.parse($('world-data').textContent);
 const DB = { url: document.querySelector('meta[name="supabase-url"]').content, key: document.querySelector('meta[name="supabase-key"]').content };
 const TEST = new URLSearchParams(location.search).has('test');
 const reducedMotion = TEST || matchMedia('(prefers-reduced-motion: reduce)').matches;
+// a tap you can feel, where the phone can (Android; iPhones ignore it): picks and the telescope's gears
+const buzz = (pattern) => { try { if (navigator.vibrate && !reducedMotion) navigator.vibrate(pattern); } catch (e) { /* not allowed here */ } };
+// a sideways swipe on a card steps it, like its ‹ ›
+function onSwipe(el, step) {
+  let from = null;
+  el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') from = { x: e.clientX, y: e.clientY }; });
+  el.addEventListener('pointerup', (e) => {
+    if (!from) return;
+    const dx = e.clientX - from.x, dy = e.clientY - from.y;
+    from = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > 1.5 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+  });
+  el.addEventListener('pointercancel', () => { from = null; });
+}
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = { high: !coarse && innerWidth > 900 && (navigator.deviceMemory || 8) >= 4 };
 
@@ -133,12 +148,32 @@ addEventListener('popstate', () => {
   const id = location.hash.slice(1);
   if (id && $('panel-' + id)) openPanel(id, { push: false });
   else if (!panel.hidden) { pushed = false; closePanel({ fromHistory: true }); }
-  else {
-    if (id !== 'sky' && skyBack) skyBack(); // leaned in on a shelf of the book sky: Back leans out
-    if (id !== 'board' && boardBack) boardBack(); // leaned in on the chalkboard: Back sits back
-  }
+  else backTo(id); // Back steps out of the places you've stepped into, one at a time
 });
-let skyBack = null, boardBack = null; // the world sets them
+
+// The places on the planet you step into (the chalkboard, the hammock and a shelf of its sky, the
+// telescope and a landing site): each adds a history entry, so the browser's Back steps out of
+// them one at a time, the way it closes a panel. Leaving one any other way takes its entry (and
+// any inside it) back off.
+const levels = []; // { key, back }: innermost last
+function enterLevel(key, back) {
+  if (levels.some((l) => l.key === key)) return;
+  history.pushState({ level: key }, '', '#' + key);
+  levels.push({ key, back });
+}
+function leaveLevel(key) {
+  const i = levels.findIndex((l) => l.key === key);
+  if (i < 0) return;
+  const inner = levels.splice(i);
+  for (const l of inner.slice(1).reverse()) l.back(); // the ones inside it go too
+  // and a panel open over it (it has its own entry) closes with it
+  const over = !panel.hidden && pushed ? 1 : 0;
+  if (over) { pushed = false; closePanel({ fromHistory: true }); }
+  history.go(-(inner.length + over));
+}
+function backTo(id) {
+  while (levels.length && levels[levels.length - 1].key !== id) levels.pop().back();
+}
 
 // At the bar the menu is a card you pick up off the counter and put back down; the world
 // replaces these once it's built. Everywhere else it's just shown and hidden.
@@ -436,9 +471,40 @@ async function start() {
     return { thing: interactMeshes.get(hit.object), point: hit.point };
   }
 
+  /* ---------- Glints: things you can use catch the light, now and then ---------- */
+  // Where each one glints (a little above its middle), what you've used so far, and what could
+  // glint right now: out walking, anything you haven't used yet (or anything, once you have);
+  // at the bar, the chalkboard, until you've read it.
+  const glints = createGlints({ scene, reducedMotion });
+  const used = new Set();
+  const glintAt = new Map();
+  const _box = new THREE.Box3(), _bc = new THREE.Vector3(), _bs = new THREE.Vector3();
+  function glintPoint(it) {
+    if (!glintAt.has(it)) {
+      _box.setFromObject(it.object).getCenter(_bc);
+      const lift = Math.min(_box.getSize(_bs).length() * 0.18, 0.6);
+      glintAt.set(it, _bc.clone().addScaledVector(_bc.clone().normalize(), lift));
+    }
+    return glintAt.get(it);
+  }
+  function glintThings() {
+    if (flight || leaving || !panel.hidden || !menu.hidden) return [];
+    if (state === 'seat') {
+      const it = interactables.find((x) => x.id === 'drinks');
+      return it && !used.has('drinks') && !board.on && !making && !held ? [{ key: 'drinks', at: glintPoint(it) }] : [];
+    }
+    if (state !== 'walk' || carry) return [];
+    const all = interactables.filter((x) => x.id !== 'seat' && x.id !== 'menu' && x.id !== 'drinks' && x.object).map((x) => ({ key: x.id, at: glintPoint(x) }));
+    if (physics.ready) for (const l of physics.items) if (!l.held) all.push({ key: l.label, at: l.object.position.clone().addScaledVector(l.object.position.clone().normalize(), (l.radius || 0.15) * 1.6) });
+    const fresh = all.filter((x) => !used.has(x.key));
+    return fresh.length ? fresh : all;
+  }
+
   /* ---------- Doing things ---------- */
   function use(it) {
     player.stop();
+    used.add(it.id);
+    glints.clear();
     if (it.id === 'seat') return sitDown();
     if (it.id === 'menu') return sitDown({ pickUp: true });
     if (it.id === 'drinks') return sitDown({ then: () => lookAtBoard() });
@@ -487,6 +553,7 @@ async function start() {
       if (r && r !== zoom.region) { closeStar(); zoomTo(r); } else closeStar();
       return;
     }
+    if (state === 'scope' && !scope.leaving && scope.k === 1 && scopeCard.hidden && panel.hidden) { scopeCard.hidden = false; return; }
     if (state === 'seat' && panel.hidden && menu.hidden) {
       if (making) return; // it's making you a drink
       if (board.on) { // leaned in on the chalkboard: a name is its recipe, off the board closes the card
@@ -583,7 +650,12 @@ async function start() {
   // neck allows. It resets when you sit down again.
   const seatLook = { yaw: 0, pitch: 0 };
   const look = (dx, dy) => {
-    if (state === 'scope') return; // at the eyepiece: ‹ › moves the telescope
+    if (state === 'scope') { // at the eyepiece a drag moves the telescope a little, within the field
+      const f = camera.fov * Math.PI / 180, lim = f * 0.3;
+      scope.nudge.yaw = THREE.MathUtils.clamp(scope.nudge.yaw - dx * (f / 1.2), -lim, lim);
+      scope.nudge.pitch = THREE.MathUtils.clamp(scope.nudge.pitch - dy * (f / 1.2), -lim, lim);
+      return;
+    }
     if (state === 'seat' || state === 'camp' || state === 'hammock' || state === 'shore' || state === 'note') {
       if (flight || leaving || drink || view.k > 0) return;
       // same feel as walking (player.look): drag the world, so dragging right turns you left
@@ -925,7 +997,7 @@ async function start() {
   // lean as watching a drink made). Its names are tap targets: one chalks its recipe onto a
   // card (to the side on wide screens, below the board on phones), with "Make me one", which
   // turns you straight to the robot to watch it made. ×, Esc and Back step back out.
-  const board = { on: false, pick: -1, pushed: false };
+  const board = { on: false, pick: -1 };
   const boardCard = $('board-card'), boardBackBtn = $('board-back');
   const _uvRay = new THREE.Raycaster();
   function boardRowAt(x, y) {
@@ -941,7 +1013,10 @@ async function start() {
     bubble.hidden = true;
     tip.hidden = true;
     board.on = true;
+    used.add('drinks');
+    glints.clear();
     board.pick = -1;
+    boardList.hidden = false;
     bar.board.mark(-1);
     // where it is and how big, from your stool
     const B = bar.board;
@@ -966,13 +1041,14 @@ async function start() {
     view.hold = 0;
     if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
     seatLook.yaw = seatLook.pitch = 0;
-    if (!board.pushed) { history.pushState({ board: true }, '', '#board'); board.pushed = true; }
+    enterLevel('board', () => leaveBoard({ fromHistory: true }));
     showHint(`${coarse ? 'Tap' : 'Click'} a drink to see how it's made.`, 'board-pick');
   }
   function showRecipe(i) {
     const r = (data.drinks || [])[i];
     if (!r || !board.on) return;
     clearHint('board-pick');
+    if (board.pick !== i) { sound.play('chalk'); buzz(8); }
     board.pick = i;
     bar.board.mark(i);
     $('board-name').textContent = r.name;
@@ -991,17 +1067,21 @@ async function start() {
   function leaveBoard({ keepView = false, fromHistory = false } = {}) {
     if (!board.on) return;
     board.on = false;
+    boardList.hidden = true;
     hideRecipe();
     if (hint.dataset.key === 'board-pick') hint.hidden = true;
     if (!keepView) view.want = 0;
-    if (board.pushed) { board.pushed = false; if (!fromHistory) history.back(); }
+    if (!fromHistory) leaveLevel('board');
   }
-  boardBack = () => leaveBoard({ fromHistory: true });
-  const stepRecipe = (dir) => { const n = bar.board.rows; if (n) showRecipe((board.pick + dir + n) % n); };
+  const stepRecipe = (dir) => { const n = bar.board.rows; if (n) showRecipe(board.pick < 0 ? (dir > 0 ? 0 : n - 1) : (board.pick + dir + n) % n); };
   $('board-prev').addEventListener('click', () => stepRecipe(-1));
   $('board-next').addEventListener('click', () => stepRecipe(1));
   $('board-close').addEventListener('click', hideRecipe);
   $('board-make').addEventListener('click', () => { if (board.pick >= 0) startMaking(board.pick); });
+  onSwipe(boardCard, stepRecipe);
+  // the board's names as buttons too, unseen, for keyboards and screen readers (they're only paint on the board)
+  const boardList = $('board-list');
+  boardList.replaceChildren(...(data.drinks || []).slice(0, bar.board.rows).map((r, i) => Object.assign(document.createElement('button'), { type: 'button', textContent: r.name, onclick: () => showRecipe(i) })));
   boardBackBtn.addEventListener('click', () => leaveBoard());
   skipMaking = () => { if (!making) return false; making.skip(); return true; };
   makeSkip.addEventListener('click', skipMaking);
@@ -1108,7 +1188,10 @@ async function start() {
       say(data.bartender[0]);
       let i = 1;
       clearInterval(chatter);
-      if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making && !board.on) say(data.bartender[i++ % data.bartender.length]); }, 12000);
+      // his lines, and one about tonight's moon (pointing you at the telescope)
+      const m = window.moonTonight && window.moonTonight();
+      const lines = m ? [...data.bartender, `Tonight's moon: ${m.name.toLowerCase()}. Have a look through the telescope.`] : data.bartender;
+      if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making && !board.on) say(lines[i++ % lines.length]); }, 12000);
     });
   }
 
@@ -1318,6 +1401,7 @@ async function start() {
     clearHint('walk');
     tip.hidden = true;
     setState('hammock');
+    enterLevel('hammock', () => getOutOfHammock({ fromHistory: true }));
     const P = hammockPoses();
     lying = P.lie;
     const step = Math.min(900, Math.max(300, camera.position.distanceTo(P.stand.pos) * 420));
@@ -1335,9 +1419,10 @@ async function start() {
       lookUp(); // the stars first; the list is a button away ("Reading list")
     });
   }
-  function getOutOfHammock() {
+  function getOutOfHammock({ fromHistory = false } = {}) {
     if (state !== 'hammock' || leaving) return;
     leaving = true;
+    if (!fromHistory) leaveLevel('hammock'); // (and a shelf you'd leaned in on, and the reading list)
     closePanel();
     closeStar();
     zoomOut();
@@ -1359,14 +1444,16 @@ async function start() {
       { pos: endPos, quat: endQuat, ms: 700 },
     ], finish);
   }
-  hmLeave.addEventListener('click', getOutOfHammock);
+  hmLeave.addEventListener('click', () => getOutOfHammock());
   hmRead.addEventListener('click', readBook);
   // lying back, you look up: the loose stars drift together into their shelves
   function lookUp() {
     if (state !== 'hammock' || leaving) return;
     skyGather = true;
-    if (bookSky.count) showHint(`Every star above you is a book Steve has read. ${coarse ? 'Tap' : 'Click'} a group to see its books.`, 'stars');
+    if (bookSky.count && !bookSky.settled) showHint('Aligning…'); // while they gather (frame loop: then the stars' hint)
+    else if (bookSky.count) starsHint();
   }
+  const starsHint = () => showHint(`Every star above you is a book Steve has read. ${coarse ? 'Tap' : 'Click'} a group to see its books.`, 'stars');
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
   afterHammockPanel = () => {
     if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
@@ -1393,11 +1480,11 @@ async function start() {
   });
   scene.add(bookSky.group);
   const starCard = $('star-card'), starSample = $('star-sample'), starPrev = $('star-prev'), starNext = $('star-next');
-  const skyShelf = $('sky-shelf'), skyLabels = $('sky-labels');
+  const skyShelf = $('sky-shelf'), skyLabels = $('sky-labels'), skyList = $('sky-list');
   let starOpen = null, skyGather = false;
   // leaning in on a shelf: k eases 0..1 as the view narrows from BASE_FOV to `cur`, which follows
   // `fov` (the shelf's) when you step to another
-  const zoom = { region: null, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, pushed: false, applied: false, openFirst: null };
+  const zoom = { region: null, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, applied: false, openFirst: null };
   let aimTween = null; // turning your head to a star or a shelf: { from: { yaw, pitch }, dir, t, ms }
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const regionOf = (slug) => bookSky.regions.find((r) => r.slug === slug) || null;
@@ -1426,6 +1513,9 @@ async function start() {
     starSample.hidden = !b.sample;
     starSample.setAttribute('aria-pressed', 'false');
     starPrev.hidden = starNext.hidden = !(s.region && s.region.books.length > 1);
+    // where it is on its shelf, so these ‹ › read as books and the strip's below as shelves
+    $('star-pos').textContent = s.region && s.region.books.length > 1 ? `${s.region.books.indexOf(s) + 1} of ${s.region.books.length}` : '';
+    if (!auto) { sound.play('page'); buzz(8); }
     starCard.hidden = false; // above the shelf's strip, which stays
     labelsKey = ''; // the open one's title goes first
     // stepping to a book that's off screen (or under the card): turn to it
@@ -1450,6 +1540,7 @@ async function start() {
   starSample.addEventListener('click', () => { if (starOpen && window.playSample) window.playSample(starOpen.book.sample, starSample); });
   $('star-close').addEventListener('click', closeStar);
   starPrev.addEventListener('click', () => stepBook(-1));
+  onSwipe(starCard, stepBook);
   starNext.addEventListener('click', () => stepBook(1));
 
   // turn your head (seatLook, on top of the lying pose) to look along `dir`, over `ms`
@@ -1479,7 +1570,9 @@ async function start() {
     aimAt(r.dir, first ? 1100 : 700);
     zoom.openFirst = r; // its newest book's card, once you're looking at it (frame loop)
     // a history entry, so Back leans out again (and a link can't land you here)
-    if (!zoom.pushed) { history.pushState({ sky: true }, '', '#sky'); zoom.pushed = true; }
+    enterLevel('sky', () => zoomOut({ fromHistory: true }));
+    skyList.replaceChildren(...r.books.map((b) => Object.assign(document.createElement('button'), { type: 'button', textContent: `${b.book.title}${b.book.by ? `, by ${b.book.by}` : ''}`, onclick: () => openStar(b) })));
+    skyList.hidden = false;
     $('sky-name').textContent = r.name;
     $('sky-count').textContent = `${r.count} ${r.count === 1 ? 'book' : 'books'}`;
     skyShelf.style.setProperty('--hue', r.hue);
@@ -1493,10 +1586,10 @@ async function start() {
     zoom.want = 0;
     bookSky.setFocus(null);
     skyShelf.hidden = true;
+    skyList.hidden = true;
     if (hint.dataset.key === 'star-pick') hint.hidden = true;
-    if (zoom.pushed) { zoom.pushed = false; if (!fromHistory) history.back(); }
+    if (!fromHistory) leaveLevel('sky');
   }
-  skyBack = () => zoomOut({ fromHistory: true });
   function stepShelf(d) {
     const rs = bookSky.regions;
     if (zoom.region && rs.length) zoomTo(rs[(rs.indexOf(zoom.region) + d + rs.length) % rs.length]);
@@ -1583,7 +1676,7 @@ async function start() {
   const scopeSpot = interactables.find((i) => i.id === 'launch');
   const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), scopeMore = $('scope-more');
   const scopePrev = $('scope-prev'), scopeNext = $('scope-next'), scopeMag = $('eyepiece-mag');
-  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '' };
+  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '', nudge: { yaw: 0, pitch: 0 }, cardKey: '' };
   const SITES = data.moon || [];
   const liveLayer = $('eyepiece-live');
   const live = createEyepiece({ layer: liveLayer, db: DB, sites: SITES, sunDir: sky.sunDir, onSite: (i) => openSite(i) });
@@ -1599,14 +1692,22 @@ async function start() {
     return list;
   }
   // what the card says about it: the moon and sun as they really are, once their pictures are in
+  // what the card says about it: short; the moon and sun as they really are, once their pictures are in
+  const dayMonth = (t) => new Date(`${t}Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' });
   function scopeLine(t) {
     if (t.id === 'moon') {
       const m = live.moon, est = window.moonTonight ? window.moonTonight() : null;
-      if (m) return `${PHASES[Math.round(m.age / 29.53 * 8) % 8]}, ${Math.round(m.phase)}% lit. NASA's picture of the real moon this hour.${SITES.length ? ' The rings are where people landed.' : ''}`;
-      return est ? `${est.name}, ${Math.round(est.lit * 100)}% lit, the way the real one is tonight.` : 'Lit the way the real one is tonight.';
+      if (m) return `${PHASES[Math.round(m.age / 29.53 * 8) % 8]} · ${Math.round(m.phase)}% lit`;
+      return est ? `${est.name} · ${Math.round(est.lit * 100)}% lit` : '';
     }
-    if (t.id === 'sun') return 'The real sun today, through a solar filter (from NASA). The dark spots are sunspots, often wider than the Earth.';
+    if (t.id === 'sun') return 'Through a solar filter. The dark spots are sunspots.';
     return t.line;
+  }
+  // is what you're looking at live? (the tag), and if it should be but isn't, a line saying so
+  function scopeLive(t) {
+    if (t.id === 'moon') return live.status === 'live' ? (live.picture === 'failed' ? 'off' : 'on') : live.status === 'failed' ? 'off' : live.status === 'loading' ? 'loading' : 'none';
+    if (t.id === 'sun') return live.picture === 'shown' ? 'on' : live.picture === 'failed' ? 'off' : 'loading';
+    return 'none';
   }
   // how narrow a view makes it fill `fill` of the eyepiece's round field
   function scopeFov(t) {
@@ -1614,19 +1715,28 @@ async function start() {
     return Math.min(BASE_FOV, THREE.MathUtils.radToDeg(2 * Math.atan(t.body.across * H / (4 * t.fill * r))));
   }
   function showScopeCard() {
-    const t = scope.targets[scope.i], s = SITES[scope.site];
+    const t = scope.targets[scope.i], s = SITES[scope.site], liveNow = scopeLive(t);
+    const daylight = s ? live.daylight(scope.site) : null;
     $('scope-kicker').textContent = s ? `On the moon · ${s.when}` : 'Through the telescope';
+    $('scope-live').hidden = liveNow !== 'on';
     $('scope-name').textContent = s ? s.name : t.name;
-    $('scope-line').textContent = s ? `${s.line}${live.lit(scope.site) ? '' : ' It\'s in the dark tonight.'}` : scopeLine(t);
+    $('scope-line').textContent = s ? s.line : scopeLine(t);
+    const note = s ? (daylight ? `It's night there now. This is it at full moon, ${dayMonth(daylight)}.` : '')
+      : liveNow === 'loading' ? 'Finding it live…' : liveNow === 'off' ? "Live view unavailable. Showing tonight's phase." : '';
+    $('scope-note').textContent = note;
     scopeMore.textContent = s ? 'The whole moon' : 'Next launch and the ISS';
     scopePrev.hidden = scopeNext.hidden = s ? SITES.length < 2 : scope.targets.length < 2;
+    scope.cardKey = cardKey();
   }
+  // the card is written again only when something on it would change
+  const cardKey = () => `${scope.i}|${scope.site}|${live.status}|${live.picture}|${!!(scope.site >= 0 && live.daylight(scope.site))}`;
   function pointScope(i) {
     const t = scope.targets[i];
     if (!t) return;
     scope.i = i;
     scope.site = -1;
     scope.aim = null;
+    scope.nudge.yaw = scope.nudge.pitch = 0;
     scope.fov = scopeFov(t);
     aimMount(t.body.dir);
     showScopeCard();
@@ -1639,22 +1749,29 @@ async function start() {
     if (i === scope.site) return closeSite();
     const at = scope.marks && scope.marks[i];
     if (!at) return;
-    clearHint('moon-sites');
     // aim at where it is on screen now (from the whole moon, or from another site)
     const r = canvas.getBoundingClientRect();
     scope.aim = new THREE.Vector3((at.x / r.width) * 2 - 1, 1 - (at.y / r.height) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
     scope.site = i;
+    scope.nudge.yaw = scope.nudge.pitch = 0;
+    sound.play('tick');
+    buzz(8);
+    enterLevel('site', () => closeSite({ fromHistory: true }));
     scope.fov = scopeFov(t) / 3;
     showScopeCard();
   }
-  function closeSite() {
+  function closeSite({ fromHistory = false } = {}) {
     if (scope.site < 0) return;
+    if (!fromHistory) leaveLevel('site');
     scope.site = -1;
     scope.aim = null;
+    scope.nudge.yaw = scope.nudge.pitch = 0;
     scope.fov = scopeFov(scope.targets[scope.i]);
     showScopeCard();
   }
-  const scopeLook = (t) => poseLooking(scope.eye, scope.eye.clone().add(scope.aim || t.body.dir)).quat;
+  // where it points, nudged by a drag (a few degrees of the field, like moving a telescope by hand)
+  const scopeLook = (t) => poseLooking(scope.eye, scope.eye.clone().add(scope.aim || t.body.dir)).quat
+    .multiply(_q.setFromAxisAngle(Y_AXIS, scope.nudge.yaw)).multiply(_q2.setFromAxisAngle(X_AXIS, scope.nudge.pitch));
   // the telescope itself swings round to look where you do, its gears ratcheting as it goes
   const mount = scopeSpot && scopeSpot.mount;
   const mountWant = { az: 0, alt: 0, on: false };
@@ -1669,7 +1786,7 @@ async function start() {
     const turn = Math.max(Math.abs(az - mount.az.rotation.y), Math.abs(alt - mount.alt.rotation.x));
     Object.assign(mountWant, { az, alt, on: true });
     mount.held = true;
-    if (turn > 0.05) sound.play('ratchet', Math.min(1.6, turn / 1.2 + 0.2));
+    if (turn > 0.05) { sound.play('ratchet', Math.min(1.6, turn / 1.2 + 0.2)); buzz([4, 50, 4, 50, 4, 70, 4]); }
   }
   function mountFrame(realDt) {
     if (!mount || !mountWant.on) return;
@@ -1692,6 +1809,7 @@ async function start() {
     scope.targets = scopeTargets(scope.eye);
     if (!scope.targets.length) { openPanel('launch'); return; } // nothing up there from here: just the panel
     setState('scope');
+    enterLevel('scope', () => leaveScope({ fromHistory: true }));
     scope.leaving = false;
     pointScope(0); // and the telescope swings round to it as you step up
     scope.quat.copy(scopeLook(scope.targets[0]));
@@ -1699,7 +1817,7 @@ async function start() {
       { ...poseLooking(scope.eye, scopeSpot.point), ms: Math.min(900, Math.max(300, camera.position.distanceTo(scope.eye) * 420)) }, // step up to it
       { pos: scope.eye.clone(), quat: scope.quat.clone(), ms: 900 }, // and look up along the tube
     ], () => {
-      if (state !== 'scope') return;
+      if (state !== 'scope' || scope.leaving) return; // stepped back before you got there: the frame loop stands you up
       scope.want = 1;
       scopeCard.hidden = false;
     });
@@ -1710,12 +1828,12 @@ async function start() {
     const n = scope.targets.length;
     if (n > 1) pointScope((scope.i + d + n) % n);
   }
-  function leaveScope() {
-    if (state !== 'scope' || scope.leaving || flight) return;
+  function leaveScope({ fromHistory = false } = {}) {
+    if (state !== 'scope' || scope.leaving) return;
+    if (!fromHistory) leaveLevel('scope'); // (and a landing site you were looking at)
     scope.leaving = true;
     scope.want = 0; // the field widens back out first (frame loop), then you stand up
     scopeCard.hidden = true;
-    if (hint.dataset.key === 'moon-sites') hint.hidden = true;
   }
   function standUpFromScope() {
     live.hide();
@@ -1728,7 +1846,9 @@ async function start() {
       { pos: endPos, quat: endQuat, ms: 600 },
     ], () => { scope.leaving = false; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
   }
-  scopeLeaveBtn.addEventListener('click', leaveScope);
+  scopeLeaveBtn.addEventListener('click', () => leaveScope());
+  onSwipe(scopeCard, stepScope);
+  $('scope-close').addEventListener('click', () => { scopeCard.hidden = true; }); // the whole view; a tap brings it back
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
   scopeMore.addEventListener('click', () => (scope.site >= 0 ? closeSite() : openPanel('launch')));
@@ -1748,10 +1868,14 @@ async function start() {
     eyepiece.style.setProperty('--k', e.toFixed(3));
     const rect = canvas.getBoundingClientRect();
     scope.marks = t ? live.update(camera, rect, { id: t.id, ...t.body }, scope.leaving ? 0 : e, scope.site) : null;
+    // on a landing site, keep it centred (its picture can change under it: the full moon's, in daylight)
+    const at = scope.site >= 0 && scope.marks && scope.marks[scope.site];
+    if (at) scope.aim = new THREE.Vector3((at.x / rect.width) * 2 - 1, 1 - (at.y / rect.height) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
+    if (t && cardKey() !== scope.cardKey) showScopeCard();
     liveLayer.classList.toggle('is-sun', !!t && t.id === 'sun');
-    const mag = `${Math.round(BASE_FOV / camera.fov * 10)}×`; // the eyepiece's power, engraved on its ring
+    // the eyepiece's power, engraved on its ring, in an eyepiece set's steps
+    const power = BASE_FOV / camera.fov * 10, mag = `${[30, 60, 120, 240].reduce((a, b) => (Math.abs(Math.log(b / power)) < Math.abs(Math.log(a / power)) ? b : a))}×`;
     if (mag !== scope.mag) { scope.mag = mag; scopeMag.textContent = `STEVE'S · ${mag}`; }
-    if (scope.marks && e === 1 && SITES.length) showHint(`${coarse ? 'Tap' : 'Click'} a ring to see where people landed.`, 'moon-sites');
     if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = BASE_FOV; camera.updateProjectionMatrix(); standUpFromScope(); }
   }
 
@@ -1974,6 +2098,7 @@ async function start() {
   const carryDrop = $('carry-drop'), carryThrow = $('carry-throw');
   let carry = null, carryWind = -1;
   function grab(it) {
+    used.add(it.label);
     if (carry) putDown();
     if (!physics.take(it)) return;
     carry = it;
@@ -2023,6 +2148,14 @@ async function start() {
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
     if (e.target.closest && e.target.closest('input, textarea')) return; // typing, not looking
+    // where there's a ‹ ›, ← → are it: the board's drinks, a shelf's books (or the shelves), the telescope's sights
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && panel.hidden && menu.hidden) {
+      const d = e.key === 'ArrowLeft' ? -1 : 1;
+      const step = state === 'seat' && board.on ? () => stepRecipe(d)
+        : state === 'hammock' && zoom.region ? () => (starOpen ? stepBook(d) : stepShelf(d))
+          : state === 'scope' ? () => stepScope(d) : null;
+      if (step) { if (down) { e.preventDefault(); step(); } return; }
+    }
     if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore' && state !== 'note') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
     const v = down ? 1 : 0;
     if (e.key === 'ArrowLeft') seatKeys.x = -v;
@@ -2066,7 +2199,13 @@ async function start() {
     ritual.update(realDt);
     // lying back with the sky to look at (from when the reading list first closes), the loose
     // stars drift into their shelves; getting up, they drift apart
+    glints.update(realDt, camera, glintThings(), used.size);
     bookSky.update(t, camera, realDt, skyGather && state === 'hammock' && !!lying && !flight && !leaving);
+    // "Aligning…" while the stars gather, then what to do with them
+    if (!hint.hidden && !hint.dataset.key && hint.textContent === 'Aligning…' && (bookSky.settled || state !== 'hammock' || leaving)) {
+      hint.hidden = true;
+      if (bookSky.settled && state === 'hammock' && !leaving) starsHint();
+    }
     // leaning in on a shelf of the book sky (or back out, wherever you are by then)
     if (zoom.k !== zoom.want) zoom.k = reducedMotion ? zoom.want : THREE.MathUtils.clamp(zoom.k + Math.sign(zoom.want - zoom.k) * realDt / 1.1, 0, 1);
     if (zoom.k > 0 || zoom.applied) {
@@ -2266,7 +2405,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), glints, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)

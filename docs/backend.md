@@ -76,7 +76,7 @@ refused a token (the error, and the token's non-personal claims). No running cos
 ## The telescope's moon (`supabase/functions/sky`)
 
 GET -> this hour's moon from NASA's Dial-A-Moon (its picture, how big and how lit it looks, its
-libration and tilt), for the telescope on the homepage (`assets/js/world/eyepiece.js`). NASA's API
+libration and tilt; and the same for the nearest full moon, so a landing site in the dark can be shown in daylight), for the telescope on the homepage (`assets/js/world/eyepiece.js`). NASA's API
 only answers browsers on its own sites, so the function asks for it. It's kept for the hour, in the
 function and (`cache-control`) in the browser, so a visitor costs one call an hour at most. Called
 with the public key, like the bartender (JWT checked by the gateway). No running cost. The sun's

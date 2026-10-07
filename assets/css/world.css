@@ -334,6 +334,9 @@
 .star-card__steps { position: absolute; right: 4px; bottom: 4px; display: flex; }
 .star-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.5rem; cursor: pointer; }
 .star-card__steps button:hover { color: #fff; }
+.star-card__steps { align-items: center; }
+.star-card__pos { font: .72rem var(--font-mono); color: #9aa1c4; white-space: nowrap; }
+.star-card__pos:empty { display: none; }
 .star-card__steps button[hidden] { display: none; }
 /* leaned in on a shelf of the book sky: its name, a step either way, and the way back out */
 .sky-shelf {
@@ -406,10 +409,12 @@
 @keyframes seeing { 0%, 100% { translate: 0 0; } 25% { translate: .35px -.25px; } 50% { translate: -.2px .3px; } 75% { translate: .25px .15px; } }
 /* where people landed: a ring you can tap (44 px), dimmer where it's night on the moon */
 .eyepiece__mark { position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; pointer-events: auto; }
-.eyepiece__mark::before { content: ""; position: absolute; inset: 15px; border-radius: 50%; border: 1.5px solid rgb(255 211 110 / .9); box-shadow: 0 0 6px rgb(0 0 0 / .8); }
-.eyepiece__mark.is-dark::before { border-color: rgb(255 211 110 / .4); border-style: dashed; }
+.eyepiece__mark::before { content: ""; position: absolute; inset: 14px; border-radius: 50%; border: 2px solid #ffd36e; box-shadow: 0 0 0 1.5px rgb(0 0 0 / .75), inset 0 0 0 1px rgb(0 0 0 / .5); }
+.eyepiece__mark.is-dark::before { border-color: rgb(255 211 110 / .8); border-style: dashed; }
 .eyepiece__mark.is-open::before { inset: 12px; border-width: 2px; border-color: #ffd36e; }
 .eyepiece__mark[hidden] { display: none; }
+.eyepiece__label { position: absolute; left: 0; top: 0; padding: 1px 7px; border-radius: 4px; background: rgb(0 0 0 / .65); color: #ffd36e; font: 600 .75rem/1.4 var(--font-body); white-space: nowrap; pointer-events: none; }
+.eyepiece__label[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .eyepiece__disc img { animation: none; } .eyepiece__live { transition: none; } }
 .scope-card {
   position: absolute; z-index: 3; left: 50%; translate: -50% 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
@@ -417,6 +422,14 @@
   background: rgb(14 16 36 / .86); border: 1px solid rgb(201 166 107 / .45); color: #eef0fa; box-shadow: 0 10px 30px rgb(0 0 0 / .45); backdrop-filter: blur(6px);
 }
 .scope-card[hidden] { display: none; }
+.scope-card__top { margin: 0 40px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.scope-card__live { padding: 1px 7px; border-radius: 999px; background: rgb(255 79 79 / .16); color: #ff8a8a; font: 600 .66rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.scope-card__live::before { content: "● "; }
+.scope-card__live[hidden] { display: none; }
+.scope-card__note { margin: 4px 0 0; font: .8rem/1.4 var(--font-body); color: #9aa1c4; }
+.scope-card__note:empty { display: none; }
+.scope-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
+.scope-card__close:hover { color: #fff; }
 .scope-card__kicker { margin: 0; font: .72rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: #c9a66b; }
 .scope-card__name { margin: 2px 0 4px; font: 600 1.25rem/1.2 var(--font-display); color: #fff; }
 .scope-card__line { margin: 0; font: .92rem/1.45 var(--font-body); color: #cfd3ea; }

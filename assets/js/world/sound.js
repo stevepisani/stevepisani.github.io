@@ -254,6 +254,21 @@ export function createSound({ scene, camera, spots }) {
         s += 0.045 + 0.06 * (s / seconds) ** 2;
       }
     },
+    tick() { // a soft brass click: the telescope settling on a landing site
+      burst(inputs.everywhere, ctx.currentTime, { type: 'bandpass', hz: 2600, q: 6, dur: 0.02, v: 0.12 });
+    },
+    chalk() { // a piece of chalk tapping the board, twice
+      const t = ctx.currentTime;
+      burst(inputs.everywhere, t, { type: 'bandpass', hz: 1500, q: 2, dur: 0.025, v: 0.14 });
+      burst(inputs.everywhere, t + 0.07, { type: 'bandpass', hz: 1800, q: 2, dur: 0.02, v: 0.09 });
+    },
+    page() { // a page turning: a soft rising brush of paper
+      const t = ctx.currentTime, s = noiseSource(noiseWhite, false), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      f.type = 'bandpass'; f.Q.value = 0.9;
+      f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(3200, t + 0.22);
+      env(g, t, 0.09, 0.05, 0.25);
+      s.connect(f).connect(g).connect(inputs.everywhere); s.start(t); s.stop(t + 0.32);
+    },
     creak() { // rope taking weight round a palm
       const t = ctx.currentTime;
       for (let k = 0; k < 2; k++) {
@@ -291,7 +306,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss'. Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,
