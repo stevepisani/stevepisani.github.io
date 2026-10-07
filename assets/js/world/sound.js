@@ -239,6 +239,14 @@ export function createSound({ scene, camera, spots }) {
       o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.2);
       burst(inputs.loose, t, { type: 'lowpass', hz: 700, dur: 0.05, v: 0.2 * k });
     },
+    zap(at, k = 0.6) { // a neon tube catching: a crackle and a short mains buzz
+      sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.value = 120;
+      env(g, t, 0.12 * k, 0.004, 0.12);
+      o.connect(g).connect(inputs.loose); o.start(t); o.stop(t + 0.16);
+      for (let i = 0; i < 4; i++) burst(inputs.loose, t + Math.random() * 0.08, { type: 'highpass', hz: 2500 + Math.random() * 3000, dur: 0.01, v: 0.1 * k });
+    },
     firework(at) { // a shell bursting overhead: a crack, then crackle
       sources.loose.position.copy(at); sources.loose.updateMatrixWorld();
       const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
@@ -315,7 +323,7 @@ export function createSound({ scene, camera, spots }) {
   }
 
   return {
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where). Silent while off. */
+    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where), 'zap' (where, how hard). Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,

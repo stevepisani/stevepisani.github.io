@@ -16,7 +16,7 @@ import { PALETTE, restyle, glow } from './materials.js';
 import { buildPlanet, surfacePoint, surfaceRadius, pondK, BAR_DIR, POND, RADIUS } from './planet.js';
 import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
-import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
+import { buildPlaces, SPOTS, trailEdge, keepClear, nearLandmark } from './places.js';
 import { Player, bindInput, BODY } from './player.js';
 import { findRoute } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
@@ -2163,36 +2163,48 @@ async function start() {
   const CARRY = new THREE.Vector3(0.3, -0.3, -0.85); // at arm's length, low on the right
   const carryDrop = $('carry-drop'), carryThrow = $('carry-throw');
   let carry = null, carryWind = -1;
-  // Pick up a coconut a second time and a neon hoop drops from the sky (hoop.js), a few steps
-  // ahead, somewhere clear: off the paths, out of the lagoon, away from the landmarks, the bar
-  // and anything lying about. Get one through it and it leaves; two more and it's back.
+  // Pick up a coconut a second time and a neon hoop flickers into being (hoop.js) straight in
+  // front of you. If that spot would sit on or against something (a landmark, the bar, the lagoon,
+  // anything lying about, or the middle of a path), it takes the clear spot nearest straight ahead that's still in
+  // view; if nothing in view is clear, it waits and keeps looking while you carry the coconut, and
+  // appears as soon as you face open ground. Get one through it and it goes; two more and it's back.
   const hoop = createHoop({ scene, physics, colliders: player.colliders, sound: { play: (...a) => sound.play(...a) }, reducedMotion });
-  let coconuts = 0;
+  let coconuts = 0, hoopWanted = false, hoopLook = 0;
   function hoopSpot() {
-    const up = player.up, fwd = player.forward(new THREE.Vector3());
+    const up = player.up, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat); // the way you face (level)
     fwd.addScaledVector(up, -fwd.dot(up)).normalize();
     const fits = (dir) => {
-      if (pondK(dir) < 1.3 || keepClear(dir, 1.2) || dir.angleTo(BAR_DIR) * RADIUS < 7.5) return false;
+      // beside a path is fine (the pole stays off the walkway); never on a landmark, the bar or the lagoon
+      if (pondK(dir) < 1.3 || trailEdge(dir) < 0.6 || nearLandmark(dir, 1.2) || dir.angleTo(BAR_DIR) * RADIUS < 7.5) return false;
       const at = dir.clone().multiplyScalar(surfaceRadius(dir));
       if (player.colliders.some((c) => c.center.distanceTo(at) < c.radius + 1.6)) return false;
       if (physics.items.some((x) => !x.held && x.object.position.distanceTo(at) < 1.4)) return false;
       return !interactables.some((x) => x.approach && x.approach.distanceTo(at) < 2.2);
     };
-    for (const turn of [0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.6, -1.6, 2.2, -2.2, Math.PI]) {
-      const d = fwd.clone().applyAxisAngle(up, turn);
-      for (const dist of [6, 5, 7.5, 4.5, 9]) {
-        const dir = player.pos.clone().addScaledVector(d, dist).normalize();
-        if (fits(dir)) return dir.multiplyScalar(surfaceRadius(dir));
+    // straight ahead first, then turning out either side, no further than the edge of the view
+    // (less a margin, so the whole hoop is in it: a phone held upright sees a narrow slice)
+    const half = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect) - 0.12;
+    for (let turn = 0; turn <= half; turn += 0.08) {
+      for (const side of turn ? [1, -1] : [1]) {
+        const d = fwd.clone().applyAxisAngle(up, turn * side);
+        for (const dist of [5, 4.5, 6, 7]) {
+          const dir = player.pos.clone().addScaledVector(d, dist).normalize();
+          if (fits(dir)) return dir.multiplyScalar(surfaceRadius(dir));
+        }
       }
     }
     return null;
   }
+  function bringHoop() {
+    const at = hoopSpot();
+    if (!at) return false;
+    hoopWanted = false; coconuts = 0;
+    hoop.drop(at, player.pos);
+    return true;
+  }
   function grab(it) {
     used.add(it.label);
-    if (it.label === 'Coconut' && hoop.state === 'off' && ++coconuts >= 2) {
-      const at = hoopSpot();
-      if (at) { coconuts = 0; hoop.drop(at, player.pos); }
-    }
+    if (it.label === 'Coconut' && hoop.state === 'off' && !hoopWanted && ++coconuts >= 2) hoopWanted = !bringHoop();
     if (carry) putDown();
     if (!physics.take(it)) return;
     carry = it;
@@ -2317,6 +2329,8 @@ async function start() {
     else if (zoom.openFirst && zoom.k === 1 && !aimTween && Math.abs(zoom.cur - zoom.fov) < 0.5) { const r = zoom.openFirst; zoom.openFirst = null; openStar(r.books[0], { auto: true }); }
     physics.update(realDt, player.pos);
     hoop.update(realDt, t);
+    // the hoop's waiting for clear ground in view: look again a few times a second while you carry
+    if (hoopWanted && carry && state === 'walk' && (hoopLook -= realDt) <= 0) { hoopLook = 0.3; bringHoop(); }
     if (carry) {
       if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
       else { // drawn back as you wind up
@@ -2431,7 +2445,7 @@ async function start() {
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
-      const show = onScreen && panel.hidden && menu.hidden && !hovered && chatLog.hidden; // not over the conversation
+      const show = onScreen && panel.hidden && menu.hidden && !hovered;
       beacon.hidden = !show;
       if (show) {
         if (beacon.textContent !== label[1]) beacon.textContent = label[1];
