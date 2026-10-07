@@ -642,6 +642,24 @@ button.flatlay__piece:active { transform: scale(.96); }
 a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .info-row__more { color: var(--ink-2); font-size: .9rem; }
 
+/* ---------- The home-screen app: one hint on an iPhone (app.html, kit.js), and the status bar ---------- */
+.install-hint { display: flex; align-items: center; gap: 12px; margin: 0 0 18px; padding: 8px 4px 8px 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: var(--shadow); color: var(--ink-2); font-size: .92rem; line-height: 1.4; }
+.install-hint strong { color: var(--ink); }
+.install-hint__icon { flex: none; width: 26px; height: 26px; color: var(--link); }
+.install-hint__share { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -.18em; color: var(--link); }
+.install-hint__x { flex: none; width: 44px; height: 44px; margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--ink-2); font-size: 1.4rem; line-height: 1; cursor: pointer; }
+/* installed, the page runs under the status bar (black-translucent: white text); in the light theme a
+   dark band keeps its clock readable */
+@media (display-mode: standalone) {
+  body:has(#app)::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: 7; height: env(safe-area-inset-top); background: var(--ink); pointer-events: none; }
+  :root[data-theme="dark"] body:has(#app)::before, :root[data-theme="terminal"] body:has(#app)::before { background: var(--bg); }
+}
+@media (display-mode: standalone) and (prefers-color-scheme: dark) { :root:not([data-theme]) body:has(#app)::before { background: var(--bg); } }
+
+/* the sign-in code, for the home-screen app (whose storage the emailed link, opening in Safari, can't reach) */
+.app-gate .gate-code { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+.app .gate-code input { font: 600 1.4rem var(--font-mono); letter-spacing: .3em; }
+
 /* ---------- The Packing Board: a suitcase that fills, the filters, a row a thing ---------- */
 .pack-view { display: grid; gap: 14px; max-width: 48rem; }
 .pack-hero { display: flex; align-items: center; gap: 18px; margin: -4px 0 4px; }

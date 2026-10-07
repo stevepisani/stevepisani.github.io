@@ -772,6 +772,80 @@ async function offline(page, shot) {
   step('a status change made offline is kept (adding says it has to wait), and sent as one PATCH of that entry when the connection is back');
 }
 
+// The home-screen app, on an iPhone in Safari: the app pages (and only they) link a manifest that
+// installs full screen with its icons; the one hint says how, until it's dismissed; and signing in
+// works by the code from the email, which is how the installed app (whose storage the emailed
+// link, opening in Safari, can't reach) signs in. Against a made-up Supabase Auth.
+async function install(page, shot) {
+  await page.goto(base + '/about');
+  if (await page.$('link[rel="manifest"], meta[name="apple-mobile-web-app-capable"]')) throw new Error('a public page links the apps\' manifest');
+  await page.goto(base + '/apps/wardrobe');
+  const href = await page.getAttribute('link[rel="manifest"]', 'href');
+  const manifest = await page.evaluate((h) => fetch(h).then((r) => r.json()), href);
+  if (href !== '/apps/wardrobe.webmanifest' || manifest.name !== 'Wardrobe' || manifest.start_url !== '/apps/wardrobe' || manifest.scope !== '/apps/' || manifest.display !== 'standalone' || !/^#[0-9a-f]{6}$/.test(manifest.theme_color)) throw new Error(`the wardrobe's manifest: ${href} ${JSON.stringify(manifest)}`);
+  const sizes = manifest.icons.map((i) => `${i.sizes} ${i.purpose}`).join();
+  if (sizes !== '192x192 any,512x512 any,512x512 maskable') throw new Error(`the manifest's icons: ${sizes}`);
+  for (const src of [...manifest.icons.map((i) => i.src), await page.getAttribute('link[rel="apple-touch-icon"]', 'href')]) {
+    const [ok, w] = await page.evaluate((u) => new Promise((r) => { const i = new Image(); i.onload = () => r([true, i.naturalWidth]); i.onerror = () => r([false, 0]); i.src = u; }), src);
+    if (!ok || !src.includes(`-${w}.png`)) throw new Error(`the icon ${src} doesn't load at its size (${w})`);
+  }
+  for (const [name, content] of [['apple-mobile-web-app-capable', 'yes'], ['apple-mobile-web-app-status-bar-style', 'black-translucent'], ['apple-mobile-web-app-title', 'Wardrobe']]) {
+    if ((await page.getAttribute(`meta[name="${name}"]`, 'content')) !== content) throw new Error(`the page's ${name} isn't ${content}`);
+  }
+  if ((await page.locator('meta[name="theme-color"][media]').count()) !== 2) throw new Error('no theme colour for light and dark');
+  step('manifest on the app pages only: Wardrobe, full screen from /apps/wardrobe, its icons at their sizes; the iPhone tags');
+
+  // Supabase Auth, made up: the email goes; the code 123456 is right, any other isn't
+  const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
+  const asked = [];
+  const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
+  await page.context().route(`${db.origin}/**`, (route) => {
+    const req = route.request(), url = new URL(req.url()), json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+    if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
+    const body = (() => { try { return req.postDataJSON(); } catch (e) { return null; } })();
+    asked.push({ path: url.pathname, body });
+    if (url.pathname.endsWith('/auth/v1/otp')) return json({});
+    if (url.pathname.endsWith('/auth/v1/verify')) return body?.token === '123456' ? json({ access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: 4102444800, refresh_token: 'r', user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } }) : json({ code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' }, 403);
+    if (url.pathname.endsWith('/rpc/is_member')) return json(true);
+    return json([]);
+  });
+  await page.reload();
+  await until(page, () => document.getElementById('app').dataset.state === 'out');
+  if (!(await page.isVisible('#install-hint')) || !(await page.isHidden('#gate-code'))) throw new Error('signed out on an iPhone: the hint should show, and the code field not yet');
+  await page.fill('#gate-form [name="email"]', 'member@example.com');
+  await page.click('#gate-form button');
+  await until(page, () => !document.getElementById('gate-code').hidden);
+  const field = page.locator('#gate-code [name="code"]');
+  if ((await field.getAttribute('autocomplete')) !== 'one-time-code' || (await field.getAttribute('inputmode')) !== 'numeric' || !/type the code here/.test(await page.textContent('#gate-note')) || !(await field.evaluate((f) => f === document.activeElement))) throw new Error(`after sending, the code field (one-time-code, numeric, focused) and what to do: ${await page.textContent('#gate-note')}`);
+  const sent = asked.find((a) => a.path.endsWith('/otp'));
+  if (sent?.body?.email !== 'member@example.com' || sent.body.create_user !== false) throw new Error(`sending the email asked ${JSON.stringify(sent)}`);
+  await shot('gate-code');
+  await field.fill('654321');
+  await until(page, () => /didn't work/.test(document.getElementById('gate-note').textContent));
+  if ((await page.getAttribute('#app', 'data-state')) !== 'out') throw new Error('a wrong code signed in');
+  await field.fill('123456'); // six digits: it goes by itself
+  await until(page, () => document.getElementById('app').dataset.state === 'in');
+  const verify = asked.filter((a) => a.path.endsWith('/verify')).pop();
+  if (JSON.stringify([verify.body.email, verify.body.token, verify.body.type]) !== '["member@example.com","123456","email"]') throw new Error(`the code was checked with ${JSON.stringify(verify.body)}`);
+  step('signed in by the code from the email: a wrong one says so, six digits go by themselves (email, token, type email)');
+
+  await shot('hint');
+  await page.click('#install-hint-x');
+  await page.reload();
+  await until(page, () => document.getElementById('app').dataset.state === 'in');
+  if (await page.isVisible('#install-hint')) throw new Error('the hint came back after it was dismissed');
+  // installed, there's no hint, and the email's link can't be used: the note says only the code
+  const installed = await page.context().newPage();
+  await installed.addInitScript(() => { Object.defineProperty(navigator, 'standalone', { value: true }); localStorage.clear(); });
+  await installed.goto(base + '/apps/wardrobe');
+  await until(installed, () => document.getElementById('app').dataset.state === 'out');
+  await installed.fill('#gate-form [name="email"]', 'member@example.com');
+  await installed.click('#gate-form button');
+  await until(installed, () => !document.getElementById('gate-code').hidden);
+  if (await installed.isVisible('#install-hint') || (await installed.textContent('#gate-note')) !== 'Check member@example.com for the code.') throw new Error(`installed: no hint, and the note asks for the code: ${await installed.textContent('#gate-note')}`);
+  step('the hint shows on an iPhone until dismissed, never in the installed app, where the note asks for the code');
+}
+
 // The wardrobe's in-chat card, the way ChatGPT and Claude show it: the page the MCP server serves
 // (resources/read) in a sandboxed frame, driven by the MCP Apps SDK's own host side (AppBridge),
 // with every tool the card calls answered by the real server on the real schema (PGlite). Photos
@@ -903,6 +977,7 @@ const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome' }, apps);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
+if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
