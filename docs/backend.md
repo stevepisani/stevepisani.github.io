@@ -53,8 +53,8 @@ What's in the database:
 | Thing | What it is | Who can do what |
 |---|---|---|
 | `members`, `is_member()`, `me()` | who may use the private bits (every policy asks `is_member()`), and to the app each one's name and sections (`me()`, their own row) | members |
-| `recipes` | Recipes, a tab in SJPJr (`/apps/wardrobe#recipes`; `docs/apps.md`) | members only |
-| `wardrobe_items`, `wardrobe_variants`, `wardrobe_products`, `wardrobe_photos`, view `wardrobe_closet` | the wardrobe (`/apps/wardrobe`): each owned garment, the colour and size it is, the garment as sold, its photos; the view resolves them flat (`docs/apps.md`) | each member their own rows; what's linked must be theirs too |
+| `recipes` | Recipes, a tab in SJPJr (`/apps/#recipes`; `docs/apps.md`) | members only |
+| `wardrobe_items`, `wardrobe_variants`, `wardrobe_products`, `wardrobe_photos`, view `wardrobe_closet` | the wardrobe (in SJPJr, `/apps`): each owned garment, the colour and size it is, the garment as sold, its photos; the view resolves them flat (`docs/apps.md`) | each member their own rows; what's linked must be theirs too |
 | `trips` | the wardrobe's trips | each member their own |
 | `photos` bucket | every private app's pictures, a folder per app (recipe photos from before Oct 2026 are at the root) | members only |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |

@@ -1,14 +1,14 @@
 // SJPJr with no connection (docs/apps.md): a service worker for /apps/, registered by the app
-// (/apps/wardrobe). While there's a connection everything comes from the network as usual, and a
+// (/apps/). While there's a connection everything comes from the network as usual, and a
 // copy of each page, script and stylesheet is kept as it passes; with none, the copy answers. The
 // app opens on Today from its copy too (no address is Today). The wardrobe's photos come from
 // Supabase Storage through signed links whose token changes, so the app keeps them itself (cache
 // "wardrobe-photos", keyed by the file without the token) and this answers from there only when
 // offline. The data is the app's own copy, in localStorage. The addresses that were apps of their
-// own, /apps and /apps/recipes (a home-screen app may still open there), go straight to SJPJr and
-// its Recipes tab, connection or not.
+// own or where SJPJr used to be, /apps/recipes and /apps/wardrobe (a home-screen app may still
+// open there), go straight to SJPJr and its Recipes tab, connection or not.
 const PAGES = 'apps-pages';
-const MOVED = { '/apps/': '/apps/wardrobe', '/apps/recipes': '/apps/wardrobe#recipes', '/apps/recipes.html': '/apps/wardrobe#recipes' };
+const MOVED = { '/apps/wardrobe': '/apps/', '/apps/wardrobe.html': '/apps/', '/apps/recipes': '/apps/#recipes', '/apps/recipes.html': '/apps/#recipes' };
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));

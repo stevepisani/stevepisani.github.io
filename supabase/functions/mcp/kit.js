@@ -1,6 +1,6 @@
 // What every area of SJPJr's MCP server shares (server.js has the protocol and the rules).
 export const SITE = "https://stevenpisani.com";
-export const WARDROBE_APP = `${SITE}/apps/wardrobe`; // the app's own links: #closet, #item/<id>, #trip/<id>
+export const WARDROBE_APP = `${SITE}/apps/`; // the app's own links: #closet, #item/<id>, #trip/<id>
 
 // The in-chat card: one page for every area (server.js serves it); a tool that shows it says so
 // with these keys, the MCP Apps one and ChatGPT's

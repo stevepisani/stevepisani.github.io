@@ -93,7 +93,7 @@ rather than leaving it in a chat.
 
 ## Done lately
 
-- Oct 2026: SJPJr as one app, tailored to whoever's signed in: its own shell (no site nav or
+- Oct 2026: SJPJr as one app at /apps, tailored to whoever's signed in: its own shell (no site nav or
   footer; the badge opens Settings: theme, °F or °C, who's signed in, Sign out, the site), Today
   always first with a greeting by name and the next thing first (the journey, the outfit, the
   weather where you are, at home too), Recipes as a tab (`/apps` and `/apps/recipes` lead in),
