@@ -407,10 +407,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   }
 
   /* ---------- Torches flanking the entrance and the back ---------- */
-  const TORCHES = [[-3.25, 2.75], [3.25, 2.75], [-3.3, -1.9], [3.3, -1.9]];
+  // Planted in the ground just outside the rock rim (they stood at deck height out past the
+  // plinth's edge, floating), poles long enough that the flames stay at the height they were.
+  const TORCHES = [[-3.25, 2.75], [3.25, 2.75], [-3.55, -2.0], [3.55, -2.0]];
   TORCHES.forEach(([x, z], i) => {
-    const torch = tikiTorch({ height: 2.1, light: i < 2 ? 2.6 : (quality.high ? 1.8 : 0) });
-    torch.position.set(x, DECK, z);
+    const y = groundY(x, z) - 0.1;
+    const torch = tikiTorch({ height: DECK + 2.1 - y, light: i < 2 ? 2.6 : (quality.high ? 1.8 : 0) });
+    torch.position.set(x, y, z);
     bar.add(torch);
     animated.push((t) => torch.userData.update(t));
   });
