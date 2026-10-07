@@ -83,7 +83,7 @@ rather than leaving it in a chat.
 - Oct 2026: the planet, tidied and quicker: one sun the moon and both planets go round, nothing
   floating (campfire props, the bar's torches), no text selection; the bartender face to face
   with no zoom on phones and a few things to ask; tap the bar from anywhere and you're walked
-  round to it; a neon hoop that drops from space on the second coconut, with fireworks. Then a
+  round to it; a neon hoop that flickers into being on the second coconut, with fireworks. Then a
   speed pass: still meshes merged (less than half the draw calls), the models fetched alongside
   the script, and the physics engine started when the browser's idle. The planet's other open
   ideas (reading bottles, screening them, the Data Something lab, Hitchhiker's touches, more for

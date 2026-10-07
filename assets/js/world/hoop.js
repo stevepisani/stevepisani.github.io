@@ -1,14 +1,19 @@
-// The hoop: pick up a coconut a second time and a neon basketball hoop drops out of the sky a few
-// steps ahead of you, somewhere clear (main.js picks the spot). Throw a coconut through it (down
-// through the rim) and it sets off fireworks, then lifts back off into space. Its neon is the
-// sign's: pink tube for the rim, aqua round the backboard. Pole, backboard and rim are solid while
-// it's down (physics.js `addFixed`), so a coconut can bank in off the board or rattle off the rim.
+// The hoop: pick up a coconut a second time and a neon basketball hoop flickers into being a few
+// steps ahead of you, somewhere clear (main.js picks the spot): it stutters on like a neon tube
+// catching, with a flare of light and a crackle at each stutter, and settles with a shower of
+// sparks off the rim, so you look. Throw a coconut through it (down through the rim) and it sets
+// off fireworks, then flickers back out. Its neon is the sign's: pink tube for the rim, aqua round
+// the backboard. Pole, backboard and rim are solid while it's there (physics.js `addFixed`), so a
+// coconut can bank in off the board or rattle off the rim. The flicker keeps under three flashes a
+// second; under reduced motion it just fades in and out, no flashing.
 import * as THREE from 'three';
 import { PALETTE, pbr, glow } from './materials.js';
 
 const RIM_Y = 2.6, RIM_R = 0.38, RIM_Z = 0.82; // the rim: height, radius, out from the pole
 const BOARD = { w: 1.3, h: 0.85, y: 2.95, z: 0.38 };
-const FALL = 2.2, FROM = 70; // seconds to fall, from this high
+// on/off and how long (s): three short stutters, then on for good; going, the same backwards
+const FLICKER_IN = [[1, 0.07], [0, 0.28], [1, 0.1], [0, 0.34], [1, 0.06], [0, 0.2]];
+const FLICKER_OUT = [[1, 0.5], [0, 0.18], [1, 0.08], [0, 0.3], [1, 0.05]];
 const PINK = 0xff4fa3;        // the sign's tube
 const SPARKS = [PINK, PALETTE.aqua, PALETTE.amber, 0xfff1d6];
 
@@ -69,21 +74,45 @@ function spark() { // a soft round dot, so the sparks aren't squares
   return (sparkTex = new THREE.CanvasTexture(c));
 }
 
+let flareTex;
+function flareTexture() { // light off a tube: bright at the heart, falling away fast, nothing at the edge
+  if (flareTex) return flareTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d'), r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.12, 'rgba(255,255,255,.55)'); r.addColorStop(0.35, 'rgba(255,255,255,.14)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+  return (flareTex = new THREE.CanvasTexture(c));
+}
+
 export function createHoop({ scene, physics, colliders, sound, reducedMotion = false }) {
   const { group, neon, bases } = build();
   group.visible = false;
   scene.add(group);
+  // the flare as it catches: a soft glow round the rim, bright for an instant
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTexture(), color: new THREE.Color(PINK).multiplyScalar(2.5), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+  halo.scale.setScalar(3.2);
+  halo.visible = false;
+  scene.add(halo);
   let state = 'off', t = 0, fixed = null, post = null, scores = 0;
   const ground = new THREE.Vector3(), up = new THREE.Vector3(), rimAt = new THREE.Vector3();
   const prev = new Map(); // item -> where it was last frame
   const bursts = [];
 
   function setNeon(k) { neon.forEach((m, i) => m.color.copy(bases[i]).multiplyScalar(k)); }
-  function seat(lift) { group.position.copy(ground).addScaledVector(up, lift); group.updateMatrixWorld(true); }
+  // where in a flicker pattern `t` falls: on or off (and which step, for a crackle per stutter)
+  let stutterIndex = 0, lit = -1;
+  const total = (pattern) => pattern.reduce((a, [, d]) => a + d, 0);
+  function stutter(pattern, time) {
+    let acc = 0;
+    for (let i = 0; i < pattern.length; i++) { acc += pattern[i][1]; if (time < acc) { stutterIndex = i; return pattern[i][0] === 1; } }
+    stutterIndex = pattern.length;
+    return true;
+  }
 
-  function firework(at, color, delay) {
-    const n = 90, pos = new Float32Array(n * 3), vel = [];
-    for (let i = 0; i < n; i++) vel.push(new THREE.Vector3().randomDirection().multiplyScalar(3 + Math.random() * 2.5));
+  function firework(at, color, delay, { n = 90, speed = 3, rise = 0.55 } = {}) {
+    const pos = new Float32Array(n * 3), vel = [];
+    for (let i = 0; i < n; i++) vel.push(new THREE.Vector3().randomDirection().multiplyScalar(speed * (1 + Math.random() * 0.8)));
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({ map: spark(), color: new THREE.Color(color).multiplyScalar(3), size: 0.22, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
@@ -91,7 +120,7 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
     pts.frustumCulled = false;
     pts.visible = false;
     scene.add(pts);
-    bursts.push({ pts, vel, at: at.clone(), from: rimAt.clone(), t: -delay, n });
+    bursts.push({ pts, vel, at: at.clone(), from: rimAt.clone(), t: -delay, n, rise, quiet: rise === 0 });
   }
   function updateBursts(dt) {
     for (let b = bursts.length - 1; b >= 0; b--) {
@@ -99,7 +128,7 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
       f.t += dt;
       if (f.t < 0) continue;
       const p = f.pts.geometry.attributes.position;
-      const rise = 0.55; // the shell going up, then the burst
+      const rise = f.rise; // the shell going up, then the burst
       f.pts.visible = true;
       if (f.t < rise) {
         const k = f.t / rise, e = 1 - (1 - k) * (1 - k);
@@ -107,7 +136,7 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
         for (let i = 0; i < f.n; i++) p.setXYZ(i, c.x, c.y, c.z);
         f.pts.material.size = 0.18;
       } else {
-        if (!f.burst) { f.burst = true; sound.play('firework', f.at); }
+        if (!f.burst) { f.burst = true; if (!f.quiet) sound.play('firework', f.at); }
         const s = f.t - rise, drag = (1 - Math.exp(-2.2 * s)) / 2.2, fall = 1.2 * s * s;
         for (let i = 0; i < f.n; i++) {
           const v = f.vel[i];
@@ -135,7 +164,7 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
     get state() { return state; },
     get rim() { return state === 'off' ? null : rimAt.clone(); },
     get up() { return up.clone(); },
-    /** Drop it at `spot` (on the ground), facing `toward` (a world point, you). */
+    /** Bring it into being at `spot` (on the ground), facing `toward` (a world point, you). */
     drop(spot, toward) {
       if (state !== 'off') return;
       ground.copy(spot); up.copy(spot).normalize();
@@ -144,10 +173,12 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
       const to = toward.clone().sub(spot); to.addScaledVector(up, -to.dot(up)).normalize();
       const yaw = Math.atan2(new THREE.Vector3().crossVectors(fwd, to).dot(up), fwd.dot(to));
       group.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(up, yaw));
-      group.visible = true;
-      state = 'falling'; t = 0;
-      seat(reducedMotion ? 0 : FROM);
-      setNeon(1);
+      group.position.copy(ground);
+      group.updateMatrixWorld(true);
+      rimAt.set(0, RIM_Y, RIM_Z).applyMatrix4(group.matrixWorld);
+      halo.position.copy(rimAt);
+      state = 'appearing'; t = 0; lit = -1;
+      setNeon(1.6);
       prev.clear();
     },
     /** Each frame, after the physics: `dt` real seconds. */
@@ -155,28 +186,33 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
       updateBursts(dt);
       if (state === 'off') return;
       t += dt;
-      if (state === 'falling') {
-        const k = reducedMotion ? 1 : Math.min(1, t / FALL);
-        seat(FROM * (1 - k * k));
-        if (k >= 1) {
-          state = 'landing'; t = 0;
-          sound.play('thud', ground, 1);
-          group.updateMatrixWorld(true);
-          rimAt.set(0, RIM_Y, RIM_Z).applyMatrix4(group.matrixWorld);
+      if (state === 'appearing') {
+        const on = reducedMotion ? true : stutter(FLICKER_IN, t);
+        group.visible = on;
+        if (on && !reducedMotion && lit !== stutterIndex) { lit = stutterIndex; sound.play('zap', rimAt, 0.6); }
+        // the flare: at full on each stutter, fading between (reduced motion: one slow swell)
+        const flare = reducedMotion ? Math.sin(Math.min(1, t / 1.2) * Math.PI) * 0.5 : on ? 1 : 0;
+        halo.visible = flare > 0.01;
+        halo.material.opacity = flare;
+        if (t >= (reducedMotion ? 1.2 : total(FLICKER_IN))) {
+          state = 'settling'; t = 0;
+          group.visible = true;
+          if (!reducedMotion) { sound.play('zap', rimAt, 1); firework(rimAt, PINK, 0, { n: 40, speed: 1.4, rise: 0 }); } // it catches, and sparks shower off the rim
           fixed = physics.addFixed(group.position, group.quaternion, solids());
           post = { center: ground.clone(), radius: 0.4 };
           colliders.push(post);
         }
         return;
       }
-      if (state === 'landing') { // a little bounce, and the neon stutters on, like the sign's
-        const s = reducedMotion ? 1 : Math.min(1, t / 0.9);
-        group.scale.set(1, 1 - 0.05 * Math.sin(Math.min(1, t / 0.3) * Math.PI), 1);
-        setNeon(s < 1 && Math.sin(t * 61) > 0.3 ? 0.25 : 1);
-        if (s >= 1) { state = 'up'; group.scale.set(1, 1, 1); setNeon(1); }
+      if (state === 'settling') { // the flare dies away and the neon comes down to its glow
+        const k = Math.min(1, t / 0.8);
+        halo.material.opacity = reducedMotion ? 0 : 1 - k;
+        halo.visible = halo.material.opacity > 0.01;
+        setNeon(1.6 - 0.6 * k);
+        if (k >= 1) { state = 'up'; setNeon(1); }
       }
-      if (state === 'up' || state === 'landing') {
-        setNeon(state === 'up' && Math.sin(clock * 0.9) > 0.99 ? 0.3 : 1); // the odd flicker, as neon does
+      if (state === 'up' || state === 'settling') {
+        if (state === 'up') setNeon(Math.sin(clock * 0.9) > 0.99 ? 0.3 : 1); // the odd flicker, as neon does
         for (const it of physics.items) {
           if (it.held || !it.body) { prev.delete(it); continue; }
           const p = it.object.position, was = prev.get(it);
@@ -202,10 +238,11 @@ export function createHoop({ scene, physics, colliders, sound, reducedMotion = f
         }
         return;
       }
-      if (state === 'leaving') { // back up where it came from
-        const k = reducedMotion ? 1 : Math.min(1, t / 2.4);
-        seat(FROM * 1.4 * k * k * k);
-        if (k >= 1) { state = 'off'; group.visible = false; prev.clear(); }
+      if (state === 'leaving') { // it stutters back out of being
+        const on = !reducedMotion && stutter(FLICKER_OUT, t);
+        if (on && !group.visible) sound.play('zap', rimAt, 0.4);
+        group.visible = on;
+        if (reducedMotion || t >= total(FLICKER_OUT)) { state = 'off'; group.visible = false; halo.visible = false; prev.clear(); }
       }
     },
   };
