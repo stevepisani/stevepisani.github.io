@@ -423,7 +423,10 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   bar.add(robot.group);
 
   /* ---------- Palms around the plinth ---------- */
-  const PALMS = [[-4.7, -2.6, 0.5, 6.2], [4.8, -1.8, 2.8, 5.4], [-5.2, 1.9, 4.0, 4.8], [4.4, 3.6, 1.2, 4.2]];
+  // [x, z, which way it leans, height]. The third leans in over the bar's left side, not out:
+  // leaning out, its crown stood in the telescope's sight of the moon for part of the month
+  // (main.js lookThroughScope; checked against every place the moon can be from there).
+  const PALMS = [[-4.7, -2.6, 0.5, 6.2], [4.8, -1.8, 2.8, 5.4], [-5.2, 1.9, 1.1, 4.8], [4.4, 3.6, 1.2, 4.2]];
   PALMS.forEach(([x, z, ry, h], i) => {
     const p = palm({ height: h, lean: 0.3 + (i % 2) * 0.15, seed: i + 5 });
     p.position.set(x, groundY(x, z) - 0.1, z);
