@@ -5,13 +5,12 @@
 //
 // Rapier has one gravity vector; a planet needs one per body, so world gravity is zero and each
 // body is pulled toward the centre every step. The ground is a trimesh of the analytic surface
-// (heightAt, lagoon bowl included) at about half a metre between vertices; the landmarks are the
+// (heightAt, lagoon bowl included) at about 0.65 m between vertices; the landmarks are the
 // player's collider circles stood up as posts, plus the bar's plinth. The engine (about 1 MB)
 // loads once the planet is up (`load()`); until then everything just lies where it was put.
 // You and the skipping stones stay hand-written (player.js, stones.js): you walk on the analytic
 // surface, and Rapier has no water to skip on.
 import * as THREE from 'three';
-import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RADIUS, POND, surfaceRadius, pondK } from './planet.js';
 
 const G = 9.8;                         // same pull as the stones
@@ -39,15 +38,30 @@ export function createPhysics({ scene, loose, posts, solids = [], on = () => {} 
     await R.init();
     world = new R.World({ x: 0, y: 0, z: 0 });
 
-    // The ground: an icosphere on the analytic surface (welded, so it's one closed mesh)
-    let geo = new THREE.IcosahedronGeometry(1, 40);
-    geo.deleteAttribute('normal'); geo.deleteAttribute('uv');
-    geo = mergeVertices(geo, 1e-4);
-    const p = geo.attributes.position;
-    for (let i = 0; i < p.count; i++) { _v.fromBufferAttribute(p, i).normalize(); _v.multiplyScalar(surfaceRadius(_v)); p.setXYZ(i, _v.x, _v.y, _v.z); }
+    // The ground: a cube-sphere on the analytic surface, about 0.65 m between points, built with
+    // its index (welding an icosphere's loose triangles took longer than the rest of this put together)
+    const M = 48, pos = new Float32Array(6 * (M + 1) * (M + 1) * 3), idx = new Uint32Array(6 * M * M * 6);
+    let nv = 0, ni = 0;
+    for (let a = 0; a < 3; a++) for (const sign of [1, -1]) {
+      const base = nv;
+      for (let j = 0; j <= M; j++) for (let i = 0; i <= M; i++) {
+        const u = 2 * i / M - 1, w = 2 * j / M - 1;
+        // spherified: the cells come out even, not crowded into the corners
+        _v.setComponent(a, sign * Math.sqrt(1 - u * u / 2 - w * w / 2 + u * u * w * w / 3))
+          .setComponent((a + 1) % 3, u * Math.sqrt(1 - w * w / 2 - 0.5 + w * w / 3))
+          .setComponent((a + 2) % 3, w * Math.sqrt(1 - 0.5 - u * u / 2 + u * u / 3)).normalize();
+        _v.multiplyScalar(surfaceRadius(_v));
+        pos[nv * 3] = _v.x; pos[nv * 3 + 1] = _v.y; pos[nv * 3 + 2] = _v.z;
+        nv++;
+      }
+      for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
+        const p00 = base + j * (M + 1) + i, p10 = p00 + 1, p01 = p00 + M + 1, p11 = p01 + 1;
+        idx.set(sign > 0 ? [p00, p10, p11, p00, p11, p01] : [p00, p11, p10, p00, p01, p11], ni);
+        ni += 6;
+      }
+    }
     const ground = world.createRigidBody(R.RigidBodyDesc.fixed());
-    world.createCollider(R.ColliderDesc.trimesh(new Float32Array(p.array), new Uint32Array(geo.index.array)).setFriction(0.8), ground);
-    geo.dispose();
+    world.createCollider(R.ColliderDesc.trimesh(pos, idx).setFriction(0.8), ground);
 
     // The landmarks: posts (3 m tall unless they say, from half a metre underground); and any solids
     const fixed = world.createRigidBody(R.RigidBodyDesc.fixed());
@@ -70,6 +84,11 @@ export function createPhysics({ scene, loose, posts, solids = [], on = () => {} 
 
     // they lie where they fell until something disturbs them
     for (const it of items) if (!it.held) spawnBody(it, it.object.position, null, null, true);
+    // the engine's first step sorts out the whole world, a pause of its own: take it now, in a
+    // task of its own, not on whatever frame comes first
+    await new Promise((ok) => setTimeout(ok, 0));
+    world.timestep = MAX_STEP;
+    world.step();
   }
 
   function spawnBody(it, at, vel, spin, asleep = false) {
