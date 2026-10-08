@@ -29,6 +29,7 @@ import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
 import { createBookSky } from './booksky.js';
+import { houseAnswer } from './barback.js';
 import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
 import { createHoop } from './hoop.js';
@@ -1120,7 +1121,8 @@ async function start() {
 
   let chatter;
   // Ask the bartender: a real conversation (Claude, through supabase/functions/bartender, which
-  // knows the site from /bartender.json). Your question and its answer stack up in a short
+  // knows the site from /bartender.json). When that can't answer, the house answers do, from the
+  // same facts (barback.js). Your question and its answer stack up in a short
   // transcript just above the question box, on phones too, and the answer shows as it's said.
   // The rotating chatter stops once you've said something.
   const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log'), chatAsk = $('chat-ask');
@@ -1211,8 +1213,9 @@ async function start() {
         }
         answer += decoder.decode();
       }
-    } catch (err) { /* offline, or the function isn't there: say so below */ }
+    } catch (err) { /* offline, or the function isn't there: the house answers below */ }
     answer = answer.trim();
+    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, offline): answer from the site's own facts
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
     line.classList.remove('is-thinking');
