@@ -488,14 +488,12 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   }
 
   // The cutaway: the campfire trail crosses it on a bridge, and the planet's hollow underneath
-  // (machine.js). Its railings keep you on the bridge; tap the opening and you walk out to the
-  // middle and look down in.
+  // (machine.js). Its railings keep you on the bridge; walk out onto the glass and look down.
   const machine = buildMachine({ quality });
   group.add(machine.group, machine.inside);
   colliders.push(...machine.colliders);
   for (const [p, k] of machine.lamps) addLamp(p, k);
   animated.push((t) => machine.update(t));
-  interactables.push({ id: 'machine', label: 'Inside the planet', verb: 'Look down', object: machine.opening, point: machine.core.clone(), approach: machine.platform.clone(), radius: 1.2 });
 
   return {
     group,

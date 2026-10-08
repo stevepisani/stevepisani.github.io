@@ -373,20 +373,24 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.hoop.state === 'off', null, 120000);
   step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 
-  // the cutaway: tapping the opening from beside it walks round its railing, onto the bridge and
-  // out to the glass, and looks straight down into the planet
-  await page.evaluate(() => { // beside the cut, outside the railing
-    const W = window.__world, m = W.machine, V = m.core.constructor;
-    const x = new V(1, 0, 0).applyQuaternion(m.group.quaternion), z = new V(0, 0, 1).applyQuaternion(m.group.quaternion);
-    W.player.spawn(m.group.position.clone().addScaledVector(x, -8).addScaledVector(z, 4).normalize(), m.core, 0);
-    W.goUse('machine');
+  // the cutaway: from the end of the bridge, a tap on the glass in its middle walks you out onto
+  // it (the deck counts as ground; nothing on the bridge takes the tap instead)
+  const glass = await page.evaluate(() => {
+    const W = window.__world, m = W.machine, g = m.group, V = g.position.constructor;
+    W.player.spawn(g.localToWorld(new V(-7.5, 0, 0)).normalize(), m.platform, -0.35);
+    W.player.applyToCamera(); W.camera.updateMatrixWorld(true);
+    const p = m.platform.clone().project(W.camera), r = document.querySelector('canvas').getBoundingClientRect();
+    const xy = [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height], hit = W.pick(...xy);
+    return { xy, ground: !!(hit && hit.ground), thing: hit && hit.thing && hit.thing.id };
   });
-  await until(page, () => { const W = window.__world; return !W.player.target && !W.player.aim; }, null, 120000);
-  const inside = await page.evaluate(() => { const W = window.__world; return { off: W.player.pos.distanceTo(W.machine.platform), pitch: W.player.pitch }; });
-  if (!(inside.off < 0.6)) throw new Error(`didn't reach the glass on the bridge (${inside.off.toFixed(2)} m off)`);
-  if (!(inside.pitch < -1)) throw new Error(`on the glass but not looking down into the planet (pitch ${inside.pitch.toFixed(2)})`);
+  if (!glass.ground) throw new Error(`a tap on the bridge didn't land on it as ground (${glass.thing || 'nothing'})`);
+  await tap(glass.xy);
+  await until(page, () => !window.__world.player.target, null, 120000);
+  const onGlass = await page.evaluate(() => window.__world.player.pos.distanceTo(window.__world.machine.platform));
+  if (!(onGlass < 1)) throw new Error(`didn't walk out onto the glass (${onGlass.toFixed(2)} m off)`);
+  await page.evaluate(() => { window.__world.player.pitch = -1.2; });
   await shot('machine');
-  step('walked onto the glass on the bridge and looked down into the planet');
+  step('tapped the glass on the bridge, walked out onto it, looked down into the planet');
 
   // a long walk: from where you land to the campfire on the far side of the planet, round
   // whatever's in between (route.js), without stopping short
