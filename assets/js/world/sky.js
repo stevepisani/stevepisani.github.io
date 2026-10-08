@@ -147,6 +147,7 @@ export function buildSky({ quality }) {
   const earth = new THREE.Group();
   {
     const R = 34;
+    earth.userData.radius = R;
     earth.position.copy(GIANT_DIR).multiplyScalar(360);
     const url = (document.querySelector('script[data-earth]') || { dataset: {} }).dataset.earth || '/assets/images/earth/';
     const loader = new THREE.TextureLoader();
