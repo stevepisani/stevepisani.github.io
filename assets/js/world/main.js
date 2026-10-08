@@ -465,7 +465,8 @@ async function start() {
   // the loose things: picked up once the physics is there to throw them
   const looseMeshes = new Map();
   for (const it of physics.items) it.object.traverse((o) => { if (o.isMesh) looseMeshes.set(o, it); });
-  const pickList = [...interactMeshes.keys(), ...looseMeshes.keys(), ground];
+  const bridge = places.machine.deck; // the bridge over the cutaway: walked on like the ground
+  const pickList = [...interactMeshes.keys(), ...looseMeshes.keys(), ground, bridge];
 
   function pick(x, y) {
     const r = canvas.getBoundingClientRect();
@@ -473,7 +474,7 @@ async function start() {
     raycaster.setFromCamera(ndc, camera);
     const hit = raycaster.intersectObjects(pickList, false).find((h) => !(looseMeshes.get(h.object) || {}).held);
     if (!hit) return null;
-    if (hit.object === ground) return { ground: hit.point };
+    if (hit.object === ground || hit.object === bridge) return { ground: hit.point };
     const loose = looseMeshes.get(hit.object);
     if (loose) return physics.ready ? { loose, point: hit.point } : { ground: hit.point };
     return { thing: interactMeshes.get(hit.object), point: hit.point };
@@ -523,9 +524,6 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
-    if (it.id === 'machine') { // on the glass in the middle of the bridge: look straight down, the core far below
-      return player.turnTo(player.pos.clone().add(new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat)), -1.28, reducedMotion);
-    }
     openPanel(it.id);
   }
   let destT = -1;

@@ -295,11 +295,16 @@ export function buildMachine({ quality }) {
   }
   for (const [sx, sz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) solids.push({ cuboid: [sx ? 0.15 : HX, thick / 2, sz ? 0.15 : HZ], at: [sx * (HX + 0.15), -thick / 2, sz * (HZ + 0.15)] });
 
-  /* ---------- What you tap: the opening itself (not drawn) ---------- */
-  const opening = new THREE.Mesh(new THREE.PlaneGeometry(2 * HX, 2 * HZ).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ visible: false }));
-  opening.position.y = -0.6;
-  opening.userData.noBatch = true;
-  group.add(opening);
+  /* ---------- The deck as ground: a tap on the bridge walks you there (not drawn) ---------- */
+  const deck = new THREE.Mesh((() => {
+    const n = 24, pos = [], idx = [];
+    for (let i = 0; i <= n; i++) for (const z of [-BRIDGE, BRIDGE]) { const p = ground(x0 + ((x1 - x0) * i) / n, z); pos.push(p.x, p.y, p.z); }
+    for (let i = 0; i < n; i++) idx.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 2, i * 2 + 1, i * 2 + 3);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+    return g;
+  })(), new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
+  deck.userData.noBatch = true;
+  group.add(deck);
 
   /* ---------- Inside: the hollow, centred on the planet's centre ---------- */
   const inside = new THREE.Group();
@@ -349,15 +354,15 @@ export function buildMachine({ quality }) {
   return {
     group,
     inside,
-    /** What you tap to look inside: the opening (an undrawn plane just below the bridge). */
-    opening,
+    /** The bridge's deck, undrawn, for picking: a tap on it is a tap on the ground (main.js). */
+    deck,
     /** Player colliders: the bridge's railings and the railing round the edge (physics.js stands them up). */
     colliders: colliders.map((p) => ({ center: toWorld(p), radius: 0.08, height: 1.1 })),
     /** Fixed things a thrown coconut meets, in this frame (physics.addFixed): the bridge deck and the walls. */
     solids,
     /** Lamp pools (lamps.js): the bridge's lanterns. */
     lamps: lamps.map(([p, k]) => [toWorld(p), k]),
-    /** Where you stand to look in (on the glass, the middle of the bridge) and what you look at (the core, at the planet's centre). */
+    /** The glass in the middle of the bridge, and the core, at the planet's centre. */
     platform: toWorld(ground(0, 0)),
     core: new THREE.Vector3(),
     /** The camera, set by main.js: the inside is drawn only when it's near enough to see in. */
