@@ -29,6 +29,7 @@ import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
 import { createBookSky } from './booksky.js';
+import { houseAnswer } from './barback.js';
 import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
 import { createHoop } from './hoop.js';
@@ -524,7 +525,8 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
-    openPanel(it.id);
+    // a landmark that's a panel: turn to it first, so it's there when the panel closes
+    player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
   let destT = -1;
   const destAt = new THREE.Vector3();
@@ -1120,7 +1122,8 @@ async function start() {
 
   let chatter;
   // Ask the bartender: a real conversation (Claude, through supabase/functions/bartender, which
-  // knows the site from /bartender.json). Your question and its answer stack up in a short
+  // knows the site from /bartender.json). When that can't answer, the house answers do, from the
+  // same facts (barback.js). Your question and its answer stack up in a short
   // transcript just above the question box, on phones too, and the answer shows as it's said.
   // The rotating chatter stops once you've said something.
   const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log'), chatAsk = $('chat-ask');
@@ -1211,8 +1214,9 @@ async function start() {
         }
         answer += decoder.decode();
       }
-    } catch (err) { /* offline, or the function isn't there: say so below */ }
+    } catch (err) { /* offline, or the function isn't there: the house answers below */ }
     answer = answer.trim();
+    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, offline): answer from the site's own facts
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
     line.classList.remove('is-thinking');
@@ -1785,7 +1789,7 @@ async function start() {
     const note = s ? (daylight ? `It's night there now. This is it at full moon, ${dayMonth(daylight)}.` : '')
       : liveNow === 'loading' ? 'Finding it live…' : liveNow === 'off' ? "Live view unavailable. Showing tonight's phase." : '';
     $('scope-note').textContent = note;
-    scopeMore.textContent = s ? 'The whole moon' : 'Next launch and the ISS';
+    scopeMore.hidden = !s; // on a landing site: back to the whole moon (the launch is at the console by the rocket)
     scopePrev.hidden = scopeNext.hidden = s ? SITES.length < 2 : scope.targets.length < 2;
     scope.cardKey = cardKey();
   }
@@ -1942,7 +1946,7 @@ async function start() {
   $('scope-close').addEventListener('click', () => { scopeCard.hidden = true; }); // the whole view; a tap brings it back
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
-  scopeMore.addEventListener('click', () => (scope.site >= 0 ? closeSite() : openPanel('launch')));
+  scopeMore.addEventListener('click', () => closeSite());
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
   // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;

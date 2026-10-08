@@ -6,7 +6,7 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole } from './props.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
@@ -224,6 +224,31 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
     colliders.push({ center: pad.position.clone(), radius: 1.2 });
     interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
+
+    // Launch control: a console beside the pad, off to one side of where the path comes in, its
+    // screen counting down to the next launch anywhere (site.js nextLaunch(): Launch Library 2,
+    // cached an hour). Tap it for the launch panel.
+    const con = launchConsole();
+    const inLocal = pad.worldToLocal(surfacePoint(dirFrom(0.66, 1.42))).setY(0);
+    const a = Math.atan2(inLocal.z, inLocal.x) - 0.8;
+    const at = pad.localToWorld(new THREE.Vector3(Math.cos(a) * 3.4, 0, Math.sin(a) * 3.4)).normalize();
+    put(con.group, at, {}, 0.8);
+    con.group.updateMatrixWorld(true);
+    const toPath = con.group.worldToLocal(surfacePoint(dirFrom(0.66, 1.42)));
+    con.group.rotateY(Math.atan2(toPath.x, toPath.z)); // the screen toward you as you come up the path
+    con.group.updateMatrixWorld(true);
+    colliders.push({ center: con.group.position.clone(), radius: 0.55 });
+    const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.1)).normalize());
+    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launch', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
+    let launch = null, lastSecond = -1;
+    setTimeout(() => { if (window.nextLaunch) window.nextLaunch().then((l) => { launch = l; }).catch(() => { launch = false; }); }, 4000); // after the planet's up
+    animated.push((t) => {
+      con.blink(t);
+      const sec = Math.floor(Date.now() / 1000);
+      if (sec === lastSecond || launch === null) return;
+      lastSecond = sec;
+      con.show(launch ? ['NEXT LAUNCH', window.tMinus(launch.net), launch.name, [launch.provider, launch.pad].filter(Boolean).join(' · ')] : ['NEXT LAUNCH', 'AD ASTRA', 'No word from the manifest', 'Try again later']);
+    });
   }
 
   // The trails: a flagstone walk from where you land to the bar, and gravel trails from it to

@@ -470,8 +470,9 @@
 .scope-card__line { margin: 0; font: .92rem/1.45 var(--font-body); color: #cfd3ea; }
 .scope-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .scope-card__more { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(201 166 107 / .6); background: transparent; color: #f0e3c8; font: 600 .88rem var(--font-body); cursor: pointer; }
+.scope-card__more[hidden] { display: none; }
 .scope-card__more:hover { background: rgb(201 166 107 / .15); }
-.scope-card__steps { display: flex; }
+.scope-card__steps { display: flex; margin-left: auto; }
 .scope-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #cfd3ea; font-size: 1.5rem; cursor: pointer; }
 .scope-card__steps button:hover { color: #fff; }
 .scope-card__steps button[hidden] { display: none; }

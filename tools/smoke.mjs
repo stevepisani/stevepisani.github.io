@@ -175,15 +175,16 @@ async function planet(page, shot, { phone = false } = {}) {
   if (await page.$eval('#chat-input', (el) => parseFloat(getComputedStyle(el).fontSize)) < 16) throw new Error('the question box is under 16 px: iOS zooms into it');
   await page.focus('#chat-input');
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
-  await page.fill('#chat-input', "What's on the chalkboard?");
+  await page.fill('#chat-input', 'What should I order?');
   await page.click('#chat button[type="submit"]');
   await until(page, () => document.getElementById('chat-ask').hidden);
-  await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /closed/.test(l[1].textContent); }, null, 60000);
+  // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
+  await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
   await shot('asked');
   // done typing (Done on a phone's keyboard): out of the box, "Leave the bar" is back
   await page.evaluate(() => document.activeElement && document.activeElement.blur());
   await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
-  step('asked the bartender: the question showed, and offline the bar said it was closed');
+  step(`asked the bartender: the question showed, and offline the house answered ("${await page.textContent('#chat-log li:last-child')}")`);
 
   await page.click('#seat-leave');
   await expectState(page, 'walk', 120000);
@@ -263,7 +264,7 @@ async function planet(page, shot, { phone = false } = {}) {
   step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
 
   // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
-  // says what; › swings it to the next; the launch panel is a button away; Esc steps back
+  // says what; › swings it to the next; Esc steps back
   await page.evaluate(() => window.__world.scope.go());
   await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
   const firstSight = await page.evaluate(() => window.__world.scope.target);
@@ -274,11 +275,16 @@ async function planet(page, shot, { phone = false } = {}) {
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
   }
   if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
-  await page.click('#scope-more');
-  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch');
+  if (await page.isVisible('#scope-more')) throw new Error('the telescope card still offers something besides the sky');
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  // launch control: the console by the rocket opens the launch panel (offline here, its screen
+  // says so rather than counting down)
+  await page.evaluate(() => window.__world.goUse('console'));
+  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch', null, 120000);
+  await shot('launch-control');
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
-  await page.keyboard.press('Escape');
   await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
@@ -373,9 +379,9 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.hoop.state === 'off', null, 120000);
   step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 
-  // the cutaway: from the end of the bridge, a tap on the glass in its middle walks you out onto
+  // the cutaway: from the end of the bridge, a tap on its middle walks you out onto
   // it (the deck counts as ground; nothing on the bridge takes the tap instead)
-  const glass = await page.evaluate(() => {
+  const mid = await page.evaluate(() => {
     const W = window.__world, m = W.machine, g = m.group, V = g.position.constructor;
     W.player.spawn(g.localToWorld(new V(-6.5, 0, 0)).normalize(), m.platform, -0.35);
     W.player.applyToCamera(); W.camera.updateMatrixWorld(true);
@@ -383,14 +389,14 @@ async function planet(page, shot, { phone = false } = {}) {
     const xy = [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height], hit = W.pick(...xy);
     return { xy, ground: !!(hit && hit.ground), thing: hit && hit.thing && hit.thing.id };
   });
-  if (!glass.ground) throw new Error(`a tap on the bridge didn't land on it as ground (${glass.thing || 'nothing'})`);
-  await tap(glass.xy);
+  if (!mid.ground) throw new Error(`a tap on the bridge didn't land on it as ground (${mid.thing || 'nothing'})`);
+  await tap(mid.xy);
   await until(page, () => !window.__world.player.target, null, 120000);
-  const onGlass = await page.evaluate(() => window.__world.player.pos.distanceTo(window.__world.machine.platform));
-  if (!(onGlass < 1)) throw new Error(`didn't walk out onto the glass (${onGlass.toFixed(2)} m off)`);
+  const onMid = await page.evaluate(() => window.__world.player.pos.distanceTo(window.__world.machine.platform));
+  if (!(onMid < 1)) throw new Error(`didn't walk out to the middle of the bridge (${onMid.toFixed(2)} m off)`);
   await page.evaluate(() => { window.__world.player.pitch = -1.2; });
   await shot('machine');
-  step('tapped the glass on the bridge, walked out onto it, looked down into the planet');
+  step('tapped the middle of the bridge, walked out to it, looked down into the planet');
 
   // a long walk: from where you land to the campfire on the far side of the planet, round
   // whatever's in between (route.js), without stopping short
