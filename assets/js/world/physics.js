@@ -11,7 +11,7 @@
 // You and the skipping stones stay hand-written (player.js, stones.js): you walk on the analytic
 // surface, and Rapier has no water to skip on.
 import * as THREE from 'three';
-import { RADIUS, POND, surfaceRadius, pondK } from './planet.js';
+import { RADIUS, POND, surfaceRadius, pondK, inCut } from './planet.js';
 
 const G = 9.8;                         // same pull as the stones
 const WATER = RADIUS + POND.level;     // the lagoon's surface, as a distance from the centre
@@ -56,12 +56,15 @@ export function createPhysics({ scene, loose, posts, solids = [], on = () => {} 
       }
       for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
         const p00 = base + j * (M + 1) + i, p10 = p00 + 1, p01 = p00 + M + 1, p11 = p01 + 1;
+        _w.set(0, 0, 0);
+        for (const q of [p00, p10, p01, p11]) _w.x += pos[q * 3], _w.y += pos[q * 3 + 1], _w.z += pos[q * 3 + 2];
+        if (inCut(_w)) continue; // the cutaway is open: what falls in lands on the machine's floor (machine.js solids)
         idx.set(sign > 0 ? [p00, p10, p11, p00, p11, p01] : [p00, p11, p10, p00, p01, p11], ni);
         ni += 6;
       }
     }
     const ground = world.createRigidBody(R.RigidBodyDesc.fixed());
-    world.createCollider(R.ColliderDesc.trimesh(pos, idx).setFriction(0.8), ground);
+    world.createCollider(R.ColliderDesc.trimesh(pos, idx.subarray(0, ni)).setFriction(0.8), ground);
 
     // The landmarks: posts (3 m tall unless they say, from half a metre underground); and any solids
     const fixed = world.createRigidBody(R.RigidBodyDesc.fixed());
