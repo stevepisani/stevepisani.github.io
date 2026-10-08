@@ -372,6 +372,21 @@ async function planet(page, shot, { phone = false } = {}) {
   await shot('fireworks');
   await until(page, () => window.__world.hoop.state === 'off', null, 120000);
   step('a second coconut brought the hoop; one through it set off fireworks, and it left');
+
+  // the cutaway: tapping the machine from the trail walks round its railing, out along the catwalk to the
+  // platform, and looks down into it
+  await page.evaluate(() => { // from the trail, past the end of the railing
+    const W = window.__world, m = W.machine, V = m.core.constructor;
+    const x = new V(1, 0, 0).applyQuaternion(m.group.quaternion), z = new V(0, 0, 1).applyQuaternion(m.group.quaternion);
+    W.player.spawn(m.group.position.clone().addScaledVector(x, -8).addScaledVector(z, 4).normalize(), m.core, 0);
+    W.goUse('machine');
+  });
+  await until(page, () => { const W = window.__world; return !W.player.target && !W.player.aim; }, null, 120000);
+  const inside = await page.evaluate(() => { const W = window.__world; return { off: W.player.pos.distanceTo(W.machine.platform), pitch: W.player.pitch }; });
+  if (!(inside.off < 0.6)) throw new Error(`didn't reach the machine's platform (${inside.off.toFixed(2)} m off)`);
+  if (!(inside.pitch < -0.5)) throw new Error(`on the platform but not looking down into the machine (pitch ${inside.pitch.toFixed(2)})`);
+  await shot('machine');
+  step('walked out on the catwalk and looked down into the machine');
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole

@@ -521,24 +521,38 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
+    if (it.id === 'machine') { // on the platform: turn to the core and look down into it
+      const eye = player.pos.clone().addScaledVector(player.up, player.eye);
+      const d = places.machine.core.clone().sub(eye), down = d.dot(player.up);
+      return player.turnTo(places.machine.core, Math.max(-0.85, Math.atan2(down, Math.sqrt(Math.max(0, d.lengthSq() - down * down)))), reducedMotion);
+    }
     openPanel(it.id);
   }
   let destT = -1;
   const destAt = new THREE.Vector3();
   function showDest(point) { destAt.copy(point); standOn(destRing, point, 0.6); destT = 0; }
-  // Near the bar a straight line can run into the counter, a post or a palm: walk round instead
-  // (route.js). Worked out flat, in the bar's frame; anywhere else the way is open.
-  const nearBar = player.colliders
-    .map((c) => ({ c, p: bar.group.worldToLocal(c.center.clone()) }))
-    .filter(({ p }) => p.y > -4 && Math.hypot(p.x, p.z) < 11)
-    .map(({ c, p }) => ({ x: p.x, z: p.z, r: c.radius + BODY + 0.03 }));
+  // Near the bar, or the railings round the machine, a straight line can run into the counter, a
+  // post, a palm or a rail: walk round instead (route.js). Worked out flat, in that place's frame;
+  // anywhere else the way is open.
+  const zone = (group, colliders, reach) => ({
+    group,
+    reach,
+    circles: colliders
+      .map((c) => ({ c, p: group.worldToLocal(c.center.clone()) }))
+      .filter(({ p }) => p.y > -4 && Math.hypot(p.x, p.z) < 11)
+      .map(({ c, p }) => ({ x: p.x, z: p.z, r: c.radius + BODY + 0.03 })),
+  });
+  const zones = [zone(bar.group, player.colliders, 8), zone(places.machine.group, places.machine.colliders, 7)];
   function routeTo(point) {
-    const a = bar.group.worldToLocal(player.pos.clone()), b = bar.group.worldToLocal(point.clone());
-    if (a.y < -6 || Math.hypot(b.x, b.z) > 8) return [];
-    return findRoute([a.x, a.z], [b.x, b.z], nearBar).map(([x, z]) => {
-      const up = bar.group.localToWorld(new THREE.Vector3(x, 0, z)).normalize();
-      return up.multiplyScalar(surfaceRadius(up));
-    });
+    for (const z of zones) {
+      const a = z.group.worldToLocal(player.pos.clone()), b = z.group.worldToLocal(point.clone());
+      if (a.y < -6 || Math.hypot(b.x, b.z) > z.reach) continue;
+      return findRoute([a.x, a.z], [b.x, b.z], z.circles).map(([x, zz]) => {
+        const up = z.group.localToWorld(new THREE.Vector3(x, 0, zz)).normalize();
+        return up.multiplyScalar(surfaceRadius(up));
+      });
+    }
+    return [];
   }
   function goUse(it) {
     clearHint('walk');
@@ -1736,7 +1750,7 @@ async function start() {
   // eyepiece's round field (the same eased narrowing as leaning in elsewhere). What it can see
   // from here: the moon, the real one this hour (eyepiece.js: NASA's picture over the drawn one,
   // with rings where people landed; tap one to look closer), the real sun today through a solar
-  // filter, and the ringed planet. ‹ › swings it from one to the next. A card says what you're
+  // filter, and Earth. ‹ › swings it from one to the next. A card says what you're
   // looking at, and "Next launch and the ISS" opens the launch panel: the text backs up the view,
   // it isn't the way in. "Step back" or Esc stands you up again (Esc leaves a landing site first).
   const scopeSpot = interactables.find((i) => i.id === 'launch');
@@ -1750,11 +1764,11 @@ async function start() {
   function scopeTargets(eye) {
     const up = eye.clone().normalize();
     const above = (b) => b && b.dir.dot(up) > Math.sin(THREE.MathUtils.degToRad(10)); // clear of the ground and the palms
-    const { moon, sun, giant } = sky.bodies;
+    const { moon, sun, earth } = sky.bodies;
     const list = [];
     if (above(moon)) list.push({ id: 'moon', body: moon, fill: 0.55, name: 'The moon' });
     if (above(sun)) list.push({ id: 'sun', body: sun, fill: 0.62, name: 'The sun' });
-    if (above(giant)) list.push({ id: 'giant', body: giant, fill: 0.9, name: 'The ringed planet', line: `Lit by the same sun as the moon and this planet.${above(moon) ? '' : ' The moon is below the horizon from here tonight.'}` });
+    if (above(earth)) list.push({ id: 'earth', body: earth, fill: 0.9, name: 'Earth', line: `Turned to this hour: day where the sun is really up, the cities lit where it's really night.${above(moon) ? '' : ' The moon is below the horizon from here tonight.'}` });
     return list;
   }
   // what the card says about it: the moon and sun as they really are, once their pictures are in
@@ -2526,7 +2540,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
@@ -2535,7 +2549,11 @@ async function start() {
   // What can wait for the browser to be idle, so none of it lands on your first steps: the
   // physics engine (a megabyte of WebAssembly and its ground), then the bottles' shaders
   const whenIdle = (fn, after = 0) => setTimeout(() => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 3000 }) : fn()), after);
-  whenIdle(() => physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e)), 1200);
+  whenIdle(() => physics.load().then(() => {
+    const m = places.machine; // the cutaway's floor, walls and catwalk, for what's thrown in
+    physics.addFixed(m.group.position, m.group.quaternion, m.solids);
+    window.__world.physics = physics;
+  }).catch((e) => console.warn('physics', e)), 1200);
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
   fireflies = createFireflies(scene, DB);

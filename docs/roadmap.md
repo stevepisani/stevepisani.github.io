@@ -12,7 +12,7 @@ rather than leaving it in a chat.
    anything near home can never be public; coordinates from the Places API (New) on the server
    (inside its free monthly caps, with a quota set). In SJPJr: "Saved nearby" on Today and each
    leg of a trip, and "Add to this day". On the site: the lists Steve marks public, on a map and
-   on the planet (how they show up there is to be designed). v2: Google's Data Portability API if
+   on the planet: on Earth, in the sky (`sky.js` `earthPoint(lat, lon)` puts a place on the globe; how they look there is to be designed). v2: Google's Data Portability API if
    it reaches US accounts. Starts once the key is in (Waiting on Steve).
 
 0. **SJPJr, the MCP server, grows by area** (`docs/apps.md`, "Adding an area"). First the
@@ -80,6 +80,9 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: Earth in the sky in place of the ringed planet, turned to the real hour (day where
+  the sun's up, the cities lit at night), the way places will show on the planet; and a cutaway
+  by the campfire trail: the planet is a machine, a catwalk out over its gears and glowing core.
 - Oct 2026: the planet, tidied and quicker: one sun the moon and both planets go round, nothing
   floating (campfire props, the bar's torches), no text selection; the bartender face to face
   with no zoom on phones and a few things to ask; tap the bar from anywhere and you're walked

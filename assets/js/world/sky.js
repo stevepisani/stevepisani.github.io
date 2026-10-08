@@ -1,8 +1,50 @@
 // Deep space around the asteroid: a procedural nebula dome, twinkling stars,
-// a ringed gas giant, a moon, the sun, and the odd shooting star.
+// Earth, a moon, the sun, and the odd shooting star.
 import * as THREE from 'three';
 import * as T from './textures.js';
 import { PALETTE } from './materials.js';
+
+const RAD = Math.PI / 180;
+let turned = 0;
+
+/** Where the sun is overhead on Earth at `date`: { lat, lon } in degrees (good to a fraction of a degree). */
+export function subsolar(date = new Date()) {
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0), n = (date.getTime() - start) / 864e5;
+  const g = 2 * Math.PI / 365 * (n - 1);
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const eot = 229.18 * (0.000075 + 0.001868 * Math.cos(g) - 0.032077 * Math.sin(g) - 0.014615 * Math.cos(2 * g) - 0.040849 * Math.sin(2 * g)); // minutes
+  const utc = date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600;
+  let lon = -15 * (utc - 12 + eot / 60);
+  lon = ((lon + 540) % 360) - 180;
+  return { lat: decl / RAD, lon };
+}
+
+/** A place on Earth, as a direction in Earth's own frame (its globe's texture: lon 0 at the middle). */
+export function earthPoint(lat, lon, target = new THREE.Vector3()) {
+  const la = lat * RAD, lo = lon * RAD;
+  return target.set(Math.cos(la) * Math.cos(lo), Math.sin(la), -Math.cos(la) * Math.sin(lo));
+}
+
+/**
+ * Turn Earth so the point under the sun is the real subsolar point. That fixes the angle between
+ * its axis and the sun (90° less the sun's declination) and leaves one turn free. With the sun
+ * above it in the sky, north can't point up; take the turn that tips north toward you, a little
+ * above, like a globe on a desk: the northern hemisphere (Philadelphia, most of the places Steve
+ * saves) faces you at every hour, half in day, half in night.
+ */
+function turnEarth(earth, sunDir, at) {
+  const s = subsolar();
+  const sl = earthPoint(s.lat, s.lon), nl = new THREE.Vector3(0, 1, 0);
+  const view = at.clone().normalize();
+  const up = new THREE.Vector3(0, 1, 0).addScaledVector(view, -view.y).normalize(); // up on the sky, there
+  const toward = view.clone().negate().multiplyScalar(0.8).addScaledVector(up, 0.6);   // at you, tipped up
+  const side = toward.addScaledVector(sunDir, -toward.dot(sunDir)).normalize();       // the nearest to it square to the sun
+  const nw = sunDir.clone().multiplyScalar(Math.sin(s.lat * RAD)).addScaledVector(side, Math.cos(s.lat * RAD)).normalize();
+  const frame = (a, b) => { const c = b.clone().addScaledVector(a, -b.dot(a)).normalize(); return new THREE.Matrix4().makeBasis(a, c, a.clone().cross(c)); };
+  const m = frame(sunDir, nw).multiply(frame(sl, nl).transpose());
+  earth.quaternion.setFromRotationMatrix(m);
+  turned = Date.now();
+}
 
 export function buildSky({ quality }) {
   const group = new THREE.Group();
@@ -74,13 +116,13 @@ export function buildSky({ quality }) {
     group.add(stars);
   }
 
-  // One sun lights everything: the asteroid (main.js's key light), the gas giant and the moon.
+  // One sun lights everything: the asteroid (main.js's key light), Earth and the moon.
   // It's far away next to all three, so its light comes from the same direction for each, and
   // what you see of each body's lit side follows from where it is in the sky against the sun.
-  // The gas giant and the moon go round in (nearly) one plane through the sun, like real
+  // Earth and the moon go round in (nearly) one plane through the sun, like real
   // planets and moons: across the sky they lie along one line, the ecliptic.
   const sunDir = new THREE.Vector3(0.55, 0.62, 0.56).normalize();
-  const GIANT_DIR = new THREE.Vector3(-0.422, 0.674, -0.607).normalize();
+  const GIANT_DIR = new THREE.Vector3(-0.422, 0.674, -0.607).normalize(); // where Earth is
   const ecliptic = sunDir.clone().cross(GIANT_DIR).normalize(); // the orbital plane's normal
   {
     // a cool, distant blue-white star: the source of the moonlight
@@ -95,97 +137,81 @@ export function buildSky({ quality }) {
     bodies.sun = { dir: sunDir.clone(), across: 2 * Math.atan(5 / 500), dist: 500 };
   }
 
-  // Ringed gas giant, low on your left as you land (about 11° up), on the ecliptic, about 99°
-  // round the sky from the sun, so a little more than half of it is lit.
-  // Shaded by hand: warped, turbulent bands and a storm, a soft terminator (it has an
-  // atmosphere), darkening toward the limb, the rings' shadow across the globe and the globe's
-  // shadow across the rings.
+  // Earth, low on your left as you land (about 11° up), on the ecliptic, about 99° round the sky
+  // from the sun. The real one: NASA's Blue Marble by day and Black Marble's city lights by night
+  // (assets/images/earth/, public domain), clouds drifting over it, a thin blue atmosphere. It's
+  // lit by this planet's sun like everything else, and turned so the point under that sun is the
+  // real subsolar point now: day where it's day, the cities lit where it's night (Philadelphia
+  // goes dark when it really does). `earthPoint(lat, lon)` gives a place on it, for the places to
+  // come (docs/roadmap.md).
+  const earth = new THREE.Group();
   {
-    const R = 34, R1 = 45, R2 = 74;
-    const giant = new THREE.Group();
-    giant.position.copy(GIANT_DIR).multiplyScalar(360);
-    giant.rotation.set(0.42, 0.5, 0.36);
-    giant.updateMatrixWorld(true);
-    const sunLocal = { value: sunDir.clone().applyQuaternion(giant.quaternion.clone().invert()) };
-    const C = (k) => new THREE.Color(PALETTE[k]);
-    const shared = { sunLocal, time: uniforms.time, cream: { value: C('giantCream') }, tan: { value: C('giantTan') }, rust: { value: C('giantRust') }, umber: { value: C('giantUmber') } };
-    const noiseGLSL = `
-      float h3(vec3 p){ p = fract(p*0.3183099+.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
-      float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.-2.*f);
-        return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x), mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
-                   mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x), mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y), f.z); }
-      float fbm3(vec3 p){ float v = 0., a = .5; for (int i = 0; i < 5; i++){ v += a*n3(p); p *= 2.03; a *= .5; } return v; }`;
-    const body = new THREE.Mesh(new THREE.SphereGeometry(R, 96, 64), new THREE.ShaderMaterial({
-      uniforms: shared,
+    const R = 34;
+    earth.position.copy(GIANT_DIR).multiplyScalar(360);
+    const url = (document.querySelector('script[data-earth]') || { dataset: {} }).dataset.earth || '/assets/images/earth/';
+    const loader = new THREE.TextureLoader();
+    const ready = { value: 0 };
+    const tex = (f) => loader.load(url + f, () => { ready.value += 0.5; }, undefined, () => {});
+    const day = tex('earth-day.webp'), night = tex('earth-night.webp');
+    day.colorSpace = THREE.SRGBColorSpace;
+    for (const t of [day, night]) { t.anisotropy = 4; t.wrapS = THREE.RepeatWrapping; }
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { day: { value: day }, night: { value: night }, ready, sun: { value: sunDir }, time: uniforms.time },
       fog: false,
-      vertexShader: `varying vec3 vP; varying vec3 vN; varying vec3 vV;
-        void main(){ vP = position; vN = normalize(normalMatrix * normal);
-          vec4 mv = modelViewMatrix * vec4(position, 1.); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
-      fragmentShader: `uniform vec3 sunLocal; uniform float time; uniform vec3 cream, tan, rust, umber;
-        varying vec3 vP; varying vec3 vN; varying vec3 vV;
-        ${noiseGLSL}
+      vertexShader: `varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying vec3 vL;
+        void main(){ vUv = uv; vL = position; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.);
+          vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform sampler2D day; uniform sampler2D night; uniform float ready; uniform vec3 sun; uniform float time;
+        varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying vec3 vL;
+        float h3(vec3 p){ p = fract(p*0.3183099+.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+        float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f*f*(3.-2.*f);
+          return mix(mix(mix(h3(i),h3(i+vec3(1,0,0)),f.x), mix(h3(i+vec3(0,1,0)),h3(i+vec3(1,1,0)),f.x),f.y),
+                     mix(mix(h3(i+vec3(0,0,1)),h3(i+vec3(1,0,1)),f.x), mix(h3(i+vec3(0,1,1)),h3(i+vec3(1,1,1)),f.x),f.y), f.z); }
+        float fbm(vec3 p){ float v = 0., a = .5; for (int i = 0; i < 5; i++){ v += a*n3(p); p *= 2.07; a *= .5; } return v; }
         void main(){
-          vec3 p = normalize(vP);
-          // bands by latitude, warped by turbulence that shears along the bands
-          float warp = fbm3(vec3(p.x * 3.0, p.y * 14.0, p.z * 3.0) + vec3(time * 0.004, 0., 0.)) - .5;
-          float lat = p.y + warp * 0.07 + 0.02 * sin(atan(p.z, p.x) * 3.0 + p.y * 9.0);
-          float b1 = .5 + .5 * sin(lat * 19.0), b2 = .5 + .5 * sin(lat * 43.0 + 1.3), b3 = .5 + .5 * sin(lat * 7.0 - .6);
-          vec3 col = mix(cream, tan, b1);
-          col = mix(col, rust, b2 * b3 * .75);
-          col = mix(col, umber, smoothstep(.72, .98, abs(p.y)) * .8);          // darker poles
-          col *= .9 + .2 * fbm3(p * 22.0);
-          // a great storm in the southern belt
-          vec2 st = vec2(atan(p.z, p.x) - 1.1, (p.y + .32) * 3.2);
-          float storm = smoothstep(.16, .0, length(st * vec2(1.0, 1.6)));
-          col = mix(col, rust * 1.15, storm * .8);
-          // light: a soft terminator, darker at the limb, a faint night side
-          float ndl = dot(p, normalize(sunLocal));
-          float lit = smoothstep(-.12, .55, ndl);
-          // the rings' shadow on the globe
-          vec3 L = normalize(sunLocal);
-          if (L.y * vP.y < 0.0) {
-            float t = -vP.y / L.y; vec2 hit = (vP + L * t).xz; float r = length(hit);
-            float d = smoothstep(${R1.toFixed(1)}, ${(R1 + 6).toFixed(1)}, r) * smoothstep(${R2.toFixed(1)}, ${(R2 - 8).toFixed(1)}, r);
-            lit *= 1.0 - d * .65;
-          }
-          float mu = max(dot(normalize(vN), vV), 0.);
-          col *= lit * (.5 + .5 * pow(mu, .45)) * 1.25 + .025;
-          col += vec3(.25, .18, .12) * pow(1. - mu, 3.) * lit * .5;             // hazy lit rim
+          vec3 n = normalize(vN), v = normalize(vV);
+          float ndl = dot(n, sun);
+          // the ground: the Blue Marble once it's in, a plain ocean blue until then
+          vec3 ground = mix(vec3(.02, .07, .16), texture2D(day, vUv).rgb, ready);
+          float ocean = smoothstep(.02, .1, ground.b - max(ground.r, ground.g)) * ready;
+          // clouds, drifting slowly east, thicker toward the storm belts
+          vec3 p = normalize(vL);
+          vec3 q = p * vec3(4.5, 9., 4.5) + vec3(time * .003, 0., time * .002); // streaked along the latitudes
+          q += (vec3(fbm(q * .7), fbm(q * .7 + 3.1), fbm(q * .7 + 7.7)) - .5) * 1.6; // swirled, not blobs
+          float c = fbm(q * 1.9);
+          c = smoothstep(.55, .78, c + .06 * (1. - abs(p.y))) * .72;
+          // day: soft terminator (it has an atmosphere), a glint of sun off the sea
+          float lit = smoothstep(-.08, .3, ndl);
+          vec3 h = normalize(sun + v);
+          float glint = pow(max(dot(n, h), 0.), 60.) * ocean * (1. - c) * 1.6;
+          vec3 col = mix(ground, vec3(.92, .94, .97), c) * lit * 1.15 + vec3(1., .95, .85) * glint * lit;
+          // night: the cities, warm, where it's dark (and under no cloud)
+          float lights = smoothstep(.16, .75, texture2D(night, vUv).r) * ready * (1. - smoothstep(-.18, .06, ndl)) * (1. - c * .8); // the cities, not the moonlit land under them
+          col += vec3(1., .72, .38) * lights * 2.2;
+          // a thin blue atmosphere at the edge, on the lit side
+          float mu = max(dot(n, v), 0.);
+          col += vec3(.25, .5, 1.) * pow(1. - mu, 3.) * smoothstep(-.25, .4, ndl) * .9;
           gl_FragColor = vec4(col, 1.);
         }`,
+    });
+    earth.add(new THREE.Mesh(new THREE.SphereGeometry(R, 128, 64), mat));
+    // the atmosphere's glow just past the edge
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(R * 1.035, 96, 48), new THREE.ShaderMaterial({
+      uniforms: { sun: { value: sunDir } },
+      fog: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.BackSide,
+      vertexShader: `varying vec3 vN; varying vec3 vV;
+        void main(){ vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.);
+          vV = normalize(cameraPosition - w.xyz); gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform vec3 sun; varying vec3 vN; varying vec3 vV;
+        void main(){ float mu = abs(dot(normalize(vN), normalize(vV)));
+          float rim = pow(1. - mu, 2.) * smoothstep(.45, .0, mu);
+          gl_FragColor = vec4(vec3(.3, .55, 1.) * rim * smoothstep(-.3, .5, dot(normalize(vN), sun)) * 1.2, 1.); }`,
     }));
-    giant.add(body);
-    const ringGeo = new THREE.RingGeometry(R1, R2, 256, 4).rotateX(-Math.PI / 2);
-    const ring = new THREE.Mesh(ringGeo, new THREE.ShaderMaterial({
-      uniforms: shared,
-      fog: false,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      vertexShader: `varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
-      fragmentShader: `uniform vec3 sunLocal; uniform vec3 cream, tan, umber; varying vec3 vP;
-        float h1(float x){ return fract(sin(x * 127.1) * 43758.5453); }
-        float n1(float x){ float i = floor(x), f = fract(x); return mix(h1(i), h1(i + 1.), f * f * (3. - 2. * f)); }
-        void main(){
-          float r = length(vP.xz), k = (r - ${R1.toFixed(1)}) / ${(R2 - R1).toFixed(1)};
-          // ringlets of varying density, a clear gap (a Cassini division) and soft edges
-          float dens = .35 + .45 * n1(k * 60.) + .2 * n1(k * 230.);
-          dens *= smoothstep(.0, .06, k) * smoothstep(1., .9, k);
-          dens *= 1. - smoothstep(.02, .0, abs(k - .62)) * .92;
-          dens *= mix(.55, 1., smoothstep(.0, .35, k));                          // the faint inner ring
-          vec3 col = mix(tan, cream, n1(k * 18.));
-          // lit from either face (it's thin), and in the globe's shadow behind it
-          vec3 L = normalize(sunLocal);
-          float light = .35 + .65 * abs(L.y);
-          float b = dot(vP, L), c = dot(vP, vP) - ${(R * R).toFixed(1)};
-          if (b < 0. && b * b - c > 0.) light *= .12;
-          gl_FragColor = vec4(col * light * 1.1, dens * .85);
-        }`,
-    }));
-    giant.add(ring);
-    group.add(giant);
-    bodies.giant = { dir: GIANT_DIR.clone(), across: 2 * Math.atan(R2 / 360), dist: 360 };
+    earth.add(halo);
+    group.add(earth);
+    bodies.earth = { dir: GIANT_DIR.clone(), across: 2 * Math.atan(R / 360), dist: 360 };
   }
+  turnEarth(earth, sunDir, GIANT_DIR);
 
   // The moon, in tonight's real phase: a phase is only where the moon is against the sun (new
   // beside it, full opposite it), so it's placed that far round the ecliptic from the sun,
@@ -193,8 +219,7 @@ export function buildSky({ quality }) {
   // from the ecliptic, like ours, so a new moon passes beside the sun rather than over it. It
   // moves night to night: up ahead as you land for part of the month, over the far side of the
   // planet (where the campfire is) for the rest. Craters and dark seas, lit with a moon's flat,
-  // bright-to-the-edge look (Lommel-Seeliger), and the gas giant's shine faintly lighting its
-  // dark side.
+  // bright-to-the-edge look (Lommel-Seeliger), and Earth's shine faintly lighting its dark side.
   {
     const { map, height } = T.moonMaps();
     const tonight = window.moonTonight ? window.moonTonight() : { phase: 0.18 };
@@ -243,8 +268,10 @@ export function buildSky({ quality }) {
     group,
     sunDir,
     bodies,
+    earth,
     update(t, camera) {
       uniforms.time.value = t;
+      if (Date.now() - turned > 60000) turnEarth(earth, sunDir, GIANT_DIR);
       group.position.copy(camera.position); // the sky is infinitely far away
       if (shoot.start < 0 && t > shoot.next) {
         shoot.start = t;

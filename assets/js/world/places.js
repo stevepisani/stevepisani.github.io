@@ -10,7 +10,8 @@ import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStac
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
-import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
+import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
+import { buildMachine } from './machine.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -45,13 +46,15 @@ export const TRAILS = [
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
   { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
   { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
+  // a spur off it to the cutaway (machine.js), where it turns into the catwalk
+  { id: 'machine', points: [CUT.trail, CUT.up.clone().multiplyScalar(RADIUS).addScaledVector(CUT.e1, -CUT.half[0] - 0.55).normalize()], width: 0.95, flags: 'steps', seed: 7, openStart: true, openEnd: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
 export const trailEdge = trailEdgeFn(TRAILS);
-// Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
-// the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+// Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
+// the dish, the boat and the telescope (they're placed before any of these exist).
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True within `margin` metres of a landmark's footprint. */
 export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
@@ -89,7 +92,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   const colliders = [];
   const interactables = [];
   const loose = []; // things physics.js moves: { object, radius, buoyancy (floats if > 1) }
-  const occupied = []; // directions + radii kept clear of scatter
+  const occupied = [[CUT.up.clone(), Math.hypot(...CUT.half) + 0.5]]; // directions + radii kept clear of scatter (the cutaway's from the start)
 
   const put = (obj, dir, opts = {}, clear = 1.5) => {
     place(obj, dir, opts);
@@ -484,11 +487,21 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
   }
 
+  // The cutaway: the planet's a machine (machine.js). Its railings keep you on the catwalk; tap it
+  // and you walk out onto the platform and look down in.
+  const machine = buildMachine({ quality });
+  group.add(machine.group);
+  colliders.push(...machine.colliders);
+  for (const [p, k] of machine.lamps) addLamp(p, k);
+  animated.push((t) => machine.update(t));
+  interactables.push({ id: 'machine', label: 'The machine', verb: 'Look inside', object: machine.machine, point: machine.core.clone(), approach: machine.platform.clone(), radius: 1.2 });
+
   return {
     group,
     colliders,
     interactables,
     loose,
+    machine,
     update(t) { for (const f of animated) f(t); },
   };
 }

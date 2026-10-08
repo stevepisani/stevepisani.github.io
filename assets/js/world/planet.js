@@ -92,6 +92,36 @@ export function dirFrom(polar, around) {
   return new THREE.Vector3(Math.sin(polar) * Math.cos(around), Math.cos(polar), Math.sin(polar) * Math.sin(around));
 }
 
+/*
+ * The cutaway (machine.js): a notch cut out of the planet beside the campfire trail, showing it's a
+ * machine inside. A box in its own frame: `up` out of the planet at its middle, `e1` across it
+ * away from the trail (a catwalk runs out along it), `e2` = e1 × up. `half` its half-size on the
+ * ground (m) and `depth` how far down the floor is. The ground, the grass, the pebbles and the
+ * physics all leave it open (`inCut`).
+ */
+export const CUT = (() => {
+  const near = dirFrom(1.8, -0.74);                                  // open, nearly flat ground
+  const a = dirFrom(1.4, -0.66), b = dirFrom(1.85, -1.06);           // the campfire trail there
+  let trail = a;
+  for (let k = 0; k <= 1.0001; k += 0.02) { const p = a.clone().lerp(b, k).normalize(); if (p.angleTo(near) < trail.angleTo(near)) trail = p; }
+  const toTrail = trail.clone().addScaledVector(near, -trail.dot(near)).normalize();
+  const up = near.clone().addScaledVector(toTrail, -2.6 / RADIUS).normalize(); // stood back from the trail
+  const e1 = toTrail.clone().addScaledVector(up, -toTrail.dot(up)).normalize().negate();
+  return { up, e1, e2: e1.clone().cross(up), half: [4, 3], depth: 5, trail };
+})();
+/** Where a direction lands in the cut's frame: { x, y } metres along e1 and e2 (or null, far off). */
+export function cutLocal(dir) {
+  const k = dir.dot(CUT.up) / dir.length();
+  if (k < 0.6) return null;
+  const p = _v.copy(dir).normalize().multiplyScalar(RADIUS / k).addScaledVector(CUT.up, -RADIUS);
+  return { x: p.dot(CUT.e1), y: p.dot(CUT.e2) };
+}
+/** Inside the cut (grown by `margin` metres)? */
+export function inCut(dir, margin = 0) {
+  const l = cutLocal(dir);
+  return !!l && Math.abs(l.x) < CUT.half[0] + margin && Math.abs(l.y) < CUT.half[1] + margin;
+}
+
 /**
  * Stand an object upright on the planet: its local +Y becomes the surface normal,
  * then it's spun `heading` radians about that normal.
@@ -173,6 +203,10 @@ export function buildPlanet({ quality, trailEdge = () => Infinity, keepClear = (
     }
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const p00 = base + j * (N + 1) + i, p10 = p00 + 1, p01 = p00 + N + 1, p11 = p01 + 1;
+      // the cutaway: no ground there (machine.js lays a brass lip over the ragged edge)
+      d.set(0, 0, 0);
+      for (const q of [p00, p10, p01, p11]) d.x += positions[q * 3], d.y += positions[q * 3 + 1], d.z += positions[q * 3 + 2];
+      if (inCut(d)) continue;
       index.push(p00, p10, p11, p00, p11, p01);
     }
   }
