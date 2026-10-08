@@ -1,337 +1,373 @@
-// The cutaway: a notch cut out of the planet beside the campfire trail (planet.js `CUT`), and what
-// it shows: the planet is a machine. The cut's walls are the cross-section (moss, then lava rock,
-// then a brass seam and the riveted steel hull below), its edge trimmed with a brass lip. Down on
-// the floor, 5 m below: brass gears turning, a row of pistons pumping, a glowing core in a glass
-// tube with a governor spinning on top, copper pipes and a panel of lamps. A short spur off the
-// trail turns into a steel catwalk on scaffold legs, out over it to a railed platform above the
-// core; a railing round the rest of the edge keeps you from walking off into it. Built in the
-// cut's own frame (x across it along the catwalk, y up, z along e2), then set on the planet.
+// The cutaway: where the campfire trail crosses a stretch of ground that's been cut away
+// (planet.js `CUT`), and what it shows: the planet is hollow, and it's a machine. The cut's walls
+// are the shell in cross-section (moss, soil, lava rock, a brass seam, then riveted hull plates
+// down to a lit inner skin), its edge trimmed with brass. You cross on a steel truss bridge, and
+// below it the inside opens up: a glowing core at the very centre of the planet, three gimbal
+// rings turning round it, spokes out to the shell carrying pulses of light, and the inner shell
+// itself panelled and lit like a city at night.
+//
+// The bridge and the walls are ordinary lit things (lamps.js pools from the bridge's lanterns).
+// Everything inside is drawn by its own small shaders, lit by the core, not by the moon: the
+// moonlight has no shadow down there, so standard materials would glow where nothing reaches.
+// The inside is hidden unless you're near enough to see into the opening.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { PALETTE, pbr, glow, chrome } from './materials.js';
+import { PALETTE, pbr, chrome, glow } from './materials.js';
 import { CUT, RADIUS, surfaceRadius } from './planet.js';
 import { lampLit } from './lamps.js';
 
-const [HX, HZ] = CUT.half, DEPTH = CUT.depth;
-const DECK_W = 1.1;                         // the catwalk's width
-const WALK = { from: -HX - 0.5, to: -1.4 }; // along x: off the trail to the platform
-const PLAT = { x0: -1.4, x1: 0.1, z: 1.0 }; // the platform at the end, looking across and down at the core
+const [HX, HZ] = CUT.half, INNER = CUT.inner;
+const BRIDGE = 1.0;   // the bridge's half-width (its railings stand here)
+const GLASS = [0.9, 0.62]; // the glass floor in the middle of the bridge (half-sizes along and across)
+const SEE = 40;       // metres from the cut within which the inside is drawn
 
 function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
-function tex(c, repeat) {
+
+/** The shell in cross-section, top to bottom over `thick` metres: moss, soil, lava rock, a brass seam, hull plates, the lit inner skin. */
+function strataTexture(thick) {
+  const [c, g] = canvas(256, 512), m = 512 / thick; // px per metre down
+  const band = (y0, y1, col) => { g.fillStyle = col; g.fillRect(0, y0 * m, 256, (y1 - y0) * m); };
+  band(0, 0.12, '#2c4a26'); band(0.12, 0.45, '#3b2a1c'); band(0.45, 1.5, '#2a211d'); band(1.5, 1.65, '#9b7330'); band(1.65, thick, '#3a3f45');
+  let seed = 5; const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < 600; i++) { g.fillStyle = `rgba(${r() < 0.2 ? '90,40,25' : '8,6,5'},${0.3 + r() * 0.5})`; g.beginPath(); g.arc(r() * 256, (0.45 + r() * 1.05) * m, 1 + r() * 4, 0, 7); g.fill(); } // vesicles in the rock
+  for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(20,14,10,${0.3 + r() * 0.4})`; g.fillRect(r() * 256, (0.12 + r() * 0.3) * m, 2 + r() * 6, 1 + r() * 2); } // stones in the soil
+  g.strokeStyle = 'rgba(15,17,20,.8)'; g.lineWidth = 3; // hull plates: seams every 0.6 m, rivets along them
+  for (let y = 1.65; y < thick; y += 0.6) { g.beginPath(); g.moveTo(0, y * m); g.lineTo(256, y * m); g.stroke(); }
+  for (let x = 0; x <= 256; x += 128) { g.beginPath(); g.moveTo(x, 1.65 * m); g.lineTo(x, thick * m); g.stroke(); }
+  g.fillStyle = '#7b828a';
+  for (let y = 1.72; y < thick; y += 0.6) for (let x = 8; x < 256; x += 16) { g.beginPath(); g.arc(x, y * m, 2.2, 0, 7); g.fill(); }
+  for (let x = 4; x < 256; x += 12) { g.fillStyle = '#c99a45'; g.beginPath(); g.arc(x, 1.575 * m, 2, 0, 7); g.fill(); } // the brass seam's rivets
+  const skin = g.createLinearGradient(0, (thick - 0.5) * m, 0, thick * m); // the inner skin, lit from inside
+  skin.addColorStop(0, 'rgba(255,170,80,0)'); skin.addColorStop(1, 'rgba(255,190,110,.9)');
+  g.fillStyle = skin; g.fillRect(0, (thick - 0.5) * m, 256, 0.5 * m);
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 4;
-  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.wrapS = THREE.RepeatWrapping;
   return t;
 }
 
-/** The cross-section, top to bottom over DEPTH metres: moss, soil, lava rock, a brass seam, riveted hull plates. */
-function strataTexture() {
-  const [c, g] = canvas(256, 512), m = 512 / DEPTH; // px per metre down
-  const band = (y0, y1, col) => { g.fillStyle = col; g.fillRect(0, y0 * m, 256, (y1 - y0) * m); };
-  band(0, 0.12, '#2c4a26'); band(0.12, 0.45, '#3b2a1c'); band(0.45, 1.8, '#2a211d'); band(1.8, 1.95, '#9b7330'); band(1.95, DEPTH, '#3a3f45');
-  let seed = 5; const r = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-  for (let i = 0; i < 700; i++) { g.fillStyle = `rgba(${r() < 0.2 ? '90,40,25' : '8,6,5'},${0.3 + r() * 0.5})`; g.beginPath(); g.arc(r() * 256, (0.45 + r() * 1.35) * m, 1 + r() * 4, 0, 7); g.fill(); } // vesicles in the rock
-  for (let i = 0; i < 160; i++) { g.fillStyle = `rgba(20,14,10,${0.3 + r() * 0.4})`; g.fillRect(r() * 256, (0.12 + r() * 0.3) * m, 2 + r() * 6, 1 + r() * 2); } // stones in the soil
-  // hull plates: seams every metre, rivets along them
-  g.strokeStyle = 'rgba(15,17,20,.8)'; g.lineWidth = 3;
-  for (let y = 1.95; y < DEPTH; y += 1) { g.beginPath(); g.moveTo(0, y * m); g.lineTo(256, y * m); g.stroke(); }
-  for (let x = 0; x <= 256; x += 128) { g.beginPath(); g.moveTo(x, 1.95 * m); g.lineTo(x, DEPTH * m); g.stroke(); }
-  g.fillStyle = '#7b828a';
-  for (let y = 2.05; y < DEPTH; y += 1) for (let x = 8; x < 256; x += 16) { g.beginPath(); g.arc(x, y * m, 2.2, 0, 7); g.fill(); }
-  for (let x = 4; x < 256; x += 12) { g.fillStyle = '#c99a45'; g.beginPath(); g.arc(x, 1.875 * m, 2, 0, 7); g.fill(); } // the brass seam's rivets
-  return tex(c);
+// A little value noise and fbm, shared by the core and the shell.
+const NOISE = `
+  float h3(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float n3(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(h3(i), h3(i + vec3(1,0,0)), f.x), mix(h3(i + vec3(0,1,0)), h3(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(h3(i + vec3(0,0,1)), h3(i + vec3(1,0,1)), f.x), mix(h3(i + vec3(0,1,1)), h3(i + vec3(1,1,1)), f.x), f.y), f.z); }
+  float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++) { s += a * n3(p); p *= 2.03; a *= 0.5; } return s; }
+`;
+
+/** The core: a sphere of slowly churning light, white-hot in the middle, amber at the limb. */
+function coreMaterial(time) {
+  return new THREE.ShaderMaterial({
+    uniforms: { time },
+    vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `uniform float time; varying vec3 vP; varying vec3 vN; varying vec3 vV; ${NOISE}
+      void main() {
+        vec3 p = normalize(vP);
+        float n = fbm(p * 3.0 + vec3(0.0, time * 0.15, time * 0.07) + fbm(p * 2.0 - time * 0.05) * 1.5);
+        float face = clamp(dot(vN, vV), 0.0, 1.0);
+        vec3 hot = mix(vec3(1.0, 0.45, 0.12), vec3(1.0, 0.85, 0.55), smoothstep(0.35, 0.75, n));
+        hot = mix(hot, vec3(1.0, 0.97, 0.9), smoothstep(0.6, 0.85, n) * face);
+        float limb = pow(1.0 - face, 2.0);
+        gl_FragColor = vec4(hot * (2.0 + 1.2 * face) + vec3(1.0, 0.5, 0.15) * limb * 2.0, 1.0);
+      }`,
+  });
 }
 
-/** A gear: an extruded toothed disc with a hub hole. */
-function gearGeometry(r, teeth, thick) {
-  const s = new THREE.Shape(), tooth = r * 0.12;
-  for (let i = 0; i <= teeth * 4; i++) {
-    const a = (i / (teeth * 4)) * Math.PI * 2, out = (i % 4 === 1 || i % 4 === 2) ? r + tooth : r;
-    const x = Math.cos(a) * out, y = Math.sin(a) * out;
-    i ? s.lineTo(x, y) : s.moveTo(x, y);
-  }
-  const hole = new THREE.Path(); hole.absarc(0, 0, r * 0.18, 0, Math.PI * 2, true); s.holes.push(hole);
-  const geo = new THREE.ExtrudeGeometry(s, { depth: thick, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1, curveSegments: 4 });
-  return geo.translate(0, 0, -thick / 2);
+/** A soft additive halo round the core. */
+function haloMaterial() {
+  return new THREE.ShaderMaterial({
+    vertexShader: 'varying vec3 vN; varying vec3 vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'varying vec3 vN; varying vec3 vV; void main(){ float f = pow(clamp(dot(-vN, vV), 0.0, 1.0), 2.5); gl_FragColor = vec4(vec3(1.0, 0.55, 0.2) * f * 1.4, 1.0); }',
+    side: THREE.BackSide, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
+  });
+}
+
+/**
+ * Metal inside the planet, lit by the core: a base colour, a diffuse term toward the centre
+ * (the planet's origin), a warm rim, and, where `strip` is set, a glowing line that pulses along
+ * the part's length (uv.x), for the rings' and spokes' light.
+ */
+function coreLit(color, { strip = 0, stripColor = PALETTE.aqua, speed = 0.6 } = {}, time) {
+  return new THREE.ShaderMaterial({
+    uniforms: { time, base: { value: new THREE.Color(color) }, glowC: { value: new THREE.Color(stripColor) }, strip: { value: strip }, speed: { value: speed } },
+    vertexShader: 'varying vec3 vW; varying vec3 vN; varying vec2 vUv; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform float time; uniform vec3 base; uniform vec3 glowC; uniform float strip; uniform float speed; varying vec3 vW; varying vec3 vN; varying vec2 vUv;
+      void main() {
+        vec3 n = normalize(vN), toCore = normalize(-vW);
+        float lit = max(dot(n, toCore), 0.0) * (14.0 / (4.0 + length(vW)));
+        float rim = pow(1.0 - abs(dot(n, normalize(cameraPosition - vW))), 3.0);
+        vec3 c = base * (0.10 + lit * 1.4) + vec3(1.0, 0.55, 0.2) * rim * 0.25 * lit;
+        if (strip > 0.0) {
+          float band = smoothstep(0.42, 0.5, vUv.y) * (1.0 - smoothstep(0.5, 0.58, vUv.y));
+          float pulse = 0.35 + 0.65 * pow(0.5 + 0.5 * sin(vUv.x * 40.0 - time * speed * 6.0), 6.0);
+          c += glowC * band * pulse * strip;
+        }
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  });
+}
+
+/**
+ * The inner shell, seen from inside: dark hull panels in rows of latitude, their seams faintly
+ * lit, windows of light in some of them like a city at night, and bands of conduit round it with
+ * light running along them.
+ */
+function shellMaterial(time) {
+  return new THREE.ShaderMaterial({
+    uniforms: { time },
+    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `uniform float time; varying vec3 vP; ${NOISE}
+      void main() {
+        vec3 p = normalize(vP);
+        float lon = atan(p.z, p.x) / 6.2831853 + 0.5, lat = asin(clamp(p.y, -1.0, 1.0)) / 3.1415927 + 0.5;
+        vec2 g = vec2(lon * 96.0, lat * 48.0), cell = floor(g), f = fract(g);
+        float seam = 1.0 - smoothstep(0.0, 0.06, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
+        float r = h3(vec3(cell, 3.0));
+        vec3 c = vec3(0.02, 0.024, 0.03) * (0.6 + 0.8 * r) + vec3(0.25, 0.75, 0.8) * seam * 0.06;
+        // windows: a grid of small lights in about one panel in four, some going off and on
+        if (r > 0.74) {
+          vec2 w = fract(f * vec2(4.0, 3.0)) - 0.5, wi = floor(f * vec2(4.0, 3.0));
+          float on = step(0.35, h3(vec3(cell * 7.0 + wi, floor(time * 0.2 + r * 10.0))));
+          c += vec3(1.0, 0.72, 0.38) * (1.0 - smoothstep(0.18, 0.3, max(abs(w.x), abs(w.y)))) * on * 0.9;
+        }
+        // conduits: a band every eight rows, with light running round it
+        if (mod(cell.y, 8.0) == 4.0) {
+          float run = pow(0.5 + 0.5 * sin(lon * 6.2831853 * 12.0 - time * 1.5 + cell.y), 8.0);
+          c = mix(c, vec3(0.12, 0.13, 0.14), 0.7) + vec3(0.3, 0.9, 1.0) * (0.15 + run * 0.9) * (1.0 - smoothstep(0.3, 0.5, abs(f.y - 0.5)));
+        }
+        c += vec3(0.05, 0.022, 0.01) * (0.5 + 0.5 * fbm(p * 6.0)); // the core's warm light on it
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+    side: THREE.BackSide,
+  });
 }
 
 export function buildMachine({ quality }) {
   const group = new THREE.Group();
   group.name = 'machine';
-  // its frame on the planet: origin where the middle of the ground was, y up, x across along the catwalk
   const R0 = surfaceRadius(CUT.up);
   group.position.copy(CUT.up).multiplyScalar(R0);
   group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(CUT.e1, CUT.up, CUT.e2));
   group.updateMatrixWorld(true);
   const inv = group.matrixWorld.clone().invert();
-  // the cut's geometry, in this frame: a point at (x, z) on the tangent plane, out along its ray
   const ray = (x, z) => CUT.up.clone().multiplyScalar(RADIUS).addScaledVector(CUT.e1, x).addScaledVector(CUT.e2, z).normalize();
   const at = (dir, r) => dir.clone().multiplyScalar(r).applyMatrix4(inv);
-  const ground = (x, z) => { const d = ray(x, z); return at(d, surfaceRadius(d)); };          // the planet's surface there
-  const floorR = (d) => (R0 - DEPTH) / d.dot(CUT.up);                                           // the flat floor, along a ray
-  const floorAt = (x, z) => { const d = ray(x, z); return at(d, floorR(d)); };
+  const ground = (x, z) => { const d = ray(x, z); return at(d, surfaceRadius(d)); };
+  const thick = R0 - INNER;
+  const time = { value: 0 };
 
   const M = {
-    strata: pbr({ map: strataTexture(), roughness: 0.9, side: THREE.DoubleSide }),
-    deck: pbr({ color: 0x2c3036, metalness: 0.35, roughness: 0.6 }),
-    brass: pbr({ color: PALETTE.brass, metalness: 0.85, roughness: 0.35 }),
-    copper: pbr({ color: 0xb06a3f, metalness: 0.85, roughness: 0.4 }),
+    strata: pbr({ map: strataTexture(thick), roughness: 0.9, side: THREE.DoubleSide }),
     steel: pbr({ color: 0x5d646c, metalness: 0.75, roughness: 0.45 }),
-    dark: pbr({ color: 0x1b1e22, metalness: 0.5, roughness: 0.6 }),
-    teal: pbr({ color: PALETTE.tinTeal, metalness: 0.3, roughness: 0.4 }),
-    cream: pbr({ color: PALETTE.cream, roughness: 0.5 }),
+    dark: pbr({ color: 0x23272c, metalness: 0.5, roughness: 0.6 }),
     grate: pbr({ color: 0x8a9198, metalness: 0.7, roughness: 0.45 }),
+    lip: pbr({ color: PALETTE.brass, metalness: 0.8, roughness: 0.4, side: THREE.DoubleSide }),
     rail: chrome({ roughness: 0.35 }),
-    glass: pbr({ color: 0x9fd8e0, transparent: true, opacity: 0.22, roughness: 0.05, metalness: 0.1, depthWrite: false }),
-    amberGlow: glow(PALETTE.amber, 4),
-    aquaGlow: glow(PALETTE.aqua, 3),
+    bulb: glow(PALETTE.amber, 3),
   };
-  M.lip = pbr({ color: PALETTE.brass, metalness: 0.8, roughness: 0.4, side: THREE.DoubleSide });
-  // the core's glow and the lamps over the gears light it all; metal catches them as glints
-  for (const k of ['strata', 'dark', 'teal', 'cream']) lampLit(M[k]);
-  for (const k of ['deck', 'brass', 'copper', 'steel', 'grate', 'rail', 'lip']) lampLit(M[k], { specular: 24 });
+  M.strata.emissiveMap = M.strata.map; M.strata.emissive = new THREE.Color(0x3a2a20); // just visible in the dark; the skin at the bottom glows
+  lampLit(M.strata);
+  for (const k of ['steel', 'dark', 'grate', 'lip', 'rail']) lampLit(M[k], { specular: 24 });
   const add = (geo, mat, parent = group) => { const m = new THREE.Mesh(geo, mat); m.castShadow = quality.high; m.receiveShadow = true; parent.add(m); return m; };
+  const up = (v, h) => v.clone().add(new THREE.Vector3(0, h, 0));
+  const bar = (a, b, w, h, parts) => { // a box from a to b, w wide and h tall
+    const g = new THREE.BoxGeometry(a.distanceTo(b), h, w);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), b.clone().sub(a).normalize());
+    parts.push(g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))));
+  };
+  const rod = (a, b, r, parts) => {
+    const g = new THREE.CylinderGeometry(r, r, a.distanceTo(b), 6);
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    parts.push(g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))));
+  };
 
-  /* ---------- The cut: four walls down to the floor, the floor, a brass lip round the edge ---------- */
-  {
-    const N = 24, edges = [[[-HX, -HZ], [HX, -HZ]], [[HX, -HZ], [HX, HZ]], [[HX, HZ], [-HX, HZ]], [[-HX, HZ], [-HX, -HZ]]];
-    for (const [[x0, z0], [x1, z1]] of edges) {
-      const pos = [], uv = [], idx = [];
-      for (let i = 0; i <= N; i++) {
-        const k = i / N, x = x0 + (x1 - x0) * k, z = z0 + (z1 - z0) * k, d = ray(x, z);
-        const top = at(d, surfaceRadius(d) + 0.02), bot = at(d, floorR(d));
-        const along = Math.hypot(x1 - x0, z1 - z0) * k;
-        pos.push(top.x, top.y, top.z, bot.x, bot.y, bot.z);
-        uv.push(along / 2, 1, along / 2, 1 - top.distanceTo(bot) / DEPTH); // the strata by metres down
-        if (i) idx.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1);
-      }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-      g.setIndex(idx);
-      g.computeVertexNormals();
-      add(g, M.strata);
+  /* ---------- The opening: four walls through the shell, and a brass lip round the edge ---------- */
+  const N = 40, edges = [[[-HX, -HZ], [HX, -HZ]], [[HX, -HZ], [HX, HZ]], [[HX, HZ], [-HX, HZ]], [[-HX, HZ], [-HX, -HZ]]];
+  for (const [[x0, z0], [x1, z1]] of edges) {
+    const pos = [], uv = [], idx = [];
+    for (let i = 0; i <= N; i++) {
+      const k = i / N, x = x0 + (x1 - x0) * k, z = z0 + (z1 - z0) * k, d = ray(x, z);
+      const top = at(d, surfaceRadius(d) + 0.02), bot = at(d, INNER);
+      const along = Math.hypot(x1 - x0, z1 - z0) * k;
+      pos.push(top.x, top.y, top.z, bot.x, bot.y, bot.z);
+      uv.push(along / 2, 1, along / 2, 1 - top.distanceTo(bot) / thick); // the strata by metres down
+      if (i) idx.push((i - 1) * 2, (i - 1) * 2 + 1, i * 2, i * 2, (i - 1) * 2 + 1, i * 2 + 1);
     }
-    M.strata.map.wrapS = THREE.RepeatWrapping;
-    // the floor: deck plates at the bottom
-    const c = [floorAt(-HX, -HZ), floorAt(HX, -HZ), floorAt(HX, HZ), floorAt(-HX, HZ)];
-    const fg = new THREE.BufferGeometry().setFromPoints([c[0], c[1], c[2], c[0], c[2], c[3]]);
-    fg.computeVertexNormals();
-    if (fg.attributes.normal.getY(0) < 0) { fg.index = null; fg.setFromPoints([c[0], c[2], c[1], c[0], c[3], c[2]]); fg.computeVertexNormals(); }
-    add(fg, M.deck);
-    // the lip: a brass band over the ragged edge of the ground, a little in and out of it
-    const lipGeo = new THREE.BufferGeometry(), lp = [], li = [];
-    const ring = [];
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    add(g, M.strata).castShadow = false;
+  }
+  {
+    const ring = [], lp = [], li = [];
     for (const [[x0, z0], [x1, z1]] of edges) for (let i = 0; i < N; i++) { const k = i / N; ring.push([x0 + (x1 - x0) * k, z0 + (z1 - z0) * k]); }
-    ring.forEach(([x, z]) => {
+    for (const [x, z] of ring) {
       const o = [Math.sign(x) * (Math.abs(x) >= HX - 1e-6 ? 0.22 : 0), Math.sign(z) * (Math.abs(z) >= HZ - 1e-6 ? 0.22 : 0)];
       const outer = ground(x + o[0], z + o[1]), inner = ground(x - o[0] * 0.3, z - o[1] * 0.3);
       lp.push(outer.x, outer.y + 0.05, outer.z, inner.x, inner.y + 0.05, inner.z);
-    });
+    }
     for (let i = 0; i < ring.length; i++) { const a = i * 2, b = ((i + 1) % ring.length) * 2; li.push(a, b, a + 1, b, b + 1, a + 1); }
-    lipGeo.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
-    lipGeo.setIndex(li);
-    lipGeo.computeVertexNormals();
-    add(lipGeo, M.lip);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    g.setIndex(li);
+    g.computeVertexNormals();
+    add(g, M.lip);
   }
 
-  /* ---------- The machine, on the floor ---------- */
-  const base = floorAt(0, 0);                          // the floor's middle
-  const machine = new THREE.Group();
-  machine.position.copy(base);
-  group.add(machine);
-  const animated = [];
-  // a great gear train along the far wall, meshing, turning slowly
+  /* ---------- The bridge: a steel truss across, a grating you see down through ---------- */
+  const colliders = [], solids = [], lamps = [];
+  const x0 = -HX - 0.7, x1 = HX + 0.7;
   {
-    const gears = [[1.35, 28, -1.3, 2.1], [0.85, 18, 0.95, 1.55], [0.55, 12, 2.3, 2.25]];
-    let prevAng = 0, prevR = 0;
-    gears.forEach(([r, teeth, x, y], i) => {
-      const gear = add(gearGeometry(r, teeth, 0.22), M.brass, machine);
-      gear.position.set(x, y, 1.45);
-      add(new THREE.CylinderGeometry(0.12, 0.12, 0.6, 12).rotateX(Math.PI / 2), M.steel, gear); // its axle
-      const ratio = i ? -prevR / r : 1;
-      const speed = 0.25 * (i ? ratio * (gears[i - 1].speed || 1) : 1);
-      gears[i].speed = speed;
-      gear.rotation.z = (i % 2) * (Math.PI / teeth);
-      animated.push((t) => { gear.rotation.z = (i % 2) * (Math.PI / teeth) + t * speed; });
-      prevR = r; prevAng = 0;
-      // a stand from the floor to the axle
-      add(new THREE.BoxGeometry(0.18, y, 0.18), M.dark, machine).position.set(x, y / 2, 1.75);
-    });
-    void prevAng;
-  }
-  // the core: a tall glass tube with a glowing column in it, ringed in brass, a governor spinning on top
-  const coreAt = new THREE.Vector3(1.05, 0, -0.35);
-  {
-    const core = new THREE.Group();
-    core.position.copy(coreAt);
-    machine.add(core);
-    add(new THREE.CylinderGeometry(0.75, 0.9, 0.35, 32), M.brass, core).position.y = 0.17;
-    add(new THREE.CylinderGeometry(0.6, 0.6, 2.9, 32, 1, true), M.glass, core).position.y = 1.8;
-    const column = add(new THREE.CylinderGeometry(0.16, 0.16, 2.6, 16), M.amberGlow, core);
-    column.position.y = 1.75;
-    column.castShadow = false;
-    for (const y of [0.6, 1.4, 2.2, 3.0]) { const ringM = add(new THREE.TorusGeometry(0.62, 0.05, 8, 40).rotateX(Math.PI / 2), M.brass, core); ringM.position.y = y; }
-    const plasma = [];
-    for (let i = 0; i < 3; i++) { const p = add(new THREE.TorusGeometry(0.3, 0.025, 6, 32).rotateX(Math.PI / 2), M.aquaGlow, core); p.castShadow = false; plasma.push(p); }
-    add(new THREE.CylinderGeometry(0.7, 0.75, 0.3, 32), M.brass, core).position.y = 3.35;
-    // the governor: two balls on arms, spinning, flying out as it goes
-    const gov = new THREE.Group();
-    gov.position.y = 3.5;
-    core.add(gov);
-    add(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 8), M.steel, gov).position.y = 0.45;
-    const arms = [-1, 1].map((sd) => {
-      const arm = new THREE.Group(); arm.position.y = 0.85; gov.add(arm);
-      const rod = add(new THREE.CylinderGeometry(0.025, 0.025, 0.6, 6), M.steel, arm);
-      rod.position.set(sd * 0.3, -0.15, 0); rod.rotation.z = sd * 1.0;
-      add(new THREE.SphereGeometry(0.11, 16, 12), M.brass, arm).position.set(sd * 0.55, -0.32, 0);
-      return arm;
-    });
-    animated.push((t) => {
-      gov.rotation.y = t * 2.4;
-      const fly = 0.12 * Math.sin(t * 0.7);
-      arms[0].rotation.z = -fly; arms[1].rotation.z = fly;
-      plasma.forEach((p, i) => { p.position.y = 0.5 + ((t * 0.5 + i / 3) % 1) * 2.5; p.scale.setScalar(0.8 + 0.4 * Math.sin(t * 3 + i)); });
-      column.material.color.copy(M.amberGlowBase).multiplyScalar(0.85 + 0.15 * Math.sin(t * 5.3) * Math.sin(t * 2.1));
-    });
-    M.amberGlowBase = M.amberGlow.color.clone();
-  }
-  // a row of pistons by the near wall, pumping one after another, on a manifold
-  {
-    add(new THREE.BoxGeometry(3.2, 0.5, 0.7), M.teal, machine).position.set(-1.0, 0.25, -1.55);
-    for (let i = 0; i < 4; i++) {
-      const x = -2.3 + i * 0.85;
-      add(new THREE.CylinderGeometry(0.22, 0.22, 1.1, 20), M.cream, machine).position.set(x, 1.05, -1.55);
-      const rod = new THREE.Group(); machine.add(rod);
-      add(new THREE.CylinderGeometry(0.07, 0.07, 1.2, 10), M.rail, rod).position.y = 0.6;
-      add(new THREE.CylinderGeometry(0.16, 0.16, 0.2, 16), M.brass, rod).position.y = 1.25;
-      animated.push((t) => { rod.position.set(x, 1.5 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2.2 - i * 1.57)), -1.55); });
+    const n = Math.ceil((x1 - x0) / 0.5), xs = Array.from({ length: n + 1 }, (_, i) => x0 + (x1 - x0) * (i / n));
+    const deck = [], frame = [], rail = [];
+    // the grating: bars along every 18 cm, cross bars every 10 cm; a glass floor in the middle
+    const glassAt = (x) => Math.abs(x) < GLASS[0];
+    for (let k = 0; k <= Math.round((2 * BRIDGE) / 0.18); k++) {
+      const z = Math.min(BRIDGE, -BRIDGE + k * 0.18), side = Math.abs(z) > GLASS[1];
+      for (let i = 0; i < n; i++) if (side || !(glassAt(xs[i]) && glassAt(xs[i + 1]))) bar(up(ground(xs[i], z), -0.01), up(ground(xs[i + 1], z), -0.01), 0.035, 0.03, deck);
     }
-  }
-  // copper pipes: from the manifold up the wall, along, into the core
-  {
-    const pipe = (pts, r = 0.07) => add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p))), 48, r, 8), M.copper, machine);
-    pipe([[-2.6, 0.4, -1.55], [-2.9, 0.4, -1.2], [-3.0, 2.6, -1.1], [-2.0, 3.2, -0.8], [0.4, 3.0, -0.4], [0.9, 2.6, -0.35]]);
-    pipe([[0.6, 0.45, -1.55], [0.9, 0.45, -1.0], [1.05, 0.4, -0.9]], 0.09);
-    pipe([[-1.6, 0.3, 1.2], [-0.4, 0.3, 0.6], [0.5, 0.3, 0.1], [0.7, 0.3, -0.2]], 0.06);
-    pipe([[2.6, 0.5, 1.6], [2.8, 2.5, 1.0], [2.5, 3.2, 0.0], [1.7, 3.1, -0.3]], 0.06);
-  }
-  // a panel of lamps on the end wall, blinking in turn
-  {
-    const panel = new THREE.Group(); panel.position.set(-2.95, 1.6, 0.0); panel.rotation.y = Math.PI / 2; machine.add(panel);
-    add(new THREE.BoxGeometry(1.6, 1.0, 0.12), M.dark, panel);
-    const bulbs = [];
-    for (let i = 0; i < 12; i++) {
-      const on = glow(i % 3 ? PALETTE.amber : PALETTE.coral, 3), off = pbr({ color: 0x3a2a1e, roughness: 0.5 });
-      const b = add(new THREE.SphereGeometry(0.05, 10, 8), off, panel); b.position.set(-0.6 + (i % 6) * 0.24, i < 6 ? 0.2 : -0.15, 0.08); b.castShadow = false;
-      bulbs.push([b, on, off]);
+    for (let x = x0 + 0.05; x < x1; x += 0.1) {
+      if (glassAt(x)) { // only the strips either side of the glass
+        for (const s of [-1, 1]) { const a = up(ground(x, s * BRIDGE), -0.012), b = up(ground(x, s * GLASS[1]), -0.012); bar(a.clone().lerp(b, 0), b, 0.012, 0.025, deck); }
+        continue;
+      }
+      const a = up(ground(x, -BRIDGE), -0.012), b = up(ground(x, BRIDGE), -0.012), g = new THREE.BoxGeometry(0.012, 0.025, a.distanceTo(b));
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), b.clone().sub(a).normalize());
+      deck.push(g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))));
     }
-    const dial = add(new THREE.CircleGeometry(0.14, 24), glow(PALETTE.cream, 1.2), panel); dial.position.set(0.62, 0.0, 0.07);
-    animated.push((t) => bulbs.forEach(([b, on, off], i) => { const lit = Math.floor(t * 3 + i * 0.7) % 4 === 0; if (b.material !== (lit ? on : off)) b.material = lit ? on : off; }));
-    for (const [b] of bulbs) b.userData.noBatch = true;
-  }
-
-  // work lamps in cages high on the walls, so the tops of things catch light too
-  const workLamps = [[2.2, 3.9, HZ - 0.12, Math.PI], [-1.2, 3.9, -HZ + 0.12, 0], [HX - 0.12, 3.6, -1.6, -Math.PI / 2]].map(([x, y, z, ry]) => {
-    const lamp = new THREE.Group(); lamp.position.set(x, y, z); lamp.rotation.y = ry; machine.add(lamp);
-    add(new THREE.BoxGeometry(0.2, 0.06, 0.16), M.dark, lamp).position.z = 0.02;
-    const bulb = add(new THREE.SphereGeometry(0.07, 12, 8), glow(PALETTE.amber, 3), lamp); bulb.position.set(0, -0.08, 0.12); bulb.castShadow = false;
-    for (let k = 0; k < 4; k++) { const w = add(new THREE.TorusGeometry(0.1, 0.008, 4, 16, Math.PI), M.steel, lamp); w.position.set(0, -0.08, 0.12); w.rotation.set(Math.PI / 2, k * Math.PI / 4, 0); }
-    return new THREE.Vector3(x, y - 0.3, z).add(new THREE.Vector3(0, 0, 0.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), ry));
-  });
-
-  /* ---------- The catwalk: a steel grating at ground level on scaffold legs, out to a platform ---------- */
-  const colliders = [];
-  const solids = []; // for physics.js addFixed, in this frame
-  {
-    // deck strips that follow the ground's own height, so you walk exactly on them: a steel
-    // grating, real bars (one mesh a strip), so you see down through it into the machine
-    const strip = (x0, x1, z0, z1) => {
-      const parts = [], box = (len, w, a, b) => { // a bar from a to b, w wide, 3 cm thick
-        const g = new THREE.BoxGeometry(len, 0.03, w), m = new THREE.Matrix4();
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), b.clone().sub(a).normalize());
-        parts.push(g.applyMatrix4(m.compose(a.clone().add(b).multiplyScalar(0.5).add(new THREE.Vector3(0, -0.005, 0)), q, new THREE.Vector3(1, 1, 1))));
-      };
-      const n = Math.max(2, Math.ceil((x1 - x0) / 0.5));
-      for (let k = 0; k <= Math.ceil((z1 - z0) / 0.18); k++) { // bars along, every 18 cm, in half-metre lengths
-        const z = Math.min(z1, z0 + k * 0.18);
-        for (let i = 0; i < n; i++) { const a = ground(x0 + (x1 - x0) * (i / n), z), b = ground(x0 + (x1 - x0) * ((i + 1) / n), z); box(a.distanceTo(b), 0.035, a, b); }
+    add(mergeGeometries(deck), M.grate);
+    // the glass: you stand on it and look straight down, past nothing, to the core
+    {
+      const nx = 8, nz = 4, pos = [], idx = [];
+      for (let i = 0; i <= nx; i++) for (let k = 0; k <= nz; k++) { const p = up(ground(-GLASS[0] + (2 * GLASS[0] * i) / nx, -GLASS[1] + (2 * GLASS[1] * k) / nz), -0.005); pos.push(p.x, p.y, p.z); }
+      for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) { const a = i * (nz + 1) + k, b = a + nz + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const glass = add(g, pbr({ color: 0x9fd8e0, transparent: true, opacity: 0.1, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide }));
+      glass.castShadow = false; glass.userData.noBatch = true;
+      const rim = [], c = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => up(ground(a * GLASS[0], b * GLASS[1]), 0.005));
+      for (let i = 0; i < 4; i++) bar(c[i], c[(i + 1) % 4], 0.07, 0.04, rim);
+      add(mergeGeometries(rim), M.lip);
+    }
+    // the trusses: a bottom chord under the deck, posts and diagonals, a handrail and a mid rail
+    for (const z of [-BRIDGE, BRIDGE]) {
+      for (let i = 0; i < n; i++) {
+        const a = ground(xs[i], z), b = ground(xs[i + 1], z);
+        bar(up(a, -0.32), up(b, -0.32), 0.08, 0.14, frame);
+        rod(up(a, -0.32), up(a, 1.05), 0.035, frame);
+        rod(up(i % 2 ? a : b, -0.32), up(i % 2 ? b : a, 1.05), 0.022, frame);
+        bar(up(a, 1.05), up(b, 1.05), 0.07, 0.07, rail);
+        bar(up(a, 0.5), up(b, 0.5), 0.03, 0.03, rail);
       }
-      for (let x = x0 + 0.05; x < x1; x += 0.1) { // cross bars every 10 cm
-        const a = ground(x, z0), b = ground(x, z1), g = new THREE.BoxGeometry(0.012, 0.025, b.distanceTo(a));
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), b.clone().sub(a).normalize());
-        parts.push(g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))));
-      }
-      add(mergeGeometries(parts), M.grate);
-      // its frame: two steel edges
-      for (const z of [z0, z1]) {
-        const a = ground(x0, z), b = ground(x1, z), mid = a.clone().add(b).multiplyScalar(0.5), len = a.distanceTo(b);
-        const e = add(new THREE.BoxGeometry(len, 0.12, 0.06), M.steel); e.position.copy(mid).add(new THREE.Vector3(0, -0.05, 0)); e.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), b.clone().sub(a).normalize());
-      }
-      solids.push({ cuboid: [(x1 - x0) / 2, 0.04, (z1 - z0) / 2], at: [(x0 + x1) / 2, ground((x0 + x1) / 2, (z0 + z1) / 2).y - 0.03, (z0 + z1) / 2] });
-    };
-    strip(WALK.from, WALK.to + 0.01, -DECK_W / 2, DECK_W / 2);
-    strip(PLAT.x0, PLAT.x1, -PLAT.z, PLAT.z);
-    // scaffold: legs from the deck down to the floor, braced
-    const leg = (x, z) => {
-      const top = ground(x, z), bot = floorAt(x, z);
-      const l = add(new THREE.CylinderGeometry(0.045, 0.045, top.y - bot.y, 8), M.steel); l.position.set(x, (top.y + bot.y) / 2, z);
-      return [top, bot];
-    };
-    const legs = [];
-    for (const x of [-HX + 0.6, -2.5, PLAT.x0, PLAT.x1]) for (const z of (x >= PLAT.x0 ? [-PLAT.z, PLAT.z] : [-DECK_W / 2, DECK_W / 2])) legs.push([x, z, leg(x, z)]);
-    for (let i = 0; i + 2 < legs.length; i += 2) {
-      for (const k of [0, 1]) { // a diagonal brace down each side
-        const [, , [ta]] = legs[i + k], [, , [, bb]] = legs[i + 2 + k];
-        const brace = add(new THREE.CylinderGeometry(0.03, 0.03, ta.distanceTo(bb), 6), M.steel);
-        brace.position.copy(ta).add(bb).multiplyScalar(0.5);
-        brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bb.clone().sub(ta).normalize());
+      rod(up(ground(x1, z), -0.32), up(ground(x1, z), 1.05), 0.035, frame);
+    }
+    for (const x of xs.filter((x, i) => i % 3 === 0 && !glassAt(x))) bar(up(ground(x, -BRIDGE), -0.32), up(ground(x, BRIDGE), -0.32), 0.1, 0.12, frame); // cross beams
+    add(mergeGeometries(frame), M.steel);
+    add(mergeGeometries(rail), M.rail);
+    // lanterns on the handrail, two each side, lighting the deck
+    for (const [x, z] of [[-HX * 0.5, -BRIDGE], [HX * 0.5, BRIDGE], [-HX * 0.5, BRIDGE], [HX * 0.5, -BRIDGE]]) {
+      const p = up(ground(x, z), 1.2);
+      add(new THREE.CylinderGeometry(0.05, 0.07, 0.08, 10), M.dark).position.copy(up(p, 0.09));
+      const b = add(new THREE.SphereGeometry(0.06, 12, 8), M.bulb); b.position.copy(p); b.castShadow = false;
+      lamps.push([up(p, 0.1), 9]);
+    }
+    // a railing round the rest of the edge, open where the bridge meets the trail
+    const ex = HX + 0.25, ez = HZ + 0.25, edge = [];
+    for (const s of [-1, 1]) {
+      const pts = [[-ex, s * BRIDGE], [-ex, s * ez], [ex, s * ez], [ex, s * BRIDGE]].map(([x, z]) => ground(x, z));
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = pts[i], b = pts[i + 1], m = Math.max(1, Math.round(a.distanceTo(b)));
+        for (const h of [0.5, 1.0]) rod(up(a, h), up(b, h), 0.025, edge);
+        for (let k = 0; k <= m; k++) { const p = a.clone().lerp(b, k / m); rod(p, up(p, 1.05), 0.035, edge); }
       }
     }
-    // railings: posts and two rails, down each side of the catwalk, round the platform (open where you come on) and round the cut's edge (open where the catwalk leaves the trail)
-    const railLine = (pts, closed) => {
-      const P = pts.map(([x, z]) => ground(x, z));
-      for (let i = 0; i < P.length - (closed ? 0 : 1); i++) {
-        const a = P[i], b = P[(i + 1) % P.length], len = a.distanceTo(b);
-        for (const h of [0.5, 1.0]) {
-          const r = add(new THREE.CylinderGeometry(0.025, 0.025, len, 6), M.rail);
-          r.position.copy(a).add(b).multiplyScalar(0.5).add(new THREE.Vector3(0, h, 0));
-          r.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-        }
-        // posts about every metre, and colliders every half metre so you can't squeeze through
-        const n = Math.max(1, Math.round(len / 1));
-        for (let k = 0; k <= n; k++) { const p = a.clone().lerp(b, k / n); add(new THREE.CylinderGeometry(0.035, 0.035, 1.05, 8), M.rail).position.copy(p).add(new THREE.Vector3(0, 0.52, 0)); }
-        const m = Math.max(1, Math.ceil(len / 0.45));
+    add(mergeGeometries(edge), M.rail);
+    // colliders every 45 cm along every railing, so you can't squeeze through
+    const line = (pts) => {
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const a = ground(...pts[i]), b = ground(...pts[i + 1]), m = Math.max(1, Math.ceil(a.distanceTo(b) / 0.45));
         for (let k = 0; k <= m; k++) colliders.push(a.clone().lerp(b, k / m));
       }
     };
-    const w = DECK_W / 2;
-    railLine([[-HX + 0.05, -w], [PLAT.x0, -w], [PLAT.x0, -PLAT.z], [PLAT.x1, -PLAT.z], [PLAT.x1, PLAT.z], [PLAT.x0, PLAT.z], [PLAT.x0, w], [-HX + 0.05, w]], false);
-    railLine([[-HX - 0.15, -w - 0.05], [-HX - 0.15, -HZ - 0.15], [HX + 0.15, -HZ - 0.15], [HX + 0.15, HZ + 0.15], [-HX - 0.15, HZ + 0.15], [-HX - 0.15, w + 0.05]], false);
+    line([[x0, -BRIDGE], [x1, -BRIDGE]]); line([[x0, BRIDGE], [x1, BRIDGE]]);
+    for (const s of [-1, 1]) line([[-ex, s * BRIDGE], [-ex, s * ez], [ex, s * ez], [ex, s * BRIDGE]]);
+    solids.push({ cuboid: [(x1 - x0) / 2, 0.05, BRIDGE], at: [0, ground(0, 0).y - 0.06, 0] });
+  }
+  for (const [sx, sz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) solids.push({ cuboid: [sx ? 0.15 : HX, thick / 2, sz ? 0.15 : HZ], at: [sx * (HX + 0.15), -thick / 2, sz * (HZ + 0.15)] });
+
+  /* ---------- What you tap: the opening itself (not drawn) ---------- */
+  const opening = new THREE.Mesh(new THREE.PlaneGeometry(2 * HX, 2 * HZ).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ visible: false }));
+  opening.position.y = -0.6;
+  opening.userData.noBatch = true;
+  group.add(opening);
+
+  /* ---------- Inside: the hollow, centred on the planet's centre ---------- */
+  const inside = new THREE.Group();
+  inside.name = 'inside';
+  inside.userData.noBatch = true;
+  inside.add(new THREE.Mesh(new THREE.SphereGeometry(INNER + 0.05, 96, 64), shellMaterial(time)));
+  const core = new THREE.Mesh(new THREE.SphereGeometry(2.4, 64, 48), coreMaterial(time));
+  inside.add(core);
+  inside.add(new THREE.Mesh(new THREE.SphereGeometry(5.0, 48, 32), haloMaterial()));
+  // three gimbal rings, each on its own axis, turning; beads of light round each
+  const rings = [];
+  [[4.4, 0.16, 0.22, PALETTE.brass], [5.9, 0.2, -0.15, 0x6d747c], [7.5, 0.26, 0.09, PALETTE.brass]].forEach(([r, tube, speed, color], i) => {
+    const pivot = new THREE.Group();
+    pivot.rotation.set(i * 1.1 + 0.4, i * 0.7, i * 0.5);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 160), coreLit(color, { strip: 1.2, stripColor: i === 1 ? PALETTE.amber : PALETTE.aqua, speed: 0.4 + i * 0.3 }, time));
+    pivot.add(ring);
+    const beads = new THREE.InstancedMesh(new THREE.SphereGeometry(tube * 0.7, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(i === 1 ? PALETTE.aqua : PALETTE.amber).multiplyScalar(2.5), toneMapped: false }), 12);
+    const m4 = new THREE.Matrix4();
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; beads.setMatrixAt(k, m4.makeTranslation(Math.cos(a) * r, Math.sin(a) * r, tube * 0.9)); }
+    ring.add(beads);
+    inside.add(pivot);
+    rings.push([ring, speed]);
+  });
+  // spokes from the outer ring out to the shell, carrying pulses of light; none straight under the opening
+  {
+    const golden = Math.PI * (3 - Math.sqrt(5)), tilt = new THREE.Vector3(1, 0, 0), dirs = [];
+    for (let i = 0; dirs.length < 10 && i < 20; i++) {
+      const y = 1 - (i + 0.5) / 10, rr = Math.sqrt(1 - y * y);
+      const d = new THREE.Vector3(Math.cos(i * golden) * rr, y, Math.sin(i * golden) * rr).applyAxisAngle(tilt, 0.6);
+      if (d.angleTo(CUT.up) > 0.75) dirs.push(d);
+    }
+    for (const d of dirs) {
+      const a = d.clone().multiplyScalar(7.9), b = d.clone().multiplyScalar(INNER);
+      const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+      const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.45, a.distanceTo(b), 12, 1, true), coreLit(0x4a5058, { strip: 1.6, stripColor: PALETTE.aqua, speed: 0.8 }, time));
+      spoke.position.copy(a).add(b).multiplyScalar(0.5); spoke.quaternion.copy(q);
+      inside.add(spoke);
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.5, 0.8, 16), coreLit(PALETTE.brass, {}, time));
+      foot.position.copy(d).multiplyScalar(INNER - 0.4); foot.quaternion.copy(q);
+      inside.add(foot);
+    }
   }
 
   /* ---------- Into world space ---------- */
   group.updateMatrixWorld(true);
   const toWorld = (v) => v.clone().applyMatrix4(group.matrixWorld);
-  const coreWorld = toWorld(base.clone().add(coreAt).add(new THREE.Vector3(0, 1.8, 0)));
   return {
     group,
-    machine,
-    /** Player colliders: the railings (physics.js stands them up to rail height). */
+    inside,
+    /** What you tap to look inside: the opening (an undrawn plane just below the bridge). */
+    opening,
+    /** Player colliders: the bridge's railings and the railing round the edge (physics.js stands them up). */
     colliders: colliders.map((p) => ({ center: toWorld(p), radius: 0.08, height: 1.1 })),
-    /** Fixed things a thrown coconut meets, in this frame (physics.addFixed): the floor, the walls, the catwalk. */
-    solids: [
-      ...solids,
-      { cuboid: [HX, 0.2, HZ], at: [0, base.y - 0.2, 0] },
-      ...[[-1, 0], [1, 0], [0, -1], [0, 1]].map(([sx, sz]) => ({ cuboid: [sx ? 0.15 : HX, DEPTH / 2, sz ? 0.15 : HZ], at: [sx * (HX * 0.87), base.y + DEPTH / 2, sz * (HZ * 0.87)] })),
-    ],
-    /** Lamp pools (lamps.js): the core, and the work lamps on the walls. */
-    lamps: [[coreWorld, 22], ...workLamps.map((p) => [toWorld(base.clone().add(p)), 14])],
-    /** Where you stand to look in (the platform's middle) and what you look at (the core). */
-    platform: toWorld(ground((PLAT.x0 + PLAT.x1) / 2, 0)),
-    core: coreWorld,
-    update(t) { for (const f of animated) f(t); },
+    /** Fixed things a thrown coconut meets, in this frame (physics.addFixed): the bridge deck and the walls. */
+    solids,
+    /** Lamp pools (lamps.js): the bridge's lanterns. */
+    lamps: lamps.map(([p, k]) => [toWorld(p), k]),
+    /** Where you stand to look in (on the glass, the middle of the bridge) and what you look at (the core, at the planet's centre). */
+    platform: toWorld(ground(0, 0)),
+    core: new THREE.Vector3(),
+    /** The camera, set by main.js: the inside is drawn only when it's near enough to see in. */
+    camera: null,
+    update(t) {
+      const camera = this.camera;
+      time.value = t;
+      for (const [ring, speed] of rings) ring.rotation.z = t * speed;
+      core.rotation.y = t * 0.05;
+      inside.visible = !camera || camera.position.distanceTo(group.position) < SEE;
+    },
   };
 }

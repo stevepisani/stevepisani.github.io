@@ -93,21 +93,20 @@ export function dirFrom(polar, around) {
 }
 
 /*
- * The cutaway (machine.js): a notch cut out of the planet beside the campfire trail, showing it's a
- * machine inside. A box in its own frame: `up` out of the planet at its middle, `e1` across it
- * away from the trail (a catwalk runs out along it), `e2` = e1 × up. `half` its half-size on the
- * ground (m) and `depth` how far down the floor is. The ground, the grass, the pebbles and the
- * physics all leave it open (`inCut`).
+ * The cutaway (machine.js): a stretch of the campfire trail where the ground is cut away and you
+ * cross on a bridge, looking down into the planet: it's hollow, a machine. A box in its own
+ * frame: `up` out of the planet at its middle, `e1` along the trail (toward the fire), `e2` =
+ * e1 × up; `half` its half-size on the ground (m), `inner` the radius of the hollow inside (the
+ * shell between is the cut's walls). The ground, the grass, the pebbles and the physics all leave
+ * it open (`inCut`); the trail stops at each end of the bridge (`ends`).
  */
 export const CUT = (() => {
-  const near = dirFrom(1.8, -0.74);                                  // open, nearly flat ground
-  const a = dirFrom(1.4, -0.66), b = dirFrom(1.85, -1.06);           // the campfire trail there
-  let trail = a;
-  for (let k = 0; k <= 1.0001; k += 0.02) { const p = a.clone().lerp(b, k).normalize(); if (p.angleTo(near) < trail.angleTo(near)) trail = p; }
-  const toTrail = trail.clone().addScaledVector(near, -trail.dot(near)).normalize();
-  const up = near.clone().addScaledVector(toTrail, -2.6 / RADIUS).normalize(); // stood back from the trail
-  const e1 = toTrail.clone().addScaledVector(up, -toTrail.dot(up)).normalize().negate();
-  return { up, e1, e2: e1.clone().cross(up), half: [4, 3], depth: 5, trail };
+  const a = dirFrom(1.4, -0.66), b = dirFrom(1.85, -1.06);           // the campfire trail's long straight
+  const up = a.clone().add(b).normalize();
+  const e1 = b.clone().addScaledVector(up, -b.dot(up)).normalize();
+  const half = [5, 4];
+  const end = (s) => up.clone().multiplyScalar(RADIUS).addScaledVector(e1, s * (half[0] + 0.7)).normalize();
+  return { up, e1, e2: e1.clone().cross(up), half, inner: 16.5, ends: [end(-1), end(1)], from: a, to: b };
 })();
 /** Where a direction lands in the cut's frame: { x, y } metres along e1 and e2 (or null, far off). */
 export function cutLocal(dir) {

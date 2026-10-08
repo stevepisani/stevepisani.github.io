@@ -80,6 +80,10 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the campfire trail crosses the cutaway on a bridge with a glass floor, and the planet
+  is hollow below it (a glowing core, turning rings, a shell lit like a city); the telescope: stand
+  behind it, bend to the eyepiece, dark, then the view; Earth in it with cities pinned and their
+  time now, in place of a sentence.
 - Oct 2026: Earth in the sky in place of the ringed planet, turned to the real hour (day where
   the sun's up, the cities lit at night), the way places will show on the planet; and a cutaway
   by the campfire trail: the planet is a machine, a catwalk out over its gears and glowing core.

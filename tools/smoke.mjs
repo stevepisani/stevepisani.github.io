@@ -262,7 +262,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk');
   step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
 
-  // the telescope: bend to the eyepiece and the view narrows onto what it's pointed at, a card
+  // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
   // says what; › swings it to the next; the launch panel is a button away; Esc steps back
   await page.evaluate(() => window.__world.scope.go());
   await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
@@ -373,9 +373,9 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.hoop.state === 'off', null, 120000);
   step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 
-  // the cutaway: tapping the machine from the trail walks round its railing, out along the catwalk to the
-  // platform, and looks down into it
-  await page.evaluate(() => { // from the trail, past the end of the railing
+  // the cutaway: tapping the opening from beside it walks round its railing, onto the bridge and
+  // out to the glass, and looks straight down into the planet
+  await page.evaluate(() => { // beside the cut, outside the railing
     const W = window.__world, m = W.machine, V = m.core.constructor;
     const x = new V(1, 0, 0).applyQuaternion(m.group.quaternion), z = new V(0, 0, 1).applyQuaternion(m.group.quaternion);
     W.player.spawn(m.group.position.clone().addScaledVector(x, -8).addScaledVector(z, 4).normalize(), m.core, 0);
@@ -383,10 +383,10 @@ async function planet(page, shot, { phone = false } = {}) {
   });
   await until(page, () => { const W = window.__world; return !W.player.target && !W.player.aim; }, null, 120000);
   const inside = await page.evaluate(() => { const W = window.__world; return { off: W.player.pos.distanceTo(W.machine.platform), pitch: W.player.pitch }; });
-  if (!(inside.off < 0.6)) throw new Error(`didn't reach the machine's platform (${inside.off.toFixed(2)} m off)`);
-  if (!(inside.pitch < -0.5)) throw new Error(`on the platform but not looking down into the machine (pitch ${inside.pitch.toFixed(2)})`);
+  if (!(inside.off < 0.6)) throw new Error(`didn't reach the glass on the bridge (${inside.off.toFixed(2)} m off)`);
+  if (!(inside.pitch < -1)) throw new Error(`on the glass but not looking down into the planet (pitch ${inside.pitch.toFixed(2)})`);
   await shot('machine');
-  step('walked out on the catwalk and looked down into the machine');
+  step('walked onto the glass on the bridge and looked down into the planet');
 
   // a long walk: from where you land to the campfire on the far side of the planet, round
   // whatever's in between (route.js), without stopping short

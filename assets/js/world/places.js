@@ -45,9 +45,9 @@ export const TRAILS = [
   { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
   { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
-  { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
-  // a spur off it to the cutaway (machine.js), where it turns into the catwalk
-  { id: 'machine', points: [CUT.trail, CUT.up.clone().multiplyScalar(RADIUS).addScaledVector(CUT.e1, -CUT.half[0] - 0.55).normalize()], width: 0.95, flags: 'steps', seed: 7, openStart: true, openEnd: true },
+  // round the back to the campfire, broken where it crosses the cutaway on a bridge (machine.js)
+  { id: 'campfire', points: [dirFrom(0.97, -0.24), CUT.from, CUT.ends[0]], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true, openEnd: true },
+  { id: 'campfire2', points: [CUT.ends[1], CUT.to, dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 7, meander: 0.5, lanterns: 6, openStart: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
@@ -487,14 +487,15 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
   }
 
-  // The cutaway: the planet's a machine (machine.js). Its railings keep you on the catwalk; tap it
-  // and you walk out onto the platform and look down in.
+  // The cutaway: the campfire trail crosses it on a bridge, and the planet's hollow underneath
+  // (machine.js). Its railings keep you on the bridge; tap the opening and you walk out to the
+  // middle and look down in.
   const machine = buildMachine({ quality });
-  group.add(machine.group);
+  group.add(machine.group, machine.inside);
   colliders.push(...machine.colliders);
   for (const [p, k] of machine.lamps) addLamp(p, k);
   animated.push((t) => machine.update(t));
-  interactables.push({ id: 'machine', label: 'The machine', verb: 'Look inside', object: machine.machine, point: machine.core.clone(), approach: machine.platform.clone(), radius: 1.2 });
+  interactables.push({ id: 'machine', label: 'Inside the planet', verb: 'Look down', object: machine.opening, point: machine.core.clone(), approach: machine.platform.clone(), radius: 1.2 });
 
   return {
     group,
@@ -567,7 +568,7 @@ function brassTelescope() {
   mesh(new THREE.CircleGeometry(0.068, 32).rotateX(-Math.PI / 2), lens, [0, 0.628, 0], optic).castShadow = false;
   mesh(new THREE.CylinderGeometry(0.0715, 0.0715, 0.34, 32, 1, true), leather, [0, 0.05, 0], optic); // leather grip
   for (const y of [-0.12, 0.22, 0.54]) mesh(new THREE.TorusGeometry(0.071, 0.005, 6, 32).rotateX(Math.PI / 2), dark, [0, y, 0], optic);
-  mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.02, 16), dark, [0, -0.625, 0], optic);              // eyecup
+  const eyecup = mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.02, 16), dark, [0, -0.625, 0], optic); // eyecup
   const knobs = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 8), brass, [0, -0.375, 0], optic);
   knobs.rotation.z = Math.PI / 2;
   for (const x of [-0.07, 0.07]) mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 16).rotateZ(Math.PI / 2), brass, [x, -0.375, 0], optic);
@@ -577,5 +578,6 @@ function brassTelescope() {
   for (const y of [0.02, 0.22]) mesh(new THREE.BoxGeometry(0.014, 0.02, 0.04), brass, [0, y, -0.085], optic);
   g.userData.az = az;
   g.userData.alt = alt;
+  g.userData.eyecup = eyecup; // where you put your eye (main.js); its +y runs up the tube
   return g;
 }
