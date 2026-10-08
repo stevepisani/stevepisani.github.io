@@ -130,7 +130,7 @@ export function createPhysics({ scene, loose, posts, solids = [], on = () => {} 
         f.addScaledVector(out, m * 0.25 * depth);
       }
       // in the grass and slow: it drags to a stop (on a gentle slope; a steep one still rolls it)
-      if (!depth && r - surfaceRadius(up) - it.radius < 0.04) {
+      if (!depth && !inCut(up) && r - surfaceRadius(up) - it.radius < 0.04) {
         const lv = b.linvel(), sp = Math.hypot(lv.x, lv.y, lv.z);
         if (sp < 0.4) f.addScaledVector(_v.set(lv.x, lv.y, lv.z), -m * (it.buoyancy > 2 ? 3 : 7));
       }

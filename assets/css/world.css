@@ -417,6 +417,8 @@
     radial-gradient(circle at 50% 50%, transparent calc(var(--r) * .62), rgb(0 0 0 / .32) calc(var(--r) - 4px), rgb(110 150 255 / .28) calc(var(--r) - 2.5px), rgb(255 160 80 / .3) calc(var(--r) - 1px), transparent var(--r)),
     /* the brass ring, and the dark tube round it */
     radial-gradient(circle at 50% 50%, transparent calc(var(--r) - 1px), rgb(201 166 107 / .95) var(--r), #6b4a22 calc(var(--r) + 6px), #120b05 calc(var(--r) + 14px), #000 calc(var(--r) + 40px)); }
+/* your eye against the eyepiece: black, while the view changes from the telescope to what it sees (main.js --dark) */
+.eyepiece__dark { position: absolute; inset: 0; z-index: 1; pointer-events: none; background: #000; opacity: var(--dark, 0); }
 /* the engraving on the brass ring: whose it is and its power, along the top */
 .eyepiece__ring { position: absolute; left: 50%; top: 50%; width: calc(2 * var(--r) + 60px); height: calc(2 * var(--r) + 60px); translate: -50% -50%; overflow: visible; }
 .eyepiece__ring text { font: 600 5px var(--font-mono); letter-spacing: 1.4px; fill: rgb(216 184 120 / .75); }
@@ -436,6 +438,19 @@
 .eyepiece__label { position: absolute; left: 0; top: 0; padding: 1px 7px; border-radius: 4px; background: rgb(0 0 0 / .65); color: #ffd36e; font: 600 .75rem/1.4 var(--font-body); white-space: nowrap; pointer-events: none; }
 .eyepiece__label[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .eyepiece__disc img { animation: none; } .eyepiece__live { transition: none; } }
+/* Earth in the eyepiece: cities pinned where they are, each with its time there now (main.js).
+   A warm dot where the sun is up, a pale ring where it's night; home has a ring round it. */
+.earth-pins { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.earth-pin { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.earth-pin[hidden] { display: none; }
+.earth-pin i { flex: none; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%; background: #ffd36e; box-shadow: 0 0 6px 1px rgb(255 211 110 / .8), 0 0 0 1.5px rgb(0 0 0 / .6); }
+.earth-pin.is-night i { background: rgb(20 26 40 / .6); border: 1.5px solid #cfe2ff; box-shadow: 0 0 0 1px rgb(0 0 0 / .6); }
+.earth-pin.is-home i { outline: 1.5px solid #ffd36e; outline-offset: 3px; }
+.earth-pin span { padding: 1px 7px; border-radius: 4px; background: rgb(0 0 0 / .62); color: #f3ead8; font: 600 .75rem/1.4 var(--font-body); font-variant-numeric: tabular-nums; }
+.earth-pin.is-left { flex-direction: row-reverse; translate: calc(-100% + 4.5px) 0; } /* right of the middle: the label reads leftward, clear of the card */
+.earth-pin.is-left i { margin: 0 -4.5px 0 0; }
+.earth-pin span b { font-weight: 600; color: #ffd36e; }
+.earth-pin.is-night span b { color: #cfe2ff; }
 .scope-card {
   position: absolute; z-index: 3; left: 50%; translate: -50% 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
   width: min(420px, calc(100vw - 32px)); margin: 0; padding: 14px 16px 10px; border-radius: 14px;
