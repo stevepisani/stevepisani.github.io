@@ -525,8 +525,8 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
-    if (it.id === 'console') return openPanel('launch');
-    openPanel(it.id);
+    // a landmark that's a panel: turn to it first, so it's there when the panel closes
+    player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
   let destT = -1;
   const destAt = new THREE.Vector3();

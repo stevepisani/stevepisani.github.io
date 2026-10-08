@@ -17,6 +17,7 @@ const RUN = 1.7;          // shift multiplier
 const ACCEL = 8;          // how quickly velocity catches up with input
 export const BODY = 0.32; // player radius for collisions
 const PITCH_LIMIT = 1.3;
+const FACE = 2.4;         // rad/s: turning on the spot to face something (about 140°/s, like getting up)
 const TURN = 3.5;         // how quickly auto-walk turns you toward your path
 
 const Y = new THREE.Vector3(0, 1, 0);
@@ -78,12 +79,19 @@ export class Player {
    * through on the way (round something in between), passed without slowing down.
    */
   walkTo(point, { arrive = 0.35, onArrive, via = [] } = {}) {
+    this.facing = null;
     const legs = [...via, point].map((p) => p.clone());
     this.target = { point: legs[0], legs, arrive, onArrive };
     this._stuck = { t: this.clock, d: Infinity };
   }
 
-  stop() { this.target = null; }
+  stop() { this.target = null; this.facing = null; }
+
+  /** Turn on the spot to face `point` (world), then call `then`. */
+  face(point, then) {
+    this.target = null;
+    this.facing = { point: point.clone(), then, until: this.clock + 1.5 };
+  }
 
   update(dt) {
     this.clock += dt;
@@ -91,7 +99,7 @@ export class Player {
     const want = this._v.set(0, 0, 0);
 
     if (this.enabled && (this.keys.x || this.keys.z)) {
-      this.target = null; // keys take over
+      this.target = null; this.facing = null; // keys take over
       want.set(this.keys.x, 0, -this.keys.z);
       if (want.lengthSq() > 1) want.normalize();
       want.multiplyScalar(SPEED * (this.keys.run ? RUN : 1)).applyQuaternion(this.quat);
@@ -125,6 +133,14 @@ export class Player {
           this._stuck = { t: now, d: dist };
         }
       }
+    }
+    if (this.facing && !this.target) {
+      const yaw = this.yawToward(this.facing.point);
+      if (Math.abs(yaw) < 0.05 || this.clock > this.facing.until || !this.enabled) {
+        const done = this.facing.then;
+        this.facing = null;
+        done && done();
+      } else this.quat.multiply(this._q.setFromAxisAngle(Y, Math.sign(yaw) * Math.min(Math.abs(yaw), FACE * dt)));
     }
     this.vel.lerp(want, 1 - Math.exp(-ACCEL * dt));
 
