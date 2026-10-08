@@ -264,7 +264,7 @@ async function planet(page, shot, { phone = false } = {}) {
   step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
 
   // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
-  // says what; › swings it to the next; the launch panel is a button away; Esc steps back
+  // says what; › swings it to the next; Esc steps back
   await page.evaluate(() => window.__world.scope.go());
   await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
   const firstSight = await page.evaluate(() => window.__world.scope.target);
@@ -275,11 +275,16 @@ async function planet(page, shot, { phone = false } = {}) {
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
   }
   if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
-  await page.click('#scope-more');
-  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch');
+  if (await page.isVisible('#scope-more')) throw new Error('the telescope card still offers something besides the sky');
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  // launch control: the console by the rocket opens the launch panel (offline here, its screen
+  // says so rather than counting down)
+  await page.evaluate(() => window.__world.goUse('console'));
+  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch', null, 120000);
+  await shot('launch-control');
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
-  await page.keyboard.press('Escape');
   await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real

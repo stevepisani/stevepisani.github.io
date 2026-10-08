@@ -525,6 +525,7 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
+    if (it.id === 'console') return openPanel('launch');
     openPanel(it.id);
   }
   let destT = -1;
@@ -1788,7 +1789,7 @@ async function start() {
     const note = s ? (daylight ? `It's night there now. This is it at full moon, ${dayMonth(daylight)}.` : '')
       : liveNow === 'loading' ? 'Finding it live…' : liveNow === 'off' ? "Live view unavailable. Showing tonight's phase." : '';
     $('scope-note').textContent = note;
-    scopeMore.textContent = s ? 'The whole moon' : 'Next launch and the ISS';
+    scopeMore.hidden = !s; // on a landing site: back to the whole moon (the launch is at the console by the rocket)
     scopePrev.hidden = scopeNext.hidden = s ? SITES.length < 2 : scope.targets.length < 2;
     scope.cardKey = cardKey();
   }
@@ -1945,7 +1946,7 @@ async function start() {
   $('scope-close').addEventListener('click', () => { scopeCard.hidden = true; }); // the whole view; a tap brings it back
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
-  scopeMore.addEventListener('click', () => (scope.site >= 0 ? closeSite() : openPanel('launch')));
+  scopeMore.addEventListener('click', () => closeSite());
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
   // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
