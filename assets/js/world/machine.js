@@ -18,7 +18,6 @@ import { lampLit } from './lamps.js';
 
 const [HX, HZ] = CUT.half, INNER = CUT.inner;
 const BRIDGE = 1.0;   // the bridge's half-width (its railings stand here)
-const GLASS = [0.9, 0.62]; // the glass floor in the middle of the bridge (half-sizes along and across)
 const SEE = 40;       // metres from the cut within which the inside is drawn
 
 function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
@@ -221,34 +220,17 @@ export function buildMachine({ quality }) {
   {
     const n = Math.ceil((x1 - x0) / 0.5), xs = Array.from({ length: n + 1 }, (_, i) => x0 + (x1 - x0) * (i / n));
     const deck = [], frame = [], rail = [];
-    // the grating: bars along every 18 cm, cross bars every 10 cm; a glass floor in the middle
-    const glassAt = (x) => Math.abs(x) < GLASS[0];
+    // the grating, end to end: bars along every 18 cm, cross bars every 10 cm; you see down through it
     for (let k = 0; k <= Math.round((2 * BRIDGE) / 0.18); k++) {
-      const z = Math.min(BRIDGE, -BRIDGE + k * 0.18), side = Math.abs(z) > GLASS[1];
-      for (let i = 0; i < n; i++) if (side || !(glassAt(xs[i]) && glassAt(xs[i + 1]))) bar(up(ground(xs[i], z), -0.01), up(ground(xs[i + 1], z), -0.01), 0.035, 0.03, deck);
+      const z = Math.min(BRIDGE, -BRIDGE + k * 0.18);
+      for (let i = 0; i < n; i++) bar(up(ground(xs[i], z), -0.01), up(ground(xs[i + 1], z), -0.01), 0.035, 0.03, deck);
     }
     for (let x = x0 + 0.05; x < x1; x += 0.1) {
-      if (glassAt(x)) { // only the strips either side of the glass
-        for (const s of [-1, 1]) { const a = up(ground(x, s * BRIDGE), -0.012), b = up(ground(x, s * GLASS[1]), -0.012); bar(a.clone().lerp(b, 0), b, 0.012, 0.025, deck); }
-        continue;
-      }
       const a = up(ground(x, -BRIDGE), -0.012), b = up(ground(x, BRIDGE), -0.012), g = new THREE.BoxGeometry(0.012, 0.025, a.distanceTo(b));
       const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), b.clone().sub(a).normalize());
       deck.push(g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1))));
     }
     add(mergeGeometries(deck), M.grate);
-    // the glass: you stand on it and look straight down, past nothing, to the core
-    {
-      const nx = 8, nz = 4, pos = [], idx = [];
-      for (let i = 0; i <= nx; i++) for (let k = 0; k <= nz; k++) { const p = up(ground(-GLASS[0] + (2 * GLASS[0] * i) / nx, -GLASS[1] + (2 * GLASS[1] * k) / nz), -0.005); pos.push(p.x, p.y, p.z); }
-      for (let i = 0; i < nx; i++) for (let k = 0; k < nz; k++) { const a = i * (nz + 1) + k, b = a + nz + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-      const glass = add(g, pbr({ color: 0x9fd8e0, transparent: true, opacity: 0.1, roughness: 0.05, metalness: 0.2, depthWrite: false, side: THREE.DoubleSide }));
-      glass.castShadow = false; glass.userData.noBatch = true;
-      const rim = [], c = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => up(ground(a * GLASS[0], b * GLASS[1]), 0.005));
-      for (let i = 0; i < 4; i++) bar(c[i], c[(i + 1) % 4], 0.07, 0.04, rim);
-      add(mergeGeometries(rim), M.lip);
-    }
     // the trusses: a bottom chord under the deck, posts and diagonals, a handrail and a mid rail
     for (const z of [-BRIDGE, BRIDGE]) {
       for (let i = 0; i < n; i++) {
@@ -261,7 +243,7 @@ export function buildMachine({ quality }) {
       }
       rod(up(ground(x1, z), -0.32), up(ground(x1, z), 1.05), 0.035, frame);
     }
-    for (const x of xs.filter((x, i) => i % 3 === 0 && !glassAt(x))) bar(up(ground(x, -BRIDGE), -0.32), up(ground(x, BRIDGE), -0.32), 0.1, 0.12, frame); // cross beams
+    for (const x of xs.filter((x, i) => i % 3 === 0)) bar(up(ground(x, -BRIDGE), -0.32), up(ground(x, BRIDGE), -0.32), 0.1, 0.12, frame); // cross beams
     add(mergeGeometries(frame), M.steel);
     add(mergeGeometries(rail), M.rail);
     // lanterns on the handrail, two each side, lighting the deck
@@ -362,7 +344,7 @@ export function buildMachine({ quality }) {
     solids,
     /** Lamp pools (lamps.js): the bridge's lanterns. */
     lamps: lamps.map(([p, k]) => [toWorld(p), k]),
-    /** The glass in the middle of the bridge, and the core, at the planet's centre. */
+    /** The middle of the bridge, and the core, at the planet's centre. */
     platform: toWorld(ground(0, 0)),
     core: new THREE.Vector3(),
     /** The camera, set by main.js: the inside is drawn only when it's near enough to see in. */

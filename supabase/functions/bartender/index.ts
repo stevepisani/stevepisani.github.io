@@ -2,6 +2,8 @@
 // POST { messages: [{ role: "user" | "assistant", content: string }, ...], stream?: true }
 //   -> with stream: true (what the site sends), the reply as plain text, streamed as it's said
 //   -> otherwise { reply }
+// When the model can't answer (no credit, an outage) the reply is empty (or { error }), and the
+// site answers from its own facts instead (assets/js/world/barback.js).
 // It knows what the site knows (/bartender.json, built from the site's _data), answers in a
 // line or two, and stays inside the limits the database keeps (bartender_take): a monthly
 // reply cap and 20 questions an hour per visitor. Deployed by .github/workflows/supabase.yml.
@@ -190,7 +192,8 @@ Deno.serve(async (req) => {
         if (!sent) controller.enqueue(enc.encode(AGAIN));
       } catch (e) {
         console.error(e);
-        if (!sent) controller.enqueue(enc.encode(e instanceof Anthropic.RateLimitError ? BUSY : CLOSED));
+        // busy: say so; anything else (no credit, an outage): nothing, and the site answers from its own facts (assets/js/world/barback.js)
+        if (!sent && e instanceof Anthropic.RateLimitError) controller.enqueue(enc.encode(BUSY));
       }
       controller.close();
     },

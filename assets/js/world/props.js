@@ -484,6 +484,96 @@ export function moai({ height = 2.4 } = {}) {
  * parabolic dish with panel seams and ribs behind it, and a feed horn held out on three struts.
  * About 2.8 m tall. Faces local +z, tipped back toward the sky.
  */
+/**
+ * Launch control: a mid-century console beside the pad, cream and teal, a slanted panel of
+ * switches and lamps, a red button under a guard, and a round-cornered screen on top showing the
+ * next launch anywhere and its countdown (`show(lines)`: up to four lines, redrawn when they
+ * change). Faces +z; about 1.4 m tall. `blink(t)` runs its lamps.
+ */
+export function launchConsole() {
+  const g = new THREE.Group();
+  const body = pbr({ color: PALETTE.cream, roughness: 0.55 });
+  const teal = pbr({ color: PALETTE.tinTeal, roughness: 0.45, metalness: 0.1 });
+  const dark = pbr({ color: PALETTE.lava, roughness: 0.5, metalness: 0.3 });
+  const steel = pbr({ color: PALETTE.chrome, metalness: 0.7, roughness: 0.35 });
+  const add = (geo, mat, [x, y, z], parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+  // the desk: a plinth, the body, a teal kick band, and the slanted panel
+  add(new THREE.BoxGeometry(1.3, 0.08, 0.7), dark, [0, 0.04, 0]);
+  add(new THREE.BoxGeometry(1.2, 0.7, 0.55), body, [0, 0.43, -0.02]);
+  add(new THREE.BoxGeometry(1.22, 0.1, 0.57), teal, [0, 0.13, -0.02]);
+  const panel = new THREE.Group();
+  panel.position.set(0, 0.82, 0.12);
+  panel.rotation.x = -0.55;
+  g.add(panel);
+  add(new THREE.BoxGeometry(1.2, 0.04, 0.42), teal, [0, 0, 0], panel);
+  // switches and lamps on the panel
+  const lamps = [];
+  for (let i = 0; i < 6; i++) {
+    const x = -0.45 + i * 0.13;
+    const sw = add(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), steel, [x, 0.035, 0.08], panel);
+    sw.rotation.x = 0.4;
+    const lamp = add(new THREE.SphereGeometry(0.018, 10, 8), glow(i % 3 === 2 ? PALETTE.coral : PALETTE.amber, 3), [x, 0.03, -0.06], panel);
+    lamp.castShadow = false;
+    lamps.push(lamp);
+  }
+  // the red button under its flip-up guard
+  add(new THREE.CylinderGeometry(0.05, 0.055, 0.02, 20), dark, [0.42, 0.03, 0.02], panel);
+  add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), pbr({ color: PALETTE.coral, roughness: 0.35, emissive: PALETTE.coral, emissiveIntensity: 0.25 }), [0.42, 0.05, 0.02], panel);
+  // the screen housing, on a neck, tipped a little toward you
+  add(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12), steel, [0, 0.95, -0.15]);
+  const head = new THREE.Group();
+  head.position.set(0, 1.2, -0.12);
+  head.rotation.x = -0.12;
+  g.add(head);
+  add(new THREE.BoxGeometry(0.78, 0.52, 0.3), body, [0, 0, -0.04], head);
+  add(new THREE.BoxGeometry(0.7, 0.44, 0.02), dark, [0, 0, 0.115], head);
+  // the screen: a canvas, redrawn only when what it says changes
+  const W = 512, H = 320, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d'), tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.4), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  screen.position.set(0, 0, 0.127);
+  head.add(screen);
+  let shown = '';
+  function show(lines) {
+    const key = lines.join('|');
+    if (key === shown) return;
+    shown = key;
+    ctx.fillStyle = '#071410';
+    ctx.fillRect(0, 0, W, H);
+    const glowGrad = ctx.createRadialGradient(W / 2, H / 2, 20, W / 2, H / 2, W * 0.7);
+    glowGrad.addColorStop(0, 'rgba(60,255,170,.10)'); glowGrad.addColorStop(1, 'rgba(0,0,0,.5)');
+    ctx.fillStyle = glowGrad; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(120,255,190,.8)'; ctx.shadowBlur = 8;
+    const [kick, big, name, meta] = lines;
+    ctx.fillStyle = '#7dffbf';
+    ctx.font = '600 22px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillText(kick || '', 28, 48);
+    ctx.font = '700 56px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillStyle = '#c8ffe0';
+    ctx.fillText(big || '', 28, 128, W - 56);
+    ctx.font = '500 26px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillStyle = '#9dffcb';
+    const fit = (t, y) => { let s = String(t || ''); while (s.length > 4 && ctx.measureText(s).width > W - 56) s = s.slice(0, -2) + '…'; ctx.fillText(s, 28, y); };
+    fit(name, 196);
+    ctx.font = '400 20px "JetBrains Mono", ui-monospace, monospace';
+    fit(meta, 240);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(0,0,0,.22)'; // scanlines
+    for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 2);
+    tex.needsUpdate = true;
+  }
+  show(['NEXT LAUNCH', 'T- --:--:--', 'Checking the manifest…', '']);
+  return {
+    group: g,
+    show,
+    screen,
+    blink(t) { lamps.forEach((l, i) => { l.visible = Math.floor(t * 2 + i * 1.7) % 3 !== 0; }); },
+  };
+}
+
 export function radioDish() {
   const g = new THREE.Group();
   const concrete = surface(lavaSet(), { color: PALETTE.ash, roughness: 0.95, bumpScale: 1 });
