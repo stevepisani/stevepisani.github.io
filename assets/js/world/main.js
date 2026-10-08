@@ -18,7 +18,7 @@ import { buildSky } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear, nearLandmark } from './places.js';
 import { Player, bindInput, BODY } from './player.js';
-import { findRoute } from './route.js';
+import { onPlanet } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
@@ -531,28 +531,10 @@ async function start() {
   let destT = -1;
   const destAt = new THREE.Vector3();
   function showDest(point) { destAt.copy(point); standOn(destRing, point, 0.6); destT = 0; }
-  // Near the bar, or the railings round the machine, a straight line can run into the counter, a
-  // post, a palm or a rail: walk round instead (route.js). Worked out flat, in that place's frame;
-  // anywhere else the way is open.
-  const zone = (group, colliders, reach) => ({
-    group,
-    reach,
-    circles: colliders
-      .map((c) => ({ c, p: group.worldToLocal(c.center.clone()) }))
-      .filter(({ p }) => p.y > -4 && Math.hypot(p.x, p.z) < 11)
-      .map(({ c, p }) => ({ x: p.x, z: p.z, r: c.radius + BODY + 0.03 })),
-  });
-  const zones = [zone(bar.group, player.colliders, 8), zone(places.machine.group, places.machine.colliders, 7)];
+  // A straight line can run into the counter, a post, a palm, a rock or the machine's railing:
+  // walk round instead (route.js), anywhere on the planet.
   function routeTo(point) {
-    for (const z of zones) {
-      const a = z.group.worldToLocal(player.pos.clone()), b = z.group.worldToLocal(point.clone());
-      if (a.y < -6 || Math.hypot(b.x, b.z) > z.reach) continue;
-      return findRoute([a.x, a.z], [b.x, b.z], z.circles).map(([x, zz]) => {
-        const up = z.group.localToWorld(new THREE.Vector3(x, 0, zz)).normalize();
-        return up.multiplyScalar(surfaceRadius(up));
-      });
-    }
-    return [];
+    return onPlanet(player.pos, point, player.colliders, { R: RADIUS, body: BODY + 0.03 }).map((up) => up.multiplyScalar(surfaceRadius(up)));
   }
   function goUse(it) {
     clearHint('walk');
@@ -2231,7 +2213,7 @@ async function start() {
     clearHint('walk');
     const at = it.object.position;
     if (player.pos.distanceTo(at) < 1.6) return grab(it);
-    player.walkTo(at, { arrive: 0.85, onArrive: () => { if (!it.held && state === 'walk' && player.pos.distanceTo(it.object.position) < 1.8) grab(it); } });
+    player.walkTo(at, { via: routeTo(at), arrive: 0.85, onArrive: () => { if (!it.held && state === 'walk' && player.pos.distanceTo(it.object.position) < 1.8) grab(it); } });
     showDest(at);
   }
   function putDown() {
@@ -2540,7 +2522,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)

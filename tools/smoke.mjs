@@ -387,6 +387,20 @@ async function planet(page, shot, { phone = false } = {}) {
   if (!(inside.pitch < -0.5)) throw new Error(`on the platform but not looking down into the machine (pitch ${inside.pitch.toFixed(2)})`);
   await shot('machine');
   step('walked out on the catwalk and looked down into the machine');
+
+  // a long walk: from where you land to the campfire on the far side of the planet, round
+  // whatever's in between (route.js), without stopping short
+  const far = await page.evaluate(() => {
+    const W = window.__world, P = W.player, it = W.interactables.find((i) => i.id === 'campfire');
+    P.spawn(W.SPOTS.spawn, it.point, 0);
+    const via = W.routeTo(it.approach);
+    P.walkTo(it.approach, { arrive: 0.45, via });
+    return { corners: via.length, metres: Math.round(P.pos.angleTo(it.approach) * P.pos.length()) };
+  });
+  await until(page, () => !window.__world.player.target, null, 240000);
+  const short = await page.evaluate(() => { const W = window.__world; return W.player.pos.distanceTo(W.interactables.find((i) => i.id === 'campfire').approach); });
+  if (!(short < 0.6)) throw new Error(`the walk to the campfire stopped ${short.toFixed(1)} m short`);
+  step(`walked ${far.metres} m from where you land to the campfire, round ${far.corners} corners`);
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
