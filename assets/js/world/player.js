@@ -117,14 +117,16 @@ export class Player {
       want.multiplyScalar(SPEED * (this.keys.run ? RUN : 1)).applyQuaternion(this.quat);
     } else if (this.enabled && this.target) {
       const to = this.target.point.clone().sub(this.pos);
-      to.addScaledVector(up, -to.dot(up));
-      const dist = to.length();
+      to.addScaledVector(up, -to.dot(up)); // which way: along the ground toward it
+      // how far: along the ground too (the flat distance shrinks past a quarter of the way round,
+      // so a far walk would look like no progress and give up)
+      const dist = this.pos.angleTo(this.target.point) * this.pos.length();
       const corner = this.target.legs.length > 1;
       if (corner && dist < 0.5) { // round the corner, on to the next leg
         this.target.legs.shift();
         this.target.point = this.target.legs[0];
         this._stuck = { t: this.clock, d: Infinity };
-      } else if (dist < this.target.arrive) {
+      } else if (!corner && dist < this.target.arrive) { // only the last leg arrives; a corner is walked round
         const done = this.target.onArrive;
         this.target = null;
         done && done();
