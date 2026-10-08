@@ -377,9 +377,9 @@ async function planet(page, shot, { phone = false } = {}) {
   // it (the deck counts as ground; nothing on the bridge takes the tap instead)
   const glass = await page.evaluate(() => {
     const W = window.__world, m = W.machine, g = m.group, V = g.position.constructor;
-    W.player.spawn(g.localToWorld(new V(-7.5, 0, 0)).normalize(), m.platform, -0.35);
+    W.player.spawn(g.localToWorld(new V(-6.5, 0, 0)).normalize(), m.platform, -0.35);
     W.player.applyToCamera(); W.camera.updateMatrixWorld(true);
-    const p = m.platform.clone().project(W.camera), r = document.querySelector('canvas').getBoundingClientRect();
+    const p = g.localToWorld(new V(0, -0.08, 0)).project(W.camera), r = document.querySelector('canvas').getBoundingClientRect(); // the deck's surface, not just above it
     const xy = [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height], hit = W.pick(...xy);
     return { xy, ground: !!(hit && hit.ground), thing: hit && hit.thing && hit.thing.id };
   });
