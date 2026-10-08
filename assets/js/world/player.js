@@ -34,7 +34,6 @@ export class Player {
     this.enabled = false;
     this.keys = { x: 0, z: 0, run: false };
     this.target = null;                 // { point, arrive, onArrive }
-    this.aim = null;                    // { point, pitch }: turning to look at something
     this.lookedAt = 0;                  // last time the person dragged to look
     this.eye = EYE;
     this._up = new THREE.Vector3();
@@ -84,32 +83,13 @@ export class Player {
     this._stuck = { t: this.clock, d: Infinity };
   }
 
-  stop() { this.target = null; this.aim = null; }
-
-  /** Turn, standing still, to face `point` with the head at `pitch` (at once when `now`). A drag takes over. */
-  turnTo(point, pitch, now = false) {
-    this.aim = { point: point.clone(), pitch };
-    if (now) {
-      this.quat.multiply(this._q.setFromAxisAngle(Y, this.yawToward(point)));
-      this.pitch = pitch;
-      this.aim = null;
-    }
-  }
+  stop() { this.target = null; }
 
   update(dt) {
     this.clock += dt;
     const up = this.up.clone();
     const want = this._v.set(0, 0, 0);
 
-    if (this.aim) {
-      if (this.target || this.keys.x || this.keys.z || this.lookedAt > this.clock - dt) this.aim = null;
-      else {
-        const k = Math.min(1, 3 * dt), yaw = this.yawToward(this.aim.point);
-        this.quat.multiply(this._q.setFromAxisAngle(Y, yaw * k));
-        this.pitch += (this.aim.pitch - this.pitch) * k;
-        if (Math.abs(yaw) < 0.003 && Math.abs(this.aim.pitch - this.pitch) < 0.003) this.aim = null;
-      }
-    }
     if (this.enabled && (this.keys.x || this.keys.z)) {
       this.target = null; // keys take over
       want.set(this.keys.x, 0, -this.keys.z);
