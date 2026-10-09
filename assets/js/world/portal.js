@@ -189,6 +189,12 @@ export async function enter(place, { parent = document.body, progress = () => {}
       alive = false; // the last frame fades; nothing more is drawn
       cancelAnimationFrame(raf);
       await fade(0);
+      // Spark's sorting may still be in flight: let it land, and don't let what it rejects as it's
+      // torn down ("Worker terminate", or nothing at all) surface as an error on the page
+      await new Promise((r) => setTimeout(r, 500));
+      const quiet = (e) => { const r = e.reason; if (r === undefined || /terminate/i.test(String(r && r.message))) e.preventDefault(); };
+      addEventListener('unhandledrejection', quiet);
+      setTimeout(() => removeEventListener('unhandledrejection', quiet), 5000);
       removeEventListener('resize', fit);
       removeEventListener('keydown', onKey);
       removeEventListener('keyup', onKey);
