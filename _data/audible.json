@@ -695,7 +695,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
-      "seq": "1.5",
+      "series": "The Captive's War",
+      "seq": "",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -1730,7 +1730,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -5246,8 +5246,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "Dune",
-      "seq": "1",
+      "series": "The Dune Sequence",
+      "seq": "12",
       "genre": "Literature & Fiction",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5798,5 +5798,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-08"
+  "updated": "2026-10-09"
 }
