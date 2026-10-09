@@ -288,7 +288,8 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk');
   // the door past the telescope: walk up and step through it into the real place (the real
   // splat, about a minute under software WebGL), look round, then step back out where you went
-  // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
+  // in, then in and out again (the place is kept). The planet stops drawing while you're through
+  // it, so wait by the clock, not by frames.
   if (!phone) {
     const tick = { timeout: 300000, polling: 500 };
     await page.evaluate(() => window.__world.goUse('door'));
@@ -300,8 +301,14 @@ async function planet(page, shot, { phone = false } = {}) {
     await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
     if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
     await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
-    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view'), null, tick);
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
     if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+    // the place is kept: stepping in again needs nothing loaded, and Back brings you out
+    await page.evaluate(() => window.__world.goUse('door'));
+    await page.waitForFunction(() => window.__world.door.inside, null, tick);
+    if (await page.evaluate(() => document.querySelectorAll('.portal-view').length) !== 1) throw new Error('stepping in again made a second view of the place');
+    await page.evaluate(() => history.back());
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
   }
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
