@@ -12,10 +12,17 @@
 // It works with no signal (a train, a plane): every load keeps a copy on the phone (the rows, the
 // photo links, the weather; the photos themselves in a cache the service worker, /apps/offline.js,
 // answers from), and with no connection the app opens on that copy. Changes to packing entries
-// made then are kept and sent when the connection's back.
+// and what's logged of the day (what you wore, a line about it) made then are kept and sent when
+// the connection's back.
+//
+// Each day keeps a record (public.events, rows only added; _shared/days.js says what a day says):
+// "Wore it" on Today logs the planned outfit in one tap, the pieces can be changed, and a line
+// about the day saves as you leave it. The trip shows each past day as it was, the packing how
+// often each garment's been worn, and a garment what it's cost a wear.
 import { $, el, icon, db, start, fresh, rows, saver, ask, open, sheet as sheetify, photos, toast, calm, buzz, celebrate, here, pull } from './lib/kit.js';
 import { SIZES } from './lib/photo-sizes.js';
 import { locate, legWeather } from '../../../supabase/functions/_shared/weather.js';
+import { byDay, wears } from '../../../supabase/functions/_shared/days.js';
 import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway, HOME } from './lib/travel.js';
 import * as recipes from './lib/recipes.js';
 import { units, setUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
@@ -312,6 +319,9 @@ function paintSheet() {
   $('#sheet-shared').hidden = !it.variant_id;
   const bought = it.bought_on && new Date(`${it.bought_on}T12:00`).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
   $('#sv-bought').textContent = [it.price != null && money(Number(it.price), it.currency), bought && `bought ${bought}`].filter(Boolean).join(', ');
+  // how often it's been worn, and what that makes each wear cost, from what's logged (never stored)
+  const worn = wears(events).get(it.id)?.times || 0;
+  $('#sv-wear').textContent = worn ? [worn === 1 ? 'Worn once' : `Worn ${worn} times`, it.price != null && `${money(Number(it.price) / worn, it.currency)} a wear`].filter(Boolean).join(' · ') : '';
   $('#sv-notes').textContent = it.notes || '';
   $('#buy').hidden = !it.buy_link;
   if (it.buy_link) $('#buy').href = href(it.buy_link);
@@ -475,6 +485,7 @@ $('#photo-remove').addEventListener('click', async () => {
 // #today, #closet, #trips, #recipes, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over
 // the view). A section the member doesn't see isn't there: its address goes home.
 let trips = [], parts = noParts(), openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
+let events = []; // what happened, a day at a time (public.events): what was worn, a line about the day
 const address = () => { const h = location.hash.slice(1); return h.includes('=') ? [] : h.split('/').map((p) => { try { return decodeURIComponent(p); } catch (e) { return p; } }); }; // "=": a sign-in link
 // an item opens over the view, its photo growing out of the one tapped (where the browser can)
 let zoomFrom = null;
@@ -760,7 +771,11 @@ async function drawTrip() {
   part('trip-stay', stays.map((l) => stayCard(l, { date: today })));
   part('trip-links', partsOf(t, 'trip_resources').map((r) => infoRow(r.label, r.url, [r.notes])));
   const planned = [...t.days].sort((x, y) => x.date.localeCompare(y.date));
-  $('#days-count').textContent = planned.length ? `${planned.length} of ${total} planned` : '';
+  // what each day so far was: what was worn and its line, from what's logged; a day logged but
+  // never planned gets a card too
+  const logs = byDay(events), logged = [...logs.keys()].filter((d) => a && a <= d && d <= b && d <= today && (logs.get(d).wore?.item_ids?.length || logs.get(d).journal?.text));
+  const shownDays = [...new Set([...planned.map((d) => d.date), ...logged])].sort().map((date) => planned.find((d) => d.date === date) || { date, items: [] });
+  $('#days-count').textContent = [planned.length && `${planned.length} of ${total} planned`, logged.length && `${logged.length} logged`].filter(Boolean).join(' · ');
   // the legs, each with its weather day by day, every leg's bars on the trip's one scale
   const weather = await Promise.all(t.legs.map(legWeatherCached));
   if (openTrip !== t || shown !== 'trip') return;
@@ -786,8 +801,9 @@ async function drawTrip() {
   const days = $('#days');
   days.textContent = '';
   const wxDay = (date) => { for (const w of weather) { const d = w?.days.find((x) => x.date === date); if (d) return d; } return null; };
-  for (const d of planned) {
+  for (const d of shownDays) {
     const li = el('li', `day${d.date === today ? ' is-today' : ''}`), w = wxDay(d.date);
+    const log = d.date <= today ? logs.get(d.date) || {} : {}, worn = log.wore?.item_ids?.length ? log.wore.item_ids : null;
     const head = el('div', 'day__head'), when = el('p', 'day__date');
     when.append(el('strong', '', fmtDay(d.date, { weekday: 'short' })), ` · ${legOn(t, d.date)?.place || ''}`);
     head.append(when);
@@ -796,11 +812,16 @@ async function drawTrip() {
     if (d.occasion) li.append(el('p', 'day__occasion', d.occasion));
     const acts = activities(d);
     if (acts) li.append(acts);
-    if (d.items?.length) li.append(flatlay(d.items));
+    // what was worn, once it's logged: as planned, or what instead (laid flat, the plan named under it)
+    const asPlanned = worn && sameSet(worn, d.items || []);
+    if (worn || d.items?.length) li.append(flatlay(worn || d.items));
+    if (worn) li.append(el('p', 'day__worn', asPlanned ? 'Worn as planned ✓' : 'Worn ✓'));
+    if (worn && !asPlanned && d.items?.length) li.append(el('p', 'day__note', `Planned: ${d.items.map((id) => list.find((x) => x.id === id)?.name || 'No longer in the wardrobe').join(' · ')}`));
+    if (log.journal?.text) li.append(el('p', 'day__journal', `“${log.journal.text}”`));
     if (d.note) li.append(el('p', 'day__note', d.note));
     days.append(li);
   }
-  $('#days-empty').hidden = !!t.days.length;
+  $('#days-empty').hidden = !!shownDays.length;
   $('#days-empty').textContent = 'No outfits planned yet. Ask ChatGPT or Claude to plan what you wear each day.';
 }
 
@@ -849,23 +870,28 @@ async function drawToday() {
   const [hereW, { w: lw, day: w }, ...wAhead] = await Promise.all([hereLeg ? legWeatherCached(hereLeg) : null, ...[date, ...ahead].map(wxFor)]).then((r) => [r[0], r[1], ...r.slice(2).map((x) => x.day)]);
   if (openTrip !== t || shown !== 'today' || dayOn !== date) return;
   const planned = (d) => (away ? t.days.find((x) => x.date === d) : null);
-  const wearing = (d) => (planned(d)?.items || []).map((id) => list.find((x) => x.id === id)).filter(Boolean);
   const weekday = (d) => fmtDay(d, { weekday: 'long', month: 'long' }).split(',')[0];
 
   // 1. the next journey, when it's within two days (or under way): the thing to act on comes first
   const goes = t ? partsOf(t, 'trip_transport') : [], next1 = t && nextJourney(goes, t.legs);
   const journey = next1 ? journeyCard(next1, t.legs, { today: true }) : null;
 
-  // 2. what you're wearing: the outfit laid flat, what the day holds, and a word when the weather
-  // and the outfit disagree. (Next: "Wore it", one tap, goes under the outfit; docs/roadmap.md.)
+  // 2. what you're wearing: the outfit laid flat (what you logged, once you have; else the plan)
+  // with "Wore it" under it, what the day holds, a word when the weather and the outfit disagree,
+  // and a line about the day (a day to come has neither)
   const card = el('section', `today-card${slide ? ` slide-${slide}` : ''}`);
+  const plan = planned(date), log = byDay(events).get(date) || {};
+  const worn = log.wore?.item_ids?.length ? log.wore : null; // logged as worn (one logged empty was cleared)
+  const shownIds = worn ? worn.item_ids : plan?.items || [];
+  const outfit = shownIds.map((id) => list.find((x) => x.id === id)).filter(Boolean);
   card.setAttribute('aria-label', `What you're wearing ${date === today ? 'today' : weekday(date)}`);
-  card.append(el('h2', 'part-title', date === today ? "What you're wearing" : `Planned for ${weekday(date)}`));
-  const outfit = wearing(date), plan = planned(date);
+  card.append(el('h2', 'part-title', date === today ? "What you're wearing" : date < today && worn ? `What you wore ${weekday(date)}` : `Planned for ${weekday(date)}`));
   const there = lw ? placeNow(lw.timezone) : null, isNow = date === today && there?.startsWith(date);
   const hours = lw?.hours || [], nowH = isNow ? hourNow(hours, there) : null;
-  if (plan?.items?.length) card.append(flatlay(plan.items));
+  if (shownIds.length) card.append(flatlay(shownIds));
   else card.append(el('p', 'today-card__none', away ? 'Nothing planned to wear. Ask ChatGPT or Claude to plan it.' : 'Nothing planned for today.'));
+  if (worn && plan?.items?.length && !sameSet(worn.item_ids, plan.items)) card.append(el('p', 'today-card__note', `Planned: ${plan.items.map((id) => list.find((x) => x.id === id)?.name || 'No longer in the wardrobe').join(' · ')}`));
+  if (date <= today) card.append(woreRow(date, plan, worn));
   if (plan?.occasion) card.append(el('p', 'today-card__occasion', plan.occasion));
   const acts = plan && activities(plan);
   if (acts) card.append(acts);
@@ -879,6 +905,7 @@ async function drawToday() {
     box2.append(icon('umbrella', 'advice__icon'), lines);
     card.append(box2);
   }
+  if (date <= today) card.append(journalLine(date, log.journal));
 
   // 3. the weather where you are (or will be that day), on its own sky
   const wxCard = el('section', `today-card today-card--wx${slide ? ` slide-${slide}` : ''}`), panel = el('div', 'sky-panel'), top = el('div', 'today-card__top'), where = el('div');
@@ -1007,8 +1034,175 @@ async function drawToday() {
   main.append(...(journey ? [journey] : []), card, wxCard);
   if (journey) journey.classList.add('today__part');
   aside.append(...side);
+  // a line being typed stays as it is through a redraw (the weather arriving, a pull)
+  const typing = document.activeElement?.id === 'journal-line' ? document.activeElement : null;
   box.replaceChildren(main, ...(side.length ? [aside] : []));
+  const line = $('#journal-line');
+  if (typing && line && typing.dataset.date === line.dataset.date) { line.value = typing.value; line.focus({ preventScroll: true }); }
 }
+
+// ---------- Days: what you wore, and a line about the day ----------
+// Each is an event (public.events), only ever added: logging a day again adds another, and the
+// newest is what the day says (_shared/days.js; the older ones are its history). Undo moves the
+// one just added to the trash. Each says how it was known (the plan that day, whether it was worn
+// as planned, how it came in), so a better model can read it again. With no connection they wait
+// on the phone (QUEUE_DAYS) and go when it's back.
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+const tripOnDate = (date) => trips.find((t) => { const [a, b] = span(t); return a && a <= date && date <= b; }) || null;
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
+const QUEUE_DAYS = 'wardrobe-days-queue';
+const dayQueue = { add: {}, gone: {}, ...kept(QUEUE_DAYS) }; // id → the row to add; id → when it went to the trash (null: back out of it)
+const keepDayQueue = () => keep(QUEUE_DAYS, dayQueue);
+const waitingDays = () => Object.keys(dayQueue.add).length + Object.keys(dayQueue.gone).length;
+const local = () => offline || !navigator.onLine;
+
+// Adds an event: it shows at once and saves as one POST (or waits, with no connection). It's
+// stamped after the newest one known, so it's the one that stands even if this phone's clock is
+// behind (or two taps land in the same millisecond)
+const stamp = () => new Date(Math.max(Date.now(), ...events.map((e) => (Date.parse(String(e.created_at).replace(' ', 'T')) || 0) + 1))).toISOString();
+async function logEvent(fields) {
+  const row = { id: newId(), item_ids: [], text: null, evidence: {}, source: 'app', recorded_by: me?.name || null, trip_id: tripOnDate(fields.date)?.id || null, created_at: stamp(), ...fields };
+  events.push(row);
+  redraw();
+  if (local()) { dayQueue.add[row.id] = row; keepDayQueue(); keepCopy(); showStatus(); return row; }
+  const { error } = await db.from('events').insert(row);
+  if (error) { events = events.filter((e) => e !== row); redraw(); toast(`That didn't save: ${error.message}`, true); return null; }
+  keepCopy();
+  return row;
+}
+// Moves events to the trash (at: when) or back out of it (at: null). One that never left the phone
+// only leaves the queue (or joins it again).
+async function trashEvents(list, at) {
+  for (const e of list) {
+    events = events.filter((x) => x.id !== e.id);
+    if (!at) events.push(e);
+    if (dayQueue.add[e.id] || e.unsent) {
+      if (at) { delete dayQueue.add[e.id]; e.unsent = true; continue; }
+      delete e.unsent;
+      if (local() || (await db.from('events').insert(e)).error) dayQueue.add[e.id] = e;
+      continue;
+    }
+    if (local()) { dayQueue.gone[e.id] = at; continue; }
+    const { error } = await db.from('events').update({ deleted_at: at }).eq('id', e.id);
+    if (error) toast(`That didn't save: ${error.message}`, true);
+  }
+  keepDayQueue();
+  keepCopy();
+  showStatus();
+  redraw();
+}
+// what waited goes, before anything is loaded: the adds, then what went to the trash
+async function sendDays() {
+  for (const [id, row] of Object.entries(dayQueue.add)) {
+    const { unsent, ...out } = row;
+    const { error } = await db.from('events').insert(out);
+    if (!error || error.code) delete dayQueue.add[id]; // sent, or refused (23505: it went before): done either way
+  }
+  for (const [id, at] of Object.entries(dayQueue.gone)) {
+    const { error } = await db.from('events').update({ deleted_at: at }).eq('id', id);
+    if (!error || error.code) delete dayQueue.gone[id];
+  }
+  keepDayQueue();
+}
+
+// Logs what was worn on a date: the plan in one tap, or the pieces picked; Undo takes it back
+async function logWorn(date, ids, plan) {
+  const planned = plan?.items || [], asPlanned = !!planned.length && sameSet(ids, planned);
+  const ev = await logEvent({ date, kind: 'wore', item_ids: ids, evidence: { ...(planned.length && { planned, as_planned: asPlanned }), how: asPlanned ? 'tapped Wore it' : 'picked the pieces' } });
+  if (!ev) return;
+  buzz();
+  const day = date === isoToday() ? 'today' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0];
+  toast(asPlanned ? `Logged ${day}'s outfit as worn.` : `Logged what you wore ${day === 'today' ? day : `on ${day}`}.`, false, () => trashEvents([ev], new Date().toISOString()));
+}
+// Under the outfit: "Wore it" (the plan, or, with none, the pieces to pick), or once it's logged,
+// that it's done and a way to change it
+function woreRow(date, plan, worn) {
+  const row = el('div', 'wore'), today = date === isoToday(), planned = (plan?.items || []).filter((id) => list.some((x) => x.id === id));
+  const button = (cls, text, go) => { const b = el('button', cls, text); b.type = 'button'; b.addEventListener('click', go); return b; };
+  if (worn) {
+    row.append(el('p', 'wore__done', today ? 'Worn today ✓' : 'Worn ✓'), button('link-btn wore__change', 'Change', () => pickWorn(date, plan, worn)));
+    row.lastChild.setAttribute('aria-label', 'Change what you wore');
+  } else {
+    row.append(button('btn wore__btn', 'Wore it', () => (planned.length ? logWorn(date, planned, plan) : pickWorn(date, plan, null))));
+    if (planned.length) row.append(button('link-btn wore__change', 'Something else', () => pickWorn(date, plan, null)));
+  }
+  return row;
+}
+// A line about the day: saved when you leave it (or tap Done), the saved one shown
+let lineSaved = null; // the date whose line just saved, to say so once it's redrawn
+function journalLine(date, entry) {
+  const label = el('label', 'journal'), input = el('input');
+  const day = date === isoToday() ? 'today' : fmtDay(date, { weekday: 'long', month: 'long' }).split(',')[0];
+  Object.assign(input, { type: 'text', id: 'journal-line', maxLength: 500, value: entry?.text || '', placeholder: 'What happened', autocomplete: 'off', enterKeyHint: 'done' });
+  input.dataset.date = date;
+  label.append(`A line about ${day}`, input);
+  if (lineSaved === date) { input.dataset.save = 'saved'; lineSaved = null; setTimeout(() => delete input.dataset.save, 1200); }
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+  input.addEventListener('change', async () => {
+    const text = input.value.trim().replace(/\s+/g, ' ');
+    if (text === (entry?.text || '')) return;
+    input.dataset.save = 'saving';
+    lineSaved = date;
+    if (!(await logEvent({ date, kind: 'journal', text: text || null }))) { lineSaved = null; input.dataset.save = 'failed'; }
+  });
+  return label;
+}
+
+// What you wore, picked: the closet's pieces (what's logged, or the plan, already picked), in a sheet
+const woreSheet = $('#wore-sheet');
+let picking = null; // { date, chosen: Set of item ids }
+async function pickWorn(date, plan, worn) {
+  const from = (worn?.item_ids || plan?.items || []).filter((id) => list.some((x) => x.id === id));
+  picking = { date, chosen: new Set(from) };
+  const opened = ask(woreSheet, { dirty: () => !!picking && !sameSet([...picking.chosen], from) }); // resets the form, so fill it after
+  $('#wore-title').textContent = date === isoToday() ? 'What you wore today' : `What you wore ${fmtDay(date, { weekday: 'short' })}`;
+  $('#wore-clear').hidden = !worn;
+  paintPicker();
+  const v = await opened, ids = picking ? [...picking.chosen] : [];
+  picking = null;
+  if (!v || !ids.length || (worn && sameSet(ids, worn.item_ids))) return;
+  logWorn(date, ids, plan);
+}
+function paintPicker() {
+  if (!picking) return;
+  const q = $('#wore-search').value.trim().toLowerCase(), { chosen } = picking;
+  const pool = list.filter((it) => !it.retired || chosen.has(it.id))
+    .filter((it) => !q || chosen.has(it.id) || [it.name, it.brand, it.colour, it.manufacturer_colour, catName[it.category]].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => (BODY[a.category] ?? 5) - (BODY[b.category] ?? 5) || a.name.localeCompare(b.name));
+  $('#wore-grid').replaceChildren(...pool.map((it) => {
+    const li = el('li'), b = el('button', 'wore-pick');
+    b.type = 'button';
+    b.dataset.id = it.id;
+    b.setAttribute('aria-pressed', chosen.has(it.id));
+    b.append(thumb(it, 'tile__photo studio wore-pick__photo'), el('span', 'wore-pick__name', it.name));
+    li.append(b);
+    return li;
+  }));
+  $('#wore-empty').hidden = pool.length > 0;
+  $('#wore-count').textContent = chosen.size ? `${plural(chosen.size, 'piece')} picked` : 'Tap what you wore';
+  $('#wore-ok').disabled = !chosen.size;
+}
+$('#wore-grid').addEventListener('click', (e) => {
+  const b = e.target.closest('.wore-pick');
+  if (!b || !picking) return;
+  if (!picking.chosen.delete(b.dataset.id)) picking.chosen.add(b.dataset.id);
+  b.setAttribute('aria-pressed', picking.chosen.has(b.dataset.id));
+  buzz();
+  $('#wore-count').textContent = picking.chosen.size ? `${plural(picking.chosen.size, 'piece')} picked` : 'Tap what you wore';
+  $('#wore-ok').disabled = !picking.chosen.size;
+});
+$('#wore-search').addEventListener('input', paintPicker);
+$('#wore-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }); // Enter here isn't Save
+// a day taken off the log: what it said goes to the trash, with Undo
+$('#wore-clear').addEventListener('click', () => {
+  const date = picking?.date;
+  picking = null;
+  woreSheet.close('');
+  const gone = events.filter((e) => e.kind === 'wore' && e.date === date);
+  if (!gone.length) return;
+  trashEvents(gone, new Date().toISOString());
+  toast('Taken off the log.', false, () => trashEvents(gone, null));
+});
 
 // ---------- The Packing Board: everyone's things, by category, a tap to move each one on ----------
 // Each entry is its own row (trip_packing): a garment (by id) or anything else by label, whose it
@@ -1077,6 +1271,11 @@ function drawPack() {
   const leave = leaving(span(t)[0] || '');
   $('#pack-count').textContent = n ? (done === n ? `All ${n} packed` : `${done} of ${n} packed`) : 'Nothing on the list yet';
   $('#pack-leave').textContent = leave ? cap(leave) : '';
+  // packed against worn, once the trip's begun: how many days each garment's been worn on it
+  const [from, to] = span(t), today = isoToday(), begun = !!from && from <= today;
+  const worn = begun ? wears(events, { from, to }) : null;
+  const garments = [...new Set(entries.filter((p) => p.item_id && p.status === 'packed').map((p) => p.item_id))];
+  $('#pack-worn').textContent = begun && garments.length ? `${garments.filter((id) => worn.has(id)).length} of ${plural(garments.length, 'packed garment')} worn so far` : '';
   // what to show: the status (with counts under the other filters), whose, category, bag
   const pool = entries.filter((p) => fits(p, f));
   chips($('#pack-status'), SHOW.map(([v, text]) => [v, text, pool.filter((p) => shows(p, v)).length]), f.status);
@@ -1115,7 +1314,7 @@ function drawPack() {
     const section = el('section', 'pack-group'), h = el('h3', 'pack-group__head');
     h.append(el('span', '', name), el('span', 'pack-group__left', left ? `${left} left` : 'all packed'));
     const ul = el('ul', 'pack-rows');
-    shown.sort((x, y) => entryName(x).localeCompare(entryName(y))).forEach((p) => ul.append(packRow(t, p, bags)));
+    shown.sort((x, y) => entryName(x).localeCompare(entryName(y))).forEach((p) => ul.append(packRow(t, p, bags, worn)));
     section.append(h, ul);
     box.append(section);
   }
@@ -1125,7 +1324,7 @@ function drawPack() {
   $('#pack-empty').textContent = empty;
 }
 
-function packRow(t, p, bags) {
+function packRow(t, p, bags, worn = null) {
   const it = garmentOf(p), name = entryName(p), bag = bags.find((b) => b.id === p.bag_id);
   const li = el('li', `pack-row is-${p.status}`), open = el('button', 'pack-row__open'), text = el('span', 'pack-row__text');
   open.type = 'button';
@@ -1137,6 +1336,11 @@ function packRow(t, p, bags) {
     const planned = t.days.filter((d) => d.items?.includes(p.item_id)).sort((x, y) => x.date.localeCompare(y.date)).map((d) => fmtDay(d.date));
     line([it?.brand, it && (it.manufacturer_colour || it.colour)]);
     line([planned.length && `Planned: ${planned.join(', ')}`, bag?.label, p.notes]);
+    // on the trip so far: the days it's been worn, or a mark that it hasn't been (words, not a colour)
+    if (worn) {
+      const n = worn.get(p.item_id)?.times || 0;
+      text.append(n ? el('span', 'pack-row__meta pack-row__worn', `Worn ${plural(n, 'day')}`) : el('span', 'pill pack-row__unworn', 'Not worn yet'));
+    }
   } else line([whoName(t, p.traveler_key), bag?.label, p.notes]);
   if (p.essential) title.prepend(el('span', 'pack-row__must', 'Essential'));
   open.append(p.item_id ? thumb(it, 'pack-row__photo') : el('span', 'pack-row__photo pack-row__photo--none', (name || '?')[0].toUpperCase()), text);
@@ -1198,11 +1402,11 @@ async function setEntry(p, patch) {
 }
 // The line under the tabs while offline: how old the copy is, and what's waiting to go
 function showStatus(copy = kept(copyKey())) {
-  const note = $('#offline-note'), waiting = Object.keys(queue).length;
+  const note = $('#offline-note'), waiting = Object.keys(queue).length + waitingDays();
   note.hidden = !offline;
   if (!offline) return;
   const text = el('span');
-  text.append(el('strong', '', 'Offline'), ` · the copy from ${copy ? ago(copy.at) : 'before'}. ${waiting ? `${plural(waiting, 'packing change')} waiting to send.` : "Packing changes wait here until you're back."}`);
+  text.append(el('strong', '', 'Offline'), ` · the copy from ${copy ? ago(copy.at) : 'before'}. ${waiting ? `${plural(waiting, 'change')} waiting to send.` : "Packing and what you wore wait here until you're back."}`);
   note.replaceChildren(icon('offline', 'status-line__icon'), text);
 }
 async function sendQueue() {
@@ -1326,7 +1530,7 @@ $('#trip-edit').addEventListener('click', () => openTrip && editTrip(openTrip));
 
 // ---------- The copy on the phone ----------
 const copyKey = () => `wardrobe-copy:${uid}`;
-const keepCopy = () => { if (uid) keep(copyKey(), { at: Date.now(), list, trips, parts, links: [...links] }); };
+const keepCopy = () => { if (uid) keep(copyKey(), { at: Date.now(), list, trips, parts, events, links: [...links] }); };
 // the photos themselves, for the service worker to answer from with no connection: keyed by the
 // file (a signed link's token changes), fetched once each, and dropped when nothing shows them
 const photoKey = (url) => { const u = new URL(url); return u.origin + u.pathname; };
@@ -1349,16 +1553,19 @@ const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 
 // ---------- Loading ----------
 const mine = () => can('today') || can('closet') || can('trips'); // the wardrobe and trips, not only recipes
 async function load() {
-  let got = null, gotTrips = null, gotParts = null;
+  let got = null, gotTrips = null, gotParts = null, gotEvents = null;
   if (!mine()) { ready = true; route(); return; }
   if (navigator.onLine && (await db.auth.getSession()).data.session) {
-    const waiting = Object.keys(queue).length;
+    const waiting = Object.keys(queue).length + waitingDays();
     await sendQueue(); // what was changed offline goes first, so what comes back has it
-    const sent = waiting - Object.keys(queue).length;
-    if (sent > 0) toast(`Back online. Sent ${plural(sent, 'packing change')}.`);
-    let rest;
-    [got, gotTrips, ...rest] = await Promise.all([closet.list('name'), tripRows.list('created_at'), ...PARTS.map((p) => partRows[p].list('created_at'))]);
+    await sendDays();
+    const sent = waiting - Object.keys(queue).length - waitingDays();
+    if (sent > 0) toast(`Back online. Sent ${plural(sent, 'change')}.`);
+    let rest, days;
+    // the days' record quietly: if it can't be read (before its migration has run), the rest still works
+    [got, gotTrips, days, ...rest] = await Promise.all([closet.list('name'), tripRows.list('created_at'), db.from('events').select('*').is('deleted_at', null).order('created_at'), ...PARTS.map((p) => partRows[p].list('created_at'))]);
     if (rest.every(Boolean)) gotParts = Object.fromEntries(PARTS.map((p, i) => [p, rest[i]]));
+    if (days.error) console.warn("The days' record didn't load:", days.error.message); else gotEvents = days.data;
   }
   const copy = kept(copyKey());
   if (got && gotTrips && gotParts) {
@@ -1366,6 +1573,7 @@ async function load() {
     list = got;
     trips = gotTrips;
     parts = gotParts;
+    events = gotEvents || copy?.events || [];
     links = await photos.urls(list.map((it) => it.photo_path).filter(Boolean), SIZES.small);
     keepCopy();
     keepPhotos();
@@ -1379,13 +1587,17 @@ async function load() {
     parts = { ...noParts(), ...copy.parts };
     links = new Map(copy.links);
     for (const p of parts.trip_packing) if (queue[p.id]) Object.assign(p, queue[p.id]);
+    // the days as kept, with what's waiting to go: added, or taken to the trash (or back out of it)
+    events = (copy.events || []).filter((e) => !dayQueue.gone[e.id]);
   } else {
     offline = false;
     failed = true;
     list = got || [];
     trips = gotTrips || [];
     parts = gotParts || noParts();
+    events = gotEvents || [];
   }
+  for (const row of Object.values(dayQueue.add)) if (!events.some((e) => e.id === row.id)) events.push(row); // what's still to go shows too
   showStatus(copy);
   if (openTrip) openTrip = trips.find((t) => t.id === openTrip.id) || null;
   tiles.clear();
@@ -1405,7 +1617,7 @@ start(async (user) => {
   await load();
   loadRecipes();
 }, () => {
-  list = []; trips = []; parts = noParts(); openTrip = null; uid = null; me = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+  list = []; trips = []; parts = noParts(); events = []; openTrip = null; uid = null; me = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
   recipes.clear();
 }, { offline: true });
 fresh(() => { load(); loadRecipes(); });
@@ -1414,12 +1626,12 @@ fresh(() => { load(); loadRecipes(); });
 // on Today and a trip when nothing else has); a toast says which
 pull(async () => {
   if (shown === 'recipes') { await recipes.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
-  const before = JSON.stringify([list, trips, parts]), weathered = ['today', 'trip'].includes(shown);
+  const before = JSON.stringify([list, trips, parts, events]), weathered = ['today', 'trip'].includes(shown);
   weatherCache.clear();
   await load();
   await redraw();
   if (offline) return "You're offline. This is the copy on your phone.";
-  return weathered && before === JSON.stringify([list, trips, parts]) ? 'Weather updated' : 'Updated';
+  return weathered && before === JSON.stringify([list, trips, parts, events]) ? 'Weather updated' : 'Updated';
 });
 
 // The service worker that answers from the copy when there's no connection (apps/offline.js)
