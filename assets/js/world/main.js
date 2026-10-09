@@ -32,7 +32,7 @@ import { createBookSky } from './booksky.js';
 import { houseAnswer } from './barback.js';
 import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
-import { createHoop } from './hoop.js';
+import { createHoop, RIM_Z } from './hoop.js';
 import { createBatcher } from './batch.js';
 import { REAL_PLACES } from './realplaces.js';
 
@@ -2334,8 +2334,11 @@ async function start() {
       const at = dir.clone().multiplyScalar(surfaceRadius(dir));
       if (player.colliders.some((c) => c.center.distanceTo(at) < c.radius + 1.6)) return false;
       if (physics.items.some((x) => !x.held && x.object.position.distanceTo(at) < 1.4)) return false;
-      // clear of where you'd stand to use a thing, and of the thing itself
-      return !interactables.some((x) => (x.approach && x.approach.distanceTo(at) < 2.2) || (x.point && x.point.distanceTo(at) < 2.2));
+      // clear of where you'd stand to use a thing, and of the thing itself, at the pole and under
+      // the rim (which hangs out from the pole toward you)
+      const n = at.clone().normalize(), toMe = player.pos.clone().sub(at);
+      const underRim = at.clone().addScaledVector(toMe.addScaledVector(n, -toMe.dot(n)).normalize(), RIM_Z);
+      return !interactables.some((x) => (x.approach && x.approach.distanceTo(at) < 2.2) || (x.point && Math.min(x.point.distanceTo(at), x.point.distanceTo(underRim)) < 2.2));
     };
     // straight ahead first, then turning out either side, no further than the edge of the view
     // (less a margin, so the whole hoop is in it: a phone held upright sees a narrow slice)
@@ -2343,7 +2346,8 @@ async function start() {
     for (let turn = 0; turn <= half; turn += 0.08) {
       for (const side of turn ? [1, -1] : [1]) {
         const d = fwd.clone().applyAxisAngle(up, turn * side);
-        for (const dist of [5, 4.5, 6, 7]) {
+        // near first; on a phone's narrow view nothing near may be clear, so further out too
+        for (const dist of [5, 4.5, 6, 7, 8.5, 10]) {
           const dir = player.pos.clone().addScaledVector(d, dist).normalize();
           if (fits(dir)) return dir.multiplyScalar(surfaceRadius(dir));
         }

@@ -362,6 +362,13 @@ async function planet(page, shot, { phone = false } = {}) {
   // through its rim sets off the fireworks, and it flickers back out
   await page.evaluate(() => window.__world.goGrab(0));
   await until(page, () => window.__world.carrying, null, 300000);
+  // it comes only where you're facing open ground (never behind you), so if nothing in view is
+  // clear, turn as a visitor would, a twelfth of a circle at a time, until it starts to appear
+  for (let i = 0; i < 12; i++) {
+    const coming = await until(page, () => window.__world.hoop.state !== 'off', null, 15000).then(() => true, () => false);
+    if (coming) break;
+    await page.evaluate(() => window.__world.player.look(Math.PI / 6, 0));
+  }
   // its flicker-in runs on frames (0.1 s of it at most a frame), which crawl on a phone in CI
   await until(page, () => window.__world.hoop.state === 'up', null, 120000);
   const clearOf = await page.evaluate(() => {
