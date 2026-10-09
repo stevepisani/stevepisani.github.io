@@ -379,7 +379,8 @@ async function planet(page, shot, { phone = false } = {}) {
   // through its rim sets off the fireworks, and it flickers back out
   await page.evaluate(() => window.__world.goGrab(0));
   await until(page, () => window.__world.carrying, null, 300000);
-  await until(page, () => window.__world.hoop.state === 'up', null, 60000);
+  // its flicker-in runs on frames (0.1 s of it at most a frame), which crawl on a phone in CI
+  await until(page, () => window.__world.hoop.state === 'up', null, 120000);
   const clearOf = await page.evaluate(() => {
     const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
     return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
