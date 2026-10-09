@@ -64,7 +64,8 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   await context.route(`${base}/library.json`, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(library) }));
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
+  // with where it was thrown (the first few frames), so a red run says where to look
+  page.on('pageerror', (e) => errors.push(`page error: ${e.message}${e.stack ? `\n    ${e.stack.split('\n').slice(1, 6).map((l) => l.trim()).join('\n    ')}` : ''}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|ERR_BLOCKED|WebSocket|Failed to load resource/.test(m.text())) errors.push(`console: ${m.text()}`); });
   let n = 0;
   const shot = async (label) => { if (shotsDir) await page.screenshot({ path: join(shotsDir, `${name.split(' ')[0]}-${String(++n).padStart(2, '0')}-${label}.png`), timeout: 180000 }); };
