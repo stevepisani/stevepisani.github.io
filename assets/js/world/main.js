@@ -2343,7 +2343,8 @@ async function start() {
     for (let turn = 0; turn <= half; turn += 0.08) {
       for (const side of turn ? [1, -1] : [1]) {
         const d = fwd.clone().applyAxisAngle(up, turn * side);
-        for (const dist of [5, 4.5, 6, 7]) {
+        // near first; on a phone's narrow view nothing near may be clear, so further out too
+        for (const dist of [5, 4.5, 6, 7, 8.5, 10]) {
           const dir = player.pos.clone().addScaledVector(d, dist).normalize();
           if (fits(dir)) return dir.multiplyScalar(surfaceRadius(dir));
         }
