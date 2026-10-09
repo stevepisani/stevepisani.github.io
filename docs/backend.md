@@ -96,8 +96,11 @@ markdown markers dropped as they pass, so the first words show in well under a s
 brief (fetched once an isolate, refreshed hourly in the background) run side by side; token
 accounting runs after the reply has gone out. Limits, in the database: 1,000 replies a month (about
 $5) and 20 questions an hour per visitor, keyed by a daily-salted hash of the IP, never the IP. It
-declines to talk about clients and points people to email. When it can't answer, the page says the
-bar's closed for a moment. No prompt caching: Haiku 4.5 caches only a prefix of 4,096 tokens or
+declines to talk about clients and points people to email. When the model can't answer (no credit
+left on the Anthropic account, an outage) it sends back nothing, and the page answers from the same
+facts on its own (`assets/js/world/barback.js`: who Steve is, a drink from the chalkboard, what he's
+reading, his latest post, a project, his email; the menu for anything else), so the bar is never
+closed. Only with no connection and no `/bartender.json` does it say the bar's closed for a moment. No prompt caching: Haiku 4.5 caches only a prefix of 4,096 tokens or
 more, and the brief sits right at that line, so it would come and go.
 
 ## Audible (`tools/audible-sync.py`)

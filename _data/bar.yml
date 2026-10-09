@@ -29,7 +29,7 @@ menu:
   - id: resume
     label: Résumé
     note: Where I've worked, and the full résumé
-    href: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+    href: /assets/files/steven-pisani-resume.pdf
   - id: drinks
     label: Favorite drinks
     note: The recipes I keep coming back to
@@ -52,6 +52,13 @@ bartender:
   - "There are bottles washed up by the lagoon. Write a message, cork it, and throw it into space."
   - "The coconuts under the palms are loose. Pick one up and throw it. They float, too."
   - "Lie in the hammock and look up. Every star over it is a book Steve has read, grouped by kind. Tap one."
+
+# A few things to ask the bartender, offered over the question box until you've asked something.
+ask:
+  - What does Steve do?
+  - What should I order?
+  - What's he reading?
+  - How do I reach him?
 
 # Shown at the campfire on the far side of the planet.
 likes:

@@ -153,9 +153,11 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     </div>
   </form>
   <div class="eyepiece__live" id="eyepiece-live"></div>
+  <div class="earth-pins" id="earth-pins" aria-hidden="true" hidden></div>
   <div class="eyepiece" id="eyepiece" aria-hidden="true">
     <svg class="eyepiece__ring" viewBox="-100 -100 200 200"><defs><path id="eyepiece-arc" d="M -92 0 A 92 92 0 0 1 92 0"/></defs><text><textPath href="#eyepiece-arc" startOffset="50%" text-anchor="middle" id="eyepiece-mag">STEVE'S</textPath></text></svg>
   </div>
+  <div class="eyepiece__dark" id="eyepiece-dark" aria-hidden="true"></div>
   <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
   <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
     <p class="scope-card__top"><span class="scope-card__kicker" id="scope-kicker">Through the telescope</span> <span class="scope-card__live" id="scope-live" hidden>Live · NASA</span></p>
@@ -163,7 +165,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     <p class="scope-card__line" id="scope-line"></p>
     <p class="scope-card__note" id="scope-note"></p>
     <div class="scope-card__foot">
-      <button type="button" class="scope-card__more" id="scope-more">Next launch and the ISS</button>
+      <button type="button" class="scope-card__more" id="scope-more" hidden>The whole moon</button>
       <span class="scope-card__steps"><button type="button" id="scope-prev" aria-label="Point it at the last one">‹</button><button type="button" id="scope-next" aria-label="Point it at the next one">›</button></span>
     </div>
     <button type="button" class="scope-card__close" id="scope-close" aria-label="Put the card away">×</button>
@@ -184,6 +186,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   </aside>
   <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
   <ol class="chat-log" id="chat-log" aria-live="polite" aria-label="Your conversation with the bartender" hidden></ol>
+  <div class="chat-ask" id="chat-ask" hidden></div>
   <form class="chat" id="chat" hidden>
     <label class="visually-hidden" for="chat-input">Ask the bartender</label>
     <input id="chat-input" type="text" maxlength="400" placeholder="Ask the bartender anything" autocomplete="off" enterkeyhint="send">
@@ -209,6 +212,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 {
   "bartender": {{ site.data.bar.bartender | jsonify }},
   "likes": {{ site.data.bar.likes | jsonify }},
+  "ask": {{ site.data.bar.ask | jsonify }},
   "drinks": {{ site.data.drinks | jsonify }},
   "moon": {{ site.data.moon | jsonify }}
 }
@@ -226,7 +230,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <ol class="panel__timeline">
     {% for t in site.data.timeline limit: 4 %}<li><strong>{{ t.role }}</strong>, {{ t.org }} <span>{{ t.dates }}</span></li>{% endfor %}
   </ol>
-  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume }}" target="_blank" rel="noopener">Résumé on Google Drive ↗</a></p>
+  <p class="panel__links"><a class="btn" href="{{ '/about' | relative_url }}">The full story</a> <a class="btn btn--ghost" href="{{ site.links.resume | relative_url }}" target="_blank" rel="noopener">Résumé (PDF) ↗</a></p>
 </template>
 
 <template id="panel-writing">
@@ -273,7 +277,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 </template>
 
 <template id="panel-launch">
-  <p class="kicker">Through the telescope</p>
+  <p class="kicker">Launch control</p>
   <h2 id="panel-title">Next launch</h2>
   <div class="card card--launch" data-launch style="--launch-img: url('{{ '/assets/images/saturn-v-800.webp' | relative_url }}')">
     <strong class="launch__name" data-launch-name>Checking the manifest…</strong>
@@ -308,7 +312,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
     {% for t in site.data.timeline %}{% unless t.kind == 'school' %}<p><span>{{ t.role }}, {{ t.org }}</span><span>{{ t.dates | split: ' – ' | first | split: ' ' | last }}</span></p>{% endunless %}{% endfor %}
     <p class="panel__receipt-total"><span>Open since</span><span>2016</span></p>
   </div>
-  <p class="panel__links"><a class="btn" href="{{ site.links.resume }}" target="_blank" rel="noopener">Open the full résumé on Google Drive ↗</a></p>
+  <p class="panel__links"><a class="btn" href="{{ site.links.resume | relative_url }}" target="_blank" rel="noopener">Open the full résumé (PDF) ↗</a></p>
 </template>
 
 <template id="panel-campfire">
