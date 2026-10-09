@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { PALETTE, pbr, glow } from './materials.js';
 
-const RIM_Y = 2.6, RIM_R = 0.38, RIM_Z = 0.82; // the rim: height, radius, out from the pole
+const RIM_Y = 2.6, RIM_R = 0.38;
+export const RIM_Z = 0.82; // the rim: height, radius, out from the pole (toward you; main.js keeps the spot under it clear too)
 const BOARD = { w: 1.3, h: 0.85, y: 2.95, z: 0.38 };
 // on/off and how long (s): three short stutters, then on for good; going, the same backwards
 const FLICKER_IN = [[1, 0.07], [0, 0.28], [1, 0.1], [0, 0.34], [1, 0.06], [0, 0.2]];
