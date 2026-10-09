@@ -11,7 +11,7 @@
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, extname, resolve, relative } from 'node:path';
 import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
@@ -286,6 +286,23 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
   await expectState(page, 'walk');
+  // the door past the telescope: walk up and step through it into the real place (the real
+  // splat, about a minute under software WebGL), look round, then step back out where you went
+  // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
+  if (!phone) {
+    const tick = { timeout: 300000, polling: 500 };
+    await page.evaluate(() => window.__world.goUse('door'));
+    await page.waitForFunction(() => window.__world.door.inside, null, tick);
+    if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
+    if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
+    const yaw0 = await page.evaluate(() => window.__world.door.view.yaw);
+    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 400, { steps: 4 }); await page.mouse.up();
+    await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
+    if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
+    await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view'), null, tick);
+    if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+  }
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
   // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in
