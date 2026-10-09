@@ -5,6 +5,12 @@
 //
 // Drag to look, tap the ground to walk there (a few steps from where you came in, never into
 // the building); WASD and the arrows are extras. Nothing here runs until enter() is called.
+//
+// A place, once loaded, is kept: stepping back out fades it and stops drawing it, and stepping
+// in again starts it from where you come in, at once. Never freed: Spark's sorting and reads
+// run on after the last frame, and freeing what they use under them throws on the page (and
+// the browser collecting a 1.2-million-splat context stalls the planet for seconds).
+const kept = new Map(); // place → its view, once loaded
 import * as THREE from 'three';
 import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark';
 import { REAL_PLACES } from './realplaces.js';
@@ -14,12 +20,19 @@ const LOOK = { mouse: 0.004, touch: 0.005 }; // radians per pixel dragged, as on
 const SPEED = 1.4; // m/s, an unhurried walk
 
 /**
- * Get `place` ready: loads it and draws it, unseen. `progress(0..1)` while it loads; `yaw` and
- * `pitch` (radians) turn you from the way you face coming in. Resolves with { show() (fades it in
- * over the planet), leave() (fades it out, then frees everything), ... } once the first frames are
- * drawn.
+ * Get `place` ready: loads it (the first time) and draws it, unseen, from where you come in.
+ * `progress(0..1)` while it loads; `yaw` and `pitch` (radians) turn you from the way you face
+ * coming in. Resolves with { show() (fades it in over the planet), leave() (fades it out and stops
+ * drawing it), ... } once the first frames are drawn.
  */
 export async function enter(place, { parent = document.body, progress = () => {}, fadeMs = 600, reduce = false, yaw: turn = 0, pitch: tip = 0 } = {}) {
+  if (!kept.has(place)) kept.set(place, load(place, parent, progress).catch((e) => { kept.delete(place); throw e; }));
+  const view = await kept.get(place);
+  progress(1);
+  return view.start({ turn, tip, fadeMs, reduce });
+}
+
+async function load(place, parent, progress) {
   const p = REAL_PLACES[place];
   const canvas = document.createElement('canvas');
   canvas.className = 'portal-view';
@@ -49,17 +62,17 @@ export async function enter(place, { parent = document.body, progress = () => {}
   const pos = new THREE.Vector3();
   const facing = up(p.face[0], p.at[1], p.face[1]).sub(origin);
   const yaw0 = Math.atan2(-facing.x, -facing.z);
-  let yaw = yaw0 + turn, pitch = tip;
+  let yaw = yaw0, pitch = 0;
   let goal = null;
   const keys = new Set();
 
   function fit() {
+    if (!alive) return;
     const w = innerWidth, h = innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
-  fit();
   addEventListener('resize', fit);
 
   // drag to look; a tap (barely moved) walks to the ground under it
@@ -88,6 +101,7 @@ export async function enter(place, { parent = document.body, progress = () => {}
     if (hit && hit.distanceTo(pos) < 30) goal = allowed(hit);
   };
   const onKey = (e) => {
+    if (!alive) return;
     const k = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' }[e.code];
     if (!k) return;
     if (e.type === 'keydown') { keys.add(k); goal = null; } else keys.delete(k);
@@ -110,7 +124,7 @@ export async function enter(place, { parent = document.body, progress = () => {}
     return v;
   }
 
-  let last = performance.now(), raf = 0, alive = true;
+  let last = performance.now(), raf = 0, alive = false;
   const fwd = new THREE.Vector3(), side = new THREE.Vector3();
   function frame(now) {
     if (!alive) return;
@@ -144,18 +158,32 @@ export async function enter(place, { parent = document.body, progress = () => {}
   }
 
   await splat.initialized;
-  progress(1);
-  raf = requestAnimationFrame(frame);
-  // a few frames for the first sort before it shows
-  await new Promise((r) => { let n = 0; const tick = () => (++n > 12 ? r() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
+  let fadeMs = 600, reduce = false;
   const fade = (to) => new Promise((r) => {
     canvas.style.transition = `opacity ${reduce ? 0 : fadeMs}ms ease`;
     canvas.style.opacity = to;
     setTimeout(r, reduce ? 0 : fadeMs);
   });
 
-  return {
+  const view = {
     canvas,
+    /** From where you come in, drawing again (unseen until show()); resolves after a few frames. */
+    async start(o) {
+      ({ fadeMs, reduce } = o);
+      pos.set(0, 0, 0);
+      yaw = yaw0 + o.turn;
+      pitch = o.tip;
+      goal = null;
+      keys.clear();
+      alive = true;
+      canvas.style.display = '';
+      fit();
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+      // a few frames for the sort before it shows
+      await new Promise((r) => { let n = 0; const tick = () => (++n > 12 ? r() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
+      return view;
+    },
     show() { canvas.classList.add('is-on'); canvas.focus({ preventScroll: true }); return fade(1); },
     get position() { return pos.clone(); },
     get yaw() { return yaw; },
@@ -184,31 +212,16 @@ export async function enter(place, { parent = document.body, progress = () => {}
       if (alive) raf = requestAnimationFrame(frame);
       return url;
     },
+    /** Fades it out and stops drawing it; it's kept for next time (see the top). */
     async leave() {
       canvas.classList.remove('is-on');
       alive = false; // the last frame fades; nothing more is drawn
       cancelAnimationFrame(raf);
-      // Spark's sorting and reads may still be in flight, and a sort it has already put on a timer
-      // runs after it's disposed: let them land, and don't let what they reject or throw with as
-      // it's torn down ("No target", "No renderer", "Worker terminate") surface as an error on the
-      // page. From here on and for good (on a slow machine the timer fires well after the fade),
-      // but only for those, thrown from this bundle; and for a reason of nothing at all, only for
-      // the next few seconds.
-      const torn = (r) => /^No (target|renderer)$|terminate/i.test(String(r && r.message)) && /portal\.js/.test(String(r && r.stack));
-      const quiet = (e) => { if (torn(e.reason) || (e.reason === undefined && performance.now() < quietUntil)) e.preventDefault(); };
-      const quietThrow = (e) => { if (torn(e.error)) e.preventDefault(); };
-      const quietUntil = performance.now() + 10000;
-      addEventListener('unhandledrejection', quiet);
-      addEventListener('error', quietThrow);
+      keys.clear();
+      down = null;
       await fade(0);
-      await new Promise((r) => setTimeout(r, 500));
-      removeEventListener('resize', fit);
-      removeEventListener('keydown', onKey);
-      removeEventListener('keyup', onKey);
-      splat.dispose();
-      spark.dispose(); // its sort worker too, before the context goes
-      renderer.dispose();
-      canvas.remove();
+      if (!alive) canvas.style.display = 'none'; // not even composited while you're away
     },
   };
+  return view;
 }
