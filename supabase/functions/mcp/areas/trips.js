@@ -130,8 +130,8 @@ function laundryFrom(v) {
 const travelersLine = (t) => (t.travelers.length ? `Travelers: ${t.travelers.map((x) => `${x.name} (${x.type}, key ${x.key})`).join(", ")}` : "");
 
 // The garments a trip names (in its days and packing), once each: what tells them apart, their
-// photo, and whether they're still in the wardrobe
-async function garmentsOf(ids, ctx) {
+// photo, and whether they're still in the wardrobe (days.js shows a day's outfits the same way)
+export async function garmentsOf(ids, ctx) {
   const items = await ctx.items.list(), byId = new Map(items.map((i) => [i.id, i]));
   const heroes = await heroPhotos(ids.map((i) => byId.get(i)).filter(Boolean), ctx);
   const garments = {};
@@ -364,7 +364,7 @@ export default {
     plan_days: ["Planning the days…", "Planned"],
     delete_trip: ["Moving the trip to the trash…", "Moved the trip to the trash"],
   },
-  instructions: "Trips: get_trip first (the whole trip, with the weather). SJPJr keeps the facts and checks them (analyze_trip_packing); you suggest outfits and what to bring. add_packing_items appends; set_packing replaces the whole list.",
+  instructions: "Trips: get_trip first (the whole trip, weather too). SJPJr keeps and checks the facts (analyze_trip_packing); you suggest outfits and what to bring. add_packing_items appends; set_packing replaces the whole list.",
   call,
   analyze, // for the tests
 };

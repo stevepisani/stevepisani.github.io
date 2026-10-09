@@ -6,7 +6,13 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **Places, from Google Maps: the next shared piece, for SJPJr and the planet alike.** Steve's
+0. **The inbox, next** (`docs/vision.md`, rule 4): one place for everything not yet filed, kept
+   raw (photos, links, screenshots, receipts, files), each with where it came from; processed now,
+   overnight in a batch, or later by a better model, and turned into records and events (the days'
+   record is in: `events`, `docs/apps.md`, "Days"), with Steve reviewing what the model isn't sure
+   of. Places' Takeout file is the first thing it takes, so it comes before them.
+
+0. **Places, from Google Maps, after the inbox: the next shared piece, for SJPJr and the planet alike.** Steve's
    Google Maps saved lists and starred places, from a Takeout file dropped into a private import
    screen; every place private until approved in review; home, work, lodging, any trip hotel and
    anything near home can never be public; coordinates from the Places API (New) on the server
@@ -38,22 +44,21 @@ rather than leaving it in a chat.
    - the capsule card ("16 pieces, 64 outfits", counting only what goes together) and a laundry
      planner (when each leg runs out of clean clothes);
    - a gap finder per leg (a formal dinner in Paris and nothing smart packed);
-   - a wore-it log with cost per wear (the planned outfit counts as worn unless changed), and
-     packed versus worn on the packing list;
    - Dress Me (shuffle an outfit, pin the pieces you like), a warning when the same thing is in
      too many photos, and Trip Wrapped at the end (most worn, never worn, a picture per city).
 
 0. **The private apps, by the vision** (`docs/vision.md`: keep the evidence, record what happens
    passively, tools not features, one inbox, trust on a dial, measure before switching). In order:
-   - events, "wore it today" first (one tap on Today's outfit; then visits, cooking, buying), which
-     also gives cost per wear and packed versus worn;
-   - one inbox for raw evidence, and visibility (private, shared, public) on every record;
+   - more kinds of event: visits, cooking, buying (the table takes them as they are; "wore" and
+     "journal" are in);
+   - one inbox for raw evidence (first in this list, above), and visibility (private, shared,
+     public) on every record;
    - places (first in this list, above);
    - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
    - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
-   - polish still open: repack before each move, a journal line per day, smarter search, a phone
-     test checklist, and the recipes kept on the phone for opening with no connection.
+   - polish still open: repack before each move, smarter search, a phone test checklist, the
+     recipes kept on the phone for opening with no connection, and a "today" view in SJPJr's card.
 
 ## Waiting on Steve
 
@@ -81,6 +86,13 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with
+  how it was known; on Today, "Wore it" logs the planned outfit in one tap (Undo, Change, or pick
+  the pieces at home) and a line about the day saves as you leave it, offline too; each past day
+  of a trip says what was worn and its line, the packing how many days each garment's been worn
+  ("Not worn yet" where it hasn't), and a garment what it's cost a wear. In SJPJr, `get_today`
+  (a day in one call, by the leg's own clock), `log_day` and `get_history`. A planned outfit
+  counts only once it's logged.
 - Oct 2026: a door past the telescope onto a real place: the Sala Thai at the East-West
   Center in Honolulu, a Gaussian-splat scan (Andrew.HD, CC BY 4.0) you step into and look round
   in daylight; the next launch on a console by the rocket; the bartender answers from the site

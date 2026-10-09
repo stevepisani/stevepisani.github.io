@@ -3,10 +3,11 @@
 // into Google Calendar, the address in Maps), and home and away in one line (the time there and at home,
 // and what the money's worth). Only what's stored is shown: no gates, platforms or boarding times.
 import { el, icon, toast } from './kit.js';
+import { HOME } from '../../../../supabase/functions/_shared/home.js';
 
-// Home, in one place: where Steve lives, its clock, its money, and where it is (Today's weather
-// when he's not away)
-export const HOME = { place: 'Philadelphia', timezone: 'America/New_York', currency: 'USD', lat: 39.9526, lon: -75.1652 };
+// Home, in one place (_shared/home.js, which SJPJr's server reads too): where Steve lives, its
+// clock, its money, and where it is (Today's weather when he's not away)
+export { HOME };
 
 // A country's money, by the name the place lookup gives (Open-Meteo's geocoding, in English).
 // Only currencies the rates come in (Frankfurter, the European Central Bank's daily rates).

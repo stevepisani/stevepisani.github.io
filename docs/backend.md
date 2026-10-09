@@ -39,7 +39,7 @@ design: row-level security guards every table.
   something, because free projects pause after a week without requests, makes the smaller copies of
   new wardrobe photos, for the MCP server and for the app (`tools/photo-copies.mjs`, `docs/apps.md`,
   "Photo sizes"), and empties the
-  wardrobe's trash: what was deleted over 30 days ago goes for good, its photo files with it
+  wardrobe's trash (garments, photos, trips, and the days' events undone): what was deleted over 30 days ago goes for good, its photo files with it
   (`tools/empty-trash.mjs`; `docs/apps.md`, "The trash"). It prints counts only.
 - **When a function misbehaves, read its logs:** Actions → Supabase → Run workflow with "logs"
   ticked. `tools/supabase-logs.mjs` prints the last 3 hours of edge function requests (time,
@@ -56,6 +56,7 @@ What's in the database:
 | `recipes` | Recipes, a tab in SJPJr (`/apps/#recipes`; `docs/apps.md`) | members only |
 | `wardrobe_items`, `wardrobe_variants`, `wardrobe_products`, `wardrobe_photos`, view `wardrobe_closet` | the wardrobe (in SJPJr, `/apps`): each owned garment, the colour and size it is, the garment as sold, its photos; the view resolves them flat (`docs/apps.md`) | each member their own rows; what's linked must be theirs too |
 | `trips` | the wardrobe's trips | each member their own |
+| `events` | what happened, a day at a time: what Steve wore and a line about the day (later visits, meals, buys), each with how it was known; only added to, the newest of a day standing, Undo to the trash (`docs/apps.md`, "Days") | each member their own; a day's trip must be theirs |
 | `photos` bucket | every private app's pictures, a folder per app (recipe photos from before Oct 2026 are at the root) | members only |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
 | `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts; members read rows; everyone reads daily totals |
@@ -74,7 +75,10 @@ page is `/apps/authorize`). Both are deployed with `--no-verify-jwt` and check t
 themselves, with a supabase-js client made with the caller's token as `Authorization` (spelled
 so: supabase-js adds its own `Authorization`, and a lowercase one alongside is sent as
 "Bearer t, Bearer t", which Supabase Auth refuses with an HTML page). The MCP server logs why it
-refused a token (the error, and the token's non-personal claims). No running cost. See `docs/apps.md`.
+refused a token (the error, and the token's non-personal claims), and keeps the token's OAuth
+client id as who recorded what a chat logs (`events.recorded_by`). It keeps the weather half an
+hour per place and day, so a chat's get_today and get_trip ask Open-Meteo once. No running cost.
+See `docs/apps.md`.
 
 ## The telescope's moon (`supabase/functions/sky`)
 

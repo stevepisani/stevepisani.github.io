@@ -53,6 +53,6 @@ export default {
     list_trash: ["Looking in the trash…", "Looked in the trash"],
     restore: ["Restoring it…", "Restored"],
   },
-  instructions: `Deleting (delete_item, delete_photo, delete_trip) moves things to the trash for ${TRASH_DAYS} days; say so, and that restore brings them back.`,
+  instructions: `After deleting, say so, and that restore brings it back within ${TRASH_DAYS} days.`,
   call,
 };

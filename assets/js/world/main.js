@@ -2334,7 +2334,8 @@ async function start() {
       const at = dir.clone().multiplyScalar(surfaceRadius(dir));
       if (player.colliders.some((c) => c.center.distanceTo(at) < c.radius + 1.6)) return false;
       if (physics.items.some((x) => !x.held && x.object.position.distanceTo(at) < 1.4)) return false;
-      return !interactables.some((x) => x.approach && x.approach.distanceTo(at) < 2.2);
+      // clear of where you'd stand to use a thing, and of the thing itself
+      return !interactables.some((x) => (x.approach && x.approach.distanceTo(at) < 2.2) || (x.point && x.point.distanceTo(at) < 2.2));
     };
     // straight ahead first, then turning out either side, no further than the edge of the view
     // (less a margin, so the whole hoop is in it: a phone held upright sees a narrow slice)

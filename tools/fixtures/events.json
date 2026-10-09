@@ -1,0 +1,5 @@
+[
+ {"id": "e1", "owner": "u1", "date": "2026-09-20", "kind": "wore", "trip_id": null, "item_ids": ["w1"], "text": null, "data": {}, "source": "app", "recorded_by": "Steve", "evidence": {"how": "picked the pieces"}, "client_ref": null, "created_at": "2026-09-20T13:00:00Z", "updated_at": "2026-09-20T13:00:00Z", "deleted_at": null},
+ {"id": "e2", "owner": "u1", "date": "2026-10-07", "kind": "wore", "trip_id": "t1", "item_ids": ["w2", "w3"], "text": null, "data": {}, "source": "app", "recorded_by": "Steve", "evidence": {"planned": ["w2", "w3"], "as_planned": true, "how": "tapped Wore it"}, "client_ref": null, "created_at": "2026-10-07T08:30:00Z", "updated_at": "2026-10-07T08:30:00Z", "deleted_at": null},
+ {"id": "e3", "owner": "u1", "date": "2026-10-07", "kind": "journal", "trip_id": "t1", "item_ids": [], "text": "Landed early, a long walk on the South Bank.", "data": {}, "source": "mcp", "recorded_by": "assistant", "evidence": {}, "client_ref": "j-1007:journal", "created_at": "2026-10-07T21:10:00Z", "updated_at": "2026-10-07T21:10:00Z", "deleted_at": null}
+]
