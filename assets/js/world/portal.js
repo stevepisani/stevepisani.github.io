@@ -201,7 +201,6 @@ export async function enter(place, { parent = document.body, progress = () => {}
       splat.dispose();
       spark.dispose(); // its sort worker too, before the context goes
       renderer.dispose();
-      renderer.forceContextLoss();
       canvas.remove();
     },
   };
