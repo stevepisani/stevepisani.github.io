@@ -188,14 +188,18 @@ export async function enter(place, { parent = document.body, progress = () => {}
       canvas.classList.remove('is-on');
       alive = false; // the last frame fades; nothing more is drawn
       cancelAnimationFrame(raf);
-      await fade(0);
       // Spark's sorting and reads may still be in flight: let them land, and don't let what they
-      // reject with as it's torn down ("No target", "No renderer", "Worker terminate", or nothing
-      // at all) surface as an error on the page
-      await new Promise((r) => setTimeout(r, 500));
-      const quiet = (e) => { const r = e.reason; if (r === undefined || /^No (target|renderer)$|terminate/i.test(String(r && r.message))) e.preventDefault(); };
+      // reject or throw with as it's torn down ("No target", "No renderer", "Worker terminate", or
+      // nothing at all) surface as an error on the page; listening from here, since they can land
+      // during the fade
+      const torn = (r) => r === undefined || /^No (target|renderer)$|terminate/i.test(String(r && r.message));
+      const quiet = (e) => { if (torn(e.reason)) e.preventDefault(); };
+      const quietThrow = (e) => { if (torn(e.error)) e.preventDefault(); };
       addEventListener('unhandledrejection', quiet);
-      setTimeout(() => removeEventListener('unhandledrejection', quiet), 10000);
+      addEventListener('error', quietThrow);
+      setTimeout(() => { removeEventListener('unhandledrejection', quiet); removeEventListener('error', quietThrow); }, 10000);
+      await fade(0);
+      await new Promise((r) => setTimeout(r, 500));
       removeEventListener('resize', fit);
       removeEventListener('keydown', onKey);
       removeEventListener('keyup', onKey);
