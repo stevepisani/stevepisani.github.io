@@ -413,8 +413,10 @@
    middle, and fades in with the narrowing (--k). A card under it says what you're looking at. */
 .portal-view { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: block; opacity: 0; pointer-events: none; touch-action: none; outline: none; }
 .portal-view.is-on { pointer-events: auto; }
-.portal-credit { position: absolute; z-index: 3; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); max-width: min(360px, calc(100vw - 200px)); margin: 0; padding: 8px 12px; border-radius: 12px; background: rgb(14 16 36 / .55); backdrop-filter: blur(10px); color: rgb(255 255 255 / .85); font: 400 .78rem/1.35 var(--font-body); text-align: right; }
+/* through the door: the credit up top, under the bar, and the hint above the bottom buttons */
+.portal-credit { position: absolute; z-index: 3; right: 16px; top: calc(env(safe-area-inset-top) + 80px); max-width: min(360px, calc(100vw - 32px)); margin: 0; padding: 8px 12px; border-radius: 12px; background: rgb(14 16 36 / .55); backdrop-filter: blur(10px); color: rgb(255 255 255 / .85); font: 400 .78rem/1.35 var(--font-body); text-align: right; }
 .portal-credit b { color: #fff; font-weight: 600; }
+.world[data-state="door"] .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px); }
 .portal-credit a { color: inherit; }
 .eyepiece { position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: var(--k, 0); --r: min(40vmin, 44vw);
   background:
