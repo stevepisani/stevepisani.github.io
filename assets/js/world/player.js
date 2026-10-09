@@ -15,8 +15,9 @@ const EYE = 1.6;
 const SPEED = 3.6;        // m/s
 const RUN = 1.7;          // shift multiplier
 const ACCEL = 8;          // how quickly velocity catches up with input
-const BODY = 0.32;        // player radius for collisions
+export const BODY = 0.32; // player radius for collisions
 const PITCH_LIMIT = 1.3;
+const FACE = 2.4;         // rad/s: turning on the spot to face something (about 140°/s, like getting up)
 const TURN = 3.5;         // how quickly auto-walk turns you toward your path
 
 const Y = new THREE.Vector3(0, 1, 0);
@@ -73,13 +74,24 @@ export class Player {
     this.lookedAt = this.clock;
   }
 
-  /** Walk to a world point; stop within `arrive` metres and call onArrive. */
-  walkTo(point, { arrive = 0.35, onArrive } = {}) {
-    this.target = { point: point.clone(), arrive, onArrive };
+  /**
+   * Walk to a world point; stop within `arrive` metres and call onArrive. `via`: corners to walk
+   * through on the way (round something in between), passed without slowing down.
+   */
+  walkTo(point, { arrive = 0.35, onArrive, via = [] } = {}) {
+    this.facing = null;
+    const legs = [...via, point].map((p) => p.clone());
+    this.target = { point: legs[0], legs, arrive, onArrive };
     this._stuck = { t: this.clock, d: Infinity };
   }
 
-  stop() { this.target = null; }
+  stop() { this.target = null; this.facing = null; }
+
+  /** Turn on the spot to face `point` (world), then call `then`. */
+  face(point, then) {
+    this.target = null;
+    this.facing = { point: point.clone(), then, until: this.clock + 1.5 };
+  }
 
   update(dt) {
     this.clock += dt;
@@ -87,20 +99,27 @@ export class Player {
     const want = this._v.set(0, 0, 0);
 
     if (this.enabled && (this.keys.x || this.keys.z)) {
-      this.target = null; // keys take over
+      this.target = null; this.facing = null; // keys take over
       want.set(this.keys.x, 0, -this.keys.z);
       if (want.lengthSq() > 1) want.normalize();
       want.multiplyScalar(SPEED * (this.keys.run ? RUN : 1)).applyQuaternion(this.quat);
     } else if (this.enabled && this.target) {
       const to = this.target.point.clone().sub(this.pos);
-      to.addScaledVector(up, -to.dot(up));
-      const dist = to.length();
-      if (dist < this.target.arrive) {
+      to.addScaledVector(up, -to.dot(up)); // which way: along the ground toward it
+      // how far: along the ground too (the flat distance shrinks past a quarter of the way round,
+      // so a far walk would look like no progress and give up)
+      const dist = this.pos.angleTo(this.target.point) * this.pos.length();
+      const corner = this.target.legs.length > 1;
+      if (corner && dist < 0.5) { // round the corner, on to the next leg
+        this.target.legs.shift();
+        this.target.point = this.target.legs[0];
+        this._stuck = { t: this.clock, d: Infinity };
+      } else if (!corner && dist < this.target.arrive) { // only the last leg arrives; a corner is walked round
         const done = this.target.onArrive;
         this.target = null;
         done && done();
       } else {
-        want.copy(to).normalize().multiplyScalar(SPEED * Math.min(1, dist / 1.4 + 0.25));
+        want.copy(to).normalize().multiplyScalar(SPEED * (corner ? 1 : Math.min(1, dist / 1.4 + 0.25)));
         // turn to face the path, unless they're looking around right now
         if (this.clock - this.lookedAt > 0.9) {
           const yaw = this.yawToward(this.target.point);
@@ -114,6 +133,14 @@ export class Player {
           this._stuck = { t: now, d: dist };
         }
       }
+    }
+    if (this.facing && !this.target) {
+      const yaw = this.yawToward(this.facing.point);
+      if (Math.abs(yaw) < 0.05 || this.clock > this.facing.until || !this.enabled) {
+        const done = this.facing.then;
+        this.facing = null;
+        done && done();
+      } else this.quat.multiply(this._q.setFromAxisAngle(Y, Math.sign(yaw) * Math.min(Math.abs(yaw), FACE * dt)));
     }
     this.vel.lerp(want, 1 - Math.exp(-ACCEL * dt));
 

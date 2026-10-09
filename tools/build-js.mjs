@@ -12,14 +12,16 @@
 //                   mounts) split into chunks of their own
 //
 // First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
-// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes.
+// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes. And
+// _data/hero_preload.json, the hero models the first frame needs (assets/models/hero/manifest.json,
+// all but the lazy ones), which the homepage preloads so they download alongside the script.
 //
 //   npm run build          once (CI does this before Jekyll)
 //   npm run watch          rebuild on save, beside `bundle exec jekyll serve`
 //
 // Library versions live in package.json, nowhere else.
 import * as esbuild from 'esbuild';
-import { rmSync, readFileSync, readdirSync, watch as watchFile } from 'node:fs';
+import { rmSync, readFileSync, readdirSync, writeFileSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
 import { fileURLToPath } from 'node:url';
 
@@ -44,6 +46,8 @@ const rapierWasm = {
 };
 
 writeLibrary(root);
+const heroes = JSON.parse(readFileSync(root + 'assets/models/hero/manifest.json', 'utf8'));
+writeFileSync(root + '_data/hero_preload.json', JSON.stringify(Object.values(heroes).filter((h) => !h.lazy).map((h) => h.file)) + '\n');
 rmSync(out, { recursive: true, force: true });
 const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },

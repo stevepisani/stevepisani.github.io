@@ -6,11 +6,12 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole } from './props.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
-import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt } from './planet.js';
+import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
+import { buildMachine } from './machine.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -44,16 +45,20 @@ export const TRAILS = [
   { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
   { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
-  { id: 'campfire', points: [dirFrom(0.97, -0.24), dirFrom(1.4, -0.66), dirFrom(1.85, -1.06), dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true },
+  // round the back to the campfire, broken where it crosses the cutaway on a bridge (machine.js)
+  { id: 'campfire', points: [dirFrom(0.97, -0.24), CUT.from, CUT.ends[0]], width: 0.95, flags: 'steps', seed: 5, meander: 0.5, lanterns: 6, openStart: true, openEnd: true },
+  { id: 'campfire2', points: [CUT.ends[1], CUT.to, dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 7, meander: 0.5, lanterns: 6, openStart: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
 export const trailEdge = trailEdgeFn(TRAILS);
-// Footprints the planet's grass and pebbles keep out of: the landing pad, the camp, the dish,
-// the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+// Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
+// the dish, the boat and the telescope (they're placed before any of these exist).
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+/** True within `margin` metres of a landmark's footprint. */
+export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
-export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
+export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || nearLandmark(dir, margin);
 
 // How far the ground falls away (along `dir`'s up) within `r` metres of it: sink something by
 // this and no edge of its footprint hangs in the air.
@@ -87,7 +92,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   const colliders = [];
   const interactables = [];
   const loose = []; // things physics.js moves: { object, radius, buoyancy (floats if > 1) }
-  const occupied = []; // directions + radii kept clear of scatter
+  const occupied = [[CUT.up.clone(), Math.hypot(...CUT.half) + 0.5]]; // directions + radii kept clear of scatter (the cutaway's from the start)
 
   const put = (obj, dir, opts = {}, clear = 1.5) => {
     place(obj, dir, opts);
@@ -219,6 +224,31 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
     colliders.push({ center: pad.position.clone(), radius: 1.2 });
     interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
+
+    // Launch control: a console beside the pad, off to one side of where the path comes in, its
+    // screen counting down to the next launch anywhere (site.js nextLaunch(): Launch Library 2,
+    // cached an hour). Tap it for the launch panel.
+    const con = launchConsole();
+    const inLocal = pad.worldToLocal(surfacePoint(dirFrom(0.66, 1.42))).setY(0);
+    const a = Math.atan2(inLocal.z, inLocal.x) - 0.8;
+    const at = pad.localToWorld(new THREE.Vector3(Math.cos(a) * 3.4, 0, Math.sin(a) * 3.4)).normalize();
+    put(con.group, at, {}, 0.8);
+    con.group.updateMatrixWorld(true);
+    const toPath = con.group.worldToLocal(surfacePoint(dirFrom(0.66, 1.42)));
+    con.group.rotateY(Math.atan2(toPath.x, toPath.z)); // the screen toward you as you come up the path
+    con.group.updateMatrixWorld(true);
+    colliders.push({ center: con.group.position.clone(), radius: 0.55 });
+    const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.1)).normalize());
+    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launch', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
+    let launch = null, lastSecond = -1;
+    setTimeout(() => { if (window.nextLaunch) window.nextLaunch().then((l) => { launch = l; }).catch(() => { launch = false; }); }, 4000); // after the planet's up
+    animated.push((t) => {
+      con.blink(t);
+      const sec = Math.floor(Date.now() / 1000);
+      if (sec === lastSecond || launch === null) return;
+      lastSecond = sec;
+      con.show(launch ? ['NEXT LAUNCH', window.tMinus(launch.net), launch.name, [launch.provider, launch.pad].filter(Boolean).join(' · ')] : ['NEXT LAUNCH', 'AD ASTRA', 'No word from the manifest', 'Try again later']);
+    });
   }
 
   // The trails: a flagstone walk from where you land to the bar, and gravel trails from it to
@@ -482,11 +512,20 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     }
   }
 
+  // The cutaway: the campfire trail crosses it on a bridge, and the planet's hollow underneath
+  // (machine.js). Its railings keep you on the bridge; walk out onto the glass and look down.
+  const machine = buildMachine({ quality });
+  group.add(machine.group, machine.inside);
+  colliders.push(...machine.colliders);
+  for (const [p, k] of machine.lamps) addLamp(p, k);
+  animated.push((t) => machine.update(t));
+
   return {
     group,
     colliders,
     interactables,
     loose,
+    machine,
     update(t) { for (const f of animated) f(t); },
   };
 }
@@ -552,7 +591,7 @@ function brassTelescope() {
   mesh(new THREE.CircleGeometry(0.068, 32).rotateX(-Math.PI / 2), lens, [0, 0.628, 0], optic).castShadow = false;
   mesh(new THREE.CylinderGeometry(0.0715, 0.0715, 0.34, 32, 1, true), leather, [0, 0.05, 0], optic); // leather grip
   for (const y of [-0.12, 0.22, 0.54]) mesh(new THREE.TorusGeometry(0.071, 0.005, 6, 32).rotateX(Math.PI / 2), dark, [0, y, 0], optic);
-  mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.02, 16), dark, [0, -0.625, 0], optic);              // eyecup
+  const eyecup = mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.02, 16), dark, [0, -0.625, 0], optic); // eyecup
   const knobs = mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 8), brass, [0, -0.375, 0], optic);
   knobs.rotation.z = Math.PI / 2;
   for (const x of [-0.07, 0.07]) mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.012, 16).rotateZ(Math.PI / 2), brass, [x, -0.375, 0], optic);
@@ -562,5 +601,6 @@ function brassTelescope() {
   for (const y of [0.02, 0.22]) mesh(new THREE.BoxGeometry(0.014, 0.02, 0.04), brass, [0, y, -0.085], optic);
   g.userData.az = az;
   g.userData.alt = alt;
+  g.userData.eyecup = eyecup; // where you put your eye (main.js); its +y runs up the tube
   return g;
 }

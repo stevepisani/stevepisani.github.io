@@ -92,6 +92,35 @@ export function dirFrom(polar, around) {
   return new THREE.Vector3(Math.sin(polar) * Math.cos(around), Math.cos(polar), Math.sin(polar) * Math.sin(around));
 }
 
+/*
+ * The cutaway (machine.js): a stretch of the campfire trail where the ground is cut away and you
+ * cross on a bridge, looking down into the planet: it's hollow, a machine. A box in its own
+ * frame: `up` out of the planet at its middle, `e1` along the trail (toward the fire), `e2` =
+ * e1 × up; `half` its half-size on the ground (m), `inner` the radius of the hollow inside (the
+ * shell between is the cut's walls). The ground, the grass, the pebbles and the physics all leave
+ * it open (`inCut`); the trail stops at each end of the bridge (`ends`).
+ */
+export const CUT = (() => {
+  const a = dirFrom(1.4, -0.66), b = dirFrom(1.85, -1.06);           // the campfire trail's long straight
+  const up = a.clone().add(b).normalize();
+  const e1 = b.clone().addScaledVector(up, -b.dot(up)).normalize();
+  const half = [5, 4];
+  const end = (s) => up.clone().multiplyScalar(RADIUS).addScaledVector(e1, s * (half[0] + 0.7)).normalize();
+  return { up, e1, e2: e1.clone().cross(up), half, inner: 16.5, ends: [end(-1), end(1)], from: a, to: b };
+})();
+/** Where a direction lands in the cut's frame: { x, y } metres along e1 and e2 (or null, far off). */
+export function cutLocal(dir) {
+  const k = dir.dot(CUT.up) / dir.length();
+  if (k < 0.6) return null;
+  const p = _v.copy(dir).normalize().multiplyScalar(RADIUS / k).addScaledVector(CUT.up, -RADIUS);
+  return { x: p.dot(CUT.e1), y: p.dot(CUT.e2) };
+}
+/** Inside the cut (grown by `margin` metres)? */
+export function inCut(dir, margin = 0) {
+  const l = cutLocal(dir);
+  return !!l && Math.abs(l.x) < CUT.half[0] + margin && Math.abs(l.y) < CUT.half[1] + margin;
+}
+
 /**
  * Stand an object upright on the planet: its local +Y becomes the surface normal,
  * then it's spun `heading` radians about that normal.
@@ -173,6 +202,10 @@ export function buildPlanet({ quality, trailEdge = () => Infinity, keepClear = (
     }
     for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
       const p00 = base + j * (N + 1) + i, p10 = p00 + 1, p01 = p00 + N + 1, p11 = p01 + 1;
+      // the cutaway: no ground there (machine.js lays a brass lip over the ragged edge)
+      d.set(0, 0, 0);
+      for (const q of [p00, p10, p01, p11]) d.x += positions[q * 3], d.y += positions[q * 3 + 1], d.z += positions[q * 3 + 2];
+      if (inCut(d)) continue;
       index.push(p00, p10, p11, p00, p11, p01);
     }
   }

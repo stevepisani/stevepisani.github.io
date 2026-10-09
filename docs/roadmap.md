@@ -6,6 +6,15 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **Places, from Google Maps: the next shared piece, for SJPJr and the planet alike.** Steve's
+   Google Maps saved lists and starred places, from a Takeout file dropped into a private import
+   screen; every place private until approved in review; home, work, lodging, any trip hotel and
+   anything near home can never be public; coordinates from the Places API (New) on the server
+   (inside its free monthly caps, with a quota set). In SJPJr: "Saved nearby" on Today and each
+   leg of a trip, and "Add to this day". On the site: the lists Steve marks public, on a map and
+   on the planet: on Earth, in the sky (`sky.js` `earthPoint(lat, lon)` puts a place on the globe; how they look there is to be designed). v2: Google's Data Portability API if
+   it reaches US accounts. Starts once the key is in (Waiting on Steve).
+
 0. **SJPJr, the MCP server, grows by area** (`docs/apps.md`, "Adding an area"). First the
    wardrobe and trips working end to end in ChatGPT (the card, packing for the Europe trip), then,
    in order: recipes (read and write: find, add, mark cooked, rate, notes; a card with photos), then
@@ -39,40 +48,18 @@ rather than leaving it in a chat.
    - events, "wore it today" first (one tap on Today's outfit; then visits, cooking, buying), which
      also gives cost per wear and packed versus worn;
    - one inbox for raw evidence, and visibility (private, shared, public) on every record;
-   - **places v1:** Google Maps saved lists and starred places from a Takeout file dropped into a
-     private import screen; every place private until approved in review; home, work, lodging, any
-     trip hotel and anything near home can never be public; coordinates from the Places API (New)
-     on the server (inside its free monthly caps, with a quota set), once Steve has the key; in the
-     wardrobe, "Saved nearby" on Today and each leg, and "Add to this day"; on the public site, a
-     map of the lists Steve marks public. v2: Google's Data Portability API if it reaches US
-     accounts;
+   - places (first in this list, above);
    - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
    - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
    - polish still open: repack before each move, a journal line per day, smarter search, a phone
      test checklist, and the recipes kept on the phone for opening with no connection.
 
-1. **Read bottles on the planet.** Approved bottles (`bottles.approved`) wash up at the waterline
-   for the next visitor to open and read, with the same unrolling letter as writing one
-   (`note.js`). Today an approved bottle shows up nowhere. Small; finishes the bottle feature.
-2. **Screen bottles automatically.** The bartender's model (Haiku) pre-screens new bottles so Steve
-   only checks the borderline ones; approving stays a member's call. Pair with 1 as one PR. Mind
-   the budget (docs/backend.md): a cap in code, a few cents a month.
-3. **The Data Something lab** ([#24](https://github.com/stevepisani/stevepisani.github.io/issues/24)):
-   - a SQL console in the browser (DuckDB-WASM) over the site's own data: page views
-     (`pageviews_daily`), drinks, books, launches;
-   - charts (Observable Plot, or Mosaic for big queries);
-   - search the writing by meaning (Transformers.js embeddings, in the browser);
-   - the site as a dbt-style lineage graph (drinks.yml → chalkboard → robot → your glass), an
-     easter egg for data people.
-   The page counter has been collecting since 30 Sep 2026, so there's real traffic to query.
-4. **Hitchhiker's touches** (optional): the robot saying "Welcome to Milliways", a towel behind
-   the bar, a Pan Galactic Gargle Blaster on the chalkboard.
-
 ## Waiting on Steve
 
-- **A Google Maps key for places:** a Google Cloud project with the Places API (New) on, a key
-  restricted to it, a daily quota, saved as a GitHub repo secret (steps when we start places).
+- **A Google Maps key for places (next up):** a Google Cloud project with the Places API (New)
+  on, a key restricted to it, a daily quota, saved as a GitHub repo secret (the exact steps when
+  we start).
 - **For passive capture:** the office camera's make and model, which stores' grocery receipts come
   by email, and which card or bank to export.
 
@@ -93,6 +80,22 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the campfire trail crosses the cutaway on a bridge with a glass floor, and the planet
+  is hollow below it (a glowing core, turning rings, a shell lit like a city); the telescope: stand
+  behind it, bend to the eyepiece, dark, then the view; Earth in it with cities pinned and their
+  time now, in place of a sentence.
+- Oct 2026: Earth in the sky in place of the ringed planet, turned to the real hour (day where
+  the sun's up, the cities lit at night), the way places will show on the planet; and a cutaway
+  by the campfire trail: the planet is a machine, a catwalk out over its gears and glowing core.
+- Oct 2026: the planet, tidied and quicker: one sun the moon and both planets go round, nothing
+  floating (campfire props, the bar's torches), no text selection; the bartender face to face
+  with no zoom on phones and a few things to ask; tap the bar from anywhere and you're walked
+  round to it; a neon hoop that flickers into being on the second coconut, with fireworks. Then a
+  speed pass: still meshes merged (less than half the draw calls), the models fetched alongside
+  the script, and the physics engine started when the browser's idle. The planet's other open
+  ideas (reading bottles, screening them, the Data Something lab, Hitchhiker's touches, more for
+  the telescope) were dropped, Oct 2026.
+
 - Oct 2026: SJPJr as one app at /apps, tailored to whoever's signed in: its own shell (no site nav or
   footer; the badge opens Settings: theme, °F or °C, who's signed in, Sign out, the site), Today
   always first with a greeting by name and the next thing first (the journey, the outfit, the
@@ -106,8 +109,6 @@ rather than leaving it in a chat.
   Then a pass on Krug and the HIG: glints on things you can use, Back steps out of every place,
   landing sites in the dark shown at full moon, swipes and ← → on every card, "Live · NASA", the
   bartender pointing at the telescope, chalk and page sounds, and a buzz on Android.
-  Telescope ideas still open: focus it yourself (a brass knob), the ISS when it's over
-  Philadelphia, and a postcard of what you saw.
 - Oct 2026: the wardrobe as an app: installs full screen on an iPhone, signs in by the emailed
   code there, journeys as boarding cards (countdown, copy the reference, Add to Google Calendar), stays
   with a map, and a home-and-away line (local and home time, the exchange rate).

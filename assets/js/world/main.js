@@ -13,11 +13,12 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint, surfaceRadius, POND, RADIUS } from './planet.js';
-import { buildSky } from './sky.js';
+import { buildPlanet, surfacePoint, surfaceRadius, pondK, BAR_DIR, POND, RADIUS } from './planet.js';
+import { buildSky, earthPoint } from './sky.js';
 import { buildBar } from './bar.js';
-import { buildPlaces, SPOTS, trailEdge, keepClear } from './places.js';
-import { Player, bindInput } from './player.js';
+import { buildPlaces, SPOTS, trailEdge, keepClear, nearLandmark } from './places.js';
+import { Player, bindInput, BODY } from './player.js';
+import { onPlanet } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes } from './hero.js';
@@ -28,8 +29,11 @@ import { createNoteRitual } from './note.js';
 import { createFireflies } from './fireflies.js';
 import { createPhysics } from './physics.js';
 import { createBookSky } from './booksky.js';
+import { houseAnswer } from './barback.js';
 import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
+import { createHoop } from './hoop.js';
+import { createBatcher } from './batch.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -301,7 +305,8 @@ async function start() {
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(PALETTE.night, 0.016); // distance fades into the night sky
-  const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, 0.05, 2000);
+  const NEAR = 0.05;
+  const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, NEAR, 2000);
 
   // Models: one GLB, plus fonts for the canvas textures.
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -333,6 +338,7 @@ async function start() {
   const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
   const places = buildPlaces({ prop, quality, heroes, badge });
+  places.machine.camera = camera; // the inside of the planet is drawn only when you're near enough to see in
   scene.add(sky.group, planet.group, bar.group, places.group);
   for (const l of bar.loose) scene.add(l.object); // the bar's fallen coconuts live in world space
   // the lanterns and torches without real lights light the ground through its shaders (lamps.js)
@@ -400,6 +406,8 @@ async function start() {
   }
   addEventListener('resize', resize);
   resize();
+  // the world can change size without the window doing so (fitting above a phone's keyboard)
+  if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(root);
 
   /* ---------- Markers: where you're going, and where you could go ---------- */
   // Each ring is draped on the ground vertex by vertex (the analytic surface, like the trails), so
@@ -446,6 +454,7 @@ async function start() {
 
   /* ---------- Picking ---------- */
   const raycaster = new THREE.Raycaster();
+  raycaster.layers.enableAll(); // the batched originals are on a layer of their own (batch.js)
   raycaster.far = 60;
   const ndc = new THREE.Vector2();
   const ground = planet.group.getObjectByName('ground');
@@ -457,7 +466,8 @@ async function start() {
   // the loose things: picked up once the physics is there to throw them
   const looseMeshes = new Map();
   for (const it of physics.items) it.object.traverse((o) => { if (o.isMesh) looseMeshes.set(o, it); });
-  const pickList = [...interactMeshes.keys(), ...looseMeshes.keys(), ground];
+  const bridge = places.machine.deck; // the bridge over the cutaway: walked on like the ground
+  const pickList = [...interactMeshes.keys(), ...looseMeshes.keys(), ground, bridge];
 
   function pick(x, y) {
     const r = canvas.getBoundingClientRect();
@@ -465,7 +475,7 @@ async function start() {
     raycaster.setFromCamera(ndc, camera);
     const hit = raycaster.intersectObjects(pickList, false).find((h) => !(looseMeshes.get(h.object) || {}).held);
     if (!hit) return null;
-    if (hit.object === ground) return { ground: hit.point };
+    if (hit.object === ground || hit.object === bridge) return { ground: hit.point };
     const loose = looseMeshes.get(hit.object);
     if (loose) return physics.ready ? { loose, point: hit.point } : { ground: hit.point };
     return { thing: interactMeshes.get(hit.object), point: hit.point };
@@ -515,15 +525,21 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
-    openPanel(it.id);
+    // a landmark that's a panel: turn to it first, so it's there when the panel closes
+    player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
   let destT = -1;
   const destAt = new THREE.Vector3();
   function showDest(point) { destAt.copy(point); standOn(destRing, point, 0.6); destT = 0; }
+  // A straight line can run into the counter, a post, a palm, a rock or the machine's railing:
+  // walk round instead (route.js), anywhere on the planet.
+  function routeTo(point) {
+    return onPlanet(player.pos, point, player.colliders, { R: RADIUS, body: BODY + 0.03 }).map((up) => up.multiplyScalar(surfaceRadius(up)));
+  }
   function goUse(it) {
     clearHint('walk');
     if (player.pos.distanceTo(it.approach) < 0.6 || player.pos.distanceTo(it.point) < it.radius * 0.7) return use(it);
-    player.walkTo(it.approach, { arrive: 0.45, onArrive: () => use(it) });
+    player.walkTo(it.approach, { arrive: 0.45, onArrive: () => use(it), via: routeTo(it.approach) });
     showDest(it.approach);
   }
 
@@ -573,7 +589,7 @@ async function start() {
     if (p.loose) return goGrab(p.loose);
     clearHint('walk');
     const to = clearSpot(p.ground);
-    player.walkTo(to);
+    player.walkTo(to, { via: routeTo(to) });
     showDest(to);
   }
 
@@ -1000,6 +1016,7 @@ async function start() {
   const board = { on: false, pick: -1 };
   const boardCard = $('board-card'), boardBackBtn = $('board-back');
   const _uvRay = new THREE.Raycaster();
+  _uvRay.layers.enableAll();
   function boardRowAt(x, y) {
     const r = canvas.getBoundingClientRect();
     _uvRay.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), camera);
@@ -1105,10 +1122,52 @@ async function start() {
 
   let chatter;
   // Ask the bartender: a real conversation (Claude, through supabase/functions/bartender, which
-  // knows the site from /bartender.json). Your question and its answer stack up in a short
+  // knows the site from /bartender.json). When that can't answer, the house answers do, from the
+  // same facts (barback.js). Your question and its answer stack up in a short
   // transcript just above the question box, on phones too, and the answer shows as it's said.
   // The rotating chatter stops once you've said something.
-  const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log');
+  const chat = $('chat'), chatInput = $('chat-input'), chatLog = $('chat-log'), chatAsk = $('chat-ask');
+  // Typing on a phone: the keyboard takes the bottom of the screen and iOS would slide the page up
+  // to show the box (losing the top bar and the robot's head). Instead the world fits what's left
+  // above the keyboard (`.is-typing`: fixed to the visual viewport), so the bar stays whole.
+  const vv = window.visualViewport;
+  const fitView = () => {
+    if (!vv) return;
+    root.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    root.style.setProperty('--vv-h', `${vv.height}px`);
+  };
+  if (vv) { vv.addEventListener('resize', fitView); vv.addEventListener('scroll', fitView); }
+  // Face to face: when you go to ask something, you look the bartender in the eye (the same eased
+  // lean as watching a drink made: something you asked for, so the camera moves); you sit back
+  // when you're done typing and it's done talking.
+  let faceTimer = 0;
+  function faceRobot(on) {
+    clearTimeout(faceTimer);
+    if (on) {
+      if (state !== 'seat' || making || board.on || flight || leaving) return;
+      const head = bar.robot.head.getWorldPosition(new THREE.Vector3()), up = bar.seat.eye.clone().normalize();
+      view.job = null;
+      view.eye.copy(bar.seat.eye);
+      view.aim.copy(head).addScaledVector(up, -0.12); // the face in the upper part of the view, the talk below it
+      view.fov = BASE_FOV * 0.82;
+      view.want = 1;
+      view.hold = 0;
+      if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
+      seatLook.yaw = seatLook.pitch = 0;
+    } else if (!making && !board.on) view.want = 0;
+  }
+  // typing is the box having focus (a phone's keyboard is up exactly then)
+  chatInput.addEventListener('focus', () => { root.classList.add('is-typing'); fitView(); faceRobot(true); });
+  chatInput.addEventListener('blur', () => {
+    root.classList.remove('is-typing');
+    faceTimer = setTimeout(() => { if (document.activeElement !== chatInput && !talking) faceRobot(false); }, 350);
+  });
+  // Ask and the questions don't take focus from the box: the keyboard stays up and nothing moves
+  // under your finger mid-tap (as in any chat app)
+  for (const el of [chat.querySelector('button'), chatAsk]) el.addEventListener('pointerdown', (e) => { if (document.activeElement === chatInput) e.preventDefault(); });
+  // something to ask, until you've asked something
+  chatAsk.replaceChildren(...(data.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
+    onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
   const talk = [];
   let talking = false, talked = false;
   const CLOSED = "The bar's closed for a moment. The menu's right in front of you.";
@@ -1126,6 +1185,7 @@ async function start() {
     const q = chatInput.value.trim();
     if (!q || talking) return;
     talked = true;
+    chatAsk.hidden = true;
     clearInterval(chatter);
     bubble.hidden = true;
     talking = true;
@@ -1145,6 +1205,7 @@ async function start() {
       if ((res.headers.get('content-type') || '').includes('application/json')) answer = (await res.json()).reply || '';
       else if (res.ok && res.body) { // plain text, streamed: show it as it comes
         const reader = res.body.getReader(), decoder = new TextDecoder();
+        bar.robot.talk(true); // its gauge flickers as the words come
         for (let r = await reader.read(); !r.done; r = await reader.read()) {
           answer += decoder.decode(r.value, { stream: true });
           line.classList.remove('is-thinking');
@@ -1153,14 +1214,17 @@ async function start() {
         }
         answer += decoder.decode();
       }
-    } catch (err) { /* offline, or the function isn't there: say so below */ }
+    } catch (err) { /* offline, or the function isn't there: the house answers below */ }
     answer = answer.trim();
+    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, offline): answer from the site's own facts
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
     line.classList.remove('is-thinking');
     line.textContent = answer || CLOSED;
     chatLog.scrollTop = chatLog.scrollHeight;
+    bar.robot.talk(false);
     talking = false;
+    if (document.activeElement !== chatInput) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
   });
   let leaving = false;
   function sitDown({ pickUp = false, then = null } = {}) {
@@ -1666,17 +1730,18 @@ async function start() {
 
   /* ---------- The telescope: look through it ---------- */
   // Walk up and bend to the eyepiece: the telescope swings round to its first sight (with its
-  // gears' ratchet) as you step up, your gaze runs up the tube, and the view narrows into the
-  // eyepiece's round field (the same eased narrowing as leaning in elsewhere). What it can see
+  // gears' ratchet) as you step up behind it, looking down at the eyepiece; you bend to it and the
+  // view goes dark as your eye meets it (by how close it is), then opens in the eyepiece's round
+  // field, already on what it's pointed at. Stepping back does it the other way. What it can see
   // from here: the moon, the real one this hour (eyepiece.js: NASA's picture over the drawn one,
   // with rings where people landed; tap one to look closer), the real sun today through a solar
-  // filter, and the ringed planet. ‹ › swings it from one to the next. A card says what you're
+  // filter, and Earth. ‹ › swings it from one to the next. A card says what you're
   // looking at, and "Next launch and the ISS" opens the launch panel: the text backs up the view,
   // it isn't the way in. "Step back" or Esc stands you up again (Esc leaves a landing site first).
   const scopeSpot = interactables.find((i) => i.id === 'launch');
-  const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), scopeMore = $('scope-more');
+  const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), eyeDark = $('eyepiece-dark'), scopeMore = $('scope-more');
   const scopePrev = $('scope-prev'), scopeNext = $('scope-next'), scopeMag = $('eyepiece-mag');
-  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '', nudge: { yaw: 0, pitch: 0 }, cardKey: '' };
+  const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '', nudge: { yaw: 0, pitch: 0 }, cardKey: '', cup: null, lean: null, dark: 0, open: false };
   const SITES = data.moon || [];
   const liveLayer = $('eyepiece-live');
   const live = createEyepiece({ layer: liveLayer, db: DB, sites: SITES, sunDir: sky.sunDir, onSite: (i) => openSite(i) });
@@ -1684,11 +1749,11 @@ async function start() {
   function scopeTargets(eye) {
     const up = eye.clone().normalize();
     const above = (b) => b && b.dir.dot(up) > Math.sin(THREE.MathUtils.degToRad(10)); // clear of the ground and the palms
-    const { moon, sun, giant } = sky.bodies;
+    const { moon, sun, earth } = sky.bodies;
     const list = [];
     if (above(moon)) list.push({ id: 'moon', body: moon, fill: 0.55, name: 'The moon' });
     if (above(sun)) list.push({ id: 'sun', body: sun, fill: 0.62, name: 'The sun' });
-    if (above(giant)) list.push({ id: 'giant', body: giant, fill: 0.9, name: 'The ringed planet', line: `Lit by the same sun as the moon and this planet.${above(moon) ? '' : ' The moon is below the horizon from here tonight.'}` });
+    if (above(earth)) list.push({ id: 'earth', body: earth, fill: 0.9, name: 'Earth', line: `Right now.${above(moon) ? '' : ' The moon is below the horizon from here tonight.'}` });
     return list;
   }
   // what the card says about it: the moon and sun as they really are, once their pictures are in
@@ -1724,7 +1789,7 @@ async function start() {
     const note = s ? (daylight ? `It's night there now. This is it at full moon, ${dayMonth(daylight)}.` : '')
       : liveNow === 'loading' ? 'Finding it live…' : liveNow === 'off' ? "Live view unavailable. Showing tonight's phase." : '';
     $('scope-note').textContent = note;
-    scopeMore.textContent = s ? 'The whole moon' : 'Next launch and the ISS';
+    scopeMore.hidden = !s; // on a landing site: back to the whole moon (the launch is at the console by the rocket)
     scopePrev.hidden = scopeNext.hidden = s ? SITES.length < 2 : scope.targets.length < 2;
     scope.cardKey = cardKey();
   }
@@ -1802,25 +1867,53 @@ async function start() {
     player.stop();
     clearHint('walk');
     tip.hidden = true;
-    // bent to the eyepiece: a step in from where you walked up, a little under standing height
-    const up = scopeSpot.approach.clone().normalize();
-    const at = scopeSpot.approach.clone().lerp(scopeSpot.point, 0.45);
-    scope.eye = surfacePoint(at.clone().normalize()).addScaledVector(up, 1.38);
-    scope.targets = scopeTargets(scope.eye);
+    scope.targets = scopeTargets(scopeSpot.approach.clone().addScaledVector(scopeSpot.approach.clone().normalize(), 1.4));
     if (!scope.targets.length) { openPanel('launch'); return; } // nothing up there from here: just the panel
     setState('scope');
     enterLevel('scope', () => leaveScope({ fromHistory: true }));
     scope.leaving = false;
+    scope.open = false;
     pointScope(0); // and the telescope swings round to it as you step up
+    // where the eyepiece will be once it has: you stand behind it looking down at it, then bend to it
+    const cup = eyecupAt(), upv = cup.at.clone().normalize();
+    const back = cup.tube.clone().addScaledVector(upv, -cup.tube.dot(upv)).normalize();
+    const stand = surfacePoint(cup.at.clone().addScaledVector(back, -0.62).normalize()).addScaledVector(upv, player.eye);
+    scope.cup = cup.at;
+    scope.eye = cup.at.clone().addScaledVector(cup.tube, -0.03);
+    scope.lean = poseLooking(cup.at.clone().addScaledVector(upv, 0.15).addScaledVector(back, -0.1), cup.at);
     scope.quat.copy(scopeLook(scope.targets[0]));
+    scope.k = 0;
     flyPath([
-      { ...poseLooking(scope.eye, scopeSpot.point), ms: Math.min(900, Math.max(300, camera.position.distanceTo(scope.eye) * 420)) }, // step up to it
-      { pos: scope.eye.clone(), quat: scope.quat.clone(), ms: 900 }, // and look up along the tube
+      { ...poseLooking(stand, cup.at.clone().addScaledVector(cup.tube, 0.35)), ms: Math.min(900, Math.max(300, camera.position.distanceTo(stand) * 420)) }, // step up behind it: the eyepiece, the tube rising past it
+      { ...scope.lean, ms: 850 }, // and bend to it
     ], () => {
       if (state !== 'scope' || scope.leaving) return; // stepped back before you got there: the frame loop stands you up
-      scope.want = 1;
+      scope.open = true; // eye to the glass: the field opens on what it's pointed at
+      scope.k = scope.want = 1;
+      scope.cur = scope.fov;
+      scope.dark = reducedMotion ? 0 : 1;
+      camera.near = 2; // looking out of the telescope, not at its insides
       scopeCard.hidden = false;
+      scopeFrame(0); // this frame, not the next
     });
+  }
+  // The eyecup, where it will be once the telescope has swung round to what it's turning to:
+  // { at, tube } (tube: the way the telescope points).
+  function eyecupAt() {
+    const g = scopeSpot.object, cup = g.userData.eyecup;
+    const az = mount.az.rotation.y, alt = mount.alt.rotation.x;
+    if (mountWant.on) { mount.az.rotation.y = mountWant.az; mount.alt.rotation.x = mountWant.alt; }
+    g.updateMatrixWorld(true);
+    const at = cup.getWorldPosition(new THREE.Vector3()), tube = new THREE.Vector3(0, 1, 0).transformDirection(cup.matrixWorld);
+    mount.az.rotation.y = az; mount.alt.rotation.x = alt;
+    g.updateMatrixWorld(true);
+    return { at, tube };
+  }
+  // how dark it is while your eye is coming to (or leaving) the eyepiece: by how close it is
+  function eyeNear() {
+    if (!scope.cup) return 0;
+    const d = camera.position.distanceTo(scope.cup);
+    return THREE.MathUtils.clamp((0.42 - d) / 0.2, 0, 1);
   }
   function stepScope(d) {
     if (state !== 'scope' || scope.leaving) return;
@@ -1841,22 +1934,66 @@ async function start() {
     player.spawn(scopeSpot.approach.clone().normalize(), scopeSpot.point, -0.1);
     const endPos = player.pos.clone().addScaledVector(player.pos.clone().normalize(), player.eye);
     const endQuat = player.quat.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), player.pitch));
+    scope.open = false;
+    camera.position.copy(scope.lean.pos); camera.quaternion.copy(scope.lean.quat); // your eye leaves the glass, the telescope in front of you
     flyPath([
-      { ...poseLooking(scope.eye, scopeSpot.point), ms: 800 }, // eyes down from the sky to the telescope
-      { pos: endPos, quat: endQuat, ms: 600 },
-    ], () => { scope.leaving = false; setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
+      { ...poseLooking(scope.lean.pos.clone().addScaledVector(scope.lean.pos.clone().normalize(), 0.35), scope.cup), ms: 700 }, // straighten up
+      { pos: endPos, quat: endQuat, ms: 700 },
+    ], () => { scope.leaving = false; eyeDark.style.setProperty('--dark', '0'); earthPinsFrame(false); setState('walk'); player.applyToCamera(); canvas.focus({ preventScroll: true }); });
   }
   scopeLeaveBtn.addEventListener('click', () => leaveScope());
   onSwipe(scopeCard, stepScope);
   $('scope-close').addEventListener('click', () => { scopeCard.hidden = true; }); // the whole view; a tap brings it back
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
-  scopeMore.addEventListener('click', () => (scope.site >= 0 ? closeSite() : openPanel('launch')));
+  scopeMore.addEventListener('click', () => closeSite());
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
+  // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
+  // a warm dot where it's day, a pale ring where it's night. The globe shows the rest.
+  const CITIES = [['Philadelphia', 39.95, -75.17, 'America/New_York', true], ['Honolulu', 21.31, -157.86, 'Pacific/Honolulu'], ['London', 51.51, -0.13, 'Europe/London'],
+    ['Tokyo', 35.68, 139.69, 'Asia/Tokyo'], ['Sydney', -33.87, 151.21, 'Australia/Sydney'], ['Cape Town', -33.92, 18.42, 'Africa/Johannesburg'], ['Rio', -22.91, -43.17, 'America/Sao_Paulo']];
+  const earthPins = $('earth-pins');
+  const pins = CITIES.map(([name, lat, lon, zone, home]) => {
+    const el = document.createElement('div');
+    el.className = `earth-pin${home ? ' is-home' : ''}`;
+    el.innerHTML = '<i></i><span></span>';
+    earthPins.append(el);
+    return { el, label: el.lastChild, name, at: earthPoint(lat, lon), clock: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone }), shown: '' };
+  });
+  const _ec = new THREE.Vector3(), _eq = new THREE.Quaternion(), _en = new THREE.Vector3(), _ep = new THREE.Vector3();
+  function earthPinsFrame(on, k, rect) {
+    earthPins.hidden = !on;
+    if (!on) return;
+    earthPins.style.opacity = k.toFixed(3);
+    const E = sky.earth, R = E.userData.radius, now = new Date();
+    E.getWorldPosition(_ec); E.getWorldQuaternion(_eq);
+    const toEye = camera.position.clone().sub(_ec).normalize();
+    for (const p of pins) {
+      _en.copy(p.at).applyQuaternion(_eq);
+      const facing = _en.dot(toEye);
+      p.el.hidden = facing < 0.2; // on the side facing you, not right at the edge
+      if (p.el.hidden) continue;
+      _ep.copy(_ec).addScaledVector(_en, R).project(camera);
+      p.el.style.transform = `translate(${((_ep.x + 1) / 2) * rect.width}px, ${((1 - _ep.y) / 2) * rect.height}px) translateY(-50%)`;
+      p.el.classList.toggle('is-left', _ep.x > 0.15);
+      const day = _en.dot(sky.sunDir) > 0;
+      const text = `${p.name}|${p.clock.format(now)}|${day}`;
+      if (text !== p.shown) {
+        p.shown = text;
+        p.el.classList.toggle('is-night', !day);
+        p.label.innerHTML = `${p.name} <b>${p.clock.format(now).toLowerCase()}</b>`;
+      }
+    }
+  }
   function scopeFrame(realDt) {
+    if (!scope.open) { if (scope.leaving) standUpFromScope(); return; } // stepped back before your eye got there
     const t = scope.targets[scope.i];
-    if (scope.k !== scope.want) scope.k = reducedMotion ? scope.want : THREE.MathUtils.clamp(scope.k + Math.sign(scope.want - scope.k) * realDt / 1.1, 0, 1);
+    // at the glass: the dark lifts as the field opens, and comes down again as you step back
+    const dark = scope.leaving ? 1 : 0;
+    if (scope.dark !== dark) scope.dark = reducedMotion ? dark : THREE.MathUtils.clamp(scope.dark + Math.sign(dark - scope.dark) * realDt / 0.45, 0, 1);
+    eyeDark.style.setProperty('--dark', scope.dark.toFixed(3));
+    if (scope.leaving && scope.dark === 1) scope.k = 0;
     const ease = reducedMotion ? 1 : 1 - Math.exp(-realDt * 3);
     if (t) scope.quat.slerp(scopeLook(t), ease);
     scope.cur += (scope.fov - scope.cur) * (reducedMotion ? 1 : 1 - Math.exp(-realDt * 2.5));
@@ -1873,10 +2010,11 @@ async function start() {
     if (at) scope.aim = new THREE.Vector3((at.x / rect.width) * 2 - 1, 1 - (at.y / rect.height) * 2, 0.5).unproject(camera).sub(camera.position).normalize();
     if (t && cardKey() !== scope.cardKey) showScopeCard();
     liveLayer.classList.toggle('is-sun', !!t && t.id === 'sun');
+    earthPinsFrame(!!t && t.id === 'earth' && scope.site < 0, scope.leaving ? 0 : e * (1 - scope.dark), rect);
     // the eyepiece's power, engraved on its ring, in an eyepiece set's steps
     const power = BASE_FOV / camera.fov * 10, mag = `${[30, 60, 120, 240].reduce((a, b) => (Math.abs(Math.log(b / power)) < Math.abs(Math.log(a / power)) ? b : a))}×`;
     if (mag !== scope.mag) { scope.mag = mag; scopeMag.textContent = `STEVE'S · ${mag}`; }
-    if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = BASE_FOV; camera.updateProjectionMatrix(); standUpFromScope(); }
+    if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = scope.cur = BASE_FOV; camera.near = NEAR; camera.updateProjectionMatrix(); standUpFromScope(); }
   }
 
   /* ---------- Skipping stones at the lagoon ---------- */
@@ -2097,8 +2235,48 @@ async function start() {
   const CARRY = new THREE.Vector3(0.3, -0.3, -0.85); // at arm's length, low on the right
   const carryDrop = $('carry-drop'), carryThrow = $('carry-throw');
   let carry = null, carryWind = -1;
+  // Pick up a coconut a second time and a neon hoop flickers into being (hoop.js) straight in
+  // front of you. If that spot would sit on or against something (a landmark, the bar, the lagoon,
+  // anything lying about, or the middle of a path), it takes the clear spot nearest straight ahead that's still in
+  // view; if nothing in view is clear, it waits and keeps looking while you carry the coconut, and
+  // appears as soon as you face open ground. Get one through it and it goes; two more and it's back.
+  const hoop = createHoop({ scene, physics, colliders: player.colliders, sound: { play: (...a) => sound.play(...a) }, reducedMotion });
+  let coconuts = 0, hoopWanted = false, hoopLook = 0;
+  function hoopSpot() {
+    const up = player.up, fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(player.quat); // the way you face (level)
+    fwd.addScaledVector(up, -fwd.dot(up)).normalize();
+    const fits = (dir) => {
+      // beside a path is fine (the pole stays off the walkway); never on a landmark, the bar or the lagoon
+      if (pondK(dir) < 1.3 || trailEdge(dir) < 0.6 || nearLandmark(dir, 1.2) || dir.angleTo(BAR_DIR) * RADIUS < 7.5) return false;
+      const at = dir.clone().multiplyScalar(surfaceRadius(dir));
+      if (player.colliders.some((c) => c.center.distanceTo(at) < c.radius + 1.6)) return false;
+      if (physics.items.some((x) => !x.held && x.object.position.distanceTo(at) < 1.4)) return false;
+      return !interactables.some((x) => x.approach && x.approach.distanceTo(at) < 2.2);
+    };
+    // straight ahead first, then turning out either side, no further than the edge of the view
+    // (less a margin, so the whole hoop is in it: a phone held upright sees a narrow slice)
+    const half = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) * camera.aspect) - 0.12;
+    for (let turn = 0; turn <= half; turn += 0.08) {
+      for (const side of turn ? [1, -1] : [1]) {
+        const d = fwd.clone().applyAxisAngle(up, turn * side);
+        for (const dist of [5, 4.5, 6, 7]) {
+          const dir = player.pos.clone().addScaledVector(d, dist).normalize();
+          if (fits(dir)) return dir.multiplyScalar(surfaceRadius(dir));
+        }
+      }
+    }
+    return null;
+  }
+  function bringHoop() {
+    const at = hoopSpot();
+    if (!at) return false;
+    hoopWanted = false; coconuts = 0;
+    hoop.drop(at, player.pos);
+    return true;
+  }
   function grab(it) {
     used.add(it.label);
+    if (it.label === 'Coconut' && hoop.state === 'off' && !hoopWanted && ++coconuts >= 2) hoopWanted = !bringHoop();
     if (carry) putDown();
     if (!physics.take(it)) return;
     carry = it;
@@ -2111,7 +2289,7 @@ async function start() {
     clearHint('walk');
     const at = it.object.position;
     if (player.pos.distanceTo(at) < 1.6) return grab(it);
-    player.walkTo(at, { arrive: 0.85, onArrive: () => { if (!it.held && state === 'walk' && player.pos.distanceTo(it.object.position) < 1.8) grab(it); } });
+    player.walkTo(at, { via: routeTo(at), arrive: 0.85, onArrive: () => { if (!it.held && state === 'walk' && player.pos.distanceTo(it.object.position) < 1.8) grab(it); } });
     showDest(at);
   }
   function putDown() {
@@ -2169,6 +2347,10 @@ async function start() {
   addEventListener('keyup', (e) => seatArrow(e, false));
   let beckoned = false;
   let firstFrames = null, framesDrawn = 0; // the reveal waits for these
+  // the bar and the landmarks: still meshes that look alike drawn as one, patch by patch
+  const batcher = createBatcher();
+  batcher.add(bar.group, places.group);
+  for (const o of [bar.board && bar.board.group, bar.menu.card].filter(Boolean)) o.userData.noBatch = true; // they change as you use them
 
   function frame(now) {
     timer.update(now);
@@ -2218,6 +2400,9 @@ async function start() {
     if (zoom.openFirst && (zoom.region !== zoom.openFirst || state !== 'hammock')) zoom.openFirst = null;
     else if (zoom.openFirst && zoom.k === 1 && !aimTween && Math.abs(zoom.cur - zoom.fov) < 0.5) { const r = zoom.openFirst; zoom.openFirst = null; openStar(r.books[0], { auto: true }); }
     physics.update(realDt, player.pos);
+    hoop.update(realDt, t);
+    // the hoop's waiting for clear ground in view: look again a few times a second while you carry
+    if (hoopWanted && carry && state === 'walk' && (hoopLook -= realDt) <= 0) { hoopLook = 0.3; bringHoop(); }
     if (carry) {
       if (state !== 'walk') putDown(); // off to do something else: it goes down at your feet first
       else { // drawn back as you wind up
@@ -2236,7 +2421,7 @@ async function start() {
       }
     }
     if (state === 'scope') mountFrame(realDt); // the telescope swings round even as you step up to it
-    if (flight) flightStep(performance.now());
+    if (flight) { flightStep(performance.now()); if (state === 'scope') eyeDark.style.setProperty('--dark', eyeNear().toFixed(3)); }
     else if (state === 'scope' && scope.eye) scopeFrame(realDt);
     else if ((state === 'shore' && shorePose) || (state === 'note' && notePose)) {
       const pose = state === 'shore' ? shorePose : notePose;
@@ -2328,11 +2513,11 @@ async function start() {
     // a pool of light, and the bartender waves you over. The menu card gets one, until the first
     // time it's picked up.
     let label = null;
-    if (state === 'seat' && !held && !cardFlight && !flight && !making && !board.on && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
+    if (state === 'seat' && !held && !cardFlight && !flight && !making && !board.on && !root.classList.contains('is-typing') && !done.get('menu')) label = [bar.menu.label, 'Pick up the menu'];
     if (label) {
       _v.copy(label[0]).project(camera);
       const onScreen = _v.z < 1 && Math.abs(_v.x) < 0.9 && Math.abs(_v.y) < 0.9;
-      const show = onScreen && panel.hidden && menu.hidden && !hovered && chatLog.hidden; // not over the conversation
+      const show = onScreen && panel.hidden && menu.hidden && !hovered;
       beacon.hidden = !show;
       if (show) {
         if (beacon.textContent !== label[1]) beacon.textContent = label[1];
@@ -2343,6 +2528,7 @@ async function start() {
     boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
+    chatAsk.hidden = chat.hidden || talked || !(data.ask || []).length;
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
@@ -2382,7 +2568,14 @@ async function start() {
     // (the map must exist first: an unrendered shadow map is a sampler with no texture)
     for (const [l, p] of pointShadows) l.shadow.autoUpdate = !l.shadow.map || camera.position.distanceToSquared(p) < 28 * 28;
     pipeline.render(dt);
-    if (firstFrames && ++framesDrawn >= 3) { firstFrames(); firstFrames = null; }
+    batcher.watch();
+    // the first frames: note where everything is, merge what hasn't moved (batch.js), then reveal
+    if (firstFrames) {
+      ++framesDrawn;
+      if (framesDrawn === 1) batcher.note();
+      if (framesDrawn === 4) window.__batched = batcher.bake();
+      if (framesDrawn >= 5) { firstFrames(); firstFrames = null; }
+    }
   }
 
   player.applyToCamera();
@@ -2405,14 +2598,20 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), glints, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
   fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
 
-  // The physics engine: a megabyte of WebAssembly nobody needs for the first frame
-  physics.load().then(() => { window.__world.physics = physics; }).catch((e) => console.warn('physics', e));
+  // What can wait for the browser to be idle, so none of it lands on your first steps: the
+  // physics engine (a megabyte of WebAssembly and its ground), then the bottles' shaders
+  const whenIdle = (fn, after = 0) => setTimeout(() => ('requestIdleCallback' in window ? requestIdleCallback(fn, { timeout: 3000 }) : fn()), after);
+  whenIdle(() => physics.load().then(() => {
+    const m = places.machine; // the cutaway's floor, walls and catwalk, for what's thrown in
+    physics.addFixed(m.group.position, m.group.quaternion, m.solids);
+    window.__world.physics = physics;
+  }).catch((e) => console.warn('physics', e)), 1200);
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
   fireflies = createFireflies(scene, DB);
@@ -2430,18 +2629,21 @@ async function start() {
 
   // The real bottles the robot pours from: nobody needs them until they order, so they load
   // once the scene is up, and their shaders compile off to the side before they're shown.
-  loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
+  whenIdle(() => loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
     if (!bottles.size) return;
-    const staging = new THREE.Group();
-    for (const b of bottles.values()) staging.add(b);
-    try {
-      if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(staging, camera, scene);
-      else renderer.compile(staging, camera, scene);
-    } catch (e) {}
-    for (const b of [...staging.children]) staging.remove(b);
+    // one at a time, each when the browser's idle (where shaders can't compile in parallel, each is a pause)
+    const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
+    for (const b of bottles.values()) {
+      const staging = new THREE.Group().add(b);
+      try {
+        if (parallel) await renderer.compileAsync(staging, camera, scene);
+        else await new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));
+      } catch (e) {}
+      staging.remove(b);
+    }
     bar.setBottles(bottles);
     window.__world.bottles = bottles.size;
-  });
+  }), 2500);
 }
 
 start().catch((err) => {
