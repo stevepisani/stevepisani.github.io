@@ -64,7 +64,8 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   await context.route(`${base}/library.json`, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(library) }));
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', (e) => errors.push(`page error: ${e.message}`));
+  // with where it was thrown (the first few frames), so a red run says where to look
+  page.on('pageerror', (e) => errors.push(`page error: ${e.message}${e.stack ? `\n    ${e.stack.split('\n').slice(1, 6).map((l) => l.trim()).join('\n    ')}` : ''}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|ERR_BLOCKED|WebSocket|Failed to load resource/.test(m.text())) errors.push(`console: ${m.text()}`); });
   let n = 0;
   const shot = async (label) => { if (shotsDir) await page.screenshot({ path: join(shotsDir, `${name.split(' ')[0]}-${String(++n).padStart(2, '0')}-${label}.png`), timeout: 180000 }); };
@@ -361,7 +362,8 @@ async function planet(page, shot, { phone = false } = {}) {
   // through its rim sets off the fireworks, and it flickers back out
   await page.evaluate(() => window.__world.goGrab(0));
   await until(page, () => window.__world.carrying, null, 300000);
-  await until(page, () => window.__world.hoop.state === 'up', null, 60000);
+  // its flicker-in runs on frames (0.1 s of it at most a frame), which crawl on a phone in CI
+  await until(page, () => window.__world.hoop.state === 'up', null, 120000);
   const clearOf = await page.evaluate(() => {
     const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
     return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
@@ -442,7 +444,9 @@ async function planet(page, shot, { phone = false } = {}) {
 // October: rain (70%), dry and cloudy until 2 PM, then rain, heaviest at 4, 10.5° by 8 PM. The trip has three travelers,
 // two bags, a packing list (a garment, a baby's thing, a shared one, one nobody's, one of Lexi's,
 // and one on a trip that isn't loaded, never shown), three journeys (the last a train to Siena on
-// 16 October), two stays and a link; the euro is $1.1269 (Frankfurter, made up). By default the
+// 16 October), two stays and a link; the days' record (tools/fixtures/events.json: a shirt worn
+// at home, the trip's first day worn as planned and its line, and what the app adds); the euro is
+// $1.1269 (Frankfurter, made up). By default the
 // member is Steve (me(): his name, all four sections); `email` and `me` make someone else. Returns
 // what was asked of it.
 async function member(page, target, { email = 'member@example.com', me = { name: 'Steve', sections: ['today', 'closet', 'trips', 'recipes'] } } = {}) {
@@ -483,6 +487,9 @@ async function member(page, target, { email = 'member@example.com', me = { name:
   for (const [k, rows] of Object.entries(tripParts)) tripParts[k] = rows.map((r, i) => ({ ...mine, created_at: `2026-10-01T12:00:0${i}Z`, ...r }));
   let made = 0;
   const photoTable = JSON.parse(readFileSync(new URL('./fixtures/wardrobe-photos.json', import.meta.url)));
+  // what happened, a day at a time: a shirt worn at home, the first day of the trip worn as planned
+  // and its line; what the app adds and trashes is kept here, so a reload shows it
+  const eventTable = JSON.parse(readFileSync(new URL('./fixtures/events.json', import.meta.url)));
   // the files in Storage: every photo the fixtures name, the oxford's with its small and large
   // copies (its tag's without, so the app's fallback to the file itself is seen), and what's uploaded
   const stored = new Set([...closet.map((c) => c.photo_path), ...photoTable.map((f) => f.path)].filter(Boolean));
@@ -522,6 +529,13 @@ async function member(page, target, { email = 'member@example.com', me = { name:
       if (method === 'GET') return json(tripTable);
       if (method === 'POST') return json(req.postDataJSON().map((r, i) => ({ id: `new-t${i}`, owner: 'u1', created_at: new Date().toISOString(), ...r })), 201);
       return json(method === 'PATCH' ? [{ id: url.searchParams.get('id').slice(3) }] : []);
+    }
+    if (url.pathname.endsWith('/rest/v1/events')) {
+      if (method === 'GET') return json(eventTable.filter((e) => !e.deleted_at));
+      if (method === 'POST') { const added = [].concat(req.postDataJSON()).map((r) => ({ owner: 'u1', deleted_at: null, ...r })); for (const r of added) { if (eventTable.some((e) => e.id === r.id)) return json({ code: '23505', message: 'duplicate key value violates unique constraint "events_pkey"' }, 409); eventTable.push(r); } return json(added, 201); }
+      const e = eventTable.find((x) => x.id === url.searchParams.get('id')?.slice(3));
+      if (method === 'PATCH' && e) Object.assign(e, req.postDataJSON());
+      return json(e ? [{ id: e.id }] : []);
     }
     const part = /\/rest\/v1\/(trip_(?:packing|bags|transport|lodging|resources))$/.exec(url.pathname);
     if (part) {
@@ -676,6 +690,28 @@ async function apps(page, shot) {
   if (!/Nothing planned for today/.test(home) || (await page.textContent('.today-card__place')) !== 'Philadelphia' || !/Next trip.*Europe, autumn/.test(home) || (await page.locator('#today-view .trip-card').getAttribute('href')) !== '#trip/t1') throw new Error(`Today at home: ${home.slice(0, 400)}`);
   await shot('today-home');
   step('opens on Today with no address: "Good morning, Steve" and the date, what you\'re wearing, the weather at home, the next trip; four tabs');
+  // with nothing planned (at home), Wore it asks what you wore: the closet to pick from (what's
+  // retired left out), Save only once something's picked; one POST of that day, and Undo moves it
+  // to the trash
+  const dayPosts = () => asked.filter((a) => a.method === 'POST' && a.path.startsWith('/rest/v1/events'));
+  const dayPatches = () => asked.filter((a) => a.method === 'PATCH' && a.path.startsWith('/rest/v1/events'));
+  // a change shows at once and its request follows: wait for the request to have come in
+  const landed = async (count, n, what) => { for (let i = 0; count() < n; i++) { if (i > 200) throw new Error(`${what} never went out`); await page.waitForTimeout(50); } };
+  await page.click('.today-card .wore__btn');
+  await until(page, () => document.getElementById('wore-sheet').open && document.querySelectorAll('#wore-grid .wore-pick').length === 3);
+  if (!(await page.isDisabled('#wore-ok')) || (await page.locator('#wore-grid [aria-pressed="true"]').count()) || (await page.isVisible('#wore-clear'))) throw new Error('at home, Wore it should open the closet with nothing picked, Save waiting for a pick');
+  await page.locator('#wore-grid .wore-pick', { hasText: 'Navy oxford shirt' }).click();
+  await page.click('#wore-ok');
+  await until(page, () => !document.getElementById('wore-sheet').open && document.querySelector('.wore__done')?.textContent === 'Worn today ✓');
+  await landed(() => dayPosts().length, 1, 'Wore it at home');
+  const homeWore = dayPosts().pop()?.body;
+  if (!homeWore || homeWore.kind !== 'wore' || homeWore.date !== '2026-09-01' || homeWore.item_ids.join() !== 'w1' || homeWore.trip_id !== null || homeWore.source !== 'app' || homeWore.evidence.how !== 'picked the pieces' || !/^[0-9a-f-]{36}$/.test(homeWore.id)) throw new Error(`Wore it at home sent ${JSON.stringify(homeWore)}`);
+  await page.click('.app-toast__undo');
+  await until(page, () => document.querySelector('.today-card .wore__btn'));
+  await landed(() => dayPatches().length, 1, 'Undo');
+  const homeUndo = dayPatches().pop();
+  if (!homeUndo || !homeUndo.path.includes(`id=eq.${homeWore.id}`) || !homeUndo.body.deleted_at || Object.keys(homeUndo.body).length !== 1) throw new Error(`Undo should move what was logged to the trash: ${JSON.stringify(homeUndo)}`);
+  step('at home, Wore it asks what you wore (the closet, nothing picked), logs the day as one POST, and Undo moves it to the trash');
   await page.click('#tabs a[data-value="closet"]');
   await until(page, () => document.querySelectorAll('#grid .tile:not([hidden])').length === 3);
   if (!(await page.textContent('#cats')).includes('Shoes1')) throw new Error("the wardrobe's chips don't count the shoes");
@@ -829,6 +865,12 @@ async function apps(page, shot) {
   const stay = page.locator('#trip-stay .stay', { hasText: 'Florence Airbnb' });
   if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Lungarno%20Acciaiuoli%204%2C%2050123%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
   if (!/09:30–12:00\s*Uffizi\s*sightseeing\s*20:00\s*Dinner at Buca Mario/.test(await page.textContent('#days'))) throw new Error(`a day's plans, in time order: ${await page.textContent('#days')}`);
+  // a day that's been: what was worn (as planned) and its line, from what's logged
+  const firstDay = page.locator('#days .day').first();
+  if (!/Worn as planned ✓/.test(await firstDay.textContent()) || (await firstDay.locator('.day__journal').textContent()) !== '“Landed early, a long walk on the South Bank.”' || (await page.textContent('#days-count')) !== '2 of 42 planned · 1 logged') throw new Error(`a day of the trip that's been: what was worn and its line: ${flatText(await firstDay.textContent())} / ${await page.textContent('#days-count')}`);
+  await firstDay.scrollIntoViewIfNeeded();
+  await shot('trip-day-worn');
+  step("a trip's day that's been says what was worn (as planned) and its line");
   await page.locator('#trip-go-part').scrollIntoViewIfNeeded();
   await shot('trip');
   step('a trip: legs with weather, who\'s going, getting there as boarding cards in order with times as given, staying with a map, links, each day\'s plans');
@@ -903,11 +945,14 @@ async function apps(page, shot) {
   await page.click('#pack-who button[data-value=""]');
   await page.click('#pack-status button[data-value="all"]');
   await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 8);
+  // packed against worn, the trip begun: the shirt packed and never worn stands out (in words); the tee says how often
+  const oxfordRow = page.locator('#pack-groups .pack-row', { hasText: 'Navy oxford shirt' }), teeRow = page.locator('#pack-groups .pack-row', { hasText: 'White crew tee' });
+  if ((await oxfordRow.locator('.pack-row__unworn').textContent()) !== 'Not worn yet' || (await teeRow.locator('.pack-row__worn').textContent()) !== 'Worn 1 day' || (await page.textContent('#pack-worn')) !== '0 of 1 packed garment worn so far' || (await page.locator('#pack-groups .pack-row__unworn').count()) !== 1 || !/Worn 1 day/.test(await page.locator('#pack-groups .pack-row', { hasText: 'Brown suede loafers' }).textContent())) throw new Error(`packed versus worn: ${flatText(await oxfordRow.textContent())} / ${flatText(await teeRow.textContent())} / ${await page.textContent('#pack-worn')}`);
   await shot('packing');
   await page.setViewportSize({ width: 1100, height: 900 });
   await shot('packing-wide');
   await page.setViewportSize({ width: 390, height: 844 });
-  step('adding from the planned outfits and by hand (from the filters) POST entries; one taken off and put back');
+  step('adding from the planned outfits and by hand (from the filters) POST entries; one taken off and put back; packed against worn: how many days each garment\'s been worn on the trip, "Not worn yet" where it hasn\'t');
   if ((await page.textContent('#app-title')) !== 'Packing' || !/Europe, autumn/.test(await page.textContent('#app-back'))) throw new Error("the board's title, or the way back to the trip, is wrong");
   await page.goBack();
   await until(page, () => location.hash === '#trip/t1' && !document.getElementById('trip').hidden);
@@ -1005,6 +1050,67 @@ async function apps(page, shot) {
   await page.click('.today-card__step button:last-child');
   await until(page, () => /Friday/.test(document.querySelector('.today-card__kicker').textContent));
   step('Today: the day, its weather and outfit, the rain and the suede; the next day; Back closes an item');
+  // Wore it, mid-trip: one tap logs the day's planned outfit (one POST: the day, its pieces, the
+  // trip, as planned, who); it reads as done, and Undo takes it back
+  await page.reload();
+  await until(page, () => document.querySelector('.today-card .wore__btn') && /Thursday/.test(document.getElementById('app-over').textContent));
+  if ((await page.textContent('.today-card .wore')) !== 'Wore itSomething else' || (await page.locator('.today-card .wore button').evaluateAll((bs) => bs.map((b) => b.getBoundingClientRect().height).filter((h) => h < 44))).length) throw new Error(`under the outfit: Wore it and Something else, each 44px tall: ${await page.textContent('.today-card .wore')}`);
+  await page.evaluate(() => { const c = document.querySelector('.today-card'); scrollTo(0, c.getBoundingClientRect().top + scrollY - 70); });
+  await shot('today-wore-before');
+  const before1 = dayPosts().length, patches1 = dayPatches().length;
+  await page.click('.today-card .wore__btn');
+  await until(page, () => document.querySelector('.wore__done')?.textContent === 'Worn today ✓' && document.querySelector('.app-toast__undo'));
+  await landed(() => dayPosts().length, before1 + 1, 'Wore it');
+  const tapped = dayPosts().pop().body;
+  if (tapped.kind !== 'wore' || tapped.date !== '2026-10-15' || tapped.item_ids.join() !== 'w1,w3' || tapped.trip_id !== 't1' || tapped.evidence.as_planned !== true || tapped.evidence.planned.join() !== 'w1,w3' || tapped.evidence.how !== 'tapped Wore it' || tapped.recorded_by !== 'Steve' || tapped.source !== 'app') throw new Error(`Wore it sent ${JSON.stringify(tapped)}`);
+  await page.click('.app-toast__undo');
+  await until(page, () => document.querySelector('.today-card .wore__btn'));
+  await landed(() => dayPatches().length, patches1 + 1, 'Undo');
+  if (!dayPatches().pop().path.includes(`id=eq.${tapped.id}`)) throw new Error('Undo should take back what Wore it logged');
+  await page.click('.today-card .wore__btn');
+  await until(page, () => document.querySelector('.wore__done')?.textContent === 'Worn today ✓');
+  await landed(() => dayPosts().length, before1 + 2, 'Wore it again');
+  step('Wore it, on a trip: one tap logs the planned outfit (the day, the pieces, the trip, as planned), it reads "Worn today ✓", and Undo takes it back');
+  // changed: the sheet starts from what's logged; a tap takes a piece out, another puts one in
+  await page.click('.today-card .wore__change');
+  await until(page, () => document.getElementById('wore-sheet').open);
+  const pickedFirst = await page.locator('#wore-grid [aria-pressed="true"] .wore-pick__name').allTextContents();
+  if (pickedFirst.join() !== 'Navy oxford shirt,Brown suede loafers' || !(await page.isVisible('#wore-clear'))) throw new Error(`Change should start from what's logged: ${pickedFirst}`);
+  await page.locator('#wore-grid .wore-pick', { hasText: 'Brown suede loafers' }).click();
+  await page.locator('#wore-grid .wore-pick', { hasText: 'White crew tee' }).click();
+  if ((await page.textContent('#wore-count')) !== '2 pieces picked') throw new Error(`the sheet's count: ${await page.textContent('#wore-count')}`);
+  await shot('wore-sheet');
+  await page.click('#wore-ok');
+  await until(page, () => !document.getElementById('wore-sheet').open && /Planned: Navy oxford shirt · Brown suede loafers/.test(document.querySelector('.today-card').textContent));
+  await landed(() => dayPosts().length, before1 + 3, 'The change');
+  const changedTo = dayPosts().pop().body;
+  if (changedTo.item_ids.join() !== 'w1,w2' || changedTo.evidence.as_planned !== false || changedTo.evidence.how !== 'picked the pieces' || changedTo.id === tapped.id || (await page.locator('.today-card .flatlay .outfit__item').count()) !== 2 || !/White crew tee/.test(await page.textContent('.today-card .flatlay__names'))) throw new Error(`changing what was worn sent ${JSON.stringify(changedTo)}`);
+  step('Change: the sheet starts from what\'s logged; the pieces changed are logged as a new record (the plan named under the outfit)');
+  // a line about the day: saved when you leave it (Done on the keyboard), tidied, and shown
+  await page.fill('#journal-line', '  Uffizi in the morning,  rain all afternoon. ');
+  await page.press('#journal-line', 'Enter');
+  await until(page, () => document.getElementById('journal-line')?.dataset.save === 'saved');
+  await landed(() => dayPosts().length, before1 + 4, 'The line');
+  const line = dayPosts().pop().body;
+  if (line.kind !== 'journal' || line.text !== 'Uffizi in the morning, rain all afternoon.' || line.date !== '2026-10-15' || line.trip_id !== 't1' || (await page.inputValue('#journal-line')) !== 'Uffizi in the morning, rain all afternoon.') throw new Error(`the day's line sent ${JSON.stringify(line)}`);
+  const posts = dayPosts().length;
+  await page.focus('#journal-line');
+  await page.press('#journal-line', 'Enter');
+  await page.waitForTimeout(300);
+  if (dayPosts().length !== posts) throw new Error('leaving the line unchanged logged it again');
+  await page.evaluate(() => { document.getElementById('app-toast').hidden = true; const c = document.querySelector('.today-card'); scrollTo(0, c.getBoundingClientRect().top + scrollY - 70); });
+  await shot('today-wore-after');
+  await page.locator('#journal-line').scrollIntoViewIfNeeded();
+  await shot('today-line');
+  step('a line about the day saves when you leave it, tidied, and shows; unchanged, it isn\'t sent again');
+  // cost per wear, from what's logged: the oxford, $79.50, worn twice
+  await page.locator('.today-card .outfit__item[aria-label="Navy oxford shirt"]').click();
+  await until(page, () => document.getElementById('sheet').open);
+  if ((await page.textContent('#sv-wear')) !== 'Worn 2 times · $39.75 a wear') throw new Error(`cost per wear: ${await page.textContent('#sv-wear')}`);
+  await shot('item-cost');
+  await page.goBack();
+  await until(page, () => !document.getElementById('sheet').open);
+  step('a garment says how often it\'s been worn and what that makes each wear cost');
 
   // the consent page ChatGPT sends you to: it can be allowed; a request that would send you
   // anywhere but ChatGPT can't
@@ -1078,6 +1184,17 @@ async function offline(page, shot) {
   if (!/€1 = \$1\.13/.test(flatText(await page.textContent('.home-away'))) || asked.filter((a) => a.path.startsWith('frankfurter:')).length !== 1) throw new Error(`offline, the rate kept on the phone isn't shown: ${await page.textContent('#today-view .today__trip')}`);
   await shot('offline');
   step('offline: the page, its scripts and the data come from the copy on the phone, and the rate from the one kept');
+  // what you wore and a line about the day, offline: logged on the phone, the line under the tabs
+  // counting what's waiting; nothing goes out until the connection's back
+  await page.click('.today-card .wore__btn');
+  await until(page, () => document.querySelector('.wore__done') && /1 change waiting to send/.test(document.getElementById('offline-note').textContent));
+  await page.fill('#journal-line', 'A slow day, offline.');
+  await page.press('#journal-line', 'Enter');
+  await until(page, () => /2 changes waiting to send/.test(document.getElementById('offline-note').textContent));
+  if (asked.some((a) => a.path.startsWith('/rest/v1/events') && a.method !== 'GET')) throw new Error('a day logged with no connection went out');
+  await page.evaluate(() => scrollTo(0, 0));
+  await shot('offline-wore');
+  step('offline, Wore it and the day\'s line are kept on the phone, and the line under the tabs counts them');
   await page.click('.today__part a[href$="/pack"]');
   await until(page, () => document.querySelectorAll('#pack-groups .pack-row').length === 5);
   const before = asked.length;
@@ -1101,6 +1218,9 @@ async function offline(page, shot) {
   const sent = asked.slice(before).filter((a) => a.method === 'PATCH');
   if (sent.length !== 1 || !/trip_packing\?(.*&)?id=eq\.p2(&|$)/.test(sent[0].path) || JSON.stringify(sent[0].body) !== '{"status":"packed"}') throw new Error(`the change made offline sent ${JSON.stringify(sent)}`);
   step('a status change made offline is kept (adding says it has to wait), and sent as one PATCH of that entry when the connection is back');
+  const sentDays = asked.filter((a) => a.method === 'POST' && a.path.startsWith('/rest/v1/events')).map((a) => a.body);
+  if (sentDays.length !== 2 || sentDays[0].kind !== 'wore' || sentDays[0].item_ids.join() !== 'w1,w3' || sentDays[0].date !== '2026-10-15' || sentDays[1].kind !== 'journal' || sentDays[1].text !== 'A slow day, offline.' || 'unsent' in sentDays[0]) throw new Error(`what was logged offline sent ${JSON.stringify(sentDays)}`);
+  step('and what was logged of the day goes too, one POST each, as it was made');
 }
 
 // The home-screen app, on an iPhone in Safari: the app pages (and only they) link a manifest that

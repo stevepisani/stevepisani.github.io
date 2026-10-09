@@ -3,7 +3,8 @@
 // activities, get_trip whole and analyze_trip_packing, through SJPJr's tools as Steve. The
 // acceptance case is the real trip: London and Florence, autumn 2026, Steve, Lexi and Dominic.
 // Then what older calls sent still works, nothing points at the wrong thing, and removing or
-// deleting takes only what it says. Offline, a few seconds.
+// deleting takes only what it says; and days: what Steve wore and a line about each, through
+// get_today, log_day and get_history. Offline, a few seconds.
 //
 //   node tools/trips-test.mjs
 import { rpc } from '../supabase/functions/mcp/server.js';
@@ -245,6 +246,145 @@ ok(!(await tool('remove_transport', { id: ba3279.id })).error && !(await tool('r
   await as(STEVE, 'steve@example.com');
 }
 
+// ---------- Days: what happened, a day at a time (public.events; areas/days.js) ----------
+// The Europe trip as Steve has it (London, Florence, Paris), with each leg's own clock: get_today
+// in the leg's time zone, log_day (as planned, by name, changed, cleared, the journal, retries, dry
+// runs), get_history with how often each garment was worn, the newest standing and the trash
+// taking an undo; and none of it anyone else's.
+{
+  const realWeather = ctx.weather, realNow = ctx.now;
+  // the weather: one day, with the place's time zone (as Open-Meteo gives it), by longitude
+  const zone = (lon) => (lon < -30 ? 'America/New_York' : lon < 1 ? 'Europe/London' : lon < 5 ? 'Europe/Paris' : 'Europe/Rome');
+  const asked = [];
+  ctx.weather = async (leg) => { asked.push(leg); return { kind: 'forecast', timezone: zone(leg.lon), days: [{ date: leg.from, hi: 18.4, lo: 9.2, rain: 70, kind: 'forecast', code: 61, feelsHi: 17, feelsLo: 6 }], summary: { hi: 18, lo: 9, wet: 1 } }; };
+  const at = (iso) => { ctx.now = () => new Date(iso); };
+  // the trip seeded with the old rows has the same dates; to the trash with it, so this one is the trip on
+  for (const x of (await tool('list_trips', {})).trips.filter((x) => x.name === 'Europe, autumn')) await tool('delete_trip', { id: x.id });
+  const trip = await ctx.trips.add({ name: 'Europe, autumn', legs: [
+    { place: 'London', country: 'United Kingdom', lat: 51.5, lon: -0.12, from: '2026-10-07', to: '2026-10-14' },
+    { place: 'Florence', country: 'Italy', lat: 43.78, lon: 11.25, from: '2026-10-14', to: '2026-11-14' },
+    { place: 'Paris', country: 'France', lat: 48.85, lon: 2.35, from: '2026-11-14', to: '2026-11-17' },
+  ], days: [] });
+  const E = trip.id;
+  await tool('plan_days', { trip_id: E, days: [
+    { date: '2026-10-15', occasion: 'Uffizi, then dinner out', items: [shirtA, pants, loafers], activities: [{ title: 'Uffizi', type: 'sightseeing', start_time: '09:30', end_time: '12:00' }, { title: 'Dinner at Buca Mario', type: 'dining', start_time: '20:00' }] },
+    { date: '2026-10-16', items: [shirtB, pants] },
+  ] });
+  await tool('add_transport', { trip_id: E, transport: [{ type: 'train', origin: 'Florence', destination: 'Paris', date: '2026-11-14', departure_time: '2026-11-14T08:00:00+01:00', carrier: 'Frecciarossa', number: '9581' }, { type: 'train', origin: 'London', destination: 'Florence', date: '2026-10-14', departure_time: '2026-10-14T07:01:00+01:00', arrival_time: '2026-10-14T19:30:00+02:00' }] });
+  await tool('add_lodging', { trip_id: E, lodging: [{ name: 'Florence flat', place: 'Florence', check_in: '2026-10-14', check_out: '2026-11-14' }] });
+  const packed = await tool('add_packing_items', { trip_id: E, items: [{ item_id: shirtA, status: 'packed' }, { item_id: shirtB, status: 'packed' }, { item_id: pants, status: 'packed' }, { item_id: loafers, status: 'packed' }, { label: 'Umbrella', status: 'packed' }] });
+  ok(!packed.error && packed.created.length === 5, 'days: the trip, planned and packed', packed);
+
+  // get_today: by the leg's own clock
+  at('2026-10-15T09:00:00Z'); // 11:00 in Florence, 05:00 at home
+  let d = await tool('get_today', {});
+  ok(!d.error && d.date === '2026-10-15' && d.today === true && d.where.at === 'trip' && d.where.place === 'Florence' && d.where.timezone === 'Europe/Rome' && d.where.local_time === '11:00' && d.where.trip.id === E && d.where.trip.day === 9 && d.where.trip.days === 42, 'get_today: the date and where he is, the leg on that day, by its own clock', d.where);
+  ok(d.weather.hi === 18 && d.weather.lo === 9 && d.weather.rain === 70 && d.weather.condition === 'Light rain' && d.weather.kind === 'forecast', 'get_today: the weather that day, its sky in words', d.weather);
+  ok(d.planned.occasion === 'Uffizi, then dinner out' && d.planned.items.map((i) => i.id).join() === [shirtA, pants, loafers].join() && d.planned.items.every((i) => i.name) && d.planned.items.find((i) => i.id === shirtA).hero_photo_id, 'get_today: the planned outfit, with names and photo ids', d.planned);
+  ok(d.activities.map((a) => a.title).join() === 'Uffizi,Dinner at Buca Mario' && d.worn === null && d.journal === null, 'get_today: the day\'s activities; nothing logged yet', d);
+  ok(d.next_journey?.destination === 'Paris' && d.tonight?.name === 'Florence flat' && d.link === 'https://stevenpisani.com/apps/#today', 'get_today: the next journey (not the one already made), tonight\'s stay, the link into the app', [d.next_journey, d.tonight, d.link]);
+  ok(/^Today: Thursday 15 October 2026, in Florence, Italy \(day 9 of 42 of Europe, autumn; 11:00 there\)\./.test(d.text) && /Worn: not logged yet/.test(d.text) && /In the app: https:\/\/stevenpisani\.com\/apps\/#today/.test(d.text), 'get_today: says it in a few lines', d.text);
+  ok(asked.every((l) => l.from === l.to), 'get_today: asks the weather for one day, not the whole leg', asked);
+  at('2026-10-15T22:30:00Z'); // 00:30 on the 16th in Florence, still the 15th at home
+  d = await tool('get_today', {});
+  ok(d.date === '2026-10-16' && d.where.local_time === '00:30' && d.planned.items.length === 2, 'get_today: past midnight in Florence it\'s the next day, though it isn\'t yet at home', d.where);
+  at('2026-10-06T23:30:00Z'); // 19:30 at home on the 6th; already the 7th in London, the trip's first day
+  ok((await tool('get_today', {})).where.place === 'London', 'get_today: a trip that starts tomorrow at home but today where it is');
+  at('2026-10-05T12:00:00Z');
+  d = await tool('get_today', {});
+  ok(d.date === '2026-10-05' && d.where.at === 'home' && d.where.place === 'Philadelphia' && d.where.timezone === 'America/New_York' && d.where.local_time === '08:00' && d.planned === null && d.next_journey?.origin === 'London' && d.tonight === null && /at home in Philadelphia/.test(d.text), 'get_today: at home before the trip, by home\'s clock; the trip\'s first journey is next', d);
+  ok((await tool('get_today', { date: '2026-11-15' })).where.place === 'Paris' && (await tool('get_today', { date: '2026-11-15' })).today === false, 'get_today: another day, where he\'ll be then');
+  await bad('get_today', { date: '15/10/2026' }, /YYYY-MM-DD/, 'get_today: a date is YYYY-MM-DD');
+
+  // log_day: as planned, then changed, by name; the journal; retries and dry runs
+  at('2026-10-15T09:00:00Z');
+  ctx.client = 'client-chatgpt';
+  const dry = await tool('log_day', { as_planned: true, dry_run: true, client_ref: 'dry-1' });
+  ok(!dry.error && dry.dry_run && dry.would_store[0].item_ids.length === 3 && !(await q(`select 1 from public.events`)).length, 'log_day: a dry run stores nothing', dry);
+  const one = await tool('log_day', { as_planned: true, said: 'Wore the plan today', client_ref: 'wore-15' });
+  const row = (await q(`select * from public.events`))[0];
+  ok(!one.error && one.date === '2026-10-15' && one.stored.length === 1 && row.kind === 'wore' && row.item_ids.join() === [shirtA, pants, loafers].join() && row.trip_id === E && row.owner === STEVE && row.source === 'mcp' && row.recorded_by === 'assistant (client-chatgpt)' && row.evidence.as_planned === true && row.evidence.said === 'Wore the plan today' && row.evidence.planned.length === 3, 'log_day as_planned: the planned outfit, on the trip, with who sent it, how, and his words', row);
+  ok(/Logged for 15 Oct \(Florence, Europe, autumn\): wore .* \(as planned\)/.test(one.text), 'log_day: says what it stored', one.text);
+  const again = await tool('log_day', { as_planned: true, client_ref: 'wore-15' });
+  ok(again.repeated && again.stored[0].id === one.stored[0].id && (await q(`select count(*)::int as n from public.events`))[0].n === 1, 'log_day: a retry with the same client_ref returns what was stored, adding nothing', again);
+  d = await tool('get_today', {});
+  ok(d.worn.as_planned === true && d.worn.items.length === 3 && d.worn.source === 'mcp' && /Worn: .* \(as planned\)/.test(d.text), 'get_today: what\'s logged as worn', d.worn);
+  await bad('log_day', { wore: ['Soft Brushed'] }, /could be:(?=.*Dark Brown)(?=.*Dark Gray).*Pass the id/, 'log_day: a name that fits several garments is refused, with them');
+  await bad('log_day', { wore: ['purple cape'] }, /No garment matches "purple cape"/, 'log_day: a name that fits none is refused');
+  await bad('log_day', { wore: ['00000000-0000-4000-8000-000000000000'] }, /Not in the wardrobe/, 'log_day: an id that isn\'t a garment is refused');
+  await bad('log_day', { date: '2026-10-16', as_planned: true }, /hasn't happened yet/, 'log_day: not a day still to come');
+  await bad('log_day', { date: '2026-10-14', as_planned: true }, /Nothing was planned/, 'log_day: as_planned needs a plan');
+  await bad('log_day', {}, /Nothing to log/, 'log_day: something to log');
+  await bad('log_day', { wore: [shirtA], as_planned: true }, /not both/, 'log_day: wore or as_planned, not both');
+  const changed = await tool('log_day', { wore: ['navy chinos', shirtB, 'the brown suede loafers'], journal: '  Uffizi in the rain,   then pici.  ', said: 'Actually the grey one, and the chinos' });
+  const wore2 = changed.stored.find((e) => e.kind === 'wore');
+  ok(!changed.error && changed.stored.length === 2 && wore2.item_ids.join() === [pants, shirtB, loafers].join() && wore2.evidence.as_planned === false && wore2.evidence.named.map((n) => n.by).join() === 'name,id,name' && changed.stored.find((e) => e.kind === 'journal').text === 'Uffizi in the rain, then pici.', 'log_day: changed, by names and an id (each name kept with what it matched), with a journal line, tidied', changed.stored);
+  d = await tool('get_today', {});
+  ok(d.worn.items.map((i) => i.id).join() === [pants, shirtB, loafers].join() && d.worn.as_planned === false && d.journal.text === 'Uffizi in the rain, then pici.' && (await q(`select count(*)::int as n from public.events where kind = 'wore' and date = '2026-10-15'`))[0].n === 2, 'logging again replaces what the day says; the earlier row stays as its history', d.worn);
+  ok((await tool('log_day', { journal: '' })).stored[0].text === undefined && (await tool('get_today', {})).journal === null, 'log_day journal "": the line cleared');
+  await tool('log_day', { journal: 'Uffizi in the rain, then pici.' });
+  ok((await tool('log_day', { date: '2026-10-14', wore: [shirtA, pants] })).stored[0].trip_id === E, 'log_day: an earlier day, on the trip that day was on');
+  await tool('log_day', { date: '2026-10-12', wore: [shirtA] });
+  await tool('log_day', { date: '2026-10-11', wore: [shirtB] });
+  ok((await tool('log_day', { date: '2026-10-11', wore: [] })).stored[0].item_ids.length === 0 && (await tool('get_today', { date: '2026-10-11' })).worn.items.length === 0, 'log_day wore []: cleared (a row that says so; nothing deleted)');
+  ok((await tool('log_day', { date: '2026-10-02', wore: [shirtA] })).stored[0].trip_id === undefined, 'log_day: a day at home is on no trip');
+
+  // get_history: the days and how often each garment was worn
+  let h = await tool('get_history', { trip_id: E });
+  const count = (id) => h.worn.find((x) => x.item_id === id)?.days;
+  ok(!h.error && h.from === '2026-10-07' && h.to === '2026-10-15' && h.days_with_wear === 3, 'get_history trip_id: from the trip\'s first day to today; three days with something worn (a cleared day isn\'t one)', h);
+  ok(count(shirtA) === 2 && count(pants) === 2 && count(shirtB) === 1 && count(loafers) === 1 && h.worn[0].days === 2, 'get_history: days worn per garment, on the trip (once a day, the standing record only), most first', h.worn);
+  ok(h.packed_not_worn.length === 0 && h.events.filter((e) => e.kind === 'wore').length === 4 && h.events.filter((e) => e.kind === 'journal').length === 1 && h.events.every((e) => e.source && e.logged_at), 'get_history: each day\'s standing wore and journal, with how each was recorded', h.events);
+  await tool('add_packing_items', { trip_id: E, items: [{ label: 'Rain jacket', status: 'packed' }] });
+  const jacket = (await tool('add_item', { name: 'Rain shell', category: 'outerwear' })).item.id;
+  await tool('add_packing_items', { trip_id: E, items: [{ item_id: jacket, status: 'packed' }] });
+  h = await tool('get_history', { trip_id: E });
+  ok(h.packed_not_worn.map((x) => x.name).join() === 'Rain shell' && /Packed but not worn yet: Rain shell/.test(h.text), 'get_history: the packed garments not worn yet on the trip (garments only)', h.packed_not_worn);
+  h = await tool('get_history', {});
+  ok(h.from === '2026-09-16' && h.to === '2026-10-15' && count(shirtA) === 3, 'get_history: the last 30 days by default, home days included', [h.from, h.to, h.worn]);
+  h = await tool('get_history', { kind: 'journal', from: '2026-10-01', to: '2026-10-31' });
+  ok(h.events.length === 1 && h.events[0].text === 'Uffizi in the rain, then pici.', 'get_history kind: only that kind', h.events);
+  await bad('get_history', { from: '2026-10-10', to: '2026-10-01' }, /after/, 'get_history: from before to');
+  await bad('get_history', { from: '2024-01-01', to: '2026-10-01' }, /shorter/, 'get_history: at most 400 days');
+
+  // undo: the newest row goes to the trash (what the app's Undo does); the one before stands again
+  const newest = (await q(`select id from public.events where kind = 'wore' and date = '2026-10-15' order by created_at desc limit 1`))[0].id;
+  ok((await q(`update public.events set deleted_at = now() where id = $1 returning id`, [newest])).length === 1 && (await tool('get_today', {})).worn.as_planned === true, 'undo: the newest row to the trash, and the one before is what the day says again');
+  await db.exec(`reset role; set request.jwt.claims = ''`);
+  await q(`update public.events set deleted_at = now() - interval '31 days' where id = $1`, [newest]);
+  await q(`select * from public.empty_trash()`);
+  ok(!(await q(`select 1 from public.events where id = $1`, [newest])).length && (await q(`select count(*)::int as n from public.events`))[0].n > 5, 'emptying the trash takes an event in it after 30 days, and only that');
+  await db.exec(`set role authenticated`);
+  await as(STEVE, 'steve@example.com');
+
+  // the shared rules (_shared/days.js), as the app uses them
+  const { standing, wears } = await import('../supabase/functions/_shared/days.js');
+  const ev = [
+    { id: 'a', date: '2026-10-15', kind: 'wore', item_ids: ['x'], created_at: '2026-10-15 08:00:00.1+00' },
+    { id: 'b', date: '2026-10-15', kind: 'wore', item_ids: ['y', 'y'], created_at: '2026-10-15T09:00:00.000Z' },
+    { id: 'c', date: '2026-10-15', kind: 'visited', created_at: '2026-10-15T07:00:00Z' },
+    { id: 'd', date: '2026-10-15', kind: 'visited', created_at: '2026-10-15T07:30:00Z' },
+    { id: 'e', date: '2026-10-16', kind: 'wore', item_ids: ['y'], created_at: '2026-10-16T09:00:00Z', deleted_at: '2026-10-16T09:01:00Z' },
+  ];
+  ok(standing(ev).map((e) => e.id).join() === 'b,d,c' && wears(ev).get('y').times === 1 && !wears(ev).has('x'), 'the newest wore stands (Postgres and browser times compared as times); other kinds all count; the trash never does', standing(ev));
+
+  // someone else: sees none of it, can't add to Steve's days or change them
+  await as(OTHER, 'other@example.com');
+  ok(!(await ctx.events.list()).length && !(await q(`select 1 from public.events`)).length, 'someone else sees none of Steve\'s events');
+  ok(await ctx.events.add([{ date: '2026-10-15', kind: 'wore', item_ids: [shirtA], owner: STEVE }]).then(() => false, () => true), 'and can\'t add one as Steve');
+  ok(await ctx.events.add([{ date: '2026-10-15', kind: 'journal', text: 'x', trip_id: E }]).then(() => false, () => true), 'nor one of their own on Steve\'s trip');
+  ok(!(await q(`update public.events set text = 'changed' returning id`)).length && !(await q(`update public.events set deleted_at = now() returning id`)).length, 'nor change or trash his');
+  ok((await tool('get_today', { date: '2026-10-15' })).worn === null && (await tool('get_history', {})).events.length === 0, 'and SJPJr shows them nothing of his');
+  const theirs = await tool('log_day', { date: '2026-10-05', journal: 'My own day' });
+  ok(!theirs.error && (await ctx.events.list()).length === 1, 'their own day is theirs');
+  await as(STEVE, 'steve@example.com');
+  ok(!(await ctx.events.list()).some((e) => e.text === 'My own day'), 'and Steve doesn\'t see it');
+
+  ctx.weather = realWeather;
+  ctx.now = realNow;
+  ctx.client = null;
+}
+
 // ---------- The weather (_shared/weather.js, against a made-up Open-Meteo) ----------
 // What the MCP server has always had stays as it was, the conditions come with it, and the hours
 // are only for whoever asks (the app): the server's answers stay short.
@@ -284,4 +424,4 @@ ok(!(await tool('remove_transport', { id: ba3279.id })).error && !(await tool('r
   } finally { globalThis.fetch = realFetch; }
 }
 
-console.log(`trips: ${passed} checks against the real schema: the London and Florence trip end to end (travelers, transport, lodging, links, bags, packing per traveler and bag, statuses, days with activities, get_trip, analyze_trip_packing), older calls, references, removing and deleting, each person's own, and the weather (what the server has always had, the conditions, the hours only when asked)`);
+console.log(`trips: ${passed} checks against the real schema: the London and Florence trip end to end (travelers, transport, lodging, links, bags, packing per traveler and bag, statuses, days with activities, get_trip, analyze_trip_packing), older calls, references, removing and deleting, each person's own, days (get_today by the leg's clock, log_day, get_history's counts, the trash, and none of it anyone else's), and the weather (what the server has always had, the conditions, the hours only when asked)`);

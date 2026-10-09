@@ -43,6 +43,19 @@ const cardScript = async () => {
   return card.js;
 };
 
+// the weather, kept half an hour per place and dates (and day), so get_today and get_trip in one
+// chat ask Open-Meteo once; a failure isn't kept
+const weatherKept = new Map<string, { at: number; w: Promise<unknown> }>();
+const weatherFor = (leg: { lat: number; lon: number; from: string; to: string }) => {
+  const key = `${leg.lat},${leg.lon},${leg.from},${leg.to},${new Date().toISOString().slice(0, 10)}`, hit = weatherKept.get(key);
+  if (hit && Date.now() - hit.at < 1_800_000) return hit.w;
+  const w = legWeather(leg);
+  weatherKept.set(key, { at: Date.now(), w });
+  w.then((x) => { if (!x) weatherKept.delete(key); }, () => weatherKept.delete(key));
+  if (weatherKept.size > 300) weatherKept.delete(weatherKept.keys().next().value!);
+  return w;
+};
+
 // deno-lint-ignore no-explicit-any
 let imagingLoad: Promise<any> | null = null;
 Deno.serve(async (req) => {
@@ -85,10 +98,11 @@ Deno.serve(async (req) => {
   // as "Bearer t, Bearer t", which Supabase Auth refuses
   const db = createClient(SUPABASE, ANON, { global: { headers: { Authorization: `Bearer ${token}` } }, auth: { persistSession: false, autoRefreshToken: false } });
   const { data: who, error } = await db.auth.getUser(token);
+  // the token's claims: which app it was given to (client_id), and, when it's refused, why
+  let claims: Record<string, unknown> = {};
+  try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
   if (error || !who?.user) {
     // why, for the logs (tools/supabase-logs.mjs): the error and the token's non-personal claims
-    let claims: Record<string, unknown> = {};
-    try { claims = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); } catch { /* not a JWT */ }
     const { aud, iss, role, scope, exp, client_id } = claims as Record<string, unknown>;
     console.warn("mcp: token refused:", error?.message, JSON.stringify({ aud, iss, role, scope, client: !!client_id, email: "email" in claims, expired: typeof exp === "number" && exp * 1000 < Date.now() }));
     return unauthorized("That sign-in has expired or isn't valid.", resource);
@@ -182,10 +196,23 @@ Deno.serve(async (req) => {
       }),
       set: (table: string, id: string, at: string | null) => one(db.from(table).update({ deleted_at: at }).eq("id", id).select("id").maybeSingle()),
     },
+    // what happened, a day at a time (areas/days.js): only added to here; the trash leaves it out
+    events: {
+      list: ({ from, to, trip_id }: { from?: string; to?: string; trip_id?: string } = {}) => {
+        let q = db.from("events").select("*").is("deleted_at", null);
+        if (from) q = q.gte("date", from);
+        if (to) q = q.lte("date", to);
+        if (trip_id) q = q.eq("trip_id", trip_id);
+        return rows(q.order("date").order("created_at").limit(5000));
+      },
+      byRef: (ref: string) => one(db.from("events").select("*").eq("client_ref", ref).maybeSingle()),
+      add: (list: Record<string, unknown>[]) => rows(db.from("events").insert(list).select()),
+    },
+    client: typeof claims.client_id === "string" ? claims.client_id : null, // who recorded what's logged from a chat
     cardScript,
     storageOrigin: SUPABASE, // where the photos load from, for the card's allowed sources
     locate,
-    weather: (leg: { lat: number; lon: number; from: string; to: string }) => legWeather(leg),
+    weather: weatherFor,
   };
 
   let body: unknown;

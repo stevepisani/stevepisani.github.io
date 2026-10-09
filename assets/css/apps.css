@@ -94,7 +94,7 @@ html:has(.app-page) { overscroll-behavior-y: contain; }
 /* An app, not a page: buttons, tabs, chips and the bars don't select as text or bring up the
    callout on a long press, and a double tap doesn't zoom. What's read (a recipe's notes, a
    garment's facts) and what's typed still select. */
-.app-page :is(button, .btn, .seg, .tabbar, .cats, .chip, .swatch, .app-top, .dialog-bar, .tile__open, .trip-card, .pack-card, .next-day, .flatlay__piece, .photo-thumb, .app-toast) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.app-page :is(button, .btn, .seg, .tabbar, .cats, .chip, .swatch, .app-top, .dialog-bar, .tile__open, .trip-card, .pack-card, .next-day, .flatlay__piece, .photo-thumb, .wore-pick, .app-toast) { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .app-page { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
 /* ---------- Settings (from the badge; kit.js) ---------- */
@@ -399,6 +399,7 @@ html.vt-zoom .app-dialog { transition: none; }
 .app .sheet__name { margin: 0 0 2px; font-size: 1.8rem; line-height: 1.15; text-wrap: balance; }
 .app .sheet__facts { color: var(--ink); font-size: 1.02rem; }
 .sheet__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px !important; }
+.sheet__view .sheet__wear { color: var(--ink); font-weight: 600; }
 .sheet__notes { white-space: pre-wrap; padding: 12px 14px; border-radius: 14px; background: var(--bg-2); }
 .sheet__notes:empty { display: none !important; }
 .sheet__shared { margin: 0; padding: 10px 14px; border-radius: 12px; background: var(--bg-2); color: var(--ink-2); font-size: .9rem; }
@@ -511,6 +512,8 @@ html.vt-zoom .app-dialog { transition: none; }
 .day__wx { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .day__occasion { font: 600 1.12rem/1.3 var(--font-display); }
 .day__note { color: var(--ink-2); font-size: .92rem; }
+.day__worn { color: var(--ok); font-weight: 600; font-size: .92rem; }
+.day__journal { color: var(--ink); font: italic 400 1rem/1.4 var(--font-display); }
 .day .look { max-width: 26rem; }
 .sky { flex: none; width: 18px; height: 18px; color: var(--ink-2); }
 .sky--typical { color: var(--ink-3); }
@@ -658,6 +661,14 @@ button.flatlay__piece:active { transform: scale(.96); }
 .today-card .look { max-width: 30rem; width: 100%; justify-self: center; }
 .today-card__occasion { font: 600 1.2rem/1.3 var(--font-display); }
 .today-card__none, .today-card__note { color: var(--ink-2); }
+/* what you wore: one tap for the plan, a way to pick the pieces, and once it's logged, done (a
+   word and a tick, not a colour alone) with a way to change it; then a line about the day */
+.wore { display: flex; align-items: center; gap: 8px 18px; flex-wrap: wrap; }
+.app .wore__btn { padding-inline: 26px; }
+.wore__done { display: inline-flex; align-items: center; min-height: 44px; color: var(--ok); font-weight: 600; }
+.wore__change { font-weight: 500; }
+.app .journal { gap: 6px; }
+.app .journal input { font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; }
 .today-card__step { display: flex; justify-content: space-between; gap: 12px; margin: 0 -4px -6px; padding-top: 2px; border-top: 1px solid var(--line); }
 .today-card__step .link-btn { padding: 0 4px; text-decoration: none; font-weight: 500; }
 .today-card__step .link-btn:disabled { visibility: hidden; }
@@ -793,6 +804,7 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .pack-row__name, .pack-row__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pack-row__meta { color: var(--ink-2); font-size: .85rem; }
 .pack__qty { color: var(--ink-2); font-size: .9rem; }
+.pack-row__unworn { justify-self: start; margin-top: 3px; }
 .pack-row__must { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 18%, var(--card)); color: var(--ink); font: 600 .62rem/1.5 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; vertical-align: .15em; }
 .pack-row.is-packed .pack-row__name { color: var(--ink-2); }
 .pack-row.is-packed .pack-row__photo { opacity: .6; }
@@ -850,3 +862,14 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .consent__warn { color: var(--bad); font-weight: 600; }
 .consent__buttons { justify-content: flex-start; }
 
+
+/* What you wore, picked: the closet as small tiles; a picked one is ringed and ticked */
+.wore-sheet__count { text-align: center; }
+.wore-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px 10px; }
+.wore-pick { display: grid; gap: 4px; width: 100%; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.wore-pick .wore-pick__photo { margin: 0; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); }
+.wore-pick[aria-pressed="true"] .wore-pick__photo { box-shadow: inset 0 0 0 3px var(--accent); }
+.wore-pick[aria-pressed="true"] .wore-pick__photo::after { content: "✓"; position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 .8rem/1 var(--font-body); }
+.wore-pick:focus-visible { outline: none; }
+.wore-pick:focus-visible .wore-pick__photo { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wore-pick__name { font-size: .82rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

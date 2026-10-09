@@ -150,6 +150,7 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
       <div class="pack-hero__text">
         <p class="pack-view__count" id="pack-count"></p>
         <p class="pack-view__leave" id="pack-leave"></p>
+        <p class="pack-view__leave" id="pack-worn"></p>
       </div>
     </header>
     <div class="cats pack-status" id="pack-status" role="group" aria-label="Show"></div>
@@ -235,6 +236,7 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
           <p id="sv-fit"></p>
           <p class="sheet__tags" id="sv-tags"></p>
           <p id="sv-bought"></p>
+          <p class="sheet__wear" id="sv-wear"></p>
         </div>
         <div class="sheet__edit sheet__head">
           <label>Name <input data-is="name" type="text" maxlength="120"></label>
@@ -277,6 +279,22 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
       <button class="btn btn--ghost btn--small" id="retire" type="button"></button>
       <button class="link-btn link-btn--bad" id="remove" type="button">Delete it</button>
     </div>
+  </form>
+</dialog>
+
+{%- comment -%} What you wore: the closet's pieces to pick, what's logged (or the plan) already picked {%- endcomment %}
+<dialog class="app-dialog wore-sheet" id="wore-sheet" aria-labelledby="wore-title">
+  <form method="dialog">
+    <header class="dialog-bar">
+      <button class="link-btn" type="button" data-close>Cancel</button>
+      <h2 id="wore-title">What you wore</h2>
+      <button class="link-btn dialog-bar__ok" type="submit" value="ok" id="wore-ok">Save</button>
+    </header>
+    <label class="search"><svg aria-hidden="true"><use href="#i-search"/></svg><input id="wore-search" type="search" placeholder="Search" aria-label="Search the closet" enterkeyhint="search"></label>
+    <p class="wore-sheet__count" id="wore-count" aria-live="polite"></p>
+    <ul class="wore-grid" id="wore-grid" aria-label="Your clothes"></ul>
+    <p class="app-empty" id="wore-empty" hidden>Nothing matches that.</p>
+    <div class="sheet__foot"><button class="link-btn link-btn--bad" id="wore-clear" type="button" hidden>Take this day off the log</button></div>
   </form>
 </dialog>
 
