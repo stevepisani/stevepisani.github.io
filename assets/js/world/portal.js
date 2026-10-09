@@ -176,6 +176,7 @@ async function load(place, parent, progress) {
       goal = null;
       keys.clear();
       alive = true;
+      canvas.style.display = '';
       fit();
       last = performance.now();
       raf = requestAnimationFrame(frame);
@@ -219,6 +220,7 @@ async function load(place, parent, progress) {
       keys.clear();
       down = null;
       await fade(0);
+      if (!alive) canvas.style.display = 'none'; // not even composited while you're away
     },
   };
   return view;
