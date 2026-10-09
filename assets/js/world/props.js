@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { PALETTE, pbr, surface, woodSet, bambooSet, lavaSet, thatchSet, glow } from './materials.js';
 import { createFire } from './fire.js';
 import * as T from './textures.js';
+import { windowVertex, windowFragment } from './doorwindow.js';
 
 const TAU = Math.PI * 2;
 
@@ -621,40 +622,12 @@ export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9 } = {}
   g.add(leaf);
   for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(OW / 4 - 0.01, OH - 0.04, 0.045), i % 2 ? wood : dark, [OW / 8 + i * OW / 4, (OH - 0.04) / 2, 0], leaf);
   for (const y of [0.35, OH - 0.45]) add(new THREE.BoxGeometry(OW - 0.06, 0.1, 0.03), wood, [OW / 2, y, 0.035], leaf);
-  // the opening: the place, looked into. Its direction in the door's frame is linear across the
-  // plane, so it's worked out per vertex; per pixel it's a lookup in the panorama.
+  // the opening: the place, looked into (doorwindow.js)
   const uniforms = { view: { value: null }, ready: { value: 0 }, sky: { value: new THREE.Color(sky) }, brightness: { value: 1.3 }, far: { value: far }, centre: { value: new THREE.Vector3(0, eye - STEP - OH / 2, 0.16) } };
   const opening = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), new THREE.ShaderMaterial({
     uniforms,
-    vertexShader: `
-      varying vec3 vEye, vDir;
-      void main() {
-        vec4 world = modelMatrix * vec4(position, 1.0);
-        mat3 toLocal = inverse(mat3(modelMatrix));
-        vEye = toLocal * (cameraPosition - modelMatrix[3].xyz); // your eye in the opening's frame
-        vDir = toLocal * (world.xyz - cameraPosition);
-        gl_Position = projectionMatrix * viewMatrix * world;
-      }`,
-    fragmentShader: `
-      uniform sampler2D view;
-      uniform float ready, brightness;
-      uniform vec3 sky;
-      uniform vec3 centre;
-      uniform float far;
-      varying vec3 vEye, vDir;
-      void main() {
-        // the place as if painted on a sphere round where you come in, "far" metres out: from
-        // further back you see more of it through the opening, as you would through a real one
-        vec3 o = vEye - centre, r = normalize(vDir);
-        float b = dot(o, r), k = dot(o, o) - far * far;
-        vec3 d = normalize(o + (-b + sqrt(max(b * b - k, 0.0))) * r);
-        float yaw = atan(-d.x, -d.z), pitch = asin(clamp(d.y, -1.0, 1.0));
-        vec2 uv = vec2(0.5 - yaw / 6.2831853, 0.5 + pitch / 3.1415927);
-        vec3 c = mix(sky, texture2D(view, uv).rgb, ready);
-        gl_FragColor = vec4(c * brightness, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
+    vertexShader: windowVertex,
+    fragmentShader: windowFragment,
   }));
   opening.position.set(0, STEP + OH / 2, 0);
   opening.castShadow = opening.receiveShadow = false;

@@ -1959,7 +1959,16 @@ async function start() {
   // where you went in, the door in front of you.
   const doorLeave = $('door-leave'), portalCredit = $('portal-credit');
   const portalUrl = (() => { const u = new URL('./portal.js', import.meta.url); u.search = new URL(import.meta.url).search; return u.href; })();
-  const door = { it: null, view: null, busy: false, inside: false, tries: 0 };
+  const door = { it: null, view: null, busy: false, inside: false, tries: 0, fetching: false };
+  // Loading fast: as you come within 16 m of the door, its place starts coming in (its bundle, then
+  // the light copy, then the full splat; portal.js prefetch()), so by the time you're at the step
+  // there's little or nothing left to wait for.
+  const doorSpot = interactables.find((x) => x.id === 'door');
+  if (doorSpot) setInterval(() => {
+    if (door.fetching || state !== 'walk' || player.pos.distanceTo(doorSpot.point) > 16) return;
+    door.fetching = true;
+    import(/* by URL, as below */ portalUrl).then((m) => m.prefetch(doorSpot.place)).catch(() => { door.fetching = false; });
+  }, 1000);
   function stepThrough(it) {
     if (state !== 'walk' || door.busy) return;
     door.busy = true;
@@ -1977,11 +1986,15 @@ async function start() {
     const through = (from) => poseLooking(from, from.clone().add(new THREE.Vector3(0, 0, -1).transformDirection(g.matrixWorld)));
     door.stand = through(eyeAt(1.7));
     door.sill = through(eyeAt(0.16)); // your eye just short of the opening, which fills the view
+    // back through the door back: from the sill, turned round, down the trail you came up
+    const outward = (from) => poseLooking(from, from.clone().add(new THREE.Vector3(0, 0, 1).transformDirection(g.matrixWorld)));
+    door.sillOut = outward(eyeAt(0.16));
+    door.standOut = outward(eyeAt(1.7));
     flyPath([{ ...door.stand, ms: 700 }]);
     const say = (f) => { hint.textContent = `${P.name}, ${P.where}… ${Math.round(f * 100)}%`; hint.hidden = false; hint.dataset.key = 'door-load'; };
     say(0);
     import(/* the place's own bundle, by URL: never part of world.js */ portalUrl)
-      .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95) }))
+      .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95), onBack: () => stepBack({ through: true }) }))
       .then((view) => {
         if (go !== door.tries || state !== 'door' || door.leaving) { view.leave(); return; } // stepped back while it loaded
         door.view = view;
@@ -2007,7 +2020,9 @@ async function start() {
         stepBack();
       });
   }
-  function stepBack({ fromHistory = false } = {}) {
+  // `through`: you walked into the door back, so you come out facing down the trail (what you saw
+  // through it); otherwise you back out, the door in front of you
+  function stepBack({ fromHistory = false, through = false } = {}) {
     if (state !== 'door' || door.leaving) return;
     if (!fromHistory) leaveLevel('door');
     door.leaving = true;
@@ -2017,15 +2032,18 @@ async function start() {
     doorLeave.hidden = portalCredit.hidden = true;
     const view = door.view;
     door.view = null;
-    const out = () => flyPath([{ ...door.stand, ms: 900 }], () => {
+    const facing = through && door.inside;
+    const out = () => flyPath([{ ...(facing ? door.standOut : door.stand), ms: 900 }], () => {
       door.busy = door.leaving = door.inside = false;
-      player.spawn(door.it.approach.clone().normalize(), door.it.point, -0.04);
+      if (facing) player.spawn(door.it.approach.clone().normalize(), door.standOut.pos.clone().add(new THREE.Vector3(0, 0, -5).applyQuaternion(door.standOut.quat)), -0.04);
+      else player.spawn(door.it.approach.clone().normalize(), door.it.point, -0.04);
       setState('walk');
       player.applyToCamera();
       canvas.focus({ preventScroll: true });
     });
     if (!door.inside) { if (view) view.leave(); out(); return; } // still at the step: just step back down
-    camera.position.copy(door.sill.pos); camera.quaternion.copy(door.sill.quat);
+    const at = facing ? door.sillOut : door.sill;
+    camera.position.copy(at.pos); camera.quaternion.copy(at.quat);
     renderer.setAnimationLoop(frame); // the planet, back behind the place as it fades
     view.leave().then(out);
   }

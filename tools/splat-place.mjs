@@ -2,7 +2,8 @@
 // of detail (12.9 million splats at the finest, for this one), far more than a phone should be
 // asked to draw. This keeps the finest close to where you stand and coarser further out, in rings
 // round `scan.centre` (in the scan's own x, z), drops what's nearly transparent, and writes one
-// compressed .sog (about 14 MB, 1.2 million splats) that portal.js loads.
+// compressed .sog (about 14 MB, 1.2 million splats) that portal.js loads, and a light copy (2 MB)
+// it shows first while that one comes in.
 //
 //   node tools/splat-place.mjs sala   →  assets/splats/sala-thai.sog   (then tools/portal-view.mjs)
 //
@@ -29,7 +30,7 @@ const get = async (url) => { const r = await fetch(url); if (!r.ok) throw new Er
 // each level we need, downloaded chunk by chunk and merged into one .ply
 const lod = JSON.parse(await get(`${CDN}/lod-meta.json`));
 const levels = {};
-for (const level of new Set(rings.map(([l]) => l))) {
+for (const level of new Set([...rings, ...P.scan.lite.rings].map(([l]) => l))) {
   const metas = [];
   for (const f of lod.filenames.filter((f) => f.startsWith(`${level}_`))) {
     const dir = join(work, f.split('/')[0]);
@@ -47,23 +48,36 @@ for (const level of new Set(rings.map(([l]) => l))) {
 // the rings: level l from the previous ring's edge out to r metres (across the ground)
 const { names } = levels[rings[0][0]];
 const ix = names.indexOf('x'), iz = names.indexOf('z'), io = names.indexOf('opacity'), n = names.length;
-const keep = [];
-let inner = 0;
-for (const [level, r] of rings) {
-  const { rows, count } = levels[level];
-  for (let i = 0; i < count; i++) {
-    const o = i * n, d = Math.hypot(rows[o + ix] - cx, rows[o + iz] - cz);
-    if (d >= inner && d < r && 1 / (1 + Math.exp(-rows[o + io])) >= minOpacity) keep.push(rows.subarray(o, o + n));
+function cut(rings, minOpacity, path) {
+  const keep = [];
+  let inner = 0;
+  for (const [level, r] of rings) {
+    const { rows, count } = levels[level];
+    for (let i = 0; i < count; i++) {
+      const o = i * n, d = Math.hypot(rows[o + ix] - cx, rows[o + iz] - cz);
+      if (d >= inner && d < r && 1 / (1 + Math.exp(-rows[o + io])) >= minOpacity) keep.push(rows.subarray(o, o + n));
+    }
+    inner = r;
   }
-  inner = r;
+  const out = new Float32Array(keep.length * n);
+  keep.forEach((row, i) => out.set(row, i * n));
+  const header = `ply\nformat binary_little_endian 1.0\nelement vertex ${keep.length}\n${names.map((k) => `property float ${k}\n`).join('')}end_header\n`;
+  writeFileSync(path, Buffer.concat([Buffer.from(header), Buffer.from(out.buffer)]));
+  return keep.length;
 }
-const out = new Float32Array(keep.length * n);
-keep.forEach((row, i) => out.set(row, i * n));
-const header = `ply\nformat binary_little_endian 1.0\nelement vertex ${keep.length}\n${names.map((k) => `property float ${k}\n`).join('')}end_header\n`;
-writeFileSync(join(work, 'place.ply'), Buffer.concat([Buffer.from(header), Buffer.from(out.buffer)]));
+const report = (file, what) => console.log(`${file}: ${what}, ${(readFileSync(join(root, file)).length / 1048576).toFixed(1)} MB`);
+// the full place
 const file = P.splat.replace(/^\//, '');
+const count = cut(rings, minOpacity, join(work, 'place.ply'));
 tool(join(work, 'place.ply'), join(root, file));
-console.log(`${file}: ${keep.length} splats, ${(readFileSync(join(root, file)).length / 1048576).toFixed(1)} MB`);
+report(file, `${count} splats`);
+// and its light copy, shown first while the full one loads: the coarsest level, nearer in, then
+// thinned (`keep` of it; splat-transform's decimate, on the CPU)
+const lite = P.lite.replace(/^\//, '');
+cut(P.scan.lite.rings, P.scan.lite.minOpacity, join(work, 'lite.ply'));
+tool('-g', 'cpu', join(work, 'lite.ply'), '-d', P.scan.lite.keep, join(work, 'lite-thin.ply'));
+tool(join(work, 'lite-thin.ply'), join(root, lite));
+report(lite, `the light copy (${P.scan.lite.keep} of the coarsest level)`);
 rmSync(work, { recursive: true, force: true });
 
 // a binary little-endian .ply of floats, as splat-transform writes them

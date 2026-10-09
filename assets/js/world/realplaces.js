@@ -8,8 +8,10 @@ export const REAL_PLACES = {
     splat: '/assets/splats/sala-thai.sog', // tools/splat-place.mjs, from the scan below
     // how splat-place.mjs cuts it from the scan's levels of detail (0 finest): the finest it keeps
     // close to the pavilion, coarser further out, nothing past the last ring, nothing faint
-    scan: { id: '34ac01fc', centre: [46.7, 19.7], rings: [[2, 6], [3, 14], [4, 26]], minOpacity: 0.1 },
-    view: '/assets/splats/sala-view.webp', // tools/portal-view.mjs
+    scan: { id: '34ac01fc', centre: [46.7, 19.7], rings: [[2, 6], [3, 14], [4, 26]], minOpacity: 0.1, lite: { rings: [[4, 16]], minOpacity: 0.25, keep: '45%' } },
+    lite: '/assets/splats/sala-thai-lite.sog', // a light copy (2 MB), shown first while the full one loads
+    view: '/assets/splats/sala-view.webp', // tools/portal-view.mjs: the place, through the planet's door
+    back: '/assets/splats/sala-back.webp', // tools/portal-view.mjs --back: the planet, through the door back
     credit: { by: 'Andrew.HD', source: 'https://superspl.at/scene/34ac01fc', license: 'CC BY 4.0', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/' },
     sky: 0xcfdde6,
     // in the scan's own coordinates (y points down, as captures do)
