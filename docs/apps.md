@@ -16,7 +16,8 @@ markup and a module, and nothing else.
 | `assets/css/apps.css` | the parts apps are made of, all on the site's tokens: fields, the top block (`.app-hero`), toolbar (`.app-bar`), segmented filter (`.seg`), cards (`.items`, `.item`), pill, rating, sheets (`.app-dialog` with its `.dialog-bar`), toast; then the wardrobe's own parts |
 | `assets/js/apps/lib/kit.js` | `db` (the Supabase client), `start(open, close, { offline })` (the gate; the user comes with `name` and `sections` from `me()`; with `offline: true` it opens with no connection for whoever was last signed in on that browser, `user.offline` set), `here({ title, over, bar, back })` (where you are: the heading, the line over it, the bar's title, the way back up), the settings sheet (wired on load), `pull(refresh)` (pull to refresh), `rows(table)` (list, add, set, remove, with failures shown), `saver(field, save)` (save as you type, and when the page is hidden), `fresh(again)` (reload after a minute away, so a stale tab doesn't save over the other person's edits), `sheet(dialog, dismiss)` (a dialog that behaves as a sheet: Esc, a tap outside it, a swipe down on a phone and its `[data-close]` buttons all go through `dismiss`), `ask(dialog, { dirty })` (a form in a sheet; Cancel is `type="button" data-close`, so Enter submits; Cancel, Esc or a swipe asks before throwing away anything typed), `photos` (put, urls, remove), `toast(text, bad, undo)` (with `undo`, an Undo button that runs it), `celebrate(from)` (a burst of confetti in the theme's colours), `buzz()` (a tap felt in the hand, where the phone can), `calm` (reduced motion asked for) |
 | `assets/js/apps/lib/recipes.js` | Recipes, a section SJPJr mounts (`load()`, `clear()`); its markup is `_includes/recipes.html`, ids starting `recipe-` |
-| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the Google Calendar link, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, in one place), the currencies by country, the day's rate |
+| `assets/js/apps/lib/travel.js` | the wardrobe's travelling ("On the road" below): getting there and staying as cards, the countdown, the Google Calendar link, the map link, home and away (`HOME`: Philadelphia, its timezone and dollars, kept in `supabase/functions/_shared/home.js`, which SJPJr's server reads too), the currencies by country, the day's rate |
+| `supabase/functions/_shared/days.js` | what a day says, from its events ("Days" below): the newest wore or journal of a day stands, and how often each garment was worn; the app bundles it and SJPJr's server runs it, so both read a day the same way |
 | `apps/wardrobe.webmanifest` | the home-screen app ("The home-screen app" below): a line including `_includes/app-manifest.json`, which takes the name and blurb from `_data/apps.yml` |
 | `apps/offline.js` | the service worker for `/apps/` (registered by SJPJr): network first, keeping a copy of each page, script and stylesheet as it passes, and answering from the copy with no connection; with none, Storage photo links are answered from the `wardrobe-photos` cache the app fills (keyed by file, without the signed link's token). `/apps/` and `/apps/recipes` it sends straight to SJPJr and its Recipes tab, connection or not |
 | `assets/js/apps/<name>.js` | one page's script: `wardrobe.js` (SJPJr) and `authorize.js` (the consent page). `tools/build-js.mjs` bundles every file in this folder to `dist/apps/<name>.js`; what they share is split into one chunk |
@@ -283,7 +284,9 @@ wardrobe MCP server, signed in as him (below).
   right: what it is first: the photo, category, name,
   brand, colour (as printed, if known), material and size, fit, style number, condition, the
   kind, seasons, warmth and dressiness (and where else it works), price and when it was bought,
-  notes, then every photo with its role, one marked shown (tap one to say what it is, show it, or
+  notes, how often it's been worn and what each wear has cost where the price is known ("Worn 4
+  times · $19.88 a wear", worked out from what's logged each time, never stored), then every photo
+  with its role, one marked shown (tap one to say what it is, show it, or
   remove it), "Buy another" (the replacement link) and "Find another" (a Google Shopping search
   for brand, name and colour). "Edit" shows the fields; text saves as it's typed, the rest at
   once, and the bar says so ("Saving…", "Saved"); Done goes back to what it is. Closing it any
@@ -313,8 +316,9 @@ wardrobe MCP server, signed in as him (below).
 - **Today** (home): over the heading the date, and the heading a greeting by the phone's time of
   day and the member's name ("Good morning, Steve": morning from 5, afternoon from noon, evening
   from 5 PM). Then the next thing first: the next journey within 48 hours (below); what you're
-  wearing (the outfit laid flat, the occasion, the plan, the note, and the advice in one box when
-  the weather and the outfit disagree; "Wore it" will go under the outfit, next); then the weather
+  wearing (the outfit laid flat with "Wore it" under it, the occasion, the plan, the note, the advice
+  in one box when the weather and the outfit disagree, and a line about the day: "Days" below);
+  then the weather
   where you are on its sky ("Weather" below): on a trip that's on, the place you're in that day;
   otherwise home (`HOME` in `travel.js`, Philadelphia), today and tomorrow. On a trip, "Day before"
   and "Tomorrow" step through it, and so does a swipe across either card; beside or below: the
@@ -335,7 +339,10 @@ wardrobe MCP server, signed in as him (below).
   photos the app already has (the MCP server's "board" image isn't used here).
 - **The trip page** (its heading the trip's name) starts with the dates, who's going (a face and
   a name each) and Edit, then Packing as a card with a ring, the places with their weather, and
-  the days, each a card with its weather, plan and outfit laid flat (today's outlined). Wider, the
+  the days, each a card with its weather, plan and outfit laid flat (today's outlined). A day
+  that's been says what was worn, once it's logged ("Worn as planned ✓", or what was worn laid
+  flat with the plan named under it) and its line in quotes; a day logged but never planned gets a
+  card too, and the count says how many are logged ("2 of 42 planned · 1 logged"). Wider, the
   days are on the left and the rest beside them. It adds, when there are any: Who's going, Getting there (transport as boarding
   cards in date and time order, "On the road" below), Staying (a card a stay) and Links; each day shows its activities under its summary, in time order (Today's
   card too).
@@ -383,7 +390,10 @@ wardrobe MCP server, signed in as him (below).
   category and a bag (the filters kept per trip in `wardrobe-pack`). Rows by category (Clothes,
   Shoes, Baby, Toiletries, Medicine, Electronics, Documents, Work, Accessories, Gear, Misc): a
   garment with its photo, brand and colour, the days it's planned and its bag; anything else with
-  whose it is. One tap on the status moves it on (needed → ready → packed; to buy → ready), with
+  whose it is. Once the trip has begun, each garment also says how many days it's been worn on it
+  ("Worn 3 days", from what's logged in the trip's dates), or "Not worn yet" as a pill, so what's
+  been carried and never worn stands out; over the list, "4 of 11 packed garments worn so far".
+  One tap on the status moves it on (needed → ready → packed; to buy → ready), with
   Undo; the status reads as a word and a ring, not colour alone. A tap to Packed lands a tick (and, with To pack showing, the row folds away);
   a bag finished, or everything, gets a small burst of confetti and says so (reduced motion: no
   movement; a buzz where the phone can). Tapping the row opens it: status,
@@ -395,11 +405,37 @@ wardrobe MCP server, signed in as him (below).
   (`localStorage` `wardrobe-copy:<user id>`: the rows, the trips' parts and the photo links; `wardrobe-wx`: the last
   weather for each leg, with today's and tomorrow's hours; `wardrobe-rate:<from>-<to>`: the last rate; the photos in the `wardrobe-photos` cache), and `apps/offline.js` keeps
   the page and its scripts. Offline, the app opens on that copy and a line under the tabs says how old it is and how many
-  packing changes are waiting. Packing
+  changes are waiting. Packing
   changes work and wait in `wardrobe-packing-queue`, by entry (the patches merged); they're sent,
   one PATCH an entry, when the connection's back, before anything is loaded, and a toast says how
-  many went. Adding, taking off
+  many went. What's logged of a day (Wore it, a change, the day's line, an Undo) works too and
+  waits in `wardrobe-days-queue`: each new event as made (its id made on the phone, so sending it
+  twice is harmless), then what went to the trash; one POST an event. Adding, taking off
   and editing a trip wait for a connection, and say so.
+- **Days** (table `events`, `supabase/migrations/20261009000100_events.sql`; vision rule 2,
+  record what happens): a row for each thing that happened on a day, private to its owner like the
+  clothes. Today there are two kinds: `wore` (the garments, by id in `item_ids`) and `journal` (a
+  line, in `text`); the next (visited, ate, cooked, bought) are words in `kind`, with anything else
+  in `data`, and need no migration. Each row keeps how it was known (vision rule 1): `source` (app,
+  mcp; later camera, receipt), `recorded_by` (the member who tapped it, or the assistant and its
+  OAuth client) and `evidence` (the outfit planned that day and whether it was worn as planned, how
+  it came in, the names said and what they matched, Steve's own words). Rows are only added:
+  logging a day again adds one, and the newest of a day's wore (or journal) is what the day says
+  (`_shared/days.js`); the older ones are its history. A new row is stamped after the newest one
+  known, so a phone's clock being behind can't bury it. Undo moves the row just added to the trash
+  (`deleted_at`), and the weekly job empties it after 30 days with the rest.
+  - **On Today**, under the outfit: "Wore it" logs the day's planned outfit in one tap (with
+    "Something else" beside it); with nothing planned (at home) it opens the closet to pick from.
+    Then it reads "Worn today ✓" with Change, the toast offers Undo, and the outfit shown is what
+    was worn (the plan named under it if it's different). Change opens a sheet of the closet's
+    pieces (Cancel, "What you wore today", Save), what's logged (or the plan) already picked; a
+    tap picks or unpicks one (ringed and ticked), Save logs the new set, and "Take this day off the
+    log" moves the day's wore to the trash, with Undo. At the bottom of the card, "A line about
+    today": one field that saves when you leave it or tap Done, showing what's saved. A day still
+    to come has neither; "Day before" on a trip logs that day.
+  - **How often**: the trip's packing (days worn on the trip, "Not worn yet"), a garment's sheet
+    ("Worn 4 times · $19.88 a wear") and SJPJr's `get_history` all count from the same rows, one a
+    day at most. A planned outfit counts only once it's logged as worn.
 - **Weather** comes from Open-Meteo (free, no key; `supabase/functions/_shared/weather.js`, which
   the MCP server runs and the app bundles): the forecast for the days it reaches (15), then for
   the rest the same dates over the last three years, the temperatures averaged and the chance of
@@ -443,13 +479,13 @@ wardrobe MCP server, signed in as him (below).
 ## ChatGPT and Claude: SJPJr, the MCP server
 
 SJPJr (after the site's badge) is Steve's own things on this site, for ChatGPT and Claude: today
-his wardrobe and trips, more later. `supabase/functions/mcp`, at
+his wardrobe, trips and days, more later. `supabase/functions/mcp`, at
 `https://<ref>.supabase.co/functions/v1/mcp`: MCP over Streamable HTTP, stateless (each POST gets
 one JSON answer; no sessions, no stream). In plain JavaScript, so `tools/wardrobe-test.mjs` runs
 it in Node against the real schema (below):
 
 - `server.js`: the protocol, who the server is, the card's resource, and the rules;
-- `areas/`: one file per area (`wardrobe.js`; `trips.js`, `packing.js` and `trip-parts.js`,
+- `areas/`: one file per area (`days.js`; `wardrobe.js`; `trips.js`, `packing.js` and `trip-parts.js`,
   sharing `trip-kit.js`; `trash.js`), each `{ name, records, tools, status, instructions, call }`:
   its tools, the status lines ChatGPT shows while each runs, what the model is told about it, and
   the code;
@@ -463,7 +499,7 @@ The same for every area, kept in one place (`RULES` in `server.js`), checked whe
 starts (an area that breaks them doesn't load, and the test checks them too), told to the model in
 its instructions, and said on every tool that writes:
 
-1. Steve's own records (an area with `records: true`: the wardrobe, trips) can be read and changed
+1. Steve's own records (an area with `records: true`: the wardrobe, trips, days) can be read and changed
    from a chat. The site's content (drinks, books, what he's written) is read-only there: it
    changes in the repo.
 2. Deleting a garment, photo or trip moves it to the trash, from a chat as from the app: hidden
@@ -543,6 +579,38 @@ sent.
   tool, older calls unchanged, references (a bag of another trip, someone else's trip), removing
   and deleting.
 
+### Days
+
+`areas/days.js`, on the `events` table ("Days" above), read through `_shared/days.js` as the app
+reads it. The instructions say to start with `get_today` for anything about today, and to call
+`log_day` when Steve says what he wore or did.
+
+- **`get_today`** (read-only; `date` for another day): one call for "what should I wear today":
+  the date and where he is (the trip leg that day, else home, `_shared/home.js`) with its time
+  zone and clock now; the weather (one day, from `_shared/weather.js`, its sky in words); the
+  outfit planned, each garment with its name and `hero_photo_id`; what's logged as worn (with how
+  and when) and the day's line; the day's activities; the next journey (on any trip not over) and
+  tonight's stay; and the "In the app" link. Today is by the place's own clock: home's date
+  first, then the leg's (from 6 PM in Philadelphia it's already tomorrow in Florence); the time
+  zone comes with the weather (`index.ts` keeps the weather half an hour per place and day), or,
+  if that can't be asked, from the longitude.
+- **`log_day`** (write): `wore` (garment ids, or names as he said them: each must match one
+  garment, by its name, else by every word; an unclear one is refused with the candidates, an
+  unknown one with a pointer to find_items), or `as_planned: true`; `journal` (one line, tidied;
+  `""` clears it); `said` (his words, kept as evidence); `date` (today by default, never a day to
+  come); `client_ref` (a retry returns what was stored) and `dry_run`. `wore: []` clears what's
+  logged, as a row that says so: nothing is deleted. It returns what was stored.
+- **`get_history`** (read-only): the days' standing wore and journal rows over `from`–`to` (the
+  last 30 days by default, at most 400), or a trip's dates with `trip_id`; `kind` narrows it.
+  With them, how many days each garment was worn (most first) and, for a trip, the packed garments
+  not worn yet: what "what haven't I worn" and a trip recap are made from.
+- No card yet: the answers are short text, and the app has the pictures (a "today" view in the
+  card would be the next step if it's missed).
+- **Tests**: `tools/trips-test.mjs`, "Days": the Europe trip with its legs' own clocks (Florence
+  past midnight, the trip's first day in London while it's still the day before at home, home
+  before it), every way of logging, the history's counts, the newest standing, Undo and the trash,
+  and another member seeing and changing none of it.
+
 ### Adding an area
 
 1. `supabase/functions/mcp/areas/<area>.js`: its tools (each with a title, read-only or write
@@ -557,7 +625,8 @@ sent.
    `tools/wardrobe-test.mjs` (and the smoke test's card session for a view).
 5. The tool list below, and the consent page's line (`apps/authorize.html`) if it's records.
 
-- **Tools** (read-only marked so): `find_items` (start here; one entry per physical piece, flat:
+- **Tools** (read-only marked so): `get_today` (read-only; start here for anything about today),
+  `log_day` and `get_history` (read-only) ("Days" above); `find_items` (start here for clothes; one entry per physical piece, flat:
   product and variant facts filled in; by words, category, season, dressiness, which matches where
   it mostly belongs or also works, and warmth), `get_item` (the piece whole: flat, product,
   variant, what's set on it alone, photos with their roles and ids, and every fact's source),

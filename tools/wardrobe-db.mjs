@@ -143,6 +143,12 @@ export async function wardrobeDb() {
       }),
       set: async (table, id, at) => (await q(`update public.${table} set deleted_at = $2 where id = $1 returning id`, [id, at]))[0] || null,
     },
+    events: {
+      list: ({ from, to, trip_id } = {}) => q(`select * from public.events where deleted_at is null and ($1::date is null or date >= $1::date) and ($2::date is null or date <= $2::date) and ($3::uuid is null or trip_id = $3::uuid) order by date, created_at`, [from || null, to || null, trip_id || null]),
+      byRef: async (ref) => (await q(`select * from public.events where client_ref = $1`, [ref]))[0] || null,
+      add: async (list) => { const out = []; for (const r of list) out.push(await insert('events', r)); return out; },
+    },
+    client: null,
     locate: async (place) => ({ name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
     weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
   };

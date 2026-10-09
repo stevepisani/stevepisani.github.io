@@ -188,14 +188,20 @@ export async function enter(place, { parent = document.body, progress = () => {}
       canvas.classList.remove('is-on');
       alive = false; // the last frame fades; nothing more is drawn
       cancelAnimationFrame(raf);
-      await fade(0);
-      // Spark's sorting and reads may still be in flight: let them land, and don't let what they
-      // reject with as it's torn down ("No target", "No renderer", "Worker terminate", or nothing
-      // at all) surface as an error on the page
-      await new Promise((r) => setTimeout(r, 500));
-      const quiet = (e) => { const r = e.reason; if (r === undefined || /^No (target|renderer)$|terminate/i.test(String(r && r.message))) e.preventDefault(); };
+      // Spark's sorting and reads may still be in flight, and a sort it has already put on a timer
+      // runs after it's disposed: let them land, and don't let what they reject or throw with as
+      // it's torn down ("No target", "No renderer", "Worker terminate") surface as an error on the
+      // page. From here on and for good (on a slow machine the timer fires well after the fade),
+      // but only for those, thrown from this bundle; and for a reason of nothing at all, only for
+      // the next few seconds.
+      const torn = (r) => /^No (target|renderer)$|terminate/i.test(String(r && r.message)) && /portal\.js/.test(String(r && r.stack));
+      const quiet = (e) => { if (torn(e.reason) || (e.reason === undefined && performance.now() < quietUntil)) e.preventDefault(); };
+      const quietThrow = (e) => { if (torn(e.error)) e.preventDefault(); };
+      const quietUntil = performance.now() + 10000;
       addEventListener('unhandledrejection', quiet);
-      setTimeout(() => removeEventListener('unhandledrejection', quiet), 10000);
+      addEventListener('error', quietThrow);
+      await fade(0);
+      await new Promise((r) => setTimeout(r, 500));
       removeEventListener('resize', fit);
       removeEventListener('keydown', onKey);
       removeEventListener('keyup', onKey);
