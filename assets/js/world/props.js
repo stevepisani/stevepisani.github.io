@@ -3,7 +3,7 @@
 // tiki mugs, a volcano bowl, bamboo torches, palms with real fronds, and lava rocks.
 // Hero props can be swapped for AI-generated GLBs later (see hero.js).
 import * as THREE from 'three';
-import { PALETTE, pbr, surface, woodSet, bambooSet, lavaSet, glow } from './materials.js';
+import { PALETTE, pbr, surface, woodSet, bambooSet, lavaSet, thatchSet, glow } from './materials.js';
 import { createFire } from './fire.js';
 import * as T from './textures.js';
 
@@ -572,6 +572,152 @@ export function launchConsole() {
     screen,
     blink(t) { lamps.forEach((l, i) => { l.visible = Math.floor(t * 2 + i * 1.7) % 3 !== 0; }); },
   };
+}
+
+/**
+ * A door to a real place, standing on its own in the grass: two carved tiki posts, a lintel with
+ * upswept ends under a little thatch, a lava-rock step, the door itself swung open, a brass label
+ * beside the step, and in the opening the place in daylight (portal.js). It draws `view` (an equirectangular
+ * panorama from where you come in, tools/portal-view.mjs) by the way you're looking through it,
+ * so the view shifts as you walk past, like a window, and stepping through it lines up with
+ * the real thing. Until `setView()` it's the place's sky colour. Faces +z (you step through
+ * toward -z); base at y = 0. The label names the place and credits the scan (`plaque`: lines).
+ */
+export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9 } = {}) {
+  const g = new THREE.Group();
+  const OW = 1.0, OH = 2.1, STEP = 0.14; // the opening
+  const wood = surface(woodSet(PALETTE.stain), { roughness: 0.8 });
+  const dark = surface(woodSet(PALETTE.wood), { roughness: 0.85 });
+  const add = (geo, mat, [x, y, z], parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+  // the step: a slab of lava rock, the threshold in dark wood
+  const { map, bump } = lavaSet();
+  add(new THREE.BoxGeometry(1.7, STEP, 0.9), pbr({ map, bumpMap: bump, bumpScale: 2, color: 0x6a5a52, roughness: 0.95 }), [0, STEP / 2, 0.05]);
+  add(new THREE.BoxGeometry(OW + 0.1, 0.03, 0.18), dark, [0, STEP + 0.015, 0]);
+  // the posts: pop tikis, a face each at eye height
+  for (const x of [-1, 1]) {
+    const post = carvedTiki({ height: 2.55, radius: 0.16, style: 'ku' });
+    post.position.set(x * (OW / 2 + 0.17), STEP, 0);
+    g.add(post);
+  }
+  // the jambs and head inside the posts, so the opening has a clean edge
+  for (const x of [-1, 1]) add(new THREE.BoxGeometry(0.07, OH, 0.2), dark, [x * (OW / 2 + 0.035), STEP + OH / 2, 0]);
+  add(new THREE.BoxGeometry(OW + 0.14, 0.08, 0.2), dark, [0, STEP + OH + 0.04, 0]);
+  // the lintel, its ends swept up like the bar's ridge, and a short thatch cap on it
+  const top = STEP + 2.55;
+  add(new THREE.BoxGeometry(1.9, 0.2, 0.3), wood, [0, top + 0.1, 0]);
+  for (const x of [-1, 1]) {
+    const horn = add(new THREE.BoxGeometry(0.34, 0.12, 0.26), wood, [x * 1.06, top + 0.2, 0]);
+    horn.rotation.z = x * 0.55;
+  }
+  const thatch = surface(thatchSet(), { roughness: 1 });
+  for (const z of [-1, 1]) {
+    const side = add(new THREE.BoxGeometry(1.75, 0.06, 0.34), thatch, [0, top + 0.32, z * 0.12]);
+    side.rotation.x = z * 0.6;
+  }
+  // the door, swung all the way open into the other side, hinged on the left
+  const leaf = new THREE.Group();
+  leaf.position.set(-OW / 2, STEP + 0.02, -0.06);
+  leaf.rotation.y = 1.75;
+  g.add(leaf);
+  for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(OW / 4 - 0.01, OH - 0.04, 0.045), i % 2 ? wood : dark, [OW / 8 + i * OW / 4, (OH - 0.04) / 2, 0], leaf);
+  for (const y of [0.35, OH - 0.45]) add(new THREE.BoxGeometry(OW - 0.06, 0.1, 0.03), wood, [OW / 2, y, 0.035], leaf);
+  // the opening: the place, looked into. Its direction in the door's frame is linear across the
+  // plane, so it's worked out per vertex; per pixel it's a lookup in the panorama.
+  const uniforms = { view: { value: null }, ready: { value: 0 }, sky: { value: new THREE.Color(sky) }, brightness: { value: 1.3 }, far: { value: far }, centre: { value: new THREE.Vector3(0, eye - STEP - OH / 2, 0.16) } };
+  const opening = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      varying vec3 vEye, vDir;
+      void main() {
+        vec4 world = modelMatrix * vec4(position, 1.0);
+        mat3 toLocal = inverse(mat3(modelMatrix));
+        vEye = toLocal * (cameraPosition - modelMatrix[3].xyz); // your eye in the opening's frame
+        vDir = toLocal * (world.xyz - cameraPosition);
+        gl_Position = projectionMatrix * viewMatrix * world;
+      }`,
+    fragmentShader: `
+      uniform sampler2D view;
+      uniform float ready, brightness;
+      uniform vec3 sky;
+      uniform vec3 centre;
+      uniform float far;
+      varying vec3 vEye, vDir;
+      void main() {
+        // the place as if painted on a sphere round where you come in, "far" metres out: from
+        // further back you see more of it through the opening, as you would through a real one
+        vec3 o = vEye - centre, r = normalize(vDir);
+        float b = dot(o, r), k = dot(o, o) - far * far;
+        vec3 d = normalize(o + (-b + sqrt(max(b * b - k, 0.0))) * r);
+        float yaw = atan(-d.x, -d.z), pitch = asin(clamp(d.y, -1.0, 1.0));
+        vec2 uv = vec2(0.5 - yaw / 6.2831853, 0.5 + pitch / 3.1415927);
+        vec3 c = mix(sky, texture2D(view, uv).rgb, ready);
+        gl_FragColor = vec4(c * brightness, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  }));
+  opening.position.set(0, STEP + OH / 2, 0);
+  opening.castShadow = opening.receiveShadow = false;
+  opening.userData.noBatch = true;
+  g.add(opening);
+  // daylight spilling out onto the step and the grass in front
+  const spill = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2, 6, 10).rotateX(-Math.PI / 2).translate(0, 0, 1.15), new THREE.MeshBasicMaterial({
+    map: spillTexture(), color: sky, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+  }));
+  spill.position.y = 0.02;
+  spill.userData.noBatch = true;
+  spill.renderOrder = 2;
+  g.add(spill);
+  // a small brass plaque: where this is, and whose scan it is
+  if (plaque.length) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 256;
+    const x = c.getContext('2d');
+    x.fillStyle = '#7a5a2a'; x.fillRect(0, 0, 512, 256);
+    x.fillStyle = '#c9a46b'; x.fillRect(10, 10, 492, 236);
+    x.fillStyle = '#3a2a12'; x.textAlign = 'center';
+    plaque.forEach((line, i) => {
+      x.font = i ? '600 34px Inter, system-ui, sans-serif' : '700 58px Fraunces, Georgia, serif';
+      x.fillText(line, 256, i ? 128 + i * 50 : 92, 468);
+    });
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // on a short stake of its own beside the step, tipped back toward you, like a museum label
+    const label = new THREE.Group();
+    label.position.set(-(OW / 2 + 0.62), 0, 0.62);
+    label.rotation.y = 0.35;
+    g.add(label);
+    add(new THREE.CylinderGeometry(0.025, 0.03, 0.8, 8), dark, [0, 0.4, 0], label);
+    const brass = pbr({ color: 0x8a6a35, metalness: 0.8, roughness: 0.35 });
+    const plate = add(new THREE.BoxGeometry(0.42, 0.21, 0.014), [brass, brass, brass, brass, pbr({ map: tex, metalness: 0.5, roughness: 0.45 }), brass], [0, 0.86, 0.02], label);
+    plate.rotation.x = -0.7;
+    plate.castShadow = false;
+  }
+  g.userData.opening = new THREE.Vector3(0, STEP + OH / 2, 0);
+  return {
+    group: g,
+    opening,
+    /** The panorama has loaded: show it. */
+    setView(tex) { uniforms.view.value = tex; uniforms.ready.value = 1; },
+  };
+}
+
+// a soft pool, brightest at the threshold and fading out across the grass
+function spillTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 128;
+  const x = c.getContext('2d');
+  const img = x.createImageData(64, 128);
+  for (let j = 0; j < 128; j++) for (let i = 0; i < 64; i++) {
+    const v = 1 - j / 127, u = (i / 63 - 0.5) * 2; // laid flat, the canvas's top row is at the threshold: v 1 there, 0 at the far end
+    const w = 0.55 + (1 - v) * 0.45; // it widens as it goes out, like light through a door
+    const a = Math.max(0, 1 - Math.abs(u) / w) ** 1.5 * v ** 1.6;
+    img.data.set([255, 255, 255, Math.round(a * 255)], (j * 64 + i) * 4);
+  }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
 }
 
 export function radioDish() {

@@ -5,6 +5,8 @@
 //   dist/world.js   the homepage's planet (assets/js/world/main.js and everything it imports,
 //                   three.js and the post-processing included), one file, one request
 //   dist/rapier-*.js the physics engine, loaded once the planet is up (import() in physics.js)
+//   dist/portal.js  the real place through the door: Spark, the splat renderer, with its own
+//                   three.js, loaded by URL when someone steps through (portal.js)
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
 //   dist/apps/*.js  one per app page (every file in assets/js/apps/: SJPJr, the consent page),
@@ -53,6 +55,9 @@ const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
   { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm], metafile: true },
+  // through the door (portal.js): Spark and a three.js of its own, loaded by URL only when someone
+  // steps in, so it never touches the world's one request
+  { ...common, entryPoints: { portal: 'assets/js/world/portal.js' }, outdir: out, format: 'esm', metafile: true },
   // a new app needs nothing but its file (watch: restart to pick it up)
   { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
   // the wardrobe's in-chat card for ChatGPT and Claude: one plain script, loaded by the MCP server's page
@@ -70,5 +75,5 @@ if (watch) {
   // (it happens when something imported both directly and by import() is shared).
   const shared = outputs['assets/js/dist/world.js'].imports.filter((i) => i.kind === 'import-statement');
   if (shared.length) throw new Error(`world.js imports ${shared.map((i) => i.path).join(', ')} statically; keep import() targets self-contained`);
-  for (const [file, o] of Object.entries({ ...outputs, ...results[2].metafile.outputs, ...results[3].metafile.outputs })) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
+  for (const [file, o] of Object.entries({ ...outputs, ...results[2].metafile.outputs, ...results[3].metafile.outputs, ...results[4].metafile.outputs })) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
 }

@@ -6,7 +6,8 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole, doorway } from './props.js';
+import { REAL_PLACES } from './realplaces.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
@@ -20,6 +21,7 @@ export const SPOTS = {
   telescope: dirFrom(0.5, 2.85),
   campfire: dirFrom(2.55, -1.6),     // around the back
   dish: dirFrom(1.1, -0.2),
+  door: dirFrom(0.95, 2.35), // out past the telescope, in the open: a door to a real place (realplaces.js)
   boat: null, // on the lagoon's shore (below)
 };
 SPOTS.boat = pondDir(shoreAt(POND.boatAzimuth) + 0.55, POND.boatAzimuth);
@@ -43,6 +45,7 @@ export const TRAILS = [
   { id: 'bar', points: [dirFrom(0.68, Math.PI / 2), dirFrom(0.5, Math.PI / 2 + 0.03), FORK, dirFrom(0.2, Math.PI / 2)], width: 1.5, flags: 'walk', seed: 1, lanterns: 4.4, lanternStart: 2.8, openEnd: true }, // not at your feet as you land
   { id: 'rocket', points: [dirFrom(0.6, Math.PI / 2), dirFrom(0.625, 1.48), dirFrom(0.66, 1.4)], width: 1.0, flags: 'steps', seed: 2, openStart: true, openEnd: true },
   { id: 'telescope', points: [FORK, dirFrom(0.35, 2.05), dirFrom(0.44, 2.48), dirFrom(0.525, 2.7)], width: 1.05, flags: 'steps', seed: 3, meander: 0.3, lanterns: 5, openStart: true },
+  { id: 'door', points: [dirFrom(0.44, 2.48), dirFrom(0.62, 2.45), dirFrom(0.8, 2.38), dirFrom(0.885, 2.36)], width: 0.95, flags: 'steps', seed: 8, meander: 0.3, lanterns: 5, openStart: true },
   { id: 'dish', points: [FORK, dirFrom(0.35, 1.0), dirFrom(0.38, 0.3), dirFrom(0.45, -0.3), dirFrom(0.7, -0.32), dirFrom(0.97, -0.24)], width: 1.05, flags: 'steps', seed: 4, meander: 0.35, lanterns: 5, openStart: true },
   { id: 'lagoon', points: [dirFrom(0.5, -0.31), SPOTS.lagoonTrail.clone().add(dirFrom(0.5, -0.31)).normalize(), SPOTS.lagoonTrail], width: 0.95, flags: 'steps', seed: 6, meander: 0.25, openStart: true },
   // round the back to the campfire, broken where it crosses the cutaway on a bridge (machine.js)
@@ -54,7 +57,7 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
 // the dish, the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7]].map(([d, r]) => [d.clone().normalize(), r]);
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True within `margin` metres of a landmark's footprint. */
 export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
@@ -319,6 +322,30 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     interactables.push({ id: 'launch', label: 'Telescope', verb: 'Look through it', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2, mount });
   }
 
+  // A door, standing on its own past the telescope, open onto a real place in daylight
+  // (realplaces.js): step through it and you're there (portal.js, main.js). It faces back up its
+  // trail, so you walk up to it from the dark and look through it out over the meadow.
+  let door = null;
+  {
+    const P = REAL_PLACES.sala;
+    door = doorway({ sky: P.sky, plaque: [P.name, P.where, `Scan: ${P.credit.by} · ${P.credit.license}`] });
+    put(door.group, SPOTS.door, { heading: headingToward(SPOTS.door, dirFrom(0.8, 2.38)), sink: footDrop(SPOTS.door, 0.85) }, 1.6);
+    const g = door.group;
+    g.updateMatrixWorld(true);
+    const at = (x, z) => surfacePoint(g.localToWorld(new THREE.Vector3(x, 0, z)).normalize());
+    // the posts, the leaf and the label are solid, and so is the opening: you step through it, never walk it
+    for (const [x, z, r] of [[-0.67, 0, 0.26], [0.67, 0, 0.26], [0, 0, 0.36], [-0.7, -0.45, 0.4], [-1.12, 0.62, 0.15]]) colliders.push({ center: at(x, z), radius: r });
+    lantern(g.localToWorld(new THREE.Vector3(1.25, 0, 0.8)).normalize(), { height: 1.4 }); // its practical light, like every landmark's
+    interactables.push({ id: 'door', label: P.name, verb: 'Step through', object: g, point: g.localToWorld(g.userData.opening.clone()), approach: at(0, 1.7), radius: 2.2, place: 'sala', door });
+    // the view in its opening loads once the planet's up (a few hundred KB)
+    setTimeout(() => new THREE.TextureLoader().load(P.view, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.anisotropy = 4;
+      door.setView(tex);
+    }), 3000);
+  }
+
   // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
   // the trail comes in, and roast marshmallows.
   {
@@ -525,6 +552,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     colliders,
     interactables,
     loose,
+    door,
     machine,
     update(t) { for (const f of animated) f(t); },
   };

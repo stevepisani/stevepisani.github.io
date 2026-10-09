@@ -68,9 +68,10 @@ rather than leaving it in a chat.
 - **For passive capture:** the office camera's make and model, which stores' grocery receipts come
   by email, and which card or bank to export.
 
-- **A photoreal capture:** a Gaussian-splat scan of a real Philly spot (the Rodin Museum gates?)
-  with Polycam or Scaniverse, exported as `.ply` or `.spz`; it'd be seen through the telescope or a
-  doorway (Spark or gsplat.js).
+- **Your own captures for the door:** a Gaussian-splat scan of the backyard or a Philly park (or
+  a real tiki bar, with the owner's okay) with Polycam or Scaniverse, exported as `.ply` or
+  `.spz`. A new place is an entry in `realplaces.js`, a file in `assets/splats/` and a panorama
+  (`tools/portal-view.mjs`); `docs/world.md` has the steps. Credit Polycam on what's shown.
 - **Archive `stevepisani/my_website`** (Settings → General → Archive); it only holds a README.
 - **Revoke the temporary Supabase token** from 30 Sep, if it hasn't expired.
 
@@ -92,6 +93,10 @@ rather than leaving it in a chat.
   ("Not worn yet" where it hasn't), and a garment what it's cost a wear. In SJPJr, `get_today`
   (a day in one call, by the leg's own clock), `log_day` and `get_history`. A planned outfit
   counts only once it's logged.
+- Oct 2026: a door past the telescope onto a real place: the Sala Thai at the East-West
+  Center in Honolulu, a Gaussian-splat scan (Andrew.HD, CC BY 4.0) you step into and look round
+  in daylight; the next launch on a console by the rocket; the bartender answers from the site
+  when the AI can't.
 - Oct 2026: the campfire trail crosses the cutaway on a bridge with a glass floor, and the planet
   is hollow below it (a glowing core, turning rings, a shell lit like a city); the telescope: stand
   behind it, bend to the eyepiece, dark, then the view; Earth in it with cities pinned and their

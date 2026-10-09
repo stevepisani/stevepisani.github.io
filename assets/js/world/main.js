@@ -34,6 +34,7 @@ import { createEyepiece } from './eyepiece.js';
 import { createGlints } from './glints.js';
 import { createHoop } from './hoop.js';
 import { createBatcher } from './batch.js';
+import { REAL_PLACES } from './realplaces.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -525,6 +526,7 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
+    if (it.id === 'door') return stepThrough(it);
     // a landmark that's a panel: turn to it first, so it's there when the panel closes
     player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
@@ -1317,6 +1319,7 @@ async function start() {
     else if (state === 'hammock') getOutOfHammock();
     else if (state === 'shore') leaveShore();
     else if (state === 'scope') { if (scope.site >= 0) closeSite(); else leaveScope(); } // a landing site first
+    else if (state === 'door') stepBack();
     else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
     else if (state === 'walk' && carry) putDown();
   });
@@ -1947,6 +1950,86 @@ async function start() {
   scopePrev.addEventListener('click', () => stepScope(-1));
   scopeNext.addEventListener('click', () => stepScope(1));
   scopeMore.addEventListener('click', () => closeSite());
+
+  // Through the door (places.js, portal.js): a real place, as a Gaussian splat, in its own bundle
+  // (Spark, 3 MB) and its own canvas. Nothing loads until you ask: at the step, the place loads
+  // while a line says how far along it is; then you walk into the opening, which is already
+  // showing it (its panorama), and the live place fades in over it, facing the same way. The
+  // planet stops drawing while you're there. Back, Esc or "Step back through" bring you out
+  // where you went in, the door in front of you.
+  const doorLeave = $('door-leave'), portalCredit = $('portal-credit');
+  const portalUrl = (() => { const u = new URL('./portal.js', import.meta.url); u.search = new URL(import.meta.url).search; return u.href; })();
+  const door = { it: null, view: null, busy: false, inside: false, tries: 0 };
+  function stepThrough(it) {
+    if (state !== 'walk' || door.busy) return;
+    door.busy = true;
+    door.it = it;
+    const go = ++door.tries; // this attempt: a load that finishes after you've stepped back (and in again) is dropped
+    input.clear();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('door');
+    enterLevel('door', () => stepBack({ fromHistory: true }));
+    const g = it.object, P = REAL_PLACES[it.place];
+    g.updateMatrixWorld(true);
+    // you stand at the step, square to the opening, looking straight through it
+    const eyeAt = (z) => { const p = surfacePoint(g.localToWorld(new THREE.Vector3(0, 0, z)).normalize()); return p.addScaledVector(p.clone().normalize(), player.eye); };
+    const through = (from) => poseLooking(from, from.clone().add(new THREE.Vector3(0, 0, -1).transformDirection(g.matrixWorld)));
+    door.stand = through(eyeAt(1.7));
+    door.sill = through(eyeAt(0.16)); // your eye just short of the opening, which fills the view
+    flyPath([{ ...door.stand, ms: 700 }]);
+    const say = (f) => { hint.textContent = `${P.name}, ${P.where}… ${Math.round(f * 100)}%`; hint.hidden = false; hint.dataset.key = 'door-load'; };
+    say(0);
+    import(/* the place's own bundle, by URL: never part of world.js */ portalUrl)
+      .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95) }))
+      .then((view) => {
+        if (go !== door.tries || state !== 'door' || door.leaving) { view.leave(); return; } // stepped back while it loaded
+        door.view = view;
+        if (hint.dataset.key === 'door-load') hint.hidden = true;
+        flyPath([{ ...door.sill, ms: 1300 }], () => {
+          if (state !== 'door' || door.view !== view) return;
+          view.show().then(() => {
+            if (state !== 'door' || door.view !== view) return;
+            door.inside = true;
+            renderer.setAnimationLoop(null); // the planet rests while you're away
+            portalCredit.innerHTML = `<b>${P.name}</b>, ${P.where}. Scan by ${P.credit.by} (<a href="${P.credit.source}" target="_blank" rel="noopener">SuperSplat</a>), <a href="${P.credit.licenseUrl}" target="_blank" rel="noopener">${P.credit.license}</a>, cropped.`;
+            portalCredit.hidden = false;
+            doorLeave.hidden = false;
+            door.busy = false;
+            showHint(coarse ? 'Drag to look around. Tap the ground to walk.' : 'Drag to look around. Click the ground to walk.', 'portal');
+          });
+        });
+      })
+      .catch(() => {
+        if (go !== door.tries || state !== 'door') return;
+        showHint("The door won't open just now. Try again later.");
+        setTimeout(() => clearHint(), 3500);
+        stepBack();
+      });
+  }
+  function stepBack({ fromHistory = false } = {}) {
+    if (state !== 'door' || door.leaving) return;
+    if (!fromHistory) leaveLevel('door');
+    door.leaving = true;
+    door.tries++; // anything still loading is dropped when it arrives
+    clearHint('portal');
+    if (hint.dataset.key === 'door-load') hint.hidden = true;
+    doorLeave.hidden = portalCredit.hidden = true;
+    const view = door.view;
+    door.view = null;
+    const out = () => flyPath([{ ...door.stand, ms: 900 }], () => {
+      door.busy = door.leaving = door.inside = false;
+      player.spawn(door.it.approach.clone().normalize(), door.it.point, -0.04);
+      setState('walk');
+      player.applyToCamera();
+      canvas.focus({ preventScroll: true });
+    });
+    if (!door.inside) { if (view) view.leave(); out(); return; } // still at the step: just step back down
+    camera.position.copy(door.sill.pos); camera.quaternion.copy(door.sill.quat);
+    renderer.setAnimationLoop(frame); // the planet, back behind the place as it fades
+    view.leave().then(out);
+  }
+  doorLeave.addEventListener('click', () => stepBack());
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
   // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
@@ -2584,7 +2667,7 @@ async function start() {
   if (renderer.extensions.has('KHR_parallel_shader_compile')) await renderer.compileAsync(scene, camera).catch(() => {});
   renderer.setAnimationLoop(frame);
   document.addEventListener('visibilitychange', () => {
-    renderer.setAnimationLoop(document.hidden ? null : frame);
+    renderer.setAnimationLoop(document.hidden || door.inside ? null : frame);
     timer.reset();
   });
 
@@ -2598,7 +2681,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, door: { get view() { return door.view; }, get inside() { return door.inside; }, back: () => stepBack() }, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
