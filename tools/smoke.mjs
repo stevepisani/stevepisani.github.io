@@ -428,20 +428,31 @@ async function planet(page, shot, { phone = false } = {}) {
   // (switching contexts costs there what it doesn't on a GPU).
   if (!phone) {
     const tick = { timeout: 300000, polling: 500 };
+    // a drag down tips the view up, on the planet as through the door (the same feel everywhere)
+    const lookUp = () => page.evaluate(() => { const c = window.__world.camera; const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(c.position.clone().normalize()); });
+    const before = await lookUp();
+    await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
+    await page.waitForTimeout(500);
+    if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
     await page.evaluate(() => window.__world.goUse('door'));
     await page.waitForFunction(() => window.__world.door.inside, null, tick);
     if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
     if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
-    const yaw0 = await page.evaluate(() => window.__world.door.view.yaw);
-    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 400, { steps: 4 }); await page.mouse.up();
+    const [yaw0, pitch0] = await page.evaluate(() => [window.__world.door.view.yaw, window.__world.door.view.pitch]);
+    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 450, { steps: 4 }); await page.mouse.up();
     await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
+    if (!(await page.evaluate(() => window.__world.door.view.pitch) > pitch0)) throw new Error('through the door a drag down should tip the view up, as on the planet');
     if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
-    await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
+    // out through the door back (behind where you came in): on the planet again, facing down the
+    // trail, away from the door, as you saw through it
+    await page.evaluate(() => window.__world.door.view.toDoorBack());
     await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
     if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+    const away = await page.evaluate(() => { const W = window.__world, c = W.camera, d = W.interactables.find((i) => i.id === 'door'); const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(d.point.clone().sub(c.position).normalize()); });
+    if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
     // the place is kept for next time, out of sight: one view of it, not drawn, not shown
     if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
-    step('door: stepped through into the real place, looked round, stepped back out');
+    step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail');
   }
 }
 
