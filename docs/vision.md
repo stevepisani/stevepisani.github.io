@@ -65,7 +65,8 @@ takes over. Cheap, and it makes upgrading safe instead of a hope.
 
 In order (`docs/roadmap.md` has the detail):
 
-1. **Events**, with "wore it today" first (then visits, cooking, buying).
+1. **Events**, with "wore it today" first (in since Oct 2026, with a line a day; then visits,
+   cooking, buying).
 2. **The inbox and evidence**, used first by the places import (the Takeout file is the evidence).
 3. **Visibility on every record**, needed first by places and the public map.
 4. **A small test set for SJPJr**, run whenever the model behind it changes.
