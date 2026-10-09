@@ -188,16 +188,18 @@ export async function enter(place, { parent = document.body, progress = () => {}
       canvas.classList.remove('is-on');
       alive = false; // the last frame fades; nothing more is drawn
       cancelAnimationFrame(raf);
-      // Spark's sorting and reads may still be in flight: let them land, and don't let what they
-      // reject or throw with as it's torn down ("No target", "No renderer", "Worker terminate", or
-      // nothing at all) surface as an error on the page; listening from here, since they can land
-      // during the fade
-      const torn = (r) => r === undefined || /^No (target|renderer)$|terminate/i.test(String(r && r.message));
-      const quiet = (e) => { if (torn(e.reason)) e.preventDefault(); };
+      // Spark's sorting and reads may still be in flight, and a sort it has already put on a timer
+      // runs after it's disposed: let them land, and don't let what they reject or throw with as
+      // it's torn down ("No target", "No renderer", "Worker terminate") surface as an error on the
+      // page. From here on and for good (on a slow machine the timer fires well after the fade),
+      // but only for those, thrown from this bundle; and for a reason of nothing at all, only for
+      // the next few seconds.
+      const torn = (r) => /^No (target|renderer)$|terminate/i.test(String(r && r.message)) && /portal\.js/.test(String(r && r.stack));
+      const quiet = (e) => { if (torn(e.reason) || (e.reason === undefined && performance.now() < quietUntil)) e.preventDefault(); };
       const quietThrow = (e) => { if (torn(e.error)) e.preventDefault(); };
+      const quietUntil = performance.now() + 10000;
       addEventListener('unhandledrejection', quiet);
       addEventListener('error', quietThrow);
-      setTimeout(() => { removeEventListener('unhandledrejection', quiet); removeEventListener('error', quietThrow); }, 10000);
       await fade(0);
       await new Promise((r) => setTimeout(r, 500));
       removeEventListener('resize', fit);
