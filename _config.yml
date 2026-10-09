@@ -13,7 +13,7 @@ author:
 twitter:
   username: StevenPisani
 links:
-  resume: https://drive.google.com/file/d/1PSHFaKjdJazFEeZS9YacD-J378TdJRBf/view?usp=sharing
+  resume: /assets/files/steven-pisani-resume.pdf  # a site path: link it with relative_url
   linkedin: &linkedin https://www.linkedin.com/in/steven-pisani/
   github: &github https://github.com/stevepisani
   twitter: &twitter https://twitter.com/StevenPisani
