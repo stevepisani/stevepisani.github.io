@@ -286,30 +286,6 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
   await expectState(page, 'walk');
-  // the door past the telescope: walk up and step through it into the real place (the real
-  // splat, about a minute under software WebGL), look round, then step back out where you went
-  // in, then in and out again (the place is kept). The planet stops drawing while you're through
-  // it, so wait by the clock, not by frames.
-  if (!phone) {
-    const tick = { timeout: 300000, polling: 500 };
-    await page.evaluate(() => window.__world.goUse('door'));
-    await page.waitForFunction(() => window.__world.door.inside, null, tick);
-    if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
-    if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
-    const yaw0 = await page.evaluate(() => window.__world.door.view.yaw);
-    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 400, { steps: 4 }); await page.mouse.up();
-    await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
-    if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
-    await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
-    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
-    if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
-    // the place is kept: stepping in again needs nothing loaded, and Back brings you out
-    await page.evaluate(() => window.__world.goUse('door'));
-    await page.waitForFunction(() => window.__world.door.inside, null, tick);
-    if (await page.evaluate(() => document.querySelectorAll('.portal-view').length) !== 1) throw new Error('stepping in again made a second view of the place');
-    await page.evaluate(() => history.back());
-    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
-  }
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
   // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in
@@ -435,6 +411,29 @@ async function planet(page, shot, { phone = false } = {}) {
   const short = await page.evaluate(() => { const W = window.__world; return W.player.pos.distanceTo(W.interactables.find((i) => i.id === 'campfire').approach); });
   if (!(short < 0.6)) throw new Error(`the walk to the campfire stopped ${short.toFixed(1)} m short`);
   step(`walked ${far.metres} m from where you land to the campfire, round ${far.corners} corners`);
+
+  // the door past the telescope: walk up and step through it into the real place (the real
+  // splat, about a minute under software WebGL), look round, then step back out where you went
+  // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
+  // Last, because under software WebGL the kept place's context slows the planet afterwards
+  // (switching contexts costs there what it doesn't on a GPU).
+  if (!phone) {
+    const tick = { timeout: 300000, polling: 500 };
+    await page.evaluate(() => window.__world.goUse('door'));
+    await page.waitForFunction(() => window.__world.door.inside, null, tick);
+    if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
+    if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
+    const yaw0 = await page.evaluate(() => window.__world.door.view.yaw);
+    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 400, { steps: 4 }); await page.mouse.up();
+    await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
+    if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
+    await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
+    if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+    // the place is kept for next time, out of sight: one view of it, not drawn, not shown
+    if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
+    step('door: stepped through into the real place, looked round, stepped back out');
+  }
 }
 
 // Signed in as a member, against a made-up Supabase (routed on `target`: the page, or its whole
