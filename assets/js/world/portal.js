@@ -193,6 +193,7 @@ export async function enter(place, { parent = document.body, progress = () => {}
       removeEventListener('keydown', onKey);
       removeEventListener('keyup', onKey);
       splat.dispose();
+      spark.dispose(); // its sort worker too, before the context goes
       renderer.dispose();
       renderer.forceContextLoss();
       canvas.remove();

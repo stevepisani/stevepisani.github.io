@@ -299,7 +299,7 @@ async function planet(page, shot, { phone = false } = {}) {
     await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 400, { steps: 4 }); await page.mouse.up();
     await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
     if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
-    await page.click('#door-leave');
+    await page.evaluate(() => document.getElementById('door-leave').click()); // (page.click waits on frames, which crawl here)
     await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view'), null, tick);
     if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
   }
