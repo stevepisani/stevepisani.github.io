@@ -1994,13 +1994,14 @@ async function start() {
     const say = (f) => { hint.textContent = `${P.name}, ${P.where}… ${Math.round(f * 100)}%`; hint.hidden = false; hint.dataset.key = 'door-load'; };
     say(0);
     import(/* the place's own bundle, by URL: never part of world.js */ portalUrl)
-      .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95), onBack: () => stepBack({ through: true }) }))
+      .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, fov: BASE_FOV, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95), onBack: () => stepBack({ through: true }) }))
       .then((view) => {
         if (go !== door.tries || state !== 'door' || door.leaving) { view.leave(); return; } // stepped back while it loaded
         door.view = view;
         if (hint.dataset.key === 'door-load') hint.hidden = true;
         flyPath([{ ...door.sill, ms: 1300 }], () => {
           if (state !== 'door' || door.view !== view) return;
+          if (sound.away) sound.away(true, reducedMotion ? 0 : 0.8);
           view.show().then(() => {
             if (state !== 'door' || door.view !== view) return;
             door.inside = true;
@@ -2032,6 +2033,7 @@ async function start() {
     doorLeave.hidden = portalCredit.hidden = true;
     const view = door.view;
     door.view = null;
+    if (sound.away) sound.away(false, reducedMotion ? 0 : 1.2);
     const facing = through && door.inside;
     const out = () => flyPath([{ ...(facing ? door.standOut : door.stand), ms: 900 }], () => {
       door.busy = door.leaving = door.inside = false;
@@ -2729,6 +2731,7 @@ async function start() {
     fire: campSpot.point.clone(),
     lagoon: surfacePoint(POND.center),
     hammock: hmSpot ? hmSpot.point.clone() : surfacePoint(SPOTS.spawn),
+    door: doorSpot && doorSpot.point.clone(), // the daytime through it
   } });
   bar.setSfx((name, ...args) => sound.play(name, ...args));
   window.__world.sound = sound;
