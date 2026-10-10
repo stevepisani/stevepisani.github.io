@@ -265,13 +265,54 @@ export function buildSky({ quality }) {
   const shoot = { next: 5, start: -1, from: new THREE.Vector3(), dir: new THREE.Vector3() };
   const head = new THREE.Vector3(), tail = new THREE.Vector3();
 
+  // A real launch, as it happens (the launch console calls liftoff() at T-0): a spark leaves Earth
+  // from the pad's place on it and climbs away, curving east, its trail fading behind it.
+  const riseGeo = new THREE.BufferGeometry(), RISE = 24;
+  riseGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(RISE * 3), 3));
+  riseGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(RISE * 3), 3));
+  const rise = new THREE.Line(riseGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+  const spark = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(new Float32Array(3), 3)), new THREE.PointsMaterial({ color: new THREE.Color(3, 2.6, 2), size: 5, sizeAttenuation: false, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }));
+  rise.frustumCulled = spark.frustumCulled = false;
+  rise.visible = spark.visible = false;
+  earth.add(rise, spark);
+  const up = { start: -1, at: new THREE.Vector3(), east: new THREE.Vector3() };
+  const climb = (k, out) => { // where it is k of the way up, in Earth's frame (radii from its centre)
+    const R = earth.userData.radius || 34;
+    return out.copy(up.at).multiplyScalar(R * (1 + 0.55 * k)).addScaledVector(up.east, R * 0.5 * k * k);
+  };
+
   return {
     group,
     sunDir,
     bodies,
     earth,
+    /** A launch from (lat, lon) on Earth, now: the spark climbs away over about ten seconds. */
+    liftoff(lat, lon) {
+      earthPoint(lat, lon, up.at);
+      up.east.set(0, 1, 0).cross(up.at).normalize(); // east, along its latitude
+      if (!up.east.lengthSq()) up.east.set(1, 0, 0);
+      up.start = -2; // set from the next frame's clock
+    },
     update(t, camera) {
       uniforms.time.value = t;
+      const now = performance.now() / 1000; // a real launch runs on real time, even with ambient time frozen (?test)
+      if (up.start === -2) up.start = now;
+      if (up.start >= 0) {
+        const k = (now - up.start) / 10;
+        const p = riseGeo.attributes.position.array, c = riseGeo.attributes.color.array, h = new THREE.Vector3();
+        for (let i = 0; i < RISE; i++) { // the trail: where it was, back to the pad, brightest at the head
+          const f = Math.max(0, k - (i / RISE) * Math.min(k, 0.35));
+          climb(f, h).toArray(p, i * 3);
+          const b = (1 - i / RISE) * Math.max(0, 1 - k * 0.7) * 2.2;
+          c.set([b, b * 0.75, b * 0.5], i * 3);
+        }
+        riseGeo.attributes.position.needsUpdate = riseGeo.attributes.color.needsUpdate = true;
+        climb(k, h).toArray(spark.geometry.attributes.position.array, 0);
+        spark.geometry.attributes.position.needsUpdate = true;
+        spark.material.opacity = Math.max(0, 1 - k);
+        rise.visible = spark.visible = k < 1;
+        if (k >= 1) up.start = -1;
+      }
       if (Date.now() - turned > 60000) turnEarth(earth, sunDir, GIANT_DIR);
       group.position.copy(camera.position); // the sky is infinitely far away
       if (shoot.start < 0 && t > shoot.next) {

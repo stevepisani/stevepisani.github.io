@@ -199,11 +199,102 @@ export function saturnLander({ badge = null } = {}) {
   mesh(new THREE.LatheGeometry([[0, 0], [0.03, 0], [0.03, 0.2], [0.02, 0.26], [0, 0.3]].map(([r, y]) => new THREE.Vector2(r, y)), 16), white3, group, [0, t1, 0]);
   const top = t1 + 0.3;
 
+  const burn = engineTest(group, LIFT - 0.3);
   return {
     group,
     top,
     radius: R1,
     feet: FOOT + 0.17,
     faceFront(x, z) { group.rotation.y = Math.atan2(x, z) - Math.PI; },
+    /** The engine test, each frame: `k` from 0 (off) to 1 (full thrust), `dt` seconds since the last. */
+    burn,
+  };
+}
+
+// The engine test (the launch console's red button): flames out of the five bells, a hot glow on
+// the pad under them, and smoke rolling out from underneath and up. Nothing moves the ship; it's a
+// static fire. All of it hidden until `burn(k)` with k > 0, and marked so batching leaves it alone.
+function engineTest(group, exit) {
+  const fx = new THREE.Group();
+  fx.userData.noBatch = true;
+  fx.visible = false;
+  group.add(fx);
+  // a flame: bright at the nozzle, yellow, orange, gone, drawn along a cone from the bell's mouth
+  const grad = (stops) => {
+    const c = document.createElement('canvas');
+    c.width = 4; c.height = 128;
+    const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 128);
+    stops.forEach(([at, col]) => g.addColorStop(at, col));
+    x.fillStyle = g; x.fillRect(0, 0, 4, 128);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  const outer = new THREE.MeshBasicMaterial({ map: grad([[0, 'rgba(255,255,240,1)'], [0.15, 'rgba(255,214,120,.95)'], [0.5, 'rgba(255,120,40,.55)'], [1, 'rgba(255,60,10,0)']]), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+  const core = new THREE.MeshBasicMaterial({ map: grad([[0, 'rgba(255,255,255,1)'], [0.4, 'rgba(200,220,255,.8)'], [1, 'rgba(120,160,255,0)']]), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+  outer.color.setScalar(2.2); core.color.setScalar(2.6);
+  // cones opening downward from the mouth (their uv v runs from the tip to the base: flip so the nozzle's end is bright)
+  const cone = (r, h) => new THREE.CylinderGeometry(r * 0.7, r, h, 16, 1, true).translate(0, -h / 2, 0);
+  const flames = [];
+  for (const [x, z] of [[0, 0], [0.22, 0], [-0.22, 0], [0, 0.22], [0, -0.22]]) {
+    const f = new THREE.Group();
+    f.position.set(x, exit, z);
+    const o = new THREE.Mesh(cone(0.13, 0.6), outer), c = new THREE.Mesh(cone(0.07, 0.3), core);
+    for (const m of [o, c]) { m.castShadow = m.receiveShadow = false; f.add(m); }
+    fx.add(f);
+    flames.push(f);
+  }
+  // the glow where they hit the pad
+  const glowC = document.createElement('canvas');
+  glowC.width = glowC.height = 64;
+  { const x = glowC.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,190,110,1)'); g.addColorStop(0.4, 'rgba(255,110,40,.5)'); g.addColorStop(1, 'rgba(255,60,10,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }
+  const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowC), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+  pool.position.y = 0.03;
+  fx.add(pool);
+  // smoke: puffs born under the bells, thrown out along the pad and rising, growing and thinning
+  const N = 90, pos = new Float32Array(N * 3), col = new Float32Array(N * 4), vel = new Float32Array(N * 3), age = new Float32Array(N).fill(99);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
+  const puffC = document.createElement('canvas');
+  puffC.width = puffC.height = 64;
+  { const x = puffC.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(0.6, 'rgba(255,255,255,.35)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); }
+  const smoke = new THREE.Points(geo, new THREE.PointsMaterial({ size: 1.1, map: new THREE.CanvasTexture(puffC), vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true }));
+  smoke.frustumCulled = false;
+  fx.add(smoke);
+  let next = 0, i0 = 0;
+  const LIFE = 3.2;
+  return function burn(k, dt = 1 / 60) {
+    const on = k > 0.001 || age.some((a) => a < LIFE);
+    fx.visible = on;
+    if (!on) return;
+    const t = performance.now() / 1000;
+    flames.forEach((f, i) => {
+      const flick = 0.85 + 0.15 * Math.sin(t * 47 + i * 2.1) * Math.sin(t * 31 + i);
+      f.scale.set(0.6 + 0.4 * k, Math.max(0.001, k * flick * (1 + 0.6 * k)), 0.6 + 0.4 * k);
+      f.visible = k > 0.02;
+    });
+    pool.material.opacity = Math.min(1, k * 1.2) * (0.85 + 0.15 * Math.sin(t * 23));
+    // new puffs, more the harder it burns
+    next -= dt * 45 * k;
+    while (next < 0) {
+      next += 1;
+      const i = i0; i0 = (i0 + 1) % N;
+      const a = Math.random() * Math.PI * 2, sp = 1.4 + Math.random() * 1.8;
+      pos.set([Math.cos(a) * 0.25, 0.15, Math.sin(a) * 0.25], i * 3);
+      vel.set([Math.cos(a) * sp, 0.25 + Math.random() * 0.5, Math.sin(a) * sp], i * 3);
+      age[i] = 0;
+    }
+    for (let i = 0; i < N; i++) {
+      if (age[i] >= LIFE) { col[i * 4 + 3] = 0; continue; }
+      age[i] += dt;
+      const f = age[i] / LIFE, drag = Math.exp(-dt * 1.6);
+      vel[i * 3] *= drag; vel[i * 3 + 2] *= drag; vel[i * 3 + 1] += dt * 0.35;
+      for (let j = 0; j < 3; j++) pos[i * 3 + j] += vel[i * 3 + j] * dt;
+      const warm = Math.max(0, 1 - f * 3) * k; // lit by the flames while it's near them
+      col.set([0.55 + 0.45 * warm, 0.5 + 0.25 * warm, 0.48 + 0.05 * warm, Math.min(1, f * 6) * (1 - f) * 0.55], i * 4);
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.attributes.color.needsUpdate = true;
   };
 }

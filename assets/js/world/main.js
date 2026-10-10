@@ -35,6 +35,7 @@ import { createGlints } from './glints.js';
 import { createHoop, RIM_Z } from './hoop.js';
 import { createBatcher } from './batch.js';
 import { REAL_PLACES } from './realplaces.js';
+import { createTerminal, launchOnThisDay } from './terminal.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
@@ -103,8 +104,9 @@ function openPanel(id, { push = true, from = null } = {}) {
   root.dataset.panel = id;
   menu.hidden = true;
   markCurrent(id);
-  panelBody.querySelectorAll('[data-launch]').forEach(fillLaunch);
-  if (window.fillSky) panelBody.querySelectorAll('[data-sky]').forEach(window.fillSky);
+  if (window.fillLaunch) panelBody.querySelectorAll('[data-launch]').forEach(window.fillLaunch);
+  if (window.fillLaunches) panelBody.querySelectorAll('[data-launches]').forEach(window.fillLaunches);
+  panelBody.querySelectorAll('[data-launch-history]').forEach((el) => { const h = launchOnThisDay(data.launchHistory); el.textContent = h ? h.text : ''; });
   if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
@@ -237,17 +239,6 @@ document.addEventListener('click', (e) => {
   if (state === 'seat') order(id);
   else openPanel(id);
 });
-
-function fillLaunch(el) {
-  const q = (k) => el.querySelector('[data-launch-' + k + ']');
-  if (!window.nextLaunch) return;
-  window.nextLaunch().then((l) => {
-    q('name').textContent = l.name;
-    q('meta').textContent = [l.provider, l.pad].filter(Boolean).join(' · ');
-    const iv = setInterval(() => { if (!el.isConnected) return clearInterval(iv); q('clock').textContent = window.tMinus(l.net); }, 1000);
-    q('clock').textContent = window.tMinus(l.net);
-  }).catch(() => { q('name').textContent = 'Ad astra.'; });
-}
 
 let bubbleTimer;
 function say(text, ms = 5000) {
@@ -527,6 +518,7 @@ async function start() {
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
     if (it.id === 'door') return stepThrough(it);
+    if (it.id === 'console') return lookAtConsole();
     // a landmark that's a panel: turn to it first, so it's there when the panel closes
     player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
@@ -1320,6 +1312,7 @@ async function start() {
     else if (state === 'shore') leaveShore();
     else if (state === 'scope') { if (scope.site >= 0) closeSite(); else leaveScope(); } // a landing site first
     else if (state === 'door') stepBack();
+    else if (state === 'console') leaveConsole();
     else if (state === 'note') { if (noteStep === 'writing') putNoteBack(); else leaveBottles(); } // first Esc puts the letter back
     else if (state === 'walk' && carry) putDown();
   });
@@ -1871,7 +1864,7 @@ async function start() {
     clearHint('walk');
     tip.hidden = true;
     scope.targets = scopeTargets(scopeSpot.approach.clone().addScaledVector(scopeSpot.approach.clone().normalize(), 1.4));
-    if (!scope.targets.length) { openPanel('launch'); return; } // nothing up there from here: just the panel
+    if (!scope.targets.length) { showHint('Nothing above the horizon from here just now. Try again later.'); setTimeout(() => clearHint(), 3500); return; } // nothing up there from here
     setState('scope');
     enterLevel('scope', () => leaveScope({ fromHistory: true }));
     scope.leaving = false;
@@ -2050,6 +2043,171 @@ async function start() {
     view.leave().then(out);
   }
   doorLeave.addEventListener('click', () => stepBack());
+
+  /* ---------- Launch control: lean in to the console's screen ---------- */
+  // Tap the console by the pad and you step up to its desk and lean in until its screen fills
+  // the view (with the desk under it): the terminal (terminal.js) is laid exactly over the
+  // screen, its keys over the desk, so what you read is the screen. ‹ › step through the next
+  // launches, "Remind me" saves one to your calendar, "Watch live" turns up in a launch's last
+  // hour, and "Engine test" flips up the red button's guard: "Fire" presses it, you straighten up
+  // and turn to watch the rocket fire its engines on the pad, then lean back in. "Step back", Esc
+  // and Back stand you up again. Without the launches (no connection), it says so.
+  const LC = places.launchControl, consoleSpot = interactables.find((x) => x.id === 'console');
+  const termEl = $('terminal'), consoleLeaveBtn = $('console-leave'), termInput = $('term-input'), termKeys = $('term-keys');
+  const desk = { leaving: false, lean: null, stand: null, watch: null, burnT: -1, open: false, pose: null };
+  // every move at the console ends in a pose the camera then holds (the frame loop), like the telescope's
+  const deskFly = (keys, then) => { desk.pose = keys[keys.length - 1]; flyPath(keys, then); };
+  const term = createTerminal({
+    el: termEl,
+    history: data.launchHistory || [],
+    reduce: reducedMotion,
+    sound: { play: (...a) => sound.play(...a) },
+    onLeave: () => leaveConsole(),
+    onPick: () => LC && LC.pick(term.index),
+    onTest: (what) => {
+      if (!LC) return;
+      if (what === 'arm') { LC.con.arm(true); buzz(10); }
+      else if (what === 'disarm') { LC.con.arm(false); sound.play('guard'); }
+      else if (what === 'fire') engineTest();
+    },
+  });
+  const loadLaunches = () => (window.launches ? window.launches().then((l) => { term.set(l); if (LC) LC.launches = l; }).catch(() => term.set(null)) : term.set(null));
+  // the screen's corners and the eye that sees it whole, with the desk under it
+  function consolePoses() {
+    const { con } = LC, scr = con.screen;
+    con.group.updateMatrixWorld(true);
+    const center = scr.getWorldPosition(new THREE.Vector3()), n = new THREE.Vector3(0, 0, 1).transformDirection(scr.matrixWorld);
+    const up = new THREE.Vector3(0, 1, 0).transformDirection(scr.matrixWorld), s = scr.getWorldScale(new THREE.Vector3());
+    const W = 0.64 * s.x, H = 0.4 * s.y, t = Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2), aspect = camera.aspect;
+    // far enough back that the screen's width fits, and the screen with the keys under it fits
+    // between the top bar and the "Step back" button
+    const usable = Math.max(0.5, 1 - 170 / Math.max(innerHeight, 400));
+    const span = H * (aspect < 1 ? 1.75 : 1.6);
+    const d = Math.max((W * 1.08) / (2 * t * aspect), span / (2 * t * usable));
+    const aim = center.clone().addScaledVector(up, -H * 0.3);
+    const eye = aim.clone().addScaledVector(n, d);
+    const lean = poseLooking(eye, aim);
+    const ground = surfacePoint(eye.clone().normalize());
+    const standEye = ground.clone().addScaledVector(ground.clone().normalize(), player.eye).addScaledVector(n, 0.25);
+    return { lean, stand: poseLooking(standEye, center), center, n, up, W, H };
+  }
+  function lookAtConsole() {
+    if (!LC || state !== 'walk') return;
+    input.clear();
+    player.stop();
+    clearHint('walk');
+    tip.hidden = true;
+    setState('console');
+    enterLevel('console', () => leaveConsole({ fromHistory: true }));
+    desk.leaving = false;
+    desk.open = false;
+    const p = consolePoses();
+    desk.lean = p.lean;
+    desk.stand = p.stand;
+    loadLaunches();
+    deskFly([
+      { ...p.stand, ms: Math.min(900, Math.max(300, camera.position.distanceTo(p.stand.pos) * 420)) }, // step up to the desk
+      { ...p.lean, ms: 800 }, // and lean in to the screen
+    ], () => {
+      if (state !== 'console' || desk.leaving) return;
+      desk.open = true;
+      term.open();
+      sound.hum(true);
+      consoleFrame();
+      if (!coarse) term.focusPrompt();
+      showHint(coarse ? 'Tap ‹ › for the next launches.' : 'Click ‹ › (or ← →) for the next launches. Or type help.', 'console');
+    });
+  }
+  function leaveConsole({ fromHistory = false } = {}) {
+    if (state !== 'console' || desk.leaving) return;
+    if (!fromHistory) leaveLevel('console');
+    desk.leaving = true;
+    desk.open = false;
+    clearHint('console');
+    term.close();
+    sound.hum(false);
+    if (LC) { LC.pick(-1); LC.con.arm(false); }
+    const end = () => {
+      player.spawn(consoleSpot.approach.clone().normalize(), consoleSpot.point, -0.1);
+      desk.leaving = false;
+      setState('walk');
+      player.applyToCamera();
+      canvas.focus({ preventScroll: true });
+    };
+    deskFly([{ ...desk.stand, ms: 700 }], end);
+  }
+  // Fire: straighten up and turn to the rocket; it burns for six seconds; then lean back in
+  function engineTest() {
+    if (state !== 'console' || desk.leaving) return;
+    LC.con.press();
+    buzz([20, 40, 20]);
+    clearHint('console');
+    desk.open = false;
+    sound.hum(false);
+    // a step back from the desk, away from the pad, so the whole ship and the pad under it are in view
+    const upv = desk.stand.pos.clone().normalize(), away = desk.stand.pos.clone().sub(LC.rocketBase);
+    away.addScaledVector(upv, -away.dot(upv)).normalize();
+    const eye = surfacePoint(desk.stand.pos.clone().addScaledVector(away, 1.6).normalize());
+    eye.addScaledVector(eye.clone().normalize(), player.eye + 0.15);
+    desk.watch = poseLooking(eye, LC.rocketBase.clone().lerp(LC.rocketMid, 0.55));
+    deskFly([{ ...desk.stand, ms: 500 }, { ...desk.watch, ms: 900 }], () => {
+      if (state !== 'console' || desk.leaving) return;
+      desk.burnT = 0;
+      desk.burnAt = performance.now();
+      sound.play('roar', 6);
+      buzz([60, 30, 60, 30, 120, 40, 200]);
+    });
+  }
+  const BURN = 6, SMOKE = 2.2; // seconds of burn, and of the smoke clearing before you lean back in
+  function burnFrame(dt) {
+    if (desk.burnT < 0) { if (LC) LC.burn(0, dt); return; }
+    desk.burnT = (performance.now() - desk.burnAt) / 1000; // on the clock, not by frames
+    const t = desk.burnT, k = t < 0.9 ? (t / 0.9) ** 2 : t < BURN - 1.6 ? 1 : Math.max(0, (BURN - t) / 1.6);
+    LC.burn(k, dt);
+    if (t > BURN + SMOKE) {
+      desk.burnT = -1;
+      LC.con.arm(false);
+      if (state !== 'console' || desk.leaving) return;
+      deskFly([{ ...desk.stand, ms: 900 }, { ...desk.lean, ms: 700 }], () => {
+        if (state !== 'console' || desk.leaving) return;
+        desk.open = true;
+        term.tested();
+        sound.hum(true);
+        consoleFrame();
+      });
+    }
+  }
+  // the terminal over the screen: the screen's corners where the camera sees them, each frame
+  const _sc = new THREE.Vector3();
+  function consoleFrame() {
+    termEl.classList.toggle('is-on', desk.open && !flight);
+    if (!desk.open || !LC) return;
+    const scr = LC.con.screen, r = canvas.getBoundingClientRect();
+    scr.updateMatrixWorld(true);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of [[-0.32, -0.2], [0.32, -0.2], [-0.32, 0.2], [0.32, 0.2]]) {
+      _sc.set(x, y, 0.001).applyMatrix4(scr.matrixWorld).project(camera);
+      const px = (_sc.x * 0.5 + 0.5) * r.width + r.left, py = (-_sc.y * 0.5 + 0.5) * r.height + r.top;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    }
+    const st = termEl.style;
+    st.setProperty('--sx', `${x0.toFixed(1)}px`); st.setProperty('--sy', `${y0.toFixed(1)}px`);
+    st.setProperty('--sw', `${(x1 - x0).toFixed(1)}px`); st.setProperty('--sh', `${(y1 - y0).toFixed(1)}px`);
+  }
+  // the countdown's last ten seconds beep at the console, and at T-0 a spark leaves Earth from the pad
+  let beepSec = null;
+  function countdownFrame() {
+    const l = LC && LC.next && LC.next();
+    if (!l) return;
+    const ms = new Date(l.net) - Date.now(), sec = Math.ceil(ms / 1000);
+    if (beepSec !== null && sec !== beepSec) {
+      if (sec >= 1 && sec <= 10) sound.play('beep', false);
+      if (beepSec > 0 && sec <= 0) { sound.play('beep', true); if (Number.isFinite(l.lat) && Number.isFinite(l.lon)) sky.liftoff(l.lat, l.lon); }
+    }
+    beepSec = sec;
+  }
+  consoleLeaveBtn.addEventListener('click', () => leaveConsole());
+  onSwipe($('term-screen'), (d) => term.step(d));
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
   // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
@@ -2064,10 +2222,20 @@ async function start() {
     earthPins.append(el);
     return { el, label: el.lastChild, name, at: earthPoint(lat, lon), clock: new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: zone }), shown: '' };
   });
+  // and the space station, where it is right now (site.js issNow: asked every 5 s while you look), just above
+  const iss = { el: document.createElement('div'), at: null, km: 0, asked: 0 };
+  iss.el.className = 'earth-pin is-iss';
+  iss.el.innerHTML = '<i></i><span>ISS <b></b></span>';
+  iss.el.hidden = true;
+  earthPins.append(iss.el);
   const _ec = new THREE.Vector3(), _eq = new THREE.Quaternion(), _en = new THREE.Vector3(), _ep = new THREE.Vector3();
   function earthPinsFrame(on, k, rect) {
     earthPins.hidden = !on;
     if (!on) return;
+    if (window.issNow && Date.now() - iss.asked > 5000) {
+      iss.asked = Date.now();
+      window.issNow().then((n) => { iss.at = earthPoint(n.lat, n.lon); iss.km = n.km; iss.el.querySelector('b').textContent = `${Math.round(n.km)} km up`; }).catch(() => { iss.at = null; });
+    }
     earthPins.style.opacity = k.toFixed(3);
     const E = sky.earth, R = E.userData.radius, now = new Date();
     E.getWorldPosition(_ec); E.getWorldQuaternion(_eq);
@@ -2087,6 +2255,14 @@ async function start() {
         p.el.classList.toggle('is-night', !day);
         p.label.innerHTML = `${p.name} <b>${p.clock.format(now).toLowerCase()}</b>`;
       }
+    }
+    iss.el.hidden = !iss.at;
+    if (iss.at) {
+      _en.copy(iss.at).applyQuaternion(_eq);
+      iss.el.hidden = _en.dot(toEye) < 0.15;
+      _ep.copy(_ec).addScaledVector(_en, R * (1 + iss.km / 6371)).project(camera);
+      iss.el.style.transform = `translate(${((_ep.x + 1) / 2) * rect.width}px, ${((1 - _ep.y) / 2) * rect.height}px) translateY(-50%)`;
+      iss.el.classList.toggle('is-left', _ep.x > 0.15);
     }
   }
   function scopeFrame(realDt) {
@@ -2433,13 +2609,14 @@ async function start() {
   const Y_AXIS = new THREE.Vector3(0, 1, 0), X_AXIS = new THREE.Vector3(1, 0, 0);
   const seatKeys = { x: 0, y: 0 };
   const seatArrow = (e, down) => {
-    if (e.target.closest && e.target.closest('input, textarea')) return; // typing, not looking
+    if (e.target.closest && e.target.closest('input, textarea') && !(e.target === termInput && !termInput.value)) return; // typing, not looking (an empty prompt still steps)
     // where there's a ‹ ›, ← → are it: the board's drinks, a shelf's books (or the shelves), the telescope's sights
     if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && panel.hidden && menu.hidden) {
       const d = e.key === 'ArrowLeft' ? -1 : 1;
       const step = state === 'seat' && board.on ? () => stepRecipe(d)
         : state === 'hammock' && zoom.region ? () => (starOpen ? stepBook(d) : stepShelf(d))
-          : state === 'scope' ? () => stepScope(d) : null;
+          : state === 'scope' ? () => stepScope(d)
+            : state === 'console' && desk.open ? () => term.step(d) : null;
       if (step) { if (down) { e.preventDefault(); step(); } return; }
     }
     if ((state !== 'seat' && state !== 'camp' && state !== 'hammock' && state !== 'shore' && state !== 'note') || !panel.hidden || !menu.hidden) { seatKeys.x = seatKeys.y = 0; return; }
@@ -2529,6 +2706,13 @@ async function start() {
       }
     }
     if (state === 'scope') mountFrame(realDt); // the telescope swings round even as you step up to it
+    burnFrame(realDt);
+    countdownFrame();
+    if (state === 'console') {
+      if (!flight && desk.pose) { camera.position.copy(desk.pose.pos); camera.quaternion.copy(desk.pose.quat); }
+      consoleFrame();
+      if (desk.open) term.tick();
+    }
     if (flight) { flightStep(performance.now()); if (state === 'scope') eyeDark.style.setProperty('--dark', eyeNear().toFixed(3)); }
     else if (state === 'scope' && scope.eye) scopeFrame(realDt);
     else if ((state === 'shore' && shorePose) || (state === 'note' && notePose)) {
@@ -2648,6 +2832,7 @@ async function start() {
     const atShore = state === 'shore' && !flight && !leaving && panel.hidden && menu.hidden;
     shoreLeave.hidden = shoreThrow.hidden = !atShore;
     scopeLeaveBtn.hidden = !(state === 'scope' && !flight && !scope.leaving && panel.hidden && menu.hidden);
+    consoleLeaveBtn.hidden = !(state === 'console' && !flight && !desk.leaving && desk.burnT < 0 && panel.hidden && menu.hidden);
     shoreThrow.classList.toggle('is-winding', windUp >= 0);
     carryDrop.hidden = carryThrow.hidden = !(state === 'walk' && carry && !flight && panel.hidden && menu.hidden);
     carryThrow.classList.toggle('is-winding', carryWind >= 0);
@@ -2706,7 +2891,7 @@ async function start() {
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
-  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, door: { get view() { return door.view; }, get inside() { return door.inside; }, back: () => stepBack() }, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, door: { get view() { return door.view; }, get inside() { return door.inside; }, back: () => stepBack() }, console: { go: () => lookAtConsole(), leave: () => leaveConsole(), term, get open() { return desk.open; }, get burning() { return desk.burnT >= 0; }, get burnT() { return desk.burnT; }, liftoff: (lat, lon) => sky.liftoff(lat, lon), get armed() { return !!(LC && LC.con.armed); } }, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
@@ -2732,6 +2917,8 @@ async function start() {
     lagoon: surfacePoint(POND.center),
     hammock: hmSpot ? hmSpot.point.clone() : surfacePoint(SPOTS.spawn),
     door: doorSpot && doorSpot.point.clone(), // the daytime through it
+    console: consoleSpot && consoleSpot.point.clone().addScaledVector(consoleSpot.point.clone().normalize(), 1.1), // its screen
+    rocket: LC && LC.rocketBase.clone(),
   } });
   bar.setSfx((name, ...args) => sound.play(name, ...args));
   window.__world.sound = sound;
