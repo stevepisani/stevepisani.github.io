@@ -584,7 +584,7 @@ export function launchConsole() {
  * the real thing. Until `setView()` it's the place's sky colour. Faces +z (you step through
  * toward -z); base at y = 0. The label names the place and credits the scan (`plaque`: lines).
  */
-export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9 } = {}) {
+export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9, brightness = 1.3, spill: spills = true } = {}) {
   const g = new THREE.Group();
   const OW = 1.0, OH = 2.1, STEP = 0.14; // the opening
   const wood = surface(woodSet(PALETTE.stain), { roughness: 0.8 });
@@ -623,7 +623,7 @@ export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9 } = {}
   for (let i = 0; i < 4; i++) add(new THREE.BoxGeometry(OW / 4 - 0.01, OH - 0.04, 0.045), i % 2 ? wood : dark, [OW / 8 + i * OW / 4, (OH - 0.04) / 2, 0], leaf);
   for (const y of [0.35, OH - 0.45]) add(new THREE.BoxGeometry(OW - 0.06, 0.1, 0.03), wood, [OW / 2, y, 0.035], leaf);
   // the opening: the place, looked into (doorwindow.js)
-  const uniforms = { view: { value: null }, ready: { value: 0 }, sky: { value: new THREE.Color(sky) }, brightness: { value: 1.3 }, far: { value: far }, centre: { value: new THREE.Vector3(0, eye - STEP - OH / 2, 0.16) } };
+  const uniforms = { view: { value: null }, ready: { value: 0 }, sky: { value: new THREE.Color(sky) }, brightness: { value: brightness }, far: { value: far }, centre: { value: new THREE.Vector3(0, eye - STEP - OH / 2, 0.16) } };
   const opening = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), new THREE.ShaderMaterial({
     uniforms,
     vertexShader: windowVertex,
@@ -633,14 +633,16 @@ export function doorway({ sky = 0xcfdde6, plaque = [], eye = 1.6, far = 9 } = {}
   opening.castShadow = opening.receiveShadow = false;
   opening.userData.noBatch = true;
   g.add(opening);
-  // daylight spilling out onto the step and the grass in front
-  const spill = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2, 6, 10).rotateX(-Math.PI / 2).translate(0, 0, 1.15), new THREE.MeshBasicMaterial({
-    map: spillTexture(), color: sky, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-  }));
-  spill.position.y = 0.02;
-  spill.userData.noBatch = true;
-  spill.renderOrder = 2;
-  g.add(spill);
+  // daylight spilling out onto the step and the grass in front (not from the door back: night doesn't spill)
+  if (spills) {
+    const spill = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 2.2, 6, 10).rotateX(-Math.PI / 2).translate(0, 0, 1.15), new THREE.MeshBasicMaterial({
+      map: spillTexture(), color: sky, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+    }));
+    spill.position.y = 0.02;
+    spill.userData.noBatch = true;
+    spill.renderOrder = 2;
+    g.add(spill);
+  }
   // a small brass plaque: where this is, and whose scan it is
   if (plaque.length) {
     const c = document.createElement('canvas');

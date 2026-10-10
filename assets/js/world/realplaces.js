@@ -13,7 +13,9 @@ export const REAL_PLACES = {
     view: '/assets/splats/sala-view.webp', // tools/portal-view.mjs: the place, through the planet's door
     back: '/assets/splats/sala-back.webp', // tools/portal-view.mjs --back: the planet, through the door back
     credit: { by: 'Andrew.HD', source: 'https://superspl.at/scene/34ac01fc', license: 'CC BY 4.0', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/' },
-    sky: 0xcfdde6,
+    sky: 0xcfdde6, // the haze at the horizon (and the door's opening before its panorama's in)
+    zenith: 0x8db4d8, // the sky overhead
+    lawn: 0x8c9a74, // far ground, going into the haze, past where the scan ends
     // in the scan's own coordinates (y points down, as captures do)
     at: [53.5, -1.3, 19.7], // where you come in: on the paving east of the pavilion, at ground height
     face: [46.7, 19.7], // the way you face: the pavilion

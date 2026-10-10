@@ -19,7 +19,7 @@ const fetched = new Map(); // url → Promise<Uint8Array>
 import * as THREE from 'three';
 import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark';
 import { REAL_PLACES } from './realplaces.js';
-import { windowVertex, windowFragment } from './doorwindow.js';
+import { doorway } from './props.js';
 
 const EYE = 1.6;
 const LOOK = { mouse: 0.004, touch: 0.005 }; // radians per pixel dragged, as on the planet
@@ -57,15 +57,15 @@ export function prefetch(place) {
 /**
  * Get `place` ready: loads it (the first time) and draws it, unseen, from where you come in.
  * `progress(0..1)` while it loads; `yaw` and `pitch` (radians) turn you from the way you face
- * coming in; `onBack()` when you walk into the door back. Resolves with { show() (fades it in
+ * coming in; `fov` (degrees) is the planet's, so nothing jumps as it fades in; `onBack()` when you walk into the door back. Resolves with { show() (fades it in
  * over the planet), leave() (fades it out and stops drawing it), ... } once the first frames are
  * drawn.
  */
-export async function enter(place, { parent = document.body, progress = () => {}, fadeMs = 600, reduce = false, yaw: turn = 0, pitch: tip = 0, onBack = () => {} } = {}) {
+export async function enter(place, { parent = document.body, progress = () => {}, fadeMs = 600, reduce = false, yaw: turn = 0, pitch: tip = 0, fov = 68, onBack = () => {} } = {}) {
   if (!kept.has(place)) kept.set(place, load(place, parent, progress).catch((e) => { kept.delete(place); throw e; }));
   const view = await kept.get(place);
   progress(1);
-  return view.start({ turn, tip, fadeMs, reduce, onBack });
+  return view.start({ turn, tip, fadeMs, reduce, fov, onBack });
 }
 
 async function load(place, parent, progress) {
@@ -83,6 +83,31 @@ async function load(place, parent, progress) {
   const camera = new THREE.PerspectiveCamera(68, 1, 0.05, 200);
   const spark = new SparkRenderer({ renderer });
   scene.add(spark);
+  // the sky, round you wherever you walk: blue overhead, a pale haze at the horizon, and below
+  // it a far lawn going into the haze, so where the scan ends reads as distance, not an edge
+  {
+    const c = document.createElement('canvas');
+    c.width = 4; c.height = 256;
+    const g = c.getContext('2d'), hex = (n) => `#${n.toString(16).padStart(6, '0')}`;
+    const grad = g.createLinearGradient(0, 0, 0, 256); // top of the canvas is straight up
+    grad.addColorStop(0, hex(p.zenith));
+    grad.addColorStop(0.25, hex(p.zenith));
+    grad.addColorStop(0.47, hex(p.sky));
+    grad.addColorStop(0.5, hex(p.sky));
+    grad.addColorStop(0.53, hex(p.lawn));
+    grad.addColorStop(1, hex(p.lawn));
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 4, 256);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    scene.background = tex;
+  }
+  // daylight for the door back (the splats carry their own light)
+  scene.add(new THREE.HemisphereLight(0xe4edf4, 0x7a7461, 1.4));
+  const sun = new THREE.DirectionalLight(0xfff2de, 2.2);
+  sun.position.set(4, 10, 6);
+  scene.add(sun);
 
   // the scan, turned upright (y down → y up: half a turn about x) and moved so where you come
   // in is the origin, at ground level: the light copy first, the full one when it's in (it takes
@@ -95,15 +120,22 @@ async function load(place, parent, progress) {
     m.position.copy(origin).negate();
     return m;
   };
+  let complete = false; // the full copy's showing
   const lite = mesh(await bytes(p.lite, progress), p.lite);
   scene.add(lite);
   bytes(p.splat).then(async (b) => {
     const full = mesh(b, p.splat);
     await full.initialized;
+    full.opacity = 0.02; // all but unseen (not 0: Spark leaves out splats that can't be seen, and they'd never be sorted in)
     scene.add(full);
-    // a few frames for its first sort, then the light one goes
-    let n = 0;
-    const swap = () => { if (++n < 12 && alive) requestAnimationFrame(swap); else lite.visible = false; };
+    // once Spark's sorted it in, it comes up over the light one (half a second), which goes
+    const liteN = (lite.packedSplats && lite.packedSplats.numSplats) || 0, until = performance.now() + 8000;
+    let t0 = 0;
+    const swap = (now) => {
+      if (!t0 && (spark.activeSplats > liteN || now > until)) t0 = now;
+      if (t0) full.opacity = Math.max(0.02, Math.min(1, (now - t0) / 500));
+      if (full.opacity < 1) requestAnimationFrame(swap); else { lite.visible = false; complete = true; }
+    };
     requestAnimationFrame(swap);
   }).catch(() => {}); // no full copy: the light one stays
   const keepOut = p.keepOut.map(([x, z, r]) => ({ c: up(x, p.at[1], z).sub(origin).setY(0), r }));
@@ -113,19 +145,63 @@ async function load(place, parent, progress) {
   const facing = up(p.face[0], p.at[1], p.face[1]).sub(origin);
   const yaw0 = Math.atan2(-facing.x, -facing.z);
   let yaw = yaw0, pitch = 0;
-  let goal = null, toDoor = false, onBack = () => {};
+  let goal = null, going = null, onBack = () => {}; // going: on your way out through the door back
   const keys = new Set();
 
-  // the door back, just behind where you come in, its opening toward the pavilion: turn round
-  // and there's the planet at night through it (p.back, tools/portal-view.mjs --back). Walk into
-  // it (a tap) and you're back on the planet, facing down its trail as you saw through it.
+  // the door back: the planet's own tiki door (props.js), lit by daylight, just behind where you
+  // come in, its opening toward the pavilion. Turn round and there's the planet at night through
+  // it (p.back, tools/portal-view.mjs --back). Tap it and you walk to it, turn square and go on
+  // into the opening until it fills the view; then you're back on the planet, facing down its
+  // trail as you saw through it.
   const ahead = new THREE.Vector3(-Math.sin(yaw0), 0, -Math.cos(yaw0));
-  const doorBack = backDoor(p.back, p.sky);
-  doorBack.position.copy(ahead).multiplyScalar(-0.9);
+  const back = doorway({ sky: 0x1a1530, eye: EYE, brightness: 1, spill: false });
+  new THREE.TextureLoader().load(p.back, (tex) => { tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = THREE.RepeatWrapping; back.setView(tex); });
+  const doorBack = back.group;
+  doorBack.position.copy(ahead).multiplyScalar(-1.2);
   doorBack.rotation.y = yaw0 + Math.PI; // its +z (the side you walk in from) toward the pavilion
   scene.add(doorBack);
   keepOut.push({ c: doorBack.position.clone(), r: 0.75 });
-  const doorStep = doorBack.position.clone().addScaledVector(ahead, 0.8); // where you stop, in front of it
+  const doorStep = doorBack.position.clone().addScaledVector(ahead, 0.8); // in front of it
+  const doorSill = doorBack.position.clone().addScaledVector(ahead, 0.16); // your eye just short of the opening, as on the planet
+  const yawIn = yaw0 + Math.PI; // facing it
+  const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+  // Out through it: one move on the clock (not by frames), like the planet's flyPath: you walk to
+  // its step turning square to it, then on into the opening until it fills the view, speeding up
+  // over the first quarter, steady, slowing over the last; then onBack().
+  function toDoorBack() {
+    if (going) return;
+    const d1 = pos.distanceTo(doorStep), d2 = doorStep.distanceTo(doorSill);
+    // long enough to walk it unhurried, and to turn square (by the step) no faster than about
+    // 100°/s on average, so the turn peaks near the planet's 140°/s
+    const turnShare = Math.max(d1, 0.3) / (d1 + d2), turn = Math.abs(wrap(yawIn - yaw)) + Math.abs(pitch);
+    going = { t0: performance.now(), from: pos.clone(), yaw, pitch, d1, d2, ms: reduce ? 0 : Math.max(1400, ((d1 + d2) / SPEED) * 1300, (turn / 1.75 / turnShare) * 1000) };
+    goal = null;
+    keys.clear();
+  }
+  function goOut(now) {
+    const g = going, k = g.ms ? Math.min(1, (now - g.t0) / g.ms) : 1, A = 0.25;
+    const e = k < A ? (k * k) / (2 * A * (1 - A)) : k < 1 - A ? (k - A / 2) / (1 - A) : 1 - ((1 - k) * (1 - k)) / (2 * A * (1 - A));
+    const along = e * (g.d1 + g.d2);
+    if (along < g.d1) pos.copy(allowed(g.from.clone().lerp(doorStep, g.d1 ? along / g.d1 : 1)));
+    else pos.copy(doorStep).lerp(doorSill, (along - g.d1) / g.d2);
+    const turn = Math.min(1, e * (g.d1 + g.d2) / Math.max(g.d1, 0.3)); // square to it by the step
+    yaw = g.yaw + wrap(yawIn - g.yaw) * turn;
+    pitch = g.pitch * (1 - turn);
+    if (k >= 1) { going = null; onBack(); }
+  }
+
+  // the planet's markers: a faint ring where the pointer would take you, and one where you
+  // tapped, spreading as it fades (drawn over the splats, which keep no depth)
+  const ring = (color) => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.38, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthTest: false, depthWrite: false }));
+    m.renderOrder = 10;
+    m.position.y = 0.03;
+    scene.add(m);
+    return m;
+  };
+  const hoverRing = ring(0xffffff), destRing = ring(0x3ff5e8);
+  let destT = -1;
+  const showDest = (v) => { destRing.position.set(v.x, 0.03, v.z); destT = 0; };
 
   function fit() {
     if (!alive) return;
@@ -140,17 +216,18 @@ async function load(place, parent, progress) {
   let down = null;
   const onDown = (e) => { down = { x: e.clientX, y: e.clientY, moved: 0, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); };
   const onMove = (e) => {
-    if (!down || e.pointerId !== down.id) return;
+    if (!down) { hover(e); return; }
+    if (e.pointerId !== down.id) return;
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
     down.moved += Math.abs(dx) + Math.abs(dy);
     down.x = e.clientX; down.y = e.clientY;
+    if (going) return; // going through: it has you
     // exactly as on the planet (player.look): drag right and you turn left, drag down and you
     // look up
     const k = e.pointerType === 'mouse' ? LOOK.mouse : LOOK.touch;
     yaw += dx * k;
     pitch = THREE.MathUtils.clamp(pitch + dy * k, -1.2, 1.2);
     goal = null;
-    toDoor = false;
   };
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const onUp = (e) => {
@@ -161,20 +238,33 @@ async function load(place, parent, progress) {
     ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     // the door back: walk to it, then through
-    if (ray.intersectObject(doorBack, true).length) { goal = allowed(doorStep); toDoor = true; return; }
+    if (ray.intersectObject(doorBack, true).length) { toDoorBack(); hoverRing.material.opacity = 0; return; }
     const hit = ray.ray.intersectPlane(ground, new THREE.Vector3());
-    if (hit && hit.distanceTo(pos) < 30) { goal = allowed(hit); toDoor = false; }
+    if (hit && hit.distanceTo(pos) < 30 && !going) { goal = allowed(hit); showDest(goal); }
   };
+  // a mouse over the place: the door back is a thing to use; the ground, somewhere to go
+  function hover(e) {
+    if (e.pointerType !== 'mouse' || going) return;
+    ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const onDoor = ray.intersectObject(doorBack, true).length > 0;
+    const hit = !onDoor && ray.ray.intersectPlane(ground, new THREE.Vector3());
+    const go = hit && hit.distanceTo(pos) < 30;
+    canvas.style.cursor = onDoor || go ? 'pointer' : '';
+    if (go) { const at = allowed(hit); hoverRing.position.set(at.x, 0.03, at.z); }
+    hoverRing.material.opacity = go ? 0.35 : 0;
+  }
   const onKey = (e) => {
     if (!alive) return;
     const k = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' }[e.code];
     if (!k) return;
-    if (e.type === 'keydown') { keys.add(k); goal = null; toDoor = false; } else keys.delete(k);
+    if (e.type === 'keydown') { if (!going) { keys.add(k); goal = null; } } else keys.delete(k);
   };
   canvas.addEventListener('pointerdown', onDown);
   canvas.addEventListener('pointermove', onMove);
   canvas.addEventListener('pointerup', onUp);
   canvas.addEventListener('pointercancel', () => { down = null; });
+  canvas.addEventListener('pointerleave', () => { hoverRing.material.opacity = 0; });
   addEventListener('keydown', onKey);
   addEventListener('keyup', onKey);
 
@@ -199,7 +289,8 @@ async function load(place, parent, progress) {
     fwd.set(-Math.sin(yaw), 0, -Math.cos(yaw));
     side.set(Math.cos(yaw), 0, -Math.sin(yaw));
     const step = new THREE.Vector3();
-    if (keys.size) {
+    if (going) goOut(now);
+    else if (keys.size) {
       if (keys.has('f')) step.add(fwd);
       if (keys.has('b')) step.sub(fwd);
       if (keys.has('r')) step.add(side);
@@ -208,8 +299,15 @@ async function load(place, parent, progress) {
     } else if (goal) {
       const to = goal.clone().sub(pos);
       const d = to.length();
-      if (d < 0.05) { goal = null; if (toDoor) { toDoor = false; onBack(); } }
+      if (d < 0.05) goal = null;
       else step.copy(to).setLength(Math.min(d, SPEED * dt * Math.min(1, d / 0.8 + 0.3)));
+    }
+    if (destT >= 0) {
+      destT += dt;
+      const k = destT / 0.9;
+      destRing.scale.setScalar(0.6 + Math.min(1, k) * 0.5);
+      destRing.material.opacity = Math.max(0, 0.9 * (1 - k));
+      if (k >= 1) destT = -1;
     }
     if (step.lengthSq()) pos.copy(allowed(pos.clone().add(step)));
     pose();
@@ -223,7 +321,7 @@ async function load(place, parent, progress) {
   }
 
   await lite.initialized;
-  let fadeMs = 600, reduce = false;
+  let fadeMs = 600, reduce = false, baseFov = 68;
   const fade = (to) => new Promise((r) => {
     canvas.style.transition = `opacity ${reduce ? 0 : fadeMs}ms ease`;
     canvas.style.opacity = to;
@@ -232,10 +330,11 @@ async function load(place, parent, progress) {
 
   const view = {
     canvas,
-    /** From where you come in, drawing again (unseen until show()); resolves after a few frames. */
+    /** From where you come in, drawing again (unseen until show()); resolves once the splats are sorted and drawn. */
     async start(o) {
       ({ fadeMs, reduce, onBack } = o);
-      toDoor = false;
+      camera.fov = baseFov = o.fov; // the planet's, so the view doesn't jump as it fades in
+      going = null;
       pos.set(0, 0, 0);
       yaw = yaw0 + o.turn;
       pitch = o.tip;
@@ -246,19 +345,30 @@ async function load(place, parent, progress) {
       fit();
       last = performance.now();
       raf = requestAnimationFrame(frame);
-      // a few frames for the sort before it shows
-      await new Promise((r) => { let n = 0; const tick = () => (++n > 12 ? r() : requestAnimationFrame(tick)); requestAnimationFrame(tick); });
+      // until Spark has sorted the splats and they're drawn (or a few seconds: never stuck at the step), and a frame more
+      await new Promise((r) => {
+        const until = performance.now() + 6000;
+        let n = 0, after = 0;
+        const tick = () => {
+          n++;
+          if (spark.orderingTexture && spark.activeSplats > 0 && n > 3) after++;
+          if (after > 2 || performance.now() > until) r(); else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      });
       return view;
     },
     show() { canvas.classList.add('is-on'); canvas.focus({ preventScroll: true }); return fade(1); },
     get position() { return pos.clone(); },
+    /** The full copy's in and showing (until then, the light one). */
+    get complete() { return complete; },
     get yaw() { return yaw; },
     get pitch() { return pitch; },
     get startYaw() { return yaw0; },
     /** Turn by (dyaw, dpitch) radians, as a drag would. */
     look(dyaw, dpitch = 0) { yaw += dyaw; pitch = THREE.MathUtils.clamp(pitch + dpitch, -1.2, 1.2); },
     /** Walk into the door back, as a tap on it would. */
-    toDoorBack() { goal = allowed(doorStep); toDoor = true; },
+    toDoorBack,
     /** Walk toward a point on the ground ([x, z] metres from where you came in), as a tap would. */
     walkTo(x, z) { goal = allowed(new THREE.Vector3(x, 0, z)); },
     /**
@@ -277,7 +387,7 @@ async function load(place, parent, progress) {
       renderer.render(scene, camera);
       const url = canvas.toDataURL('image/png');
       if (dir) [yaw, pitch] = was;
-      if (size || fov) { camera.fov = 68; renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); fit(); }
+      if (size || fov) { camera.fov = baseFov; renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); fit(); }
       if (alive) raf = requestAnimationFrame(frame);
       return url;
     },
@@ -288,37 +398,10 @@ async function load(place, parent, progress) {
       cancelAnimationFrame(raf);
       keys.clear();
       down = null;
+      hoverRing.material.opacity = 0;
       await fade(0);
       if (!alive) canvas.style.display = 'none'; // not even composited while you're away
     },
   };
   return view;
-}
-
-// The door back: a plain wooden frame (this side of it is the place's, not the planet's tikis)
-// with the planet in its opening, the same window as the planet's door (doorwindow.js), from its
-// step looking back down the trail. Faces +z; base at y = 0.
-function backDoor(url, sky) {
-  const g = new THREE.Group();
-  const OW = 1.0, OH = 2.1, STEP = 0.14, EYE_AT_SILL = 0.16;
-  const wood = new THREE.MeshBasicMaterial({ color: 0x4a2f1d }), dark = new THREE.MeshBasicMaterial({ color: 0x2c1b10 });
-  const box = (w, h, d, m, x, y, z, rz = 0) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); b.rotation.z = rz; g.add(b); return b; };
-  box(1.5, STEP, 0.7, dark, 0, STEP / 2, 0.05); // the step
-  for (const x of [-1, 1]) {
-    box(0.22, 2.55, 0.24, wood, x * (OW / 2 + 0.11), STEP + 1.275, 0); // posts
-    box(0.32, 0.12, 0.26, wood, x * 1.0, STEP + 2.75, 0, x * 0.55); // the lintel's swept-up ends
-  }
-  box(1.9, 0.2, 0.3, wood, 0, STEP + 2.65, 0); // the lintel
-  box(OW + 0.14, 0.08, 0.2, dark, 0, STEP + OH + 0.04, 0);
-  const uniforms = { view: { value: null }, ready: { value: 0 }, sky: { value: new THREE.Color(0x1a1530) }, brightness: { value: 1 }, far: { value: 9 }, centre: { value: new THREE.Vector3(0, EYE - STEP - OH / 2, EYE_AT_SILL) } };
-  const opening = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), new THREE.ShaderMaterial({ uniforms, vertexShader: windowVertex, fragmentShader: windowFragment }));
-  opening.position.set(0, STEP + OH / 2, 0);
-  g.add(opening);
-  new THREE.TextureLoader().load(url, (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.RepeatWrapping;
-    uniforms.view.value = tex;
-    uniforms.ready.value = 1;
-  });
-  return g;
 }
