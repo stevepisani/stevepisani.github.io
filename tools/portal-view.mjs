@@ -49,6 +49,7 @@ const webp = await page.evaluate(async ({ place, back, FACE, W, H }) => {
   if (!back) {
     const { enter } = await import('/assets/js/dist/portal.js');
     const P = await enter(place, { reduce: true });
+    while (!P.complete) await new Promise((r) => setTimeout(r, 1000)); // the full copy, not the light one
     snap = ([fy, fp]) => P.snapshot({ size: FACE, fov: 90, dir: [P.startYaw + fy, fp], frames: 5 });
     done = () => P.leave();
   } else {

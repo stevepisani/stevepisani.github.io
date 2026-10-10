@@ -7,6 +7,9 @@
 //   the hammock  its ropes creaking when you get in or out
 //   everywhere   crickets
 //   anywhere     the loose things (physics.js): thuds and splashes where they happen
+//   the door     daytime in Honolulu: a breeze in the trees, zebra doves, the odd whistle; faint
+//                through the open door as you walk up, all round you once you're through, while
+//                the planet's night goes quiet (away())
 // Off until the visitor turns it on (browsers only start audio from a click or key), then
 // remembered (localStorage `world-sound`); paused while the tab is hidden.
 import * as THREE from 'three';
@@ -17,7 +20,8 @@ export function createSound({ scene, camera, spots }) {
   let ctx = null, listener = null, on = false, timer = 0;
   const inputs = {};   // name -> GainNode that feeds a positional source
   const sources = {};  // name -> its PositionalAudio
-  let nextBeat = 0, beat = 0, nextBird = 0, nextCrackle = 0, nextCricket = 0;
+  let nextBeat = 0, beat = 0, nextBird = 0, nextCrackle = 0, nextCricket = 0, nextDove = 0, nextWhistle = 0;
+  let isAway = false, dayAll = null; // dayAll: the door's daytime, all round you (see away())
   let noiseWhite, noiseBrown;
 
   const remembered = () => { try { return localStorage.getItem(KEY) === '1'; } catch (e) { return false; } };
@@ -68,6 +72,28 @@ export function createSound({ scene, camera, spots }) {
     place('lagoon', spots.lagoon, { ref: 2, max: 30, rolloff: 1.5 });
     place('hammock', spots.hammock, { ref: 1.5, max: 20, rolloff: 1.5 });
     place('loose', spots.bar, { ref: 1.5, max: 25, rolloff: 1.5 }); // moved to wherever it happens
+    // the daytime through the door: one source (inputs.day), out at the door and all round you
+    if (spots.door) {
+      const d = ctx.createGain(), at = place('door', spots.door, { ref: 1.2, max: 25, rolloff: 1.6, gain: isAway ? 0 : 1 });
+      const all = new THREE.Audio(listener), ag = ctx.createGain();
+      ag.gain.value = isAway ? 1 : 0;
+      all.setNodeSource(ag);
+      d.connect(at); d.connect(ag);
+      inputs.day = d;
+      dayAll = ag;
+      // a breeze in the leaves, coming and going in gusts, over a low push of air
+      const leaves = noiseSource(noiseWhite), lf = ctx.createBiquadFilter(), lg = ctx.createGain();
+      lf.type = 'bandpass'; lf.frequency.value = 2400; lf.Q.value = 0.5; lg.gain.value = 0.06;
+      const air = noiseSource(noiseBrown), af = ctx.createBiquadFilter(), ag2 = ctx.createGain();
+      af.type = 'lowpass'; af.frequency.value = 380; ag2.gain.value = 0.12;
+      for (const [hz, depth, g] of [[0.07, 0.035, lg], [0.13, 0.02, lg], [0.05, 0.06, ag2]]) {
+        const lfo = ctx.createOscillator(), dg = ctx.createGain();
+        lfo.frequency.value = hz; dg.gain.value = depth;
+        lfo.connect(dg).connect(g.gain); lfo.start();
+      }
+      leaves.connect(lf).connect(lg).connect(d); leaves.start();
+      air.connect(af).connect(ag2).connect(d); air.start();
+    }
 
     // the fire's low rumble
     { const s = noiseSource(noiseBrown), f = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -83,7 +109,8 @@ export function createSound({ scene, camera, spots }) {
       }
       s.connect(f).connect(g).connect(inputs.lagoon); s.start(); }
     const t = ctx.currentTime + 0.1;
-    nextBeat = t; nextBird = t + 6; nextCrackle = t; nextCricket = t;
+    nextBeat = t; nextBird = t + 6; nextCrackle = t; nextCricket = t; nextDove = t + 2; nextWhistle = t + 9;
+    if (isAway) night(0, 0);
     timer = setInterval(schedule, 100);
     document.addEventListener('visibilitychange', onVisible);
   }
@@ -143,6 +170,25 @@ export function createSound({ scene, camera, spots }) {
     o.connect(g).connect(inputs.bar);
     o.start(t); fm.start(t); o.stop(t + n * 0.16 + 0.1); fm.stop(t + n * 0.16 + 0.1);
   }
+  function dove(t) { // a zebra dove: a soft, quick run of coos, then a longer one
+    const n = 6 + Math.floor(Math.random() * 5), f0 = 560 + Math.random() * 90;
+    for (let i = 0; i <= n; i++) {
+      const s = t + i * 0.085, len = i === n ? 0.32 : 0.06;
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(f0 * (i === n ? 1.12 : 1), s);
+      o.frequency.exponentialRampToValueAtTime(f0 * 0.86, s + len);
+      env(g, s, 0.05, 0.012, len);
+      o.connect(g).connect(inputs.day); o.start(s); o.stop(s + len + 0.05);
+    }
+  }
+  function whistle(t) { // a cardinal somewhere off in the trees: two or three clear slurs
+    for (let i = 0, n = 2 + Math.floor(Math.random() * 2); i < n; i++) {
+      const s = t + i * 0.42, o = ctx.createOscillator(), g = ctx.createGain(), hi = 2600 + Math.random() * 500;
+      o.frequency.setValueAtTime(hi, s); o.frequency.exponentialRampToValueAtTime(hi * 0.55, s + 0.3);
+      env(g, s, 0.025, 0.02, 0.3);
+      o.connect(g).connect(inputs.day); o.start(s); o.stop(s + 0.36);
+    }
+  }
   function burst(input, t, { dur = 0.03, type = 'highpass', hz = 1800, q = 0.7, v = 0.2 } = {}) {
     const s = noiseSource(noiseWhite, false), f = ctx.createBiquadFilter(), g = ctx.createGain();
     f.type = type; f.frequency.value = hz; f.Q.value = q;
@@ -176,6 +222,10 @@ export function createSound({ scene, camera, spots }) {
     while (nextBird < ahead) { bird(nextBird); nextBird += 12 + Math.random() * 14; }
     while (nextCrackle < ahead) { burst(inputs.fire, nextCrackle, { dur: 0.01 + Math.random() * 0.04, v: 0.1 + Math.random() * 0.4 }); nextCrackle += 0.04 + Math.random() * 0.35; }
     while (nextCricket < ahead) { chirp(nextCricket); nextCricket += Math.random() < 0.7 ? 0.5 : 1.4; }
+    if (inputs.day) {
+      while (nextDove < ahead) { dove(nextDove); nextDove += 7 + Math.random() * 9; }
+      while (nextWhistle < ahead) { whistle(nextWhistle); nextWhistle += 11 + Math.random() * 13; }
+    }
   }
 
   /* ---------- Things that happen ---------- */
@@ -322,7 +372,25 @@ export function createSound({ scene, camera, spots }) {
     addEventListener('keydown', first, true);
   }
 
+  // the planet's night, all of it, up or down (the door's daytime is apart from it)
+  function night(to, seconds) {
+    for (const [name, full] of [['bar', 1], ['fire', 1], ['lagoon', 1], ['hammock', 1], ['loose', 1], ['everywhere', 0.5]]) {
+      const g = inputs[name].gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setTargetAtTime(to * full, ctx.currentTime, seconds / 3 + 0.001);
+    }
+  }
+
   return {
+    /** Through the door (true) or back on the planet (false): the daytime comes up all round you and the night goes, or back again, over `seconds`. */
+    away(v, seconds = 0.8) {
+      isAway = v;
+      if (!ctx || !dayAll) return;
+      const t = ctx.currentTime, k = seconds / 3 + 0.001;
+      dayAll.gain.setTargetAtTime(v ? 1 : 0, t, k);
+      inputs.door.gain.setTargetAtTime(v ? 0 : 1, t, k);
+      night(v ? 0 : 1, seconds);
+    },
     /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where), 'zap' (where, how hard). Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
