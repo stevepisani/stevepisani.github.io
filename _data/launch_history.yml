@@ -1,0 +1,99 @@
+# Launch history: famous launches by the date they went up (the date as usually given, local to
+# where they flew). The launch console's terminal and its panel show the one closest to today's
+# date in any year ("On this day in 1969" when it's today's, otherwise its date). Add to it
+# freely: one line each, plainly, no more than a short sentence of what it was.
+- { date: 1957-10-04, name: Sputnik 1, line: "The first artificial satellite." }
+- { date: 1957-11-03, name: Sputnik 2, line: "Laika, the first animal to orbit Earth." }
+- { date: 1958-01-31, name: Explorer 1, line: "The first American satellite. It found the Van Allen belts." }
+- { date: 1959-01-02, name: Luna 1, line: "The first spacecraft to leave Earth's gravity behind." }
+- { date: 1959-09-12, name: Luna 2, line: "The first spacecraft to reach the Moon." }
+- { date: 1960-04-01, name: TIROS-1, line: "The first weather satellite." }
+- { date: 1960-08-19, name: Sputnik 5, line: "Belka and Strelka orbit Earth and come home safe." }
+- { date: 1961-04-12, name: Vostok 1, line: "Yuri Gagarin, the first person in space." }
+- { date: 1961-05-05, name: Freedom 7, line: "Alan Shepard, the first American in space." }
+- { date: 1962-02-20, name: Friendship 7, line: "John Glenn, the first American to orbit Earth." }
+- { date: 1962-04-26, name: Ariel 1, line: "The United Kingdom's first satellite." }
+- { date: 1962-07-10, name: Telstar 1, line: "The first live television across the Atlantic." }
+- { date: 1962-08-27, name: Mariner 2, line: "The first spacecraft to fly past another planet, Venus." }
+- { date: 1963-06-16, name: Vostok 6, line: "Valentina Tereshkova, the first woman in space." }
+- { date: 1964-11-28, name: Mariner 4, line: "The first close-up pictures of Mars." }
+- { date: 1965-03-18, name: Voskhod 2, line: "Alexei Leonov makes the first spacewalk." }
+- { date: 1965-04-06, name: Early Bird, line: "The first commercial communications satellite." }
+- { date: 1965-06-03, name: Gemini 4, line: "Ed White, the first American spacewalk." }
+- { date: 1965-11-26, name: Astérix, line: "France's first satellite, on its own rocket." }
+- { date: 1966-01-31, name: Luna 9, line: "The first soft landing on the Moon." }
+- { date: 1966-03-16, name: Gemini 8, line: "The first docking of two spacecraft in orbit." }
+- { date: 1966-05-30, name: Surveyor 1, line: "America's first soft landing on the Moon." }
+- { date: 1967-06-12, name: Venera 4, line: "The first probe to send back data from inside another planet's air." }
+- { date: 1968-12-21, name: Apollo 8, line: "The first people to orbit the Moon. Earthrise." }
+- { date: 1969-07-16, name: Apollo 11, line: "The first people to walk on the Moon." }
+- { date: 1969-11-14, name: Apollo 12, line: "Struck by lightning twice on the way up, and on to the Moon anyway." }
+- { date: 1970-02-11, name: Ohsumi, line: "Japan's first satellite." }
+- { date: 1970-04-11, name: Apollo 13, line: "\"Houston, we've had a problem.\" All three came home." }
+- { date: 1970-04-24, name: Dong Fang Hong 1, line: "China's first satellite. It played a song from orbit." }
+- { date: 1970-08-17, name: Venera 7, line: "The first landing on another planet to send back data." }
+- { date: 1970-11-10, name: Luna 17, line: "Lunokhod 1, the first rover on another world." }
+- { date: 1971-04-19, name: Salyut 1, line: "The first space station." }
+- { date: 1971-05-30, name: Mariner 9, line: "The first spacecraft to orbit another planet." }
+- { date: 1971-10-28, name: Prospero, line: "Britain's only satellite on a British rocket." }
+- { date: 1972-03-02, name: Pioneer 10, line: "The first spacecraft to fly past Jupiter." }
+- { date: 1972-12-07, name: Apollo 17, line: "The last people on the Moon, and the Blue Marble photo." }
+- { date: 1973-04-06, name: Pioneer 11, line: "The first spacecraft to fly past Saturn." }
+- { date: 1973-05-14, name: Skylab, line: "America's first space station." }
+- { date: 1975-07-15, name: Apollo-Soyuz, line: "An American and a Soviet crew launch the same day and shake hands in orbit." }
+- { date: 1975-08-20, name: Viking 1, line: "The first working lander on Mars." }
+- { date: 1977-08-20, name: Voyager 2, line: "The only spacecraft to visit Uranus and Neptune." }
+- { date: 1977-09-05, name: Voyager 1, line: "Now the farthest thing people have made." }
+- { date: 1979-12-24, name: Ariane 1, line: "Europe's own rocket flies for the first time." }
+- { date: 1981-04-12, name: STS-1, line: "The first Space Shuttle flight, twenty years to the day after Gagarin." }
+- { date: 1983-06-18, name: STS-7, line: "Sally Ride, the first American woman in space." }
+- { date: 1985-07-02, name: Giotto, line: "Flew within 600 km of the heart of Halley's Comet." }
+- { date: 1986-02-19, name: Mir, line: "The core of the Mir space station." }
+- { date: 1988-09-29, name: STS-26, line: "The Shuttle flies again, for the first time since Challenger." }
+- { date: 1989-05-04, name: Magellan, line: "Mapped Venus through its clouds." }
+- { date: 1989-10-18, name: Galileo, line: "The first spacecraft to orbit Jupiter." }
+- { date: 1990-04-24, name: Hubble, line: "The Hubble Space Telescope goes up." }
+- { date: 1990-10-06, name: Ulysses, line: "The first look at the Sun's poles." }
+- { date: 1996-12-04, name: Mars Pathfinder, line: "Sojourner, the first rover on Mars." }
+- { date: 1997-10-15, name: Cassini-Huygens, line: "Thirteen years at Saturn, and a landing on Titan." }
+- { date: 1998-11-20, name: Zarya, line: "The first piece of the International Space Station." }
+- { date: 1999-07-23, name: STS-93, line: "The Chandra X-ray telescope, on Eileen Collins's Shuttle, the first a woman commanded." }
+- { date: 2000-10-31, name: Expedition 1, line: "People have lived on the space station ever since." }
+- { date: 2001-04-28, name: Soyuz TM-32, line: "Dennis Tito, the first paying visitor to the space station." }
+- { date: 2003-06-10, name: Spirit, line: "A Mars rover planned for 90 days. It lasted six years." }
+- { date: 2003-07-07, name: Opportunity, line: "A Mars rover planned for 90 days. It lasted fourteen years." }
+- { date: 2003-10-15, name: Shenzhou 5, line: "Yang Liwei, China's first astronaut." }
+- { date: 2004-03-02, name: Rosetta, line: "The first spacecraft to orbit a comet and land on one." }
+- { date: 2004-06-21, name: SpaceShipOne, line: "The first privately built crewed spaceflight." }
+- { date: 2004-08-03, name: MESSENGER, line: "The first spacecraft to orbit Mercury." }
+- { date: 2005-01-12, name: Deep Impact, line: "Hit a comet on purpose to see what was inside." }
+- { date: 2006-01-19, name: New Horizons, line: "The first close look at Pluto." }
+- { date: 2007-09-27, name: Dawn, line: "Orbited two worlds in the asteroid belt, Vesta and Ceres." }
+- { date: 2008-09-28, name: Falcon 1, line: "The first privately built liquid-fuelled rocket to reach orbit." }
+- { date: 2008-10-22, name: Chandrayaan-1, line: "India's first mission to the Moon. It found water there." }
+- { date: 2009-03-06, name: Kepler, line: "The planet hunter. Thousands of worlds round other stars." }
+- { date: 2009-05-11, name: STS-125, line: "The last visit to fix up Hubble." }
+- { date: 2009-05-14, name: Herschel and Planck, line: "Two telescopes for the cold and early universe, on one rocket." }
+- { date: 2010-06-04, name: Falcon 9, line: "Its first flight." }
+- { date: 2011-07-08, name: STS-135, line: "The last Space Shuttle flight." }
+- { date: 2011-08-05, name: Juno, line: "Orbiting Jupiter's poles." }
+- { date: 2011-11-26, name: Curiosity, line: "A car-sized rover for Mars." }
+- { date: 2012-05-22, name: Dragon, line: "The first commercial spacecraft to visit the space station." }
+- { date: 2013-11-05, name: Mangalyaan, line: "India's Mars orbiter, there on the first try." }
+- { date: 2013-11-18, name: MAVEN, line: "How Mars lost its air." }
+- { date: 2013-12-19, name: Gaia, line: "Mapping a billion stars." }
+- { date: 2014-12-03, name: Hayabusa2, line: "Brought pieces of an asteroid home." }
+- { date: 2014-12-05, name: Orion, line: "The Artemis capsule's first flight." }
+- { date: 2015-12-21, name: Falcon 9, line: "The first orbital rocket booster to land back on Earth." }
+- { date: 2016-09-08, name: OSIRIS-REx, line: "Brought pieces of asteroid Bennu home." }
+- { date: 2018-02-06, name: Falcon Heavy, line: "Its first flight, with a car and a dummy called Starman." }
+- { date: 2018-04-18, name: TESS, line: "Looking for planets round the nearest stars." }
+- { date: 2018-08-12, name: Parker Solar Probe, line: "The closest anything has been to the Sun." }
+- { date: 2018-12-07, name: Chang'e 4, line: "The first landing on the far side of the Moon." }
+- { date: 2020-05-30, name: Crew Dragon Demo-2, line: "The first crew to orbit on a privately built spacecraft." }
+- { date: 2020-07-30, name: Perseverance, line: "A Mars rover, with the Ingenuity helicopter." }
+- { date: 2021-12-25, name: James Webb Space Telescope, line: "Hubble's successor, launched on Christmas Day." }
+- { date: 2022-11-16, name: Artemis I, line: "The new Moon rocket's first flight." }
+- { date: 2023-04-20, name: Starship, line: "The biggest rocket ever flown, its first full test." }
+- { date: 2023-07-14, name: Chandrayaan-3, line: "India's landing near the Moon's south pole." }
+- { date: 2024-10-13, name: Starship Flight 5, line: "The launch tower caught the booster coming home." }

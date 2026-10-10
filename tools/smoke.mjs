@@ -279,13 +279,53 @@ async function planet(page, shot, { phone = false } = {}) {
   if (await page.isVisible('#scope-more')) throw new Error('the telescope card still offers something besides the sky');
   await page.keyboard.press('Escape');
   await expectState(page, 'walk');
-  // launch control: the console by the rocket opens the launch panel (offline here, its screen
-  // says so rather than counting down)
+  // launch control: tap the console by the rocket and you lean in to its screen, the terminal laid
+  // over it. Offline first: it says so. Then with a made-up manifest (tools/fixtures/launches.json,
+  // its dates moved to just ahead of now, the first within the hour): the next launches, ‹ ›,
+  // "Remind me" (a calendar file), "Watch live" (the first one's stream), the engine test (guard
+  // up, fire: you turn to the rocket and back), and the panel's list; Esc stands you up
   await page.evaluate(() => window.__world.goUse('console'));
-  await until(page, () => !document.getElementById('panel').hidden && document.getElementById('panel').dataset.id === 'launch', null, 120000);
+  await until(page, () => window.__world.state === 'console' && window.__world.console.open && !window.__world.cameraFlying, null, 120000);
+  await until(page, () => /manifest/.test(document.getElementById('term-name').textContent));
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  const fixture = JSON.parse(readFileSync(new URL('./fixtures/launches.json', import.meta.url)));
+  const soon = [40 * 60e3, 26 * 3600e3, 50 * 3600e3, 75 * 3600e3, 120 * 3600e3];
+  fixture.results.forEach((l, i) => { l.net = new Date(Date.now() + soon[i]).toISOString(); });
+  await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/upcoming\//, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
+  await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/[0-9a-f-]+\/\?mode=detailed/, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ vid_urls: [{ url: 'https://www.youtube.com/watch?v=stand-in', title: 'Stand-in stream', priority: 1, live: false }] }) }));
+  await page.evaluate(() => { localStorage.removeItem('launches'); window.__world.console.go(); });
+  await until(page, (name) => window.__world.console.open && document.getElementById('term-name').textContent === name, fixture.results[0].name.split(' | ')[1], 120000);
+  await until(page, () => !document.getElementById('term-watch').hidden, null, 60000);
+  if (await page.evaluate(() => document.getElementById('term-count').textContent) !== `1 / ${fixture.results.length}`) throw new Error("the terminal doesn't say which launch of how many");
+  // the terminal sits on the console's screen: inside the window, over where the screen is drawn
+  const box = await page.evaluate(() => { const r = document.getElementById('term-screen').getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerWidth, innerHeight]; });
+  if (box[2] < 200 || box[3] < 120 || box[0] < -2 || box[0] + box[2] > box[4] + 2 || box[1] < 0 || box[1] + box[3] > box[5]) throw new Error(`the terminal isn't over the console's screen in view: ${box.map(Math.round).join(', ')}`);
+  for (const id of ['term-prev', 'term-next', 'term-remind', 'term-test', 'console-leave']) {
+    const r = await page.evaluate((id) => { const b = document.getElementById(id).getBoundingClientRect(); return [b.width, b.height, b.bottom <= innerHeight, b.right <= innerWidth]; }, id);
+    if (r[0] < 44 || r[1] < 44 || !r[2] || !r[3]) throw new Error(`#${id} isn't a whole 44 px tap target on screen (${r.join(', ')})`);
+  }
   await shot('launch-control');
+  await page.click('#term-next');
+  await until(page, () => window.__world.console.term.index === 1);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#term-remind')]);
+  if (!/\.ics$/.test(download.suggestedFilename())) throw new Error(`"Remind me" saved ${download.suggestedFilename()}, not a calendar file`);
+  await page.click('#term-prev');
+  await page.click('#term-test');
+  await until(page, () => window.__world.console.armed && /Fire/.test(document.getElementById('term-test').textContent));
+  await page.click('#term-test');
+  await until(page, () => window.__world.console.burning, null, 60000);
+  await until(page, () => window.__world.console.open && !window.__world.console.burning && /Engines off/.test(document.getElementById('term-out').textContent), null, 240000);
+  if (await page.evaluate(() => window.__world.console.armed)) throw new Error("the engine test's guard stayed up");
+  await page.keyboard.press('Escape');
+  await expectState(page, 'walk');
+  await page.evaluate(() => document.querySelector('#menu a[data-order="launch"]').click());
+  await until(page, (n) => document.querySelectorAll('#panel-body .launch-row').length === n, fixture.results.length);
+  if (!(await page.textContent('#panel-body [data-launch-history]')).trim()) throw new Error('the launch panel has no line from launch history');
   await page.click('#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
+  await page.unroute(/ll\.thespacedevs\.com/);
+  step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
   await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
