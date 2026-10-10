@@ -507,19 +507,36 @@ export function launchConsole() {
   panel.rotation.x = -0.55;
   g.add(panel);
   add(new THREE.BoxGeometry(1.2, 0.04, 0.42), teal, [0, 0, 0], panel);
-  // switches and lamps on the panel
+  // switches and lamps on the panel: the lamps say the next launch's status (green go, amber to
+  // be confirmed, red on hold), chasing slowly, quickly in its last hour
   const lamps = [];
+  const LAMP = { go: glow(0x4dff9a, 3), tbd: glow(PALETTE.amber, 3), hold: glow(PALETTE.coral, 3) };
   for (let i = 0; i < 6; i++) {
     const x = -0.45 + i * 0.13;
     const sw = add(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), steel, [x, 0.035, 0.08], panel);
     sw.rotation.x = 0.4;
-    const lamp = add(new THREE.SphereGeometry(0.018, 10, 8), glow(i % 3 === 2 ? PALETTE.coral : PALETTE.amber, 3), [x, 0.03, -0.06], panel);
+    const lamp = add(new THREE.SphereGeometry(0.018, 10, 8), LAMP.tbd, [x, 0.03, -0.06], panel);
     lamp.castShadow = false;
+    lamp.userData.noBatch = true;
     lamps.push(lamp);
   }
-  // the red button under its flip-up guard
+  // the red button under its flip-up guard (hinged at its back edge): the engine test
   add(new THREE.CylinderGeometry(0.05, 0.055, 0.02, 20), dark, [0.42, 0.03, 0.02], panel);
-  add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), pbr({ color: PALETTE.coral, roughness: 0.35, emissive: PALETTE.coral, emissiveIntensity: 0.25 }), [0.42, 0.05, 0.02], panel);
+  const button = add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), pbr({ color: PALETTE.coral, roughness: 0.35, emissive: PALETTE.coral, emissiveIntensity: 0.25 }), [0.42, 0.05, 0.02], panel);
+  button.userData.noBatch = true;
+  const guard = new THREE.Group();
+  guard.position.set(0.42, 0.045, -0.045);
+  guard.userData.noBatch = true;
+  panel.add(guard);
+  const stripes = document.createElement('canvas');
+  stripes.width = stripes.height = 64;
+  { const x = stripes.getContext('2d'); x.fillStyle = '#e8b931'; x.fillRect(0, 0, 64, 64); x.fillStyle = '#1b1b1b'; for (let k = -64; k < 128; k += 22) { x.beginPath(); x.moveTo(k, 0); x.lineTo(k + 11, 0); x.lineTo(k - 53, 64); x.lineTo(k - 64, 64); x.fill(); } }
+  const stripeTex = new THREE.CanvasTexture(stripes);
+  stripeTex.colorSpace = THREE.SRGBColorSpace;
+  const lid = add(new THREE.BoxGeometry(0.12, 0.012, 0.13), pbr({ map: stripeTex, roughness: 0.4 }), [0, 0.03, 0.065], guard);
+  lid.castShadow = false;
+  for (const x of [-0.055, 0.055]) add(new THREE.BoxGeometry(0.01, 0.03, 0.13), dark, [x, 0.012, 0.065], guard);
+  let armed = 0, armTo = 0, pressed = 0;
   // the screen housing, on a neck, tipped a little toward you
   add(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12), steel, [0, 0.95, -0.15]);
   const head = new THREE.Group();
@@ -548,10 +565,11 @@ export function launchConsole() {
     ctx.fillStyle = glowGrad; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'left';
     ctx.shadowColor = 'rgba(120,255,190,.8)'; ctx.shadowBlur = 8;
-    const [kick, big, name, meta] = lines;
+    const [kick, big, name, meta, right] = lines;
     ctx.fillStyle = '#7dffbf';
     ctx.font = '600 22px "JetBrains Mono", ui-monospace, monospace';
     ctx.fillText(kick || '', 28, 48);
+    if (right) { ctx.textAlign = 'right'; ctx.fillText(right, W - 28, 48); ctx.textAlign = 'left'; }
     ctx.font = '700 56px "JetBrains Mono", ui-monospace, monospace';
     ctx.fillStyle = '#c8ffe0';
     ctx.fillText(big || '', 28, 128, W - 56);
@@ -567,11 +585,28 @@ export function launchConsole() {
     tex.needsUpdate = true;
   }
   show(['NEXT LAUNCH', 'T- --:--:--', 'Checking the manifest…', '']);
+  let status = 'tbd', soon = false;
   return {
     group: g,
     show,
     screen,
-    blink(t) { lamps.forEach((l, i) => { l.visible = Math.floor(t * 2 + i * 1.7) % 3 !== 0; }); },
+    head,
+    panel,
+    /** The lamps' colour, by the next launch's status ('go', 'tbd', 'hold'); `hurry` chases them fast (its last hour). */
+    status(s, hurry = false) { status = LAMP[s] ? s : 'tbd'; soon = hurry; },
+    /** Flip the guard up (true) or let it fall shut (false). */
+    arm(on) { armTo = on ? 1 : 0; },
+    /** Press the button: it goes down and comes back up. */
+    press() { pressed = 1; },
+    get armed() { return armTo === 1; },
+    blink(t, dt = 1 / 60) {
+      const m = LAMP[status], rate = soon ? 7 : 2;
+      lamps.forEach((l, i) => { l.material = m; l.visible = Math.floor(t * rate + i * (soon ? 1 : 1.7)) % 3 !== 0; });
+      armed += (armTo - armed) * Math.min(1, dt * 9);
+      guard.rotation.x = -1.95 * armed;
+      pressed = Math.max(0, pressed - dt * 2.5);
+      button.position.y = 0.05 - 0.014 * Math.min(1, pressed * 3);
+    },
   };
 }
 

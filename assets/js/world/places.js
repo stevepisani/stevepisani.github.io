@@ -163,6 +163,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     return put(holder, dir, { ...opts, sink: (opts.sink || 0) + footDrop(dir, r) + 0.02 }, clear);
   };
 
+  let launchControl = null; // the launch console, for main.js (below)
   // Your ship (rocket.js): how you got here, a Saturn V cut down into an Outer Wilds-style lander,
   // standing on its legs on a landing pad. "Fly home" leaves for the classic site. At night it
   // has to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and a
@@ -229,8 +230,9 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
 
     // Launch control: a console beside the pad, off to one side of where the path comes in, its
-    // screen counting down to the next launch anywhere (site.js nextLaunch(): Launch Library 2,
-    // cached an hour). Tap it for the launch panel.
+    // screen counting down to the next launch anywhere (site.js launches(): Launch Library 2,
+    // cached an hour), its lamps the colour of that launch's status. Lean in to it (main.js, the
+    // terminal) for the next five, and the red button's engine test.
     const con = launchConsole();
     const inLocal = pad.worldToLocal(surfacePoint(dirFrom(0.66, 1.42))).setY(0);
     const a = Math.atan2(inLocal.z, inLocal.x) - 0.8;
@@ -242,16 +244,36 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     con.group.updateMatrixWorld(true);
     colliders.push({ center: con.group.position.clone(), radius: 0.55 });
     const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.1)).normalize());
-    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launch', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
-    let launch = null, lastSecond = -1;
-    setTimeout(() => { if (window.nextLaunch) window.nextLaunch().then((l) => { launch = l; }).catch(() => { launch = false; }); }, 4000); // after the planet's up
+    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launches', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
+    // what it shows: the next launch to come (or one you've picked at the terminal), once a second
+    let launches = null, picked = -1, lastSecond = -1, lastT = performance.now();
+    setTimeout(() => { if (window.launches) window.launches().then((l) => { launches = l; }).catch(() => { launches = false; }); }, 4000); // after the planet's up
+    const next = () => (launches ? launches.find((l) => new Date(l.net) > Date.now() - 600e3) || launches[0] : null);
     animated.push((t) => {
-      con.blink(t);
+      const now = performance.now(); // the guard and button move on real time (ambient time can be frozen, ?test)
+      con.blink(t, Math.min(0.1, (now - lastT) / 1000));
+      lastT = now;
       const sec = Math.floor(Date.now() / 1000);
-      if (sec === lastSecond || launch === null) return;
+      if (sec === lastSecond || launches === null) return;
       lastSecond = sec;
-      con.show(launch ? ['NEXT LAUNCH', window.tMinus(launch.net), launch.name, [launch.provider, launch.pad].filter(Boolean).join(' · ')] : ['NEXT LAUNCH', 'AD ASTRA', 'No word from the manifest', 'Try again later']);
+      const l = picked >= 0 && launches ? launches[picked] : next(), first = next();
+      if (first) { const ms = new Date(first.net) - Date.now(); con.status(window.launchStatus ? window.launchStatus(first) : 'tbd', ms > 0 && ms < 3600e3); }
+      con.show(l ? [picked >= 0 ? `LAUNCH ${picked + 1} OF ${launches.length}` : 'NEXT LAUNCH', new Date(l.net) <= Date.now() && new Date(l.net) > Date.now() - 600e3 ? 'LIFTOFF' : window.tMinus(l.net), l.name, [l.provider, l.pad].filter(Boolean).join(' · '), `● ${l.status.toUpperCase()}`] : ['NEXT LAUNCH', 'AD ASTRA', 'No word from the manifest', 'Try again later']);
     });
+    // for main.js: the console, the launches, the engine test
+    launchControl = {
+      con,
+      get launches() { return launches; },
+      set launches(l) { launches = l; lastSecond = -1; },
+      next,
+      /** Show launch `i` on the screen (-1: the next one again). */
+      pick(i) { picked = i; lastSecond = -1; },
+      /** The engine test, each frame (rocket.js burn). */
+      burn: ship.burn,
+      /** Where to stand and look to watch the rocket. */
+      rocketMid: pad.localToWorld(new THREE.Vector3(0, PAD_TOP + top * 0.42, 0)),
+      rocketBase: pad.localToWorld(new THREE.Vector3(0, PAD_TOP, 0)),
+    };
   }
 
   // The trails: a flagstone walk from where you land to the bar, and gravel trails from it to
@@ -554,6 +576,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     loose,
     door,
     machine,
+    launchControl,
     update(t) { for (const f of animated) f(t); },
   };
 }

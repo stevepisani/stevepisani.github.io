@@ -1,0 +1,178 @@
+{
+ "_note": "Launch Library 2 (thespacedevs.com), trimmed to what the site reads; the smoke test moves the dates to just ahead of now.",
+ "count": 4,
+ "results": [
+  {
+   "id": "97c6f5e1-299e-4652-b72d-9618ac047076",
+   "name": "Falcon 9 Block 5 | Starlink Group 15-25",
+   "status": {
+    "name": "Go for Launch",
+    "abbrev": "Go"
+   },
+   "net": "2026-10-12T23:00:00Z",
+   "net_precision": {
+    "abbrev": "MIN"
+   },
+   "image": {
+    "image_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/falcon2520925_image_20221009234147.png",
+    "thumbnail_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/255bauto255d__image_thumbnail_20240305192320.png",
+    "credit": "SpaceX",
+    "license": {
+     "name": "CC BY-NC 2.0"
+    }
+   },
+   "webcast_live": false,
+   "launch_service_provider": {
+    "name": "SpaceX"
+   },
+   "rocket": {
+    "configuration": {
+     "full_name": "Falcon 9 Block 5"
+    }
+   },
+   "mission": {
+    "name": "Starlink Group 15-25",
+    "description": "A batch of 27 satellites for the Starlink mega-constellation - SpaceX's project for space-based Internet communication system.",
+    "orbit": {
+     "name": "Low Earth Orbit"
+    }
+   },
+   "pad": {
+    "latitude": 34.632,
+    "longitude": -120.611,
+    "location": {
+     "name": "Vandenberg SFB, CA, USA"
+    }
+   }
+  },
+  {
+   "id": "bf2c3027-a314-403e-a416-2bfd5d165ad1",
+   "name": "Falcon 9 Block 5 | Dragon CRS-2 SpX-35",
+   "status": {
+    "name": "Go for Launch",
+    "abbrev": "Go"
+   },
+   "net": "2026-10-13T10:33:44Z",
+   "net_precision": {
+    "abbrev": "SEC"
+   },
+   "image": {
+    "image_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/falcon2520925_image_20210520085648.jpeg",
+    "thumbnail_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/255bauto255d__image_thumbnail_20240305192619.jpeg",
+    "credit": "SpaceX",
+    "license": {
+     "name": "CC BY-NC 2.0"
+    }
+   },
+   "webcast_live": false,
+   "launch_service_provider": {
+    "name": "SpaceX"
+   },
+   "rocket": {
+    "configuration": {
+     "full_name": "Falcon 9 Block 5"
+    }
+   },
+   "mission": {
+    "name": "Dragon CRS-2 SpX-35",
+    "description": "35th commercial resupply services mission to the International Space Station operated by SpaceX. The flight will be conducted under the second Commercial Resupply Services contract with NASA.\r\n\r\nCargo Dragon 2 brings supplies and payloads, including critical materials to directly support science and research investigations that occur onboard the orbiting laboratory.",
+    "orbit": {
+     "name": "Low Earth Orbit"
+    }
+   },
+   "pad": {
+    "latitude": 28.56194122,
+    "longitude": -80.57735736,
+    "location": {
+     "name": "Cape Canaveral SFS, FL, USA"
+    }
+   }
+  },
+  {
+   "id": "df88cfbf-f504-4e11-8370-e33dd6280b5b",
+   "name": "Falcon 9 Block 5 | USSF-481",
+   "status": {
+    "name": "Go for Launch",
+    "abbrev": "Go"
+   },
+   "net": "2026-10-15T23:44:00Z",
+   "net_precision": {
+    "abbrev": "MIN"
+   },
+   "image": {
+    "image_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/falcon_9_liftof_image_20260816171423.jpg",
+    "thumbnail_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/falcon_9_liftof_image_thumbnail_20260816171423.jpeg",
+    "credit": "SpaceX",
+    "license": {
+     "name": "Unknown"
+    }
+   },
+   "webcast_live": false,
+   "launch_service_provider": {
+    "name": "SpaceX"
+   },
+   "rocket": {
+    "configuration": {
+     "full_name": "Falcon 9 Block 5"
+    }
+   },
+   "mission": {
+    "name": "USSF-481",
+    "description": "A classified mission for the United States Space Force. It is possibly a batch of classified LEO satellites based on SpaceX’s Starshield satellite bus, based on locations of ascent rocket stage drop zones being fits with previous SDA Transport Layer launches.",
+    "orbit": {
+     "name": "Polar Orbit"
+    }
+   },
+   "pad": {
+    "latitude": 34.632,
+    "longitude": -120.611,
+    "location": {
+     "name": "Vandenberg SFB, CA, USA"
+    }
+   }
+  },
+  {
+   "id": "69ebbcd2-b257-4070-9ef9-21e7d1f8a883",
+   "name": "H3-24 | Martian Moons eXploration (MMX)",
+   "status": {
+    "name": "On Hold",
+    "abbrev": "Hold"
+   },
+   "net": "2026-10-19T19:41:03Z",
+   "net_precision": {
+    "abbrev": "SEC"
+   },
+   "image": {
+    "image_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/h3-24_liftoff__image_20251028184029.jpeg",
+    "thumbnail_url": "https://thespacedevs-prod.nyc3.digitaloceanspaces.com/media/images/h3-24_liftoff__image_thumbnail_20251028184029.jpeg",
+    "credit": "Mitsubishi Heavy Industries",
+    "license": {
+     "name": "Unknown"
+    }
+   },
+   "webcast_live": false,
+   "launch_service_provider": {
+    "name": "Mitsubishi Heavy Industries"
+   },
+   "rocket": {
+    "configuration": {
+     "full_name": "H3-24"
+    }
+   },
+   "mission": {
+    "name": "Martian Moons eXploration (MMX)",
+    "description": "MMX is a Japanese scientific mission to land on Phobos, one of the two moons of Mars, to collect samples before bringing them back to Earth.\r\n\r\nThe mission includes a small French/German rover to explore the surface of Phobos.",
+    "orbit": {
+     "name": "Mars Orbit"
+    }
+   },
+   "pad": {
+    "latitude": 30.400938,
+    "longitude": 130.97564,
+    "location": {
+     "name": "Tanegashima Space Center, Japan"
+    }
+   }
+  }
+ ]
+}

@@ -35,8 +35,8 @@ menu:
     note: The recipes I keep coming back to
     href: /drinks
   - id: launch
-    label: Next rocket launch
-    note: A live countdown to the next launch anywhere
+    label: Next rocket launches
+    note: The next launches anywhere, counting down
     href: /classic
 
 # Things the robot bartender says while you're seated, in rotation.

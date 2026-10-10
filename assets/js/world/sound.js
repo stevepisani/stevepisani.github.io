@@ -7,6 +7,8 @@
 //   the hammock  its ropes creaking when you get in or out
 //   everywhere   crickets
 //   anywhere     the loose things (physics.js): thuds and splashes where they happen
+//   the console  the launch console: a CRT's hum while you lean in to it, relay clicks, the
+//                guard's clack, countdown beeps; and the rocket's roar in an engine test
 //   the door     daytime in Honolulu: a breeze in the trees, zebra doves, the odd whistle; faint
 //                through the open door as you walk up, all round you once you're through, while
 //                the planet's night goes quiet (away())
@@ -72,6 +74,8 @@ export function createSound({ scene, camera, spots }) {
     place('lagoon', spots.lagoon, { ref: 2, max: 30, rolloff: 1.5 });
     place('hammock', spots.hammock, { ref: 1.5, max: 20, rolloff: 1.5 });
     place('loose', spots.bar, { ref: 1.5, max: 25, rolloff: 1.5 }); // moved to wherever it happens
+    if (spots.console) place('console', spots.console, { ref: 1, max: 25, rolloff: 1.4 });
+    if (spots.rocket) place('rocket', spots.rocket, { ref: 3, max: 70, rolloff: 1.1 });
     // the daytime through the door: one source (inputs.day), out at the door and all round you
     if (spots.door) {
       const d = ctx.createGain(), at = place('door', spots.door, { ref: 1.2, max: 25, rolloff: 1.6, gain: isAway ? 0 : 1 });
@@ -229,7 +233,26 @@ export function createSound({ scene, camera, spots }) {
   }
 
   /* ---------- Things that happen ---------- */
-  let pourNode = null;
+  let pourNode = null, humNode = null;
+  // the console's screen humming while you're at it (a mains hum and the faint whine of a CRT)
+  function humming(want) {
+    if (want && !humNode && inputs.console) {
+      const g = ctx.createGain(), t = ctx.currentTime;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.05, t + 0.4);
+      const parts = [[60, 'sine', 1], [120, 'sine', 0.5], [180, 'triangle', 0.15], [7800, 'sine', 0.02]].map(([hz, type, v]) => {
+        const o = ctx.createOscillator(), og = ctx.createGain();
+        o.type = type; o.frequency.value = hz; og.gain.value = v;
+        o.connect(og).connect(g); o.start(); return o;
+      });
+      g.connect(inputs.console);
+      humNode = { g, parts };
+    } else if (!want && humNode) {
+      const { g, parts } = humNode, t = ctx.currentTime;
+      g.gain.setTargetAtTime(0.0001, t, 0.08);
+      parts.forEach((o) => o.stop(t + 0.5));
+      humNode = null;
+    }
+  }
   const fx = {
     shake(seconds = 1) { // ice rattling in a tin
       const t = ctx.currentTime;
@@ -321,6 +344,40 @@ export function createSound({ scene, camera, spots }) {
         s += 0.045 + 0.06 * (s / seconds) ** 2;
       }
     },
+    beep(high = false) { // the countdown's last ten seconds, at the console
+      if (!inputs.console) return;
+      const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square'; o.frequency.value = high ? 1760 : 1320;
+      env(g, t, 0.06, 0.004, high ? 0.5 : 0.12);
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 3200;
+      o.connect(f).connect(g).connect(inputs.console); o.start(t); o.stop(t + (high ? 0.6 : 0.2));
+    },
+    relay() { // a relay clicking over: the console stepping to another launch
+      if (!inputs.console) return;
+      const t = ctx.currentTime;
+      burst(inputs.console, t, { type: 'bandpass', hz: 2400, q: 4, dur: 0.012, v: 0.18 });
+      burst(inputs.console, t + 0.018, { type: 'bandpass', hz: 1500, q: 3, dur: 0.02, v: 0.1 });
+    },
+    guard() { // the console's guard flipping up or falling shut
+      if (!inputs.console) return;
+      const t = ctx.currentTime;
+      burst(inputs.console, t, { type: 'bandpass', hz: 900, q: 1.5, dur: 0.04, v: 0.3 });
+      burst(inputs.console, t + 0.01, { type: 'bandpass', hz: 2600, q: 3, dur: 0.02, v: 0.14 });
+    },
+    roar(seconds = 6) { // the engine test: a deep roar and crackle, building, holding, dying away
+      if (!inputs.rocket) return;
+      const t = ctx.currentTime, up = 0.9, down = 1.6;
+      for (const [buf, type, hz, q, v] of [[noiseBrown, 'lowpass', 220, 0.7, 1.1], [noiseWhite, 'bandpass', 520, 0.8, 0.22]]) {
+        const s = noiseSource(buf), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        f.type = type; f.frequency.value = hz; f.Q.value = q;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(v, t + up);
+        g.gain.setValueAtTime(v, t + seconds - down);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + seconds);
+        s.connect(f).connect(g).connect(inputs.rocket); s.start(t); s.stop(t + seconds + 0.1);
+      }
+      for (let k = 0; k < seconds * 30; k++) burst(inputs.rocket, t + up * 0.5 + Math.random() * (seconds - down), { type: 'highpass', hz: 1800 + Math.random() * 2500, dur: 0.008, v: 0.05 + Math.random() * 0.07 });
+    },
     tick() { // a soft brass click: the telescope settling on a landing site
       burst(inputs.everywhere, ctx.currentTime, { type: 'bandpass', hz: 2600, q: 6, dur: 0.02, v: 0.12 });
     },
@@ -374,7 +431,8 @@ export function createSound({ scene, camera, spots }) {
 
   // the planet's night, all of it, up or down (the door's daytime is apart from it)
   function night(to, seconds) {
-    for (const [name, full] of [['bar', 1], ['fire', 1], ['lagoon', 1], ['hammock', 1], ['loose', 1], ['everywhere', 0.5]]) {
+    for (const [name, full] of [['bar', 1], ['fire', 1], ['lagoon', 1], ['hammock', 1], ['loose', 1], ['console', 1], ['rocket', 1], ['everywhere', 0.5]]) {
+      if (!inputs[name]) continue;
       const g = inputs[name].gain;
       g.cancelScheduledValues(ctx.currentTime);
       g.setTargetAtTime(to * full, ctx.currentTime, seconds / 3 + 0.001);
@@ -391,7 +449,9 @@ export function createSound({ scene, camera, spots }) {
       inputs.door.gain.setTargetAtTime(v ? 0 : 1, t, k);
       night(v ? 0 : 1, seconds);
     },
-    /** Something happened: 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where), 'zap' (where, how hard). Silent while off. */
+    /** The console's screen humming (true) or not (false), while you're leaned in to it. */
+    hum(v) { if (ctx && (on || !v)) humming(v); },
+    /** Something happened: 'beep' (high), 'relay', 'guard', 'roar' (seconds), 'shake' (seconds), 'clink', 'pour' (flowing), 'creak', 'ratchet' (seconds), 'tick', 'chalk', 'page', 'thud' / 'splash' (where, how hard), 'toss', 'firework' (where), 'zap' (where, how hard). Silent while off. */
     play(name, ...args) { if (on && ctx && fx[name]) fx[name](...args); },
     get on() { return on; },
     set,

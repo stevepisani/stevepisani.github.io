@@ -159,6 +159,33 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   </div>
   <div class="eyepiece__dark" id="eyepiece-dark" aria-hidden="true"></div>
   <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
+  <button type="button" class="seat-leave" id="console-leave" hidden>Step back</button>
+  {%- comment -%} Launch control's terminal: laid over the console's screen and desk as you lean in (terminal.js) {%- endcomment %}
+  <section class="terminal" id="terminal" aria-label="Launch control" hidden>
+    <div class="terminal__screen" id="term-screen"><div class="terminal__glass">
+      <p class="terminal__top"><span>Launch control</span><span class="terminal__status" id="term-status"></span><span id="term-count"></span></p>
+      <div class="terminal__body">
+        <div class="terminal__text">
+          <h2 class="terminal__name" id="term-name">Checking the manifest…</h2>
+          <p class="terminal__line" id="term-rocket"></p>
+          <p class="terminal__line" id="term-pad"></p>
+          <p class="terminal__line" id="term-when"></p>
+          <p class="terminal__clock" id="term-clock"></p>
+        </div>
+        <div class="terminal__pic" id="term-pic"></div>
+      </div>
+      <p class="terminal__out" id="term-out" aria-live="polite"></p>
+      <p class="terminal__ticker" id="term-ticker"><span></span></p>
+      <form class="terminal__prompt" id="term-form"><label for="term-input">&gt;</label><input id="term-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="type help" aria-label="Type a command (help lists them)"></form>
+    </div></div>
+    <div class="terminal__keys" id="term-keys">
+      <button type="button" id="term-prev" aria-label="The launch before">‹</button>
+      <button type="button" id="term-remind">Remind me</button>
+      <a class="terminal__watch" id="term-watch" target="_blank" rel="noopener" hidden>Watch live</a>
+      <button type="button" id="term-next" aria-label="The next launch">›</button>
+      <button type="button" class="terminal__test" id="term-test">Engine test</button>
+    </div>
+  </section>
   <button type="button" class="seat-leave" id="door-leave" hidden>Step back through</button>
   <p class="portal-credit" id="portal-credit" hidden></p>
   <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
@@ -216,7 +243,8 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   "likes": {{ site.data.bar.likes | jsonify }},
   "ask": {{ site.data.bar.ask | jsonify }},
   "drinks": {{ site.data.drinks | jsonify }},
-  "moon": {{ site.data.moon | jsonify }}
+  "moon": {{ site.data.moon | jsonify }},
+  "launchHistory": {{ site.data.launch_history | jsonify }}
 }
 </script>
 
@@ -280,19 +308,10 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 
 <template id="panel-launch">
   <p class="kicker">Launch control</p>
-  <h2 id="panel-title">Next launch</h2>
-  <div class="card card--launch" data-launch style="--launch-img: url('{{ '/assets/images/saturn-v-800.webp' | relative_url }}')">
-    <strong class="launch__name" data-launch-name>Checking the manifest…</strong>
-    <span class="launch__meta" data-launch-meta></span>
-    <span class="launch__clock" data-launch-clock></span>
-  </div>
-  <p>Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>.</p>
-  <h3>Up there tonight</h3>
-  <div class="sky-now" data-sky>
-    <div class="sky-now__item"><span class="sky-now__label">The moon</span><strong data-sky-moon>…</strong><span class="sky-now__meta" data-sky-moon-meta></span></div>
-    <div class="sky-now__item"><span class="sky-now__label">The ISS, right now</span><strong data-sky-iss>Finding it…</strong><span class="sky-now__meta" data-sky-iss-meta></span></div>
-  </div>
-  <p class="sky-now__note">The moon over the bar is lit the way the real one is tonight. The ISS position is live from <a href="https://wheretheiss.at" target="_blank" rel="noopener">Where the ISS at? ↗</a>.</p>
+  <h2 id="panel-title">Next launches</h2>
+  <ol class="launch-list" data-launches><li class="launch-row__none">Checking the manifest…</li></ol>
+  <p class="launch-history" data-launch-history></p>
+  <p class="launch-note">Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>; photos are theirs and their sources'.</p>
 </template>
 
 <template id="panel-contact">
