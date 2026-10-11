@@ -128,5 +128,64 @@
     "file": "bar-stool.glb",
     "height": 0.8,
     "lazy": true
+  },
+  "outrigger-canoe": {
+    "file": "outrigger-canoe.glb",
+    "height": 0.7,
+    "rotateY": 1.5708,
+    "lazy": true
+  },
+  "signpost": {
+    "file": "signpost.glb",
+    "height": 2.15,
+    "lazy": true
+  },
+  "tiki-torch": {
+    "file": "tiki-torch.glb",
+    "height": 2.33,
+    "rotate": [
+      3.1416,
+      0,
+      0
+    ],
+    "lazy": true,
+    "instance": true
+  },
+  "lantern-post": {
+    "file": "lantern-post.glb",
+    "height": 1.5,
+    "rotateY": 3.1416,
+    "lazy": true,
+    "anchors": {
+      "arm": 0.12
+    },
+    "instance": true
+  },
+  "lantern": {
+    "file": "lantern.glb",
+    "height": 0.3,
+    "glow": 1.5,
+    "lazy": true,
+    "instance": true
+  },
+  "rum-tall": {
+    "file": "rum-tall.glb",
+    "height": 0.28,
+    "lazy": true
+  },
+  "rum-square": {
+    "file": "rum-square.glb",
+    "height": 0.22,
+    "lazy": true
+  },
+  "rum-gin": {
+    "file": "rum-gin.glb",
+    "height": 0.27,
+    "lazy": true
+  },
+  "rum-slim": {
+    "file": "rum-slim.glb",
+    "height": 0.31,
+    "lazy": true
   }
 }

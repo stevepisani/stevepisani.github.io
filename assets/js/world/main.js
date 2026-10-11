@@ -2639,7 +2639,7 @@ async function start() {
   addEventListener('keydown', (e) => seatArrow(e, true));
   addEventListener('keyup', (e) => seatArrow(e, false));
   let beckoned = false;
-  let firstFrames = null, framesDrawn = 0; // the reveal waits for these
+  let firstFrames = null, framesDrawn = 0, rebake = 0; // the reveal waits for these (rebake: frames to a second batching)
   // the bar and the landmarks: still meshes that look alike drawn as one, patch by patch
   const batcher = createBatcher();
   batcher.add(bar.group, places.group);
@@ -2877,6 +2877,7 @@ async function start() {
       if (framesDrawn === 4) window.__batched = batcher.bake();
       if (framesDrawn >= 5) { firstFrames(); firstFrames = null; }
     }
+    if (rebake && --rebake === 0) window.__batched += batcher.bake(); // the lazy heroes, merged in too
   }
 
   player.applyToCamera();
@@ -2946,7 +2947,9 @@ async function start() {
       } catch (e) {}
       staging.remove(b);
     }
-    fillSlots(bottles);
+    fillSlots(bottles, { into: scene });
+    batcher.note();
+    rebake = 3;
     bar.setBottles(bottles);
     window.__world.bottles = bottles.size;
   }), 2500);

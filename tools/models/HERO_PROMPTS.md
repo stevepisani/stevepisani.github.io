@@ -36,10 +36,12 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   engine test's flames and `badge` [height, hull radius there, size] for the site's logo on
   its front (-Z). Measure them again whenever the model changes: cast rays at it (three.js
   `Raycaster` on the GLB's geometry) from the front, the sides and from above.
+- `instance`: for a lazy model there are dozens of, standing still (the trail lanterns and their
+  posts, the torches): every copy is drawn at once as one InstancedMesh, not one mesh each.
 - `lazy`: load it after the scene is up, not before the reveal: the bottles the robot pours
   from, and every model that replaces a code-built thing (the rocket, the telescope's tripod,
   the radio dish, the message bottles, the glass floats, the campfire's logs and benches, the
-  bar stools). Those are built in code first and swapped for the model when it arrives
+  bar stools, the canoe, the signpost, the torches, the trail lanterns, the rum wall). Those are built in code first and swapped for the model when it arrives
   (`hero.js` `heroSlot()` / `fillSlots()`), so a slow connection never holds up the planet.
 
 Lights, fire, and hanging cords are added by the world, so don't bake them in. The `robot`
@@ -176,6 +178,46 @@ Texture: Rough grey-brown weathered oak bark, pale sawn end grain with growth ri
 > A Polynesian tiki bar stool built from thick light tan bamboo poles with visible nodes and joints: four straight bamboo legs, two bamboo cross rings, and a round padded seat covered in woven rattan, lashed together with dark cane strips. Chunky and rustic, 1950s Hawaiian style. 75 cm tall. Realistic PBR, game-ready.
 
 Texture: Light tan bamboo poles with darker nodes, a woven natural rattan seat top, dark brown cane lashing at the joints. Realistic materials.
+
+**The second run** (generated 2026-10-11):
+
+**outrigger-canoe** (turned a quarter round to lie along z; the first try had no float)
+> A traditional Hawaiian outrigger canoe on a beach: a long narrow carved wooden main hull with upturned ends, and to its left side a separate thin log float running parallel to it, connected to the hull by two curved wooden crossbeams (iako) lashed with rope, so it looks like a catamaran with one small float. A paddle across the hull. 3 metres long. Realistic PBR, game-ready.
+
+Texture: Dark brown weathered koa wood hull with carved details, lighter wood float and crossbeams, tan coconut fibre rope lashings, a worn wooden paddle. Realistic materials.
+
+**signpost** (the post only; the lettered boards stay code. "A tiki head on top" gave a head half the post's height)
+> A tall thin wooden signpost pole, 2.3 metres tall and only 15 cm thick, straight and round, dark weathered wood, with a small carved tiki face on the top 30 cm of the pole only, the same width as the pole. Mostly plain pole. Realistic PBR, game-ready.
+
+Texture: Dark brown weathered carved wood, deeper grooves in the carved face, slightly cracked and worn. Natural wood only, no paint.
+
+**tiki-torch** (it came out upside down: `rotate` turns it over; the wick and fire are code)
+> A Hawaiian tiki torch stuck straight into the ground: one tall thin bamboo pole 2.2 metres high with visible nodes, no stand, no base, no legs. At the top, a small cup woven from split bamboo with a metal fuel canister and wick inside, lashed to the pole with rope. Unlit, no flame. Realistic PBR, game-ready.
+
+Texture: Light tan bamboo with darker nodes, a woven split bamboo cup, a dark sooty metal fuel canister, tan rope lashing. Realistic materials.
+
+**lantern-post** (`anchors.arm`: how far its arm reaches from the model's middle; the first try had leaves and a noose)
+> A plain thin bamboo pole 1.5 metres tall stuck straight into the ground, with one short straight bamboo crossbar sticking out horizontally from near its top on one side, tied on with a few turns of rope. No leaves, no rope hanging down, nothing else. Realistic PBR, game-ready.
+
+Texture: Light tan bamboo with darker nodes and natural weathering, tan rope lashing. Realistic materials.
+
+**lantern** (`glow` lights its glass from its own texture)
+> A small vintage hanging hurricane lantern: a dark iron hood cap on top with a wire hanging loop, a short glass chimney in the middle glowing warm amber from a flame inside, a round dark iron base. 30 cm tall. Realistic PBR, game-ready.
+
+Texture: Dark weathered black iron hood, frame, wire handle and base, a little rust, clear glass chimney glowing warm amber orange from the lit wick inside.
+
+**rum-tall, rum-square, rum-gin, rum-slim**: the rum wall, four shapes in turn along the shelves. Ask for labels with no readable words: Meshy's lettering comes out as near-words ("RUUM").
+> A single bottle of dark aged rum: a tall round glass bottle with sloping shoulders and a short neck, filled with dark amber rum, a cream paper label with an old-fashioned engraved design, a black screw cap. Standing upright, nothing else. Realistic PBR, game-ready.
+
+> A single short wide bottle of aged rum: a squat cylindrical glass bottle with rounded shoulders and a short neck, full of deep amber rum, a plain dark paper label with no words, a cork stopper with a wooden top. Standing upright, nothing else. Realistic PBR, game-ready.
+
+> A single square-shouldered bottle of gin: a tall glass bottle with a squarish body and short neck, clear glass with a faint green tint, a printed white and blue label, a silver cap. Standing upright, nothing else. Realistic PBR, game-ready.
+
+> A single tall slim bottle of liqueur: a narrow glass bottle with a long elegant neck, filled with bright orange red liqueur, a vintage paper label, a gold foil capsule on the neck. Standing upright, nothing else. Realistic PBR, game-ready.
+
+Textures: clear glass showing the spirit inside, a paper label with a simple border and no readable words, the cap or cork.
+
+The hammock stays code: its cloth sags between the palms as you lie in it, and there's no frame to model.
 
 ## Licence check before committing a model
 Whatever you generate is published on a public website. Use a tier whose licence allows

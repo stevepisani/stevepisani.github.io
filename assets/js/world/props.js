@@ -317,6 +317,12 @@ export function tikiTorch({ height = 2.2, light = 2.2, shadow = false } = {}) {
   const can = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.05, 0.14, 16), pbr({ color: PALETTE.lava, metalness: 0.6, roughness: 0.4 }));
   can.position.y = height + 0.06;
   group.add(can);
+  // all of it so far is the stand-in for the Meshy torch (hero slot "tiki-torch", its canister's top
+  // where this one's is); the wick and the fire stay
+  const stand = new THREE.Group();
+  stand.add(...group.children);
+  group.add(stand);
+  heroSlot('tiki-torch', stand, { fit: (model) => model.scale.setScalar((height + 0.13) / model.userData.spec.height) });
   const wick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.05, 8), glow(PALETTE.coral, 1.5));
   wick.position.y = height + 0.13;
   group.add(wick);
@@ -959,6 +965,11 @@ export function outriggerCanoe() {
   blade.position.z = 0.72;
   paddle.add(blade);
   g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  // all of it the stand-in for the Meshy canoe (hero slot "outrigger-canoe", turned to lie along z)
+  const stand = new THREE.Group();
+  stand.add(...g.children);
+  g.add(stand);
+  heroSlot('outrigger-canoe', stand);
   return g;
 }
 
@@ -1151,10 +1162,11 @@ export function signpost(boards, { height = 1.9 } = {}) {
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, height, 10), wood);
   post.position.y = height / 2;
   post.castShadow = true;
-  g.add(post);
   const head = carvedTiki({ height: 0.42, radius: 0.1, style: 'ku' });
   head.position.y = height;
-  g.add(head);
+  // the post and its head are the stand-in for the Meshy post (hero slot "signpost": a pole with a
+  // carved face at the top); the boards stay, lettered here
+  g.add(heroSlot('signpost', new THREE.Group().add(post, head), { fit: (model) => model.scale.setScalar((height + 0.25) / model.userData.spec.height) }));
   const W = 0.64, H = 0.13, TIP = 0.1, D = 0.03;
   const shape = new THREE.Shape();
   shape.moveTo(0, -H / 2); shape.lineTo(W - TIP, -H / 2); shape.lineTo(W, 0); shape.lineTo(W - TIP, H / 2); shape.lineTo(0, H / 2); shape.closePath();
