@@ -2190,6 +2190,7 @@ async function start() {
     if (!desk.open || !LC) return;
     const scr = LC.con.screen, r = canvas.getBoundingClientRect();
     scr.updateMatrixWorld(true);
+    camera.updateMatrixWorld(); // where it is now, not where the last frame drew it (a move can end this frame)
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     const hw = scr.geometry.parameters.width / 2, hh = scr.geometry.parameters.height / 2;
     for (const [x, y] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]]) {
