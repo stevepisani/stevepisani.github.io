@@ -56,6 +56,7 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
         });
       });
       holder.add(root);
+      holder.userData.spec = spec; // for slots that place parts on the model (the launch console)
       heroes.set(slot, holder);
     } catch (e) {
       console.warn('hero prop failed to load, using the procedural one:', slot, e);

@@ -1,9 +1,11 @@
 /* ==========================================================================
    The asteroid homepage. Loaded only by _layouts/world.html.
-   #world[data-state] = loading | walk | seat | camp | hammock | shore | scope | door | fallback; #world[data-panel] = the open panel
+   #world[data-state] = loading | walk | seat | camp | hammock | shore | scope | console | door | note | fallback; #world[data-panel] = the open panel
    ========================================================================== */
 
 .world-page { background: #05060f; color: #eef0fa; overflow: hidden; }
+/* the planet doesn't zoom: a pinch or a double tap is never a page zoom (panels still scroll; main.js stops Safari's pinch too) */
+html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the homepage */
 /* over site.css's space-mode Milky Way: the canvas covers it, so don't download it (the fallback brings its own) */
 :root[data-theme] body.world-page { background: #05060f; }
 .world { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden;
@@ -496,12 +498,12 @@
 .terminal { position: absolute; inset: 0; z-index: 3; pointer-events: none; opacity: 0; transition: opacity .25s ease; }
 .terminal[hidden] { display: none; }
 .terminal.is-on { opacity: 1; }
-.terminal.is-on .terminal__screen, .terminal.is-on .terminal__keys { pointer-events: auto; }
+.terminal.is-on .terminal__screen { pointer-events: auto; }
 /* the screen is the size container; everything sized by it sits inside .terminal__glass (an
    element's own padding and font can't be measured against itself) */
 .terminal__screen { position: absolute; left: var(--sx, 0); top: var(--sy, 0); width: var(--sw, 0); height: var(--sh, 0); box-sizing: border-box; container-type: size; overflow: hidden; border-radius: 6px;
   background: radial-gradient(ellipse at 50% 45%, #0e2a1d 0%, #071410 70%, #030a07 100%); }
-.terminal__glass { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto 1fr auto auto auto; grid-template-columns: minmax(0, 1fr); gap: 1.5cqh; padding: 4cqh 4.5cqw;
+.terminal__glass { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto 1fr auto auto auto auto; grid-template-columns: minmax(0, 1fr); gap: 1.5cqh; padding: 4cqh 4.5cqw;
   color: #9dffcb; font: 400 5.6cqh/1.25 var(--font-mono); text-shadow: 0 0 .6cqh rgb(120 255 190 / .75); }
 .terminal__glass > * { min-width: 0; }
 .terminal__screen::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
@@ -516,10 +518,10 @@
 .terminal__body { display: flex; gap: 4cqw; min-height: 0; }
 .terminal__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .6cqh; overflow: hidden; }
 .terminal__text > * { flex-shrink: 0; }
-.terminal__name { margin: 0 0 .6cqh; font: 700 min(8cqh, 5cqw)/1.1 var(--font-mono); color: #d2ffe6; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.terminal__line { margin: 0; font-size: 5.6cqh; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.terminal__name { margin: 0 0 .6cqh; font: 700 min(7cqh, 4.2cqw)/1.1 var(--font-mono); color: #d2ffe6; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.terminal__line { margin: 0; font-size: 5cqh; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .terminal__line:empty { display: none; }
-.terminal__clock { margin: auto 0 0; white-space: nowrap; font: 700 min(12cqh, 6.4cqw)/1 var(--font-mono); color: #d2ffe6; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.terminal__clock { margin: auto 0 0; white-space: nowrap; font: 700 min(11cqh, 6.2cqw)/1 var(--font-mono); color: #d2ffe6; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
 .terminal__clock.is-soon { color: #ffe08a; text-shadow: 0 0 1cqh rgb(255 210 110 / .8); }
 .terminal__pic { flex: 0 0 30cqw; border-radius: 1cqw; background: #0b1f15 center / cover no-repeat; filter: grayscale(1) sepia(1) hue-rotate(80deg) saturate(2.2) brightness(.8) contrast(1.15); box-shadow: inset 0 0 0 1px rgb(125 255 191 / .3); }
 .terminal__pic:not([style*="url"]) { display: none; }
@@ -547,21 +549,23 @@
   .terminal__ticker, .terminal__out { font-size: 5.8cqh; }
 }
 @container (max-height: 260px) { .terminal__out:not(:empty) ~ .terminal__prompt { display: none; } }
-/* the keys: chunky console buttons on the desk, under the screen */
-.terminal__keys { position: absolute; top: calc(var(--sy, 0) + var(--sh, 0) + 14px); left: calc(var(--sx, 0) + var(--sw, 0) / 2); transform: translateX(-50%);
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; width: max-content; max-width: calc(100vw - 32px); }
-.terminal__keys > * { min-width: 44px; min-height: 44px; padding: 0 16px; border-radius: 10px; border: 0; display: inline-flex; align-items: center; justify-content: center;
-  background: linear-gradient(#f4ecd6, #ddd1b0); color: #2a2418; font: 700 .86rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase; text-decoration: none;
-  box-shadow: 0 3px 0 #9c8f6d, 0 6px 14px rgb(0 0 0 / .45); cursor: pointer; }
-.terminal__keys > *:active { transform: translateY(2px); box-shadow: 0 1px 0 #9c8f6d, 0 3px 8px rgb(0 0 0 / .45); }
-.terminal__keys > *:disabled { opacity: .45; cursor: default; }
+/* the keys: softkeys along the screen's foot, like an old terminal's function keys: phosphor
+   outlines that light up when pressed, never smaller than 44 px to the finger */
+.terminal__keys { display: flex; gap: 1.6cqw; padding-top: 1.2cqh; border-top: 1px solid rgb(125 255 191 / .25); }
+.terminal__keys > * { flex: 1 1 auto; min-width: 44px; min-height: max(44px, 12cqh); padding: 0 2cqw; box-sizing: border-box; border: 1px solid rgb(125 255 191 / .55); border-radius: 1cqh;
+  display: inline-flex; align-items: center; justify-content: center; background: rgb(125 255 191 / .06); color: #b8ffd8;
+  font: 600 min(5.8cqh, 3.8cqw) var(--font-mono); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; text-shadow: inherit; white-space: nowrap; cursor: pointer;
+  box-shadow: inset 0 0 1.2cqh rgb(125 255 191 / .12), 0 0 1cqh rgb(125 255 191 / .12); -webkit-tap-highlight-color: transparent; }
+.terminal__keys > #term-prev, .terminal__keys > #term-next { flex: 0 0 auto; font-size: min(8cqh, 5cqw); }
+.terminal__keys > *:hover, .terminal__keys > *:focus-visible { background: rgb(125 255 191 / .16); outline: none; }
+.terminal__keys > *:active { background: #9dffcb; color: #062014; text-shadow: none; }
+.terminal__keys > *:disabled { opacity: .35; cursor: default; }
 .terminal__keys > *[hidden] { display: none; }
-.terminal__keys #term-prev, .terminal__keys #term-next { padding: 0; font-size: 1.3rem; }
-.terminal__watch { background: linear-gradient(#7dffbf, #3fcf8a) !important; box-shadow: 0 3px 0 #23885a, 0 6px 14px rgb(0 0 0 / .45) !important; }
-.terminal__test { background: linear-gradient(#ff8a72, #d9533c) !important; color: #fff !important; box-shadow: 0 3px 0 #8f2e1f, 0 6px 14px rgb(0 0 0 / .45) !important; }
-.terminal__test.is-armed { background: repeating-linear-gradient(-45deg, #e8b931 0 10px, #1b1b1b 10px 20px) !important; color: #fff !important; text-shadow: 0 1px 2px #000; }
+.terminal__watch { border-color: #9dffcb !important; background: rgb(125 255 191 / .2) !important; }
+.terminal__test { border-color: rgb(255 140 122 / .75) !important; color: #ffb3a6 !important; text-shadow: 0 0 .6cqh rgb(255 110 90 / .7) !important; box-shadow: inset 0 0 1.2cqh rgb(255 110 90 / .15), 0 0 1cqh rgb(255 110 90 / .15) !important; }
+.terminal__test.is-armed { border-color: #ffd27a !important; background: repeating-linear-gradient(-45deg, rgb(232 185 49 / .85) 0 8px, rgb(20 20 20 / .85) 8px 16px) !important; color: #fff !important; text-shadow: 0 1px 2px #000 !important; }
 .terminal:not(.is-still) .terminal__test.is-armed { animation: term-armed .8s ease-in-out infinite alternate; }
-@keyframes term-armed { to { filter: brightness(1.25); } }
+@keyframes term-armed { to { filter: brightness(1.3); } }
 
 /* ---------- The launch panel's list (site.js fillLaunches) ---------- */
 .launch-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 10px; }

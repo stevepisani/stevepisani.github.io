@@ -13,6 +13,7 @@ import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
 import { buildMachine } from './machine.js';
+import { heroOr } from './hero.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -233,7 +234,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     // screen counting down to the next launch anywhere (site.js launches(): Launch Library 2,
     // cached an hour), its lamps the colour of that launch's status. Lean in to it (main.js, the
     // terminal) for the next five, and the red button's engine test.
-    const con = launchConsole();
+    const con = launchConsole({ shell: heroes && heroes.has('launch-console') ? heroOr(heroes, 'launch-console') : null });
     const inLocal = pad.worldToLocal(surfacePoint(dirFrom(0.66, 1.42))).setY(0);
     const a = Math.atan2(inLocal.z, inLocal.x) - 0.8;
     const at = pad.localToWorld(new THREE.Vector3(Math.cos(a) * 3.4, 0, Math.sin(a) * 3.4)).normalize();
@@ -242,8 +243,8 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     const toPath = con.group.worldToLocal(surfacePoint(dirFrom(0.66, 1.42)));
     con.group.rotateY(Math.atan2(toPath.x, toPath.z)); // the screen toward you as you come up the path
     con.group.updateMatrixWorld(true);
-    colliders.push({ center: con.group.position.clone(), radius: 0.55 });
-    const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.1)).normalize());
+    colliders.push({ center: con.group.position.clone(), radius: 0.7 });
+    const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.2)).normalize());
     interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launches', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
     // what it shows: the next launch to come (or one you've picked at the terminal), once a second
     let launches = null, picked = -1, lastSecond = -1, lastT = performance.now();

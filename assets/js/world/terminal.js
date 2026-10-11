@@ -1,11 +1,11 @@
 // Launch control's terminal: what the console's screen says when you lean in to it (main.js
-// lays it exactly over the screen and the desk), the next launches one at a time. ‹ › step
-// through them; "Remind me" saves one to your calendar (site.js launchCalendar); "Watch live"
-// opens its stream once it's within the hour (site.js launchStreams); "Engine test" flips the
-// red button's guard up and "Fire" presses it (main.js runs the test). A line scrolls along the
-// bottom: what the mission is, then a famous launch from this time of year (_data/launch_history.yml).
-// Keyboards get a prompt too (help lists what it knows); the buttons stay the way in.
-// No three.js here: main.js owns the view, places.js the console itself.
+// lays it exactly over the screen), the next launches one at a time, with softkeys along the
+// screen's foot. ‹ › step through them; "Remind" saves one to your calendar (site.js
+// launchCalendar); "Watch" opens its stream once it's within the hour (site.js launchStreams);
+// "Engine test" flips the red button's guard up and "Fire" presses it (main.js runs the test).
+// A line scrolls along the bottom: what the mission is, then a famous launch from this time of
+// year (_data/launch_history.yml). Keyboards get a prompt too (help lists what it knows); the
+// keys stay the way in. No three.js here: main.js owns the view, places.js the console itself.
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -75,7 +75,7 @@ export function createTerminal({ el, history = [], reduce = false, sound = { pla
     // about as fast as you'd read it (reduced motion: it wraps instead, and doesn't move)
     span.style.animationDuration = `${Math.max(12, text.length / 9)}s`;
   }
-  // "Watch live": only within the hour, when its page has a stream to give
+  // "Watch": only within the hour, when its page has a stream to give
   function watchLink() {
     const l = current();
     const soon = l && new Date(l.net) - Date.now() < 3600e3 && new Date(l.net) - Date.now() > -3600e3;
@@ -85,12 +85,12 @@ export function createTerminal({ el, history = [], reduce = false, sound = { pla
     (window.launchStreams ? window.launchStreams(l.id) : Promise.reject()).then((streams) => {
       if (current() !== l || !streams.length) return;
       watch.href = streams[0].url;
-      watch.textContent = l.live || streams[0].live ? 'Watch live ●' : 'Watch live';
+      watch.textContent = l.live || streams[0].live ? 'Watch ●' : 'Watch';
       watch.hidden = false;
     }).catch(() => { watch.hidden = true; });
   }
 
-  /** Once a second (and on render): the countdown, and "Watch live" when its hour comes. */
+  /** Once a second (and on render): the countdown, and "Watch" when its hour comes. */
   function tick() {
     const l = current();
     if (!l) return;

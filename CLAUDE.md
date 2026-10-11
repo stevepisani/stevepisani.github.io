@@ -115,6 +115,7 @@ Design rules, from Krug's *Don't Make Me Think* and Apple's HIG. Keep them when 
 - The point of view is continuous: sitting down and getting up are first-person body motions (`flyPath` in `main.js`: one curve through a few poses in `bar.seat`, speeding up over its first quarter, steady, slowing over its last, so its peak is only 4/3 of its average speed) that start from and end in the exact walking view. Keep them unhurried; getting up turns you around, so it takes about 4 s and the turn peaks near 140°/s.
 - Discovered, not announced: now and then something you can use catches the light (`glints.js`), one at a time, more often the more you've used. No labels on everything, no tour.
 - Tap targets at least 44px.
+- The homepage doesn't zoom: a pinch or a double tap never zooms the page (the viewport meta, `touch-action` in `world.css`, and Safari's pinch stopped in `main.js`). Every other page zooms as usual.
 - Nothing on the planet selects as text (`world.css`): a long press is a look and a held button is a throw, never a selection or the copy callout. Only a panel's content and what you type into select.
 
 How it's built, module by module: `docs/world.md`.

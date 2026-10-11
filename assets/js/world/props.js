@@ -486,46 +486,87 @@ export function moai({ height = 2.4 } = {}) {
  * About 2.8 m tall. Faces local +z, tipped back toward the sky.
  */
 /**
- * Launch control: a mid-century console beside the pad, cream and teal, a slanted panel of
- * switches and lamps, a red button under a guard, and a round-cornered screen on top showing the
- * next launch anywhere and its countdown (`show(lines)`: up to four lines, redrawn when they
- * change). Faces +z; about 1.4 m tall. `blink(t)` runs its lamps.
+ * Launch control: a mid-century steel console beside the pad (`shell`: the Meshy model, or
+ * cream and teal boxes without it), status lamps, a red button under a guard, and a screen
+ * showing the next launch anywhere and its countdown (`show(lines)`: up to four lines, redrawn
+ * when they change). Faces +z; about 1.6 m tall (1.45 from boxes). `blink(t)` runs its lamps.
  */
-export function launchConsole() {
+export function launchConsole({ shell = null } = {}) {
   const g = new THREE.Group();
   const body = pbr({ color: PALETTE.cream, roughness: 0.55 });
   const teal = pbr({ color: PALETTE.tinTeal, roughness: 0.45, metalness: 0.1 });
   const dark = pbr({ color: PALETTE.lava, roughness: 0.5, metalness: 0.3 });
   const steel = pbr({ color: PALETTE.chrome, metalness: 0.7, roughness: 0.35 });
   const add = (geo, mat, [x, y, z], parent = g) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
-  // the desk: a plinth, the body, a teal kick band, and the slanted panel
-  add(new THREE.BoxGeometry(1.3, 0.08, 0.7), dark, [0, 0.04, 0]);
-  add(new THREE.BoxGeometry(1.2, 0.7, 0.55), body, [0, 0.43, -0.02]);
-  add(new THREE.BoxGeometry(1.22, 0.1, 0.57), teal, [0, 0.13, -0.02]);
-  const panel = new THREE.Group();
-  panel.position.set(0, 0.82, 0.12);
-  panel.rotation.x = -0.55;
-  g.add(panel);
-  add(new THREE.BoxGeometry(1.2, 0.04, 0.42), teal, [0, 0, 0], panel);
-  // switches and lamps on the panel: the lamps say the next launch's status (green go, amber to
-  // be confirmed, red on hold), chasing slowly, quickly in its last hour
+  // the lamps say the next launch's status (green go, amber to be confirmed, red on hold),
+  // chasing slowly, quickly in its last hour
   const lamps = [];
   const LAMP = { go: glow(0x4dff9a, 3), tbd: glow(PALETTE.amber, 3), hold: glow(PALETTE.coral, 3) };
-  for (let i = 0; i < 6; i++) {
-    const x = -0.45 + i * 0.13;
-    const sw = add(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), steel, [x, 0.035, 0.08], panel);
-    sw.rotation.x = 0.4;
-    const lamp = add(new THREE.SphereGeometry(0.018, 10, 8), LAMP.tbd, [x, 0.03, -0.06], panel);
-    lamp.castShadow = false;
-    lamp.userData.noBatch = true;
-    lamps.push(lamp);
+  const lamp = (r, at, parent) => {
+    const l = add(new THREE.SphereGeometry(r, 10, 8), LAMP.tbd, at, parent);
+    l.castShadow = false;
+    l.userData.noBatch = true;
+    lamps.push(l);
+  };
+  // The body: the Meshy model (hero slot "launch-console") when it's there, its manifest
+  // `anchors` saying where its screen, the top of its screen housing and its desk are (metres,
+  // in the scaled model); otherwise built from boxes. Either way the parts that change (the
+  // screen, the lamps, the red button and its guard) are added here.
+  const fit = shell && shell.userData.spec && shell.userData.spec.anchors;
+  let panel, head, screenW = 0.64, screenH = 0.4, screenZ = 0.127, buttonAt = [0.42, 0.02];
+  if (fit) {
+    g.add(shell);
+    const [sx, sy, sz, sw, sh] = fit.screen;
+    head = new THREE.Group();
+    head.position.set(sx, sy, sz);
+    g.add(head);
+    [screenW, screenH, screenZ] = [sw, sh, 0];
+    // a row of lamps along the top of the screen housing, each in a chrome cup
+    const [ly, lz, span] = fit.lamps;
+    for (let i = 0; i < 6; i++) {
+      const x = -span / 2 + (i * span) / 5;
+      add(new THREE.CylinderGeometry(0.03, 0.034, 0.016, 14), steel, [x, ly + 0.008, lz]);
+      lamp(0.024, [x, ly + 0.022, lz]);
+    }
+    // the red button on the desk, its top at the desk's surface
+    const [bx, by, bz] = fit.button;
+    panel = new THREE.Group();
+    panel.position.set(bx, by - 0.02, bz);
+    g.add(panel);
+    buttonAt = [0, 0];
+  } else {
+    // the desk: a plinth, the body, a teal kick band, and the slanted panel
+    add(new THREE.BoxGeometry(1.3, 0.08, 0.7), dark, [0, 0.04, 0]);
+    add(new THREE.BoxGeometry(1.2, 0.7, 0.55), body, [0, 0.43, -0.02]);
+    add(new THREE.BoxGeometry(1.22, 0.1, 0.57), teal, [0, 0.13, -0.02]);
+    panel = new THREE.Group();
+    panel.position.set(0, 0.82, 0.12);
+    panel.rotation.x = -0.55;
+    g.add(panel);
+    add(new THREE.BoxGeometry(1.2, 0.04, 0.42), teal, [0, 0, 0], panel);
+    // switches and lamps on the panel
+    for (let i = 0; i < 6; i++) {
+      const x = -0.45 + i * 0.13;
+      const sw = add(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 6), steel, [x, 0.035, 0.08], panel);
+      sw.rotation.x = 0.4;
+      lamp(0.018, [x, 0.03, -0.06], panel);
+    }
+    // the screen housing, on a neck, tipped a little toward you
+    add(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12), steel, [0, 0.95, -0.15]);
+    head = new THREE.Group();
+    head.position.set(0, 1.2, -0.12);
+    head.rotation.x = -0.12;
+    g.add(head);
+    add(new THREE.BoxGeometry(0.78, 0.52, 0.3), body, [0, 0, -0.04], head);
+    add(new THREE.BoxGeometry(0.7, 0.44, 0.02), dark, [0, 0, 0.115], head);
   }
   // the red button under its flip-up guard (hinged at its back edge): the engine test
-  add(new THREE.CylinderGeometry(0.05, 0.055, 0.02, 20), dark, [0.42, 0.03, 0.02], panel);
-  const button = add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), pbr({ color: PALETTE.coral, roughness: 0.35, emissive: PALETTE.coral, emissiveIntensity: 0.25 }), [0.42, 0.05, 0.02], panel);
+  const [bx, bz] = buttonAt;
+  add(new THREE.CylinderGeometry(0.05, 0.055, 0.02, 20), dark, [bx, 0.03, bz], panel);
+  const button = add(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 20), pbr({ color: PALETTE.coral, roughness: 0.35, emissive: PALETTE.coral, emissiveIntensity: 0.25 }), [bx, 0.05, bz], panel);
   button.userData.noBatch = true;
   const guard = new THREE.Group();
-  guard.position.set(0.42, 0.045, -0.045);
+  guard.position.set(bx, 0.045, bz - 0.065);
   guard.userData.noBatch = true;
   panel.add(guard);
   const stripes = document.createElement('canvas');
@@ -537,21 +578,13 @@ export function launchConsole() {
   lid.castShadow = false;
   for (const x of [-0.055, 0.055]) add(new THREE.BoxGeometry(0.01, 0.03, 0.13), dark, [x, 0.012, 0.065], guard);
   let armed = 0, armTo = 0, pressed = 0;
-  // the screen housing, on a neck, tipped a little toward you
-  add(new THREE.CylinderGeometry(0.04, 0.05, 0.25, 12), steel, [0, 0.95, -0.15]);
-  const head = new THREE.Group();
-  head.position.set(0, 1.2, -0.12);
-  head.rotation.x = -0.12;
-  g.add(head);
-  add(new THREE.BoxGeometry(0.78, 0.52, 0.3), body, [0, 0, -0.04], head);
-  add(new THREE.BoxGeometry(0.7, 0.44, 0.02), dark, [0, 0, 0.115], head);
   // the screen: a canvas, redrawn only when what it says changes
-  const W = 512, H = 320, c = document.createElement('canvas');
+  const W = 512, H = Math.round((W * screenH) / screenW), c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d'), tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.4), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
-  screen.position.set(0, 0, 0.127);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenW, screenH), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+  screen.position.set(0, 0, screenZ);
   head.add(screen);
   let shown = '';
   function show(lines) {
