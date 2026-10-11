@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { PALETTE, pbr, surface, woodSet, bambooSet, lavaSet, thatchSet, glow } from './materials.js';
 import { createFire } from './fire.js';
+import { heroSlot } from './hero.js';
 import * as T from './textures.js';
 import { windowVertex, windowFragment } from './doorwindow.js';
 
@@ -136,15 +137,53 @@ export function glassFloat({ radius = 0.16, color = PALETTE.aqua, hang = 0, lit 
   const group = new THREE.Group();
   const glass = new THREE.Mesh(floatGeo, pbr({ color, emissive: color, emissiveIntensity: lit, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.85 }));
   glass.scale.setScalar(radius);
-  group.add(glass);
   const net = new THREE.LineSegments(netGeometry(radius * 1.03), new THREE.LineBasicMaterial({ color: 0x3a2a18 }));
-  group.add(net);
+  // glass and net are the stand-in for the Meshy float (hero slot "glass-float": a ball in a rope
+  // net with a loop on top, loaded once the planet is up), sized to this one and glowing its colour
+  const shell = new THREE.Group().add(glass, net);
+  group.add(shell);
+  heroSlot('glass-float', shell, { fit: (model) => floatFit(model, radius, color, lit) });
   if (hang > 0) {
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, hang, 4), pbr({ color: 0x3a2a18 }));
     cord.position.y = radius + hang / 2;
     group.add(cord);
   }
   return group;
+}
+
+// the model's ball is about 0.85 of its height (the rest is the loop on top)
+const FLOAT_BALL = 0.85, floatLooks = new Map(), grays = new Map();
+/** The texture in greys, brightened, so any colour can tint it (the model's glass is aqua). */
+function grayOf(map) {
+  if (!grays.has(map.uuid)) {
+    const img = map.image, c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d');
+    x.filter = 'grayscale(1) brightness(1.5)';
+    x.drawImage(img, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.flipY = map.flipY;
+    grays.set(map.uuid, t);
+  }
+  return grays.get(map.uuid);
+}
+function floatFit(model, radius, color, lit) {
+  const h = model.userData.spec.height, k = (2 * radius) / (h * FLOAT_BALL);
+  model.scale.setScalar(k);
+  model.position.y = -radius; // the ball's middle where the stand-in's was
+  const key = `${color}|${lit}`;
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    // one material per colour: the glass glows its own colour, lit from inside like the bar's lamps
+    if (!floatLooks.has(key + o.material.uuid)) {
+      const m = o.material.clone();
+      m.color.set(color);
+      if (m.map) { m.map = grayOf(m.map); m.emissive.set(color); m.emissiveMap = m.map; m.emissiveIntensity = lit * 0.5; }
+      floatLooks.set(key + o.material.uuid, m);
+    }
+    o.material = floatLooks.get(key + o.material.uuid);
+  });
 }
 
 /* ---------------- Pufferfish lamp ---------------- */
@@ -851,6 +890,12 @@ export function radioDish() {
   win.rotation.y = 0;
   g.add(win);
   g.traverse((o) => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  // all of it the stand-in for the Meshy dish (hero slot "radio-dish", facing +z and tipped up
+  // the same way, loaded once the planet is up); `userData.onModel()` runs when it arrives
+  const stand = new THREE.Group();
+  stand.add(...g.children);
+  g.add(stand);
+  heroSlot('radio-dish', stand, { onFill: () => g.userData.onModel && g.userData.onModel() });
   return g;
 }
 
@@ -1056,11 +1101,26 @@ export function messageBottle() {
   const b = new THREE.Group();
   const glass = new THREE.Mesh(bottleParts.geo, bottleParts.glass);
   glass.renderOrder = 1; // drawn after what's inside it
-  b.add(glass);
+  // the glass is the stand-in for the Meshy bottle (hero slot "message-bottle", 0.26 m to its
+  // mouth, loaded once the planet is up), made see-through so the letter shows
+  const shell = new THREE.Group().add(glass);
+  b.add(shell);
+  heroSlot('message-bottle', shell, { fit: seeThrough });
   const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.015, 0.03, 8), bottleParts.cork); cork.position.y = 0.265; b.add(cork);
   const letter = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 10), bottleParts.letter); letter.position.y = 0.08; letter.rotation.z = 0.08; b.add(letter);
   b.userData = { cork, letter, neck: 0.26 };
   return b;
+}
+
+function seeThrough(model) {
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.renderOrder = 1;
+    const m = o.material;
+    if (m.userData.seeThrough) return;
+    Object.assign(m, { transparent: true, opacity: 0.62, depthWrite: false, roughness: 0.15 });
+    m.userData.seeThrough = true;
+  });
 }
 
 /** A few of them washed up at the waterline; the last stands upright (userData.upright). */

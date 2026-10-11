@@ -76,5 +76,57 @@
         0.355
       ]
     }
+  },
+  "rocket": {
+    "file": "rocket.glb",
+    "height": 4.25,
+    "lazy": true,
+    "anchors": {
+      "engines": [
+        0.3,
+        0.08
+      ],
+      "badge": [
+        1.6,
+        0.29,
+        0.3
+      ]
+    }
+  },
+  "telescope-tripod": {
+    "file": "telescope-tripod.glb",
+    "height": 1.245,
+    "lazy": true
+  },
+  "radio-dish": {
+    "file": "radio-dish.glb",
+    "height": 3.4,
+    "lazy": true
+  },
+  "message-bottle": {
+    "file": "message-bottle.glb",
+    "height": 0.26,
+    "lazy": true
+  },
+  "glass-float": {
+    "file": "glass-float.glb",
+    "height": 0.36,
+    "lazy": true
+  },
+  "campfire-logs": {
+    "file": "campfire-logs.glb",
+    "height": 0.85,
+    "lazy": true
+  },
+  "log-bench": {
+    "file": "log-bench.glb",
+    "height": 0.34,
+    "lazy": true,
+    "brightness": 0.85
+  },
+  "bar-stool": {
+    "file": "bar-stool.glb",
+    "height": 0.8,
+    "lazy": true
   }
 }

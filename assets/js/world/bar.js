@@ -9,7 +9,7 @@ import * as T from './textures.js';
 import { PALETTE, pbr, surface, woodSet, bambooSet, thatchSet, lavaSet, rattanSet, tapaTexture, glow } from './materials.js';
 import { carvedTiki, glassFloat, pufferLamp, tikiMug, volcanoBowl, tikiTorch, palm, lavaRock, barGlass, garnishFor, coconut } from './props.js';
 import { place, BAR_DIR, surfaceRadius } from './planet.js';
-import { heroOr } from './hero.js';
+import { heroOr, heroSlot } from './hero.js';
 import { createFire } from './fire.js';
 import { tinRobot } from './robot.js';
 import * as D from './decor.js';
@@ -381,13 +381,17 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     const s = new THREE.Group();
     s.position.set(x, DECK, 1.42);
     bar.add(s);
-    mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.12, 20), M.rattan, [0, 0.74, 0], s);
+    // the stand-in for the Meshy stool (hero slot "bar-stool", 0.8 m to the top of its seat)
+    const look = heroSlot('bar-stool', new THREE.Group());
+    look.rotation.y = x * 0.6; // not all turned the same way
+    s.add(look);
+    mesh(new THREE.CylinderGeometry(0.24, 0.2, 0.12, 20), M.rattan, [0, 0.74, 0], look);
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * TAU + 0.4;
-      const leg = mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.72, 6), M.bamboo, [Math.cos(a) * 0.14, 0.36, Math.sin(a) * 0.14], s);
+      const leg = mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.72, 6), M.bamboo, [Math.cos(a) * 0.14, 0.36, Math.sin(a) * 0.14], look);
       leg.rotation.set(Math.sin(a) * 0.12, 0, -Math.cos(a) * 0.12);
     }
-    mesh(new THREE.TorusGeometry(0.15, 0.015, 6, 20), M.bamboo, [0, 0.28, 0], s).rotation.x = Math.PI / 2;
+    mesh(new THREE.TorusGeometry(0.15, 0.015, 6, 20), M.bamboo, [0, 0.28, 0], look).rotation.x = Math.PI / 2;
     return s;
   });
 

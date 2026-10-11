@@ -45,6 +45,16 @@ credit Meshy on the site or keep using these files.
 | `bottle-chartreuse.glb` | `01a0f058-e617-72a4-b695-2c100bca4d8e` (refine of preview `01a0f057-080c-7654-b011-bc9afb937345`) | 4,000 | 143 KB | Green Chartreuse, for the swizzle; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
 | `bottle-meletti.glb` | `01a0f05a-27fc-7157-9ac4-3a898e3afc3b` (refine of preview `01a0f058-f8ac-720a-be3f-39decd145bbd`) | 4,000 | 124 KB | Meletti coffee liqueur, for the Shakerato and Il Professore; second preview (the first gave two bottles); 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
 | `launch-console.glb` | `01a12a01-95b4-7610-840d-fd40357472bf` (refine of preview `01a12a00-6b82-77f7-937a-8c1c596736ce`) | 10,260 | 264 KB | launch control by the pad; first of two previews (the other was a long two-pedestal desk); 1024px textures; the screen, lamps and red button are placed by `anchors` in the manifest; generated 2026-10-11, 50 credits |
+| `rocket.glb` | `01a12aa4-9310-7134-9dc8-ae927abcfeb6` (refine of preview `01a12aa2-e478-7796-939f-4a5550d3e21e`) | 16,207 | 596 KB | your ship on the pad; 4th try (the others: an Outer Wilds pod, a modern booster, a 1950s pulp rocket); 1024px textures; `lazy`; the flames and badge placed by `anchors` |
+| `telescope-tripod.glb` | `01a12a9f-eddc-7664-b434-fbb896d08786` (refine of preview `01a12a9e-1d18-74f9-a7a4-6afd235c7538`) | 5,955 | 187 KB | under the code-built brass tube (two Meshy tubes didn't work); 512px textures; `lazy` |
+| `radio-dish.glb` | `01a12aa4-9a1e-77a9-86b0-898c7612a5be` (refine of preview `01a12aa2-ebe8-71d2-8a2b-31cc821f9463`) | 8,954 | 241 KB | Contact; 2nd try (the first dish was flat); 512px textures; `lazy` |
+| `message-bottle.glb` | `01a12a9f-fb8d-7030-8239-9faa11b2d141` (refine of preview `01a12a9e-37b2-720f-a33f-0f75c5b40ac0`) | 3,105 | 113 KB | at the lagoon, and the one you throw; 512px textures; `lazy` |
+| `glass-float.glb` | `01a12aa2-cf1d-70f4-9be5-53bcab6a1e97` (refine of preview `01a12aa0-18b0-70dc-bae4-889fe89ca68d`) | 2,991 | 159 KB | every float, tinted in code; 2nd try (the first had one rope round its middle); 512px textures; `lazy` |
+| `campfire-logs.glb` | `01a12aa2-d683-71a8-8662-56fcfd08d37b` (refine of preview `01a12aa0-1f75-7704-b9ae-acf5e9356669`) | 4,651 | 121 KB | 2nd try (the first stood the logs upright); 512px textures; `lazy` |
+| `log-bench.glb` | `01a12aa2-dd51-70cb-bb5a-983d91485e17` (refine of preview `01a12aa0-26b2-742a-89e4-3d6637edf12c`) | 3,068 | 91 KB | the campfire's benches; 2nd try (the first had a plank on it); 512px textures; `lazy` |
+| `bar-stool.glb` | `01a12aa4-a1cd-7398-9c85-d0ad0e9e93a9` (refine of preview `01a12aa2-f33f-751a-819a-4cbd09c40f96`) | 3,361 | 91 KB | 3rd try (two bentwood cafe stools); 512px textures; `lazy` |
+
+The eight that replace code-built props (2026-10-11) come to 1.6 MB, all loaded after the planet is up; that run was 16 previews and 9 refines, 470 credits.
 
 All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second run on 2026-09-28, 4 generations and 2 remeshes, 130 credits). **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
 `01a0e679-8689…`, `01a0e67d-b488…`, `01a0e67d-ecaf…`) all gave the robot legs instead of
