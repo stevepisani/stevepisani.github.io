@@ -44,6 +44,7 @@ credit Meshy on the site or keep using these files.
 | `bottle-campari.glb` | `01a0f058-dcb9-7799-8663-4009798e0658` (refine of preview `01a0f056-feb4-752a-a12c-d62e49f919ac`) | 4,000 | 116 KB | Campari, for the Jungle Bird and Il Professore; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
 | `bottle-chartreuse.glb` | `01a0f058-e617-72a4-b695-2c100bca4d8e` (refine of preview `01a0f057-080c-7654-b011-bc9afb937345`) | 4,000 | 143 KB | Green Chartreuse, for the swizzle; 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
 | `bottle-meletti.glb` | `01a0f05a-27fc-7157-9ac4-3a898e3afc3b` (refine of preview `01a0f058-f8ac-720a-be3f-39decd145bbd`) | 4,000 | 124 KB | Meletti coffee liqueur, for the Shakerato and Il Professore; second preview (the first gave two bottles); 512px textures, loaded after the reveal (`lazy`), generated 2026-09-30 |
+| `launch-console.glb` | `01a12a01-95b4-7610-840d-fd40357472bf` (refine of preview `01a12a00-6b82-77f7-937a-8c1c596736ce`) | 10,260 | 264 KB | launch control by the pad; first of two previews (the other was a long two-pedestal desk); 1024px textures; the screen, lamps and red button are placed by `anchors` in the manifest; generated 2026-10-11, 50 credits |
 
 All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second run on 2026-09-28, 4 generations and 2 remeshes, 130 credits). **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
 `01a0e679-8689…`, `01a0e67d-b488…`, `01a0e67d-ecaf…`) all gave the robot legs instead of

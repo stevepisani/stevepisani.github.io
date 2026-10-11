@@ -160,7 +160,7 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <div class="eyepiece__dark" id="eyepiece-dark" aria-hidden="true"></div>
   <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
   <button type="button" class="seat-leave" id="console-leave" hidden>Step back</button>
-  {%- comment -%} Launch control's terminal: laid over the console's screen and desk as you lean in (terminal.js) {%- endcomment %}
+  {%- comment -%} Launch control's terminal: laid over the console's screen as you lean in, its keys along the screen's foot (terminal.js) {%- endcomment %}
   <section class="terminal" id="terminal" aria-label="Launch control" hidden>
     <div class="terminal__screen" id="term-screen"><div class="terminal__glass">
       <p class="terminal__top"><span>Launch control</span><span class="terminal__status" id="term-status"></span><span id="term-count"></span></p>
@@ -177,14 +177,14 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
       <p class="terminal__out" id="term-out" aria-live="polite"></p>
       <p class="terminal__ticker" id="term-ticker"><span></span></p>
       <form class="terminal__prompt" id="term-form"><label for="term-input">&gt;</label><input id="term-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="type help" aria-label="Type a command (help lists them)"></form>
+      <div class="terminal__keys" id="term-keys">
+        <button type="button" id="term-prev" aria-label="The launch before">‹</button>
+        <button type="button" id="term-next" aria-label="The next launch">›</button>
+        <button type="button" id="term-remind">Remind</button>
+        <a class="terminal__watch" id="term-watch" target="_blank" rel="noopener" hidden>Watch</a>
+        <button type="button" class="terminal__test" id="term-test">Engine test</button>
+      </div>
     </div></div>
-    <div class="terminal__keys" id="term-keys">
-      <button type="button" id="term-prev" aria-label="The launch before">‹</button>
-      <button type="button" id="term-remind">Remind me</button>
-      <a class="terminal__watch" id="term-watch" target="_blank" rel="noopener" hidden>Watch live</a>
-      <button type="button" id="term-next" aria-label="The next launch">›</button>
-      <button type="button" class="terminal__test" id="term-test">Engine test</button>
-    </div>
   </section>
   <button type="button" class="seat-leave" id="door-leave" hidden>Step back through</button>
   <p class="portal-credit" id="portal-credit" hidden></p>

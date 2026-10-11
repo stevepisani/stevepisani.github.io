@@ -27,6 +27,12 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   a texture goes muddy under the bar's amber light, rather than regenerating.
 - `glow`: emissive strength for things lit from inside (pufferfish lamps). It emits the
   model's own texture, so it adds no new colours.
+- `anchors`: where a slot that puts moving parts on the model puts them, in metres in the
+  scaled, grounded model (front +Z). Only `launch-console` uses it: `screen` [x, y, z, width,
+  height] (the live screen's plane, just in front of the glass), `lamps` [y, z, span] (the row of
+  status lamps along the top of the screen housing) and `button` [x, y, z] (the red button, on
+  the desk). Measure them again whenever the model changes: cast rays at it (three.js
+  `Raycaster` on the GLB's geometry) from the front and from above.
 - `lazy`: load it after the scene is up (things nobody sees until they ask for them, like the
   bottles the robot pours from), not before the reveal.
 
@@ -117,6 +123,11 @@ Texture: Clear glass bottle showing vivid chartreuse yellow-green liqueur inside
 > Exactly one single bottle, alone: a Meletti coffee liqueur bottle from Italy, a tall slim cylindrical glass bottle with a short neck, filled with nearly black coffee liqueur, a vintage cream label with red and black lettering, a dark cap. One bottle only, standing upright, centered, nothing else.
 
 Texture: Clear glass bottle showing nearly black dark brown coffee liqueur inside, a vintage cream paper label with an ornate red and black border, the red word MELETTI and the words Caffè and Ascoli Piceno in black, a small gold crest, a black cap with a thin gold band. Realistic product materials.
+
+**launch-console**: launch control by the rocket pad (the screen, lamps, red button and its guard are added by `props.js`; generated 2026-10-11)
+> A 1960s space-age rocket launch control console, one solid freestanding unit: a heavy steel cabinet desk 1.3 metres wide and 0.7 metres deep standing on a dark plinth, a wide sloped control panel at waist height covered in rows of toggle switches and small round indicator lamps, and built into the back of the desk a boxy CRT monitor housing at eye height with a large flat dark rectangular glass screen facing forward, rounded corners, a thick bezel. Cream enamel and teal painted steel, chrome trim, rivets, 1.45 metres tall overall. Facing forward. Realistic PBR, game-ready.
+
+Texture: Cream white baked enamel painted steel cabinet with deep teal painted side panels and kick plate, brushed chrome trim and handles, black bakelite knobs and toggle switches, small round indicator lamps, a dark charcoal plinth. The screen is plain dark green-black glass with nothing on it. Slightly worn paint, realistic industrial materials.
 
 ## Licence check before committing a model
 Whatever you generate is published on a public website. Use a tier whose licence allows

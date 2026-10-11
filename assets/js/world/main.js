@@ -45,6 +45,11 @@ const data = JSON.parse($('world-data').textContent);
 const DB = { url: document.querySelector('meta[name="supabase-url"]').content, key: document.querySelector('meta[name="supabase-key"]').content };
 const TEST = new URLSearchParams(location.search).has('test');
 const reducedMotion = TEST || matchMedia('(prefers-reduced-motion: reduce)').matches;
+// The planet doesn't zoom (the viewport meta asks; Safari ignores that, so its pinch gesture is
+// stopped here, and a trackpad's pinch, which arrives as a ctrl-wheel, too)
+for (const g of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(g, (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+addEventListener('wheel', (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 // a tap you can feel, where the phone can (Android; iPhones ignore it): picks and the telescope's gears
 const buzz = (pattern) => { try { if (navigator.vibrate && !reducedMotion) navigator.vibrate(pattern); } catch (e) { /* not allowed here */ } };
 // a sideways swipe on a card steps it, like its ‹ ›
@@ -2046,10 +2051,10 @@ async function start() {
 
   /* ---------- Launch control: lean in to the console's screen ---------- */
   // Tap the console by the pad and you step up to its desk and lean in until its screen fills
-  // the view (with the desk under it): the terminal (terminal.js) is laid exactly over the
-  // screen, its keys over the desk, so what you read is the screen. ‹ › step through the next
-  // launches, "Remind me" saves one to your calendar, "Watch live" turns up in a launch's last
-  // hour, and "Engine test" flips up the red button's guard: "Fire" presses it, you straighten up
+  // the view: the terminal (terminal.js) is laid exactly over the screen, softkeys along its
+  // foot, so what you read and press is the screen. ‹ › step through the next launches,
+  // "Remind" saves one to your calendar, "Watch" turns up in a launch's last hour, and
+  // "Engine test" flips up the red button's guard: "Fire" presses it, you straighten up
   // and turn to watch the rocket fire its engines on the pad, then lean back in. "Step back", Esc
   // and Back stand you up again. Without the launches (no connection), it says so.
   const LC = places.launchControl, consoleSpot = interactables.find((x) => x.id === 'console');
@@ -2078,13 +2083,14 @@ async function start() {
     con.group.updateMatrixWorld(true);
     const center = scr.getWorldPosition(new THREE.Vector3()), n = new THREE.Vector3(0, 0, 1).transformDirection(scr.matrixWorld);
     const up = new THREE.Vector3(0, 1, 0).transformDirection(scr.matrixWorld), s = scr.getWorldScale(new THREE.Vector3());
-    const W = 0.64 * s.x, H = 0.4 * s.y, t = Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2), aspect = camera.aspect;
-    // far enough back that the screen's width fits, and the screen with the keys under it fits
-    // between the top bar and the "Step back" button
-    const usable = Math.max(0.5, 1 - 170 / Math.max(innerHeight, 400));
-    const span = H * (aspect < 1 ? 1.75 : 1.6);
+    const { width, height } = scr.geometry.parameters;
+    const W = width * s.x, H = height * s.y, t = Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2), aspect = camera.aspect;
+    // far enough back that the screen's width fits, and its height between the top bar and the
+    // "Step back" button (its keys are on it)
+    const usable = Math.max(0.5, 1 - 250 / Math.max(innerHeight, 400)); // the top bar, the hint and "Step back"
+    const span = H * 1.12;
     const d = Math.max((W * 1.08) / (2 * t * aspect), span / (2 * t * usable));
-    const aim = center.clone().addScaledVector(up, -H * 0.3);
+    const aim = center.clone();
     const eye = aim.clone().addScaledVector(n, d);
     const lean = poseLooking(eye, aim);
     const ground = surfacePoint(eye.clone().normalize());
@@ -2185,7 +2191,8 @@ async function start() {
     const scr = LC.con.screen, r = canvas.getBoundingClientRect();
     scr.updateMatrixWorld(true);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of [[-0.32, -0.2], [0.32, -0.2], [-0.32, 0.2], [0.32, 0.2]]) {
+    const hw = scr.geometry.parameters.width / 2, hh = scr.geometry.parameters.height / 2;
+    for (const [x, y] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]]) {
       _sc.set(x, y, 0.001).applyMatrix4(scr.matrixWorld).project(camera);
       const px = (_sc.x * 0.5 + 0.5) * r.width + r.left, py = (-_sc.y * 0.5 + 0.5) * r.height + r.top;
       x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
