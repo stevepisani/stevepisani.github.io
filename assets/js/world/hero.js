@@ -21,7 +21,11 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     if (res.ok) manifest = await res.json();
   } catch (e) { return heroes; }
 
-  await Promise.all(Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy).map(async ([slot, spec]) => {
+  // Before the reveal, all at once. After it, one at a time with a frame drawn between them: each
+  // model is parsed on the main thread, and thirty at once would hold up the planet for seconds.
+  const entries = Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy);
+  const gap = () => new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 0)));
+  const each = async ([slot, spec]) => {
     try {
       const gltf = await loader.loadAsync(baseUrl + spec.file);
       const root = gltf.scene;
@@ -63,15 +67,17 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     } catch (e) {
       console.warn('hero prop failed to load, using the procedural one:', slot, e);
     }
-  }));
+  };
+  if (!lazy) await Promise.all(entries.map(each));
+  else for (const entry of entries) { await each(entry); await gap(); }
   return heroes;
 }
 
 /**
  * Slots for lazy heroes (`"lazy": true`): things built in code first, so the planet comes up
  * without waiting for their models, then swapped for the model once it has loaded. `heroSlot()`
- * marks `holder` (a group holding only the code-built part to be replaced; it's left out of
- * batching) as where `slot`'s model goes; `fillSlots()` (main.js, once the lazy heroes are in)
+ * marks `holder` (a group holding only the code-built part to be replaced) as where `slot`'s
+ * model goes; `fillSlots()` (main.js, once the lazy heroes are in)
  * empties each holder and puts a copy of the model in it, then calls `fit(model, holder)` to
  * size or tint it (the model arrives as hero.js leaves it: scaled to the manifest's `height`,
  * centred on its footprint, standing on y = 0) and `onFill(model)`. A slot asked for after its
@@ -79,7 +85,6 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
  */
 const slots = new Map(), loaded = new Map();
 export function heroSlot(slot, holder, { fit = null, onFill = null } = {}) {
-  holder.userData.noBatch = true;
   const entry = { holder, fit, onFill };
   if (loaded.has(slot)) fill(loaded.get(slot), entry);
   else (slots.get(slot) || slots.set(slot, []).get(slot)).push(entry);
@@ -87,18 +92,49 @@ export function heroSlot(slot, holder, { fit = null, onFill = null } = {}) {
 }
 function fill(hero, { holder, fit, onFill }) {
   const model = hero.clone(true);
-  holder.clear();
+  holder.clear(); // a batch the stand-in was merged into comes apart (batch.js), and main.js bakes again
   holder.add(model);
   if (fit) fit(model, holder);
   if (onFill) onFill(model);
 }
-export function fillSlots(heroes) {
+export function fillSlots(heroes, { into = null } = {}) {
+  for (const [slot, hero] of heroes) loaded.set(slot, hero); // all of them first: a fit can use another (heroModel)
   for (const [slot, hero] of heroes) {
-    loaded.set(slot, hero);
-    for (const entry of slots.get(slot) || []) fill(hero, entry);
+    const entries = slots.get(slot) || [];
+    if (hero.userData.spec.instance && into && entries.length > 1) instanced(hero, entries, into);
+    else for (const entry of entries) fill(hero, entry);
     slots.delete(slot);
   }
 }
+/**
+ * `"instance": true` (things there are dozens of, standing still: the trail lanterns, the torches):
+ * every copy drawn at once, one InstancedMesh per part of the model in `into` (world space), each
+ * where its holder would have put it.
+ */
+function instanced(hero, entries, into) {
+  const parts = [];
+  hero.traverse((o) => { if (o.isMesh) parts.push(o); });
+  const poses = entries.map((entry) => {
+    fill(hero, entry);
+    const model = entry.holder.children[0];
+    model.updateMatrixWorld(true);
+    const list = [];
+    model.traverse((o) => { if (o.isMesh) list.push(o.matrixWorld.clone()); });
+    entry.holder.remove(model);
+    return list;
+  });
+  into.updateMatrixWorld(true);
+  const toInto = into.matrixWorld.clone().invert();
+  parts.forEach((part, k) => {
+    const im = new THREE.InstancedMesh(part.geometry, part.material, entries.length);
+    poses.forEach((list, i) => im.setMatrixAt(i, list[k].premultiply(toInto)));
+    im.castShadow = im.receiveShadow = true;
+    im.computeBoundingSphere();
+    into.add(im);
+  });
+}
+/** A loaded lazy hero, as hero.js left it (not a copy: don't change it), or undefined. */
+export function heroModel(slot) { return loaded.get(slot); }
 
 /** Clone a loaded hero for `slot`, or build the fallback. */
 export function heroOr(heroes, slot, fallback) {

@@ -53,8 +53,17 @@ credit Meshy on the site or keep using these files.
 | `campfire-logs.glb` | `01a12aa2-d683-71a8-8662-56fcfd08d37b` (refine of preview `01a12aa0-1f75-7704-b9ae-acf5e9356669`) | 4,651 | 121 KB | 2nd try (the first stood the logs upright); 512px textures; `lazy` |
 | `log-bench.glb` | `01a12aa2-dd51-70cb-bb5a-983d91485e17` (refine of preview `01a12aa0-26b2-742a-89e4-3d6637edf12c`) | 3,068 | 91 KB | the campfire's benches; 2nd try (the first had a plank on it); 512px textures; `lazy` |
 | `bar-stool.glb` | `01a12aa4-a1cd-7398-9c85-d0ad0e9e93a9` (refine of preview `01a12aa2-f33f-751a-819a-4cbd09c40f96`) | 3,361 | 91 KB | 3rd try (two bentwood cafe stools); 512px textures; `lazy` |
+| `outrigger-canoe.glb` | `01a12c39-b73b-7568-8278-3cfe159b8c1d` (refine of preview `01a12c38-ab44-7377-8d9a-23db31a90218`) | 8,815 | 205 KB | 2nd try (the first had no float); 512px textures; `lazy` |
+| `signpost.glb` | `01a12c39-c1d3-7711-b970-5247f83a4a0f` (refine of preview `01a12c38-b5c6-746d-ac8d-1af2fc255944`) | 4,836 | 96 KB | the post; the boards are code; 2nd try; 512px textures; `lazy` |
+| `tiki-torch.glb` | `01a12c39-c9cb-74de-957b-c22cb786a929` (refine of preview `01a12c38-bfe8-7005-8d36-60a4ea822674`) | 4,037 | 167 KB | every torch, upside down as generated (`rotate`); 2nd try; 512px textures; `lazy`, `instance` |
+| `lantern-post.glb` | `01a12c39-d14c-77f3-9ba6-21187824d479` (refine of preview `01a12c38-c6d4-7160-9797-0877eb9dcdf2`) | 2,607 | 94 KB | every trail lantern's post; 2nd try; 512px textures; `lazy`, `instance` |
+| `lantern.glb` | `01a12c38-848d-70da-8393-52e221dcffe1` (refine of preview `01a12c37-529f-735c-b809-bc4895cf4be9`) | 2,497 | 102 KB | hangs from each post, lit by `glow`; 512px textures; `lazy`, `instance` |
+| `rum-tall.glb` | `01a12c38-8f6d-7317-a1a8-e5b8a1d1f210` (refine of preview `01a12c37-5a3a-7683-83ab-2304bea31f0b`) | 2,564 | 69 KB | the rum wall; 256px textures; `lazy` |
+| `rum-square.glb` | `01a12c39-d897-74eb-8ac7-2f60e2a8fab6` (refine of preview `01a12c38-cec1-725f-8d11-6e37cead603f`) | 2,116 | 61 KB | the rum wall; 2nd try (the first had RUUM on it); 256px textures; `lazy` |
+| `rum-gin.glb` | `01a12c38-9aed-757f-9b42-0e04010d6dbb` (refine of preview `01a12c37-694f-7376-a19e-6245e435cb1a`) | 2,474 | 55 KB | the rum wall; 256px textures; `lazy` |
+| `rum-slim.glb` | `01a12c38-a349-7647-b356-e49b38811eef` (refine of preview `01a12c37-7111-76cf-a33a-607c97640fd8`) | 2,434 | 67 KB | the rum wall; 256px textures; `lazy` |
 
-The eight that replace code-built props (2026-10-11) come to 1.6 MB, all loaded after the planet is up; that run was 16 previews and 9 refines, 470 credits.
+The eight that replace code-built props (2026-10-11) come to 1.6 MB, all loaded after the planet is up; that run was 16 previews and 9 refines, 470 credits. A second run the same day added the ten above from the canoe down (0.9 MB; 14 previews and 9 refines, 370 credits).
 
 All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second run on 2026-09-28, 4 generations and 2 remeshes, 130 credits). **Robot:** five tries (refines `01a0e669-b310…`, `01a0e679-89cb…`,
 `01a0e679-8689…`, `01a0e67d-b488…`, `01a0e67d-ecaf…`) all gave the robot legs instead of

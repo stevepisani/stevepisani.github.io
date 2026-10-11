@@ -2639,7 +2639,7 @@ async function start() {
   addEventListener('keydown', (e) => seatArrow(e, true));
   addEventListener('keyup', (e) => seatArrow(e, false));
   let beckoned = false;
-  let firstFrames = null, framesDrawn = 0; // the reveal waits for these
+  let firstFrames = null, framesDrawn = 0, rebake = 0; // the reveal waits for these (rebake: frames to a second batching)
   // the bar and the landmarks: still meshes that look alike drawn as one, patch by patch
   const batcher = createBatcher();
   batcher.add(bar.group, places.group);
@@ -2877,6 +2877,7 @@ async function start() {
       if (framesDrawn === 4) window.__batched = batcher.bake();
       if (framesDrawn >= 5) { firstFrames(); firstFrames = null; }
     }
+    if (rebake && --rebake === 0) window.__batched += batcher.bake(); // the lazy heroes, merged in too
   }
 
   player.applyToCamera();
@@ -2940,13 +2941,25 @@ async function start() {
     const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
     for (const b of bottles.values()) {
       const staging = new THREE.Group().add(b);
+      // and the forms it's drawn in once it's placed (hero.js): instanced, with and without a colour
+      // each (the rum wall, the lanterns), and lit by its own texture (the floats' tints), so no
+      // shader compiles mid-frame later
+      b.traverse((o) => {
+        if (!o.isMesh) return;
+        const plain = new THREE.InstancedMesh(o.geometry, o.material, 1), tinted = new THREE.InstancedMesh(o.geometry, o.material, 1);
+        tinted.setColorAt(0, new THREE.Color(1, 1, 1));
+        staging.add(plain, tinted);
+        if (b.userData.spec.tinted && o.material.map) staging.add(new THREE.Mesh(o.geometry, Object.assign(o.material.clone(), { emissiveMap: o.material.map })));
+      });
       try {
         if (parallel) await renderer.compileAsync(staging, camera, scene);
         else await new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));
       } catch (e) {}
       staging.remove(b);
     }
-    fillSlots(bottles);
+    fillSlots(bottles, { into: scene });
+    batcher.note();
+    rebake = 3;
     bar.setBottles(bottles);
     window.__world.bottles = bottles.size;
   }), 2500);
