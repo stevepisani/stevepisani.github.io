@@ -6,6 +6,7 @@
 // quads and an antenna. The front (hatch, porthole, badge) is local -z.
 import * as THREE from 'three';
 import { PALETTE, pbr, chrome, glow } from './materials.js';
+import { heroSlot } from './hero.js';
 
 function mesh(geo, material, parent, [x, y, z] = [0, 0, 0]) {
   const m = new THREE.Mesh(geo, material);
@@ -101,8 +102,8 @@ export function saturnLander({ badge = null } = {}) {
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
+  const img = badge ? new Image() : null;
   if (badge) {
-    const img = new Image();
     img.onload = () => {
       // square on the hull: a pixel round the body covers more metres than a pixel up it
       const [s0, s1] = at('S-II');
@@ -199,7 +200,31 @@ export function saturnLander({ badge = null } = {}) {
   mesh(new THREE.LatheGeometry([[0, 0], [0.03, 0], [0.03, 0.2], [0.02, 0.26], [0, 0.3]].map(([r, y]) => new THREE.Vector2(r, y)), 16), white3, group, [0, t1, 0]);
   const top = t1 + 0.3;
 
-  const burn = engineTest(group, LIFT - 0.3);
+  // All of the above is the stand-in for the Meshy model (hero slot "rocket", loaded once the planet
+  // is up). The model's manifest `anchors` say where its engines are (`engines`: [the height their
+  // mouths open at, how far apart]) and where the badge goes on its hull (`badge`: [height,
+  // the hull's radius there, size]), on the front (-z) like this one's.
+  const stand = new THREE.Group();
+  stand.add(...group.children);
+  group.add(stand);
+  const { burn, place } = engineTest(group, LIFT - 0.3, 0.22);
+  heroSlot('rocket', stand, {
+    onFill(model) {
+      const fit = model.userData.spec.anchors || {};
+      if (fit.engines) place(...fit.engines);
+      if (!fit.badge || !img) return;
+      // the logo on a strip of the hull's own curve, just proud of it
+      const [y, r, size] = fit.badge, arc = size / r;
+      const c = document.createElement('canvas'); // drawn first: an SVG has no size of its own to upload
+      c.width = c.height = 256;
+      c.getContext('2d').drawImage(img, 0, 0, 256, 256);
+      const map = new THREE.CanvasTexture(c);
+      map.colorSpace = THREE.SRGBColorSpace;
+      const decal = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.004, r + 0.004, size, 16, 1, true, Math.PI - arc / 2, arc), new THREE.MeshStandardMaterial({ map, transparent: true, roughness: 0.5 }));
+      decal.position.y = y;
+      model.add(decal);
+    },
+  });
   return {
     group,
     top,
@@ -214,7 +239,7 @@ export function saturnLander({ badge = null } = {}) {
 // The engine test (the launch console's red button): flames out of the five bells, a hot glow on
 // the pad under them, and smoke rolling out from underneath and up. Nothing moves the ship; it's a
 // static fire. All of it hidden until `burn(k)` with k > 0, and marked so batching leaves it alone.
-function engineTest(group, exit) {
+function engineTest(group, exit, spread) {
   const fx = new THREE.Group();
   fx.userData.noBatch = true;
   fx.visible = false;
@@ -236,9 +261,9 @@ function engineTest(group, exit) {
   // cones opening downward from the mouth (their uv v runs from the tip to the base: flip so the nozzle's end is bright)
   const cone = (r, h) => new THREE.CylinderGeometry(r * 0.7, r, h, 16, 1, true).translate(0, -h / 2, 0);
   const flames = [];
-  for (const [x, z] of [[0, 0], [0.22, 0], [-0.22, 0], [0, 0.22], [0, -0.22]]) {
+  const LAYOUT = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+  for (let n = 0; n < LAYOUT.length; n++) {
     const f = new THREE.Group();
-    f.position.set(x, exit, z);
     const o = new THREE.Mesh(cone(0.13, 0.6), outer), c = new THREE.Mesh(cone(0.07, 0.3), core);
     for (const m of [o, c]) { m.castShadow = m.receiveShadow = false; f.add(m); }
     fx.add(f);
@@ -264,7 +289,12 @@ function engineTest(group, exit) {
   fx.add(smoke);
   let next = 0, i0 = 0;
   const LIFE = 3.2;
-  return function burn(k, dt = 1 / 60) {
+  /** Where the engines' mouths are: `y` up, `apart` from the middle one to the others. */
+  function place(y, apart) {
+    flames.forEach((f, n) => f.position.set(LAYOUT[n][0] * apart, y, LAYOUT[n][1] * apart));
+  }
+  place(exit, spread);
+  return { place, burn(k, dt = 1 / 60) {
     const on = k > 0.001 || age.some((a) => a < LIFE);
     fx.visible = on;
     if (!on) return;
@@ -296,5 +326,5 @@ function engineTest(group, exit) {
     }
     geo.attributes.position.needsUpdate = true;
     geo.attributes.color.needsUpdate = true;
-  };
+  } };
 }

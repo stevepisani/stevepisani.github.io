@@ -25,8 +25,10 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     try {
       const gltf = await loader.loadAsync(baseUrl + spec.file);
       const root = gltf.scene;
-      // turn first, so centring and grounding use the turned footprint
-      if (spec.rotateY) root.rotation.y = spec.rotateY;
+      // turn first, so centring and grounding use the turned footprint (`rotate`: [x, y, z]
+      // radians, for a model lying the wrong way; `rotateY` for one facing the wrong way)
+      if (spec.rotate) root.rotation.set(...spec.rotate);
+      if (spec.rotateY) root.rotation.y += spec.rotateY;
       root.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(root);
       const size = box.getSize(new THREE.Vector3());
@@ -63,6 +65,39 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     }
   }));
   return heroes;
+}
+
+/**
+ * Slots for lazy heroes (`"lazy": true`): things built in code first, so the planet comes up
+ * without waiting for their models, then swapped for the model once it has loaded. `heroSlot()`
+ * marks `holder` (a group holding only the code-built part to be replaced; it's left out of
+ * batching) as where `slot`'s model goes; `fillSlots()` (main.js, once the lazy heroes are in)
+ * empties each holder and puts a copy of the model in it, then calls `fit(model, holder)` to
+ * size or tint it (the model arrives as hero.js leaves it: scaled to the manifest's `height`,
+ * centred on its footprint, standing on y = 0) and `onFill(model)`. A slot asked for after its
+ * model has loaded is filled at once.
+ */
+const slots = new Map(), loaded = new Map();
+export function heroSlot(slot, holder, { fit = null, onFill = null } = {}) {
+  holder.userData.noBatch = true;
+  const entry = { holder, fit, onFill };
+  if (loaded.has(slot)) fill(loaded.get(slot), entry);
+  else (slots.get(slot) || slots.set(slot, []).get(slot)).push(entry);
+  return holder;
+}
+function fill(hero, { holder, fit, onFill }) {
+  const model = hero.clone(true);
+  holder.clear();
+  holder.add(model);
+  if (fit) fit(model, holder);
+  if (onFill) onFill(model);
+}
+export function fillSlots(heroes) {
+  for (const [slot, hero] of heroes) {
+    loaded.set(slot, hero);
+    for (const entry of slots.get(slot) || []) fill(hero, entry);
+    slots.delete(slot);
+  }
 }
 
 /** Clone a loaded hero for `slot`, or build the fallback. */

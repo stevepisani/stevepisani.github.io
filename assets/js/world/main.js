@@ -21,7 +21,7 @@ import { Player, bindInput, BODY } from './player.js';
 import { onPlanet } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
 import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
-import { loadHeroes } from './hero.js';
+import { loadHeroes, fillSlots } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
 import { createSound } from './sound.js';
 import { createSkipper } from './stones.js';
@@ -2930,8 +2930,9 @@ async function start() {
   bar.setSfx((name, ...args) => sound.play(name, ...args));
   window.__world.sound = sound;
 
-  // The real bottles the robot pours from: nobody needs them until they order, so they load
-  // once the scene is up, and their shaders compile off to the side before they're shown.
+  // The lazy heroes (the real bottles the robot pours from, and the models that replace code-built
+  // things: hero.js heroSlot): they load once the scene is up, and their shaders compile off to
+  // the side before they're shown.
   whenIdle(() => loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
     if (!bottles.size) return;
     // one at a time, each when the browser's idle (where shaders can't compile in parallel, each is a pause)
@@ -2944,6 +2945,7 @@ async function start() {
       } catch (e) {}
       staging.remove(b);
     }
+    fillSlots(bottles);
     bar.setBottles(bottles);
     window.__world.bottles = bottles.size;
   }), 2500);
