@@ -6,7 +6,8 @@
 // its own frame and moves as one. The originals stay where they are on a layer the camera doesn't
 // draw, so picking, glints and code holding on to them still work.
 //
-// What keeps still is measured, not guessed: `note()` on one frame, `bake()` a few frames later.
+// What keeps still is measured, not guessed: `note()` on one frame, `bake()` a few frames later
+// (and again once the lazy hero models have replaced what was built in code: main.js).
 // After that, `watch()` each frame: if an original moves within its frame, hides, swaps or alters
 // its material, or has its geometry rewritten (the robot sets off, the telescope swings round, the
 // hammock sags), its batch is taken apart and the originals are drawn again. Whatever is marked
@@ -38,6 +39,22 @@ const _inv = new THREE.Matrix4(), _rel = new THREE.Matrix4(), _p = new THREE.Vec
 const rel = (a, o, out) => out.multiplyMatrices(_inv.copy(a.matrixWorld).invert(), o.matrixWorld);
 function near(a, b) { const x = a.elements, y = b.elements; for (let i = 0; i < 16; i++) if (Math.abs(x[i] - y[i]) > 1e-5) return false; return true; }
 
+/**
+ * A copy with plain float attributes. A model's geometry can come meshopt-quantized (16-bit
+ * integers scaled by its node): moved anywhere else, its positions would wrap.
+ */
+export function floatGeometry(geo) {
+  const out = new THREE.BufferGeometry();
+  for (const [name, a] of Object.entries(geo.attributes)) {
+    if (a.array instanceof Float32Array && !a.normalized && !a.isInterleavedBufferAttribute) { out.setAttribute(name, a.clone()); continue; }
+    const f = new Float32Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) for (let j = 0; j < a.itemSize; j++) f[i * a.itemSize + j] = a.getComponent(i, j);
+    out.setAttribute(name, new THREE.BufferAttribute(f, a.itemSize));
+  }
+  if (geo.index) out.setIndex(geo.index.clone());
+  return out;
+}
+
 export function createBatcher() {
   const roots = [], noted = new Map(), batches = [];
   let checked = 0;
@@ -51,7 +68,10 @@ export function createBatcher() {
     /** Where everything is now. */
     note() {
       noted.clear();
-      for (const root of roots) root.traverse((o) => noted.set(o, { m: o.matrixWorld.clone(), mat: o.material, look: o.isMesh && !Array.isArray(o.material) ? look(o.material) : null }));
+      for (const root of roots) {
+        root.updateMatrixWorld(true); // something added since the last frame has no place yet
+        root.traverse((o) => noted.set(o, { m: o.matrixWorld.clone(), mat: o.material, look: o.isMesh && !Array.isArray(o.material) ? look(o.material) : null }));
+      }
     },
     /** Merge what's kept still since `note()`. Returns how many draw calls it saved. */
     bake() {
@@ -61,6 +81,7 @@ export function createBatcher() {
         root.traverse((o) => {
           const n = noted.get(o);
           if (!n || !eligible(o) || !shown(o) || o.material !== n.mat || look(o.material) !== n.look) return;
+          if (o.name === 'batch' || !o.layers.isEnabled(0)) return; // a batch, or already in one (a second bake)
           if (o.matrixWorld.determinant() <= 0) return; // mirrored: merging would turn it inside out
           // its frame: the outermost of root and its ancestors that it hasn't moved against
           const chain = [];
@@ -82,8 +103,7 @@ export function createBatcher() {
         for (const { anchor, list } of groups.values()) {
           if (list.length < 2) continue;
           const geos = list.map((o) => {
-            const g = o.geometry.clone();
-            g.clearGroups();
+            const g = floatGeometry(o.geometry);
             return g.applyMatrix4(rel(anchor, o, new THREE.Matrix4()));
           });
           const merged = mergeGeometries(geos, false);

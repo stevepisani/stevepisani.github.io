@@ -112,17 +112,27 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   const lantern = (dir, { height = 1.5, light = 0, pool = 12 } = {}) => {
     const g = new THREE.Group();
     const M = lanternMats;
-    mesh(new THREE.CylinderGeometry(0.035, 0.045, height, 8), M.bamboo, [0, height / 2, 0], g);
-    const arm = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 6), M.bamboo, [0.13, height - 0.06, 0], g);
+    // the post and its arm, and the lantern hung from it: stand-ins for the Meshy ones (hero slots
+    // "lantern-post", its arm's end `anchors.arm` from the pole, and "lantern", lit by its own glass)
+    const post = heroSlot('lantern-post', new THREE.Group(), { fit: (model) => {
+      const k = height / model.userData.spec.height;
+      model.scale.setScalar(k);
+      model.position.x = 0.25 - model.userData.spec.anchors.arm * k; // the arm's end over the lantern
+    } });
+    g.add(post);
+    mesh(new THREE.CylinderGeometry(0.035, 0.045, height, 8), M.bamboo, [0, height / 2, 0], post);
+    const arm = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.32, 6), M.bamboo, [0.13, height - 0.06, 0], post);
     arm.rotation.z = Math.PI / 2;
     const hang = new THREE.Group();
     hang.position.set(0.25, height - 0.08, 0);
     g.add(hang);
-    mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.1, 4), M.cord, [0, -0.05, 0], hang);
-    mesh(new THREE.ConeGeometry(0.075, 0.07, 6), M.cap, [0, -0.13, 0], hang);
-    const glass = mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.13, 6), M.glass, [0, -0.23, 0], hang);
+    const lamp = heroSlot('lantern', new THREE.Group(), { fit: (model) => { model.position.y = -model.userData.spec.height - 0.03; } });
+    hang.add(lamp);
+    mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.1, 4), M.cord, [0, -0.05, 0], lamp);
+    mesh(new THREE.ConeGeometry(0.075, 0.07, 6), M.cap, [0, -0.13, 0], lamp);
+    const glass = mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.13, 6), M.glass, [0, -0.23, 0], lamp);
     glass.castShadow = false;
-    mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.02, 6), M.cap, [0, -0.305, 0], hang);
+    mesh(new THREE.CylinderGeometry(0.06, 0.055, 0.02, 6), M.cap, [0, -0.305, 0], lamp);
     if (light) {
       const l = new THREE.PointLight(PALETTE.amber, light, 7, 1.4);
       l.position.set(0.25, height - 0.3, 0);

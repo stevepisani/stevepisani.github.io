@@ -9,6 +9,8 @@
 import * as THREE from 'three';
 import * as T from './textures.js';
 import { PALETTE, pbr, surface, woodSet, glow, chrome } from './materials.js';
+import { heroSlot, heroModel } from './hero.js';
+import { floatGeometry } from './batch.js';
 
 const TAU = Math.PI * 2;
 
@@ -42,6 +44,11 @@ const BOTTLES = [
  */
 export function rumWall(parent, rows, seed = 7) {
   const rand = rng(seed);
+  // the bottles built here are stand-ins for four Meshy bottles (hero slots "rum-tall", "rum-square",
+  // "rum-gin", "rum-slim"), each one instanced mesh, in the same places
+  const holder = new THREE.Group();
+  parent.add(holder);
+  parent = holder;
   const tints = [tone(PALETTE.amber, 0.5), tone(PALETTE.stain, 0.9), tone(PALETTE.bamboo, 0.75), tone(PALETTE.teal, 0.9), tone(PALETTE.coral, 0.45), tone(PALETTE.lava, 1.6), tone(PALETTE.aqua, 0.45)];
   const placed = BOTTLES.map(() => []);
   for (const r of rows) {
@@ -79,6 +86,29 @@ export function rumWall(parent, rows, seed = 7) {
       cap.setColorAt(i, capTints[i % capTints.length]);
     });
     parent.add(lab, cap);
+  });
+  heroSlot('rum-tall', holder, { fit: () => realBottles(holder, placed.flat()) });
+}
+
+const RUMS = ['rum-tall', 'rum-square', 'rum-gin', 'rum-slim'];
+/** The Meshy bottles, one instanced mesh each, where the stand-ins stood (their tints a touch of each). */
+function realBottles(holder, spots) {
+  const kinds = RUMS.map((slot) => heroModel(slot)).filter(Boolean);
+  holder.clear();
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), sc = new THREE.Vector3(), white = new THREE.Color(1, 1, 1);
+  kinds.forEach((hero, k) => {
+    const list = spots.filter((_, i) => i % kinds.length === k);
+    if (!list.length) return;
+    let source;
+    hero.updateMatrixWorld(true);
+    hero.traverse((o) => { if (o.isMesh && !source) source = o; });
+    const im = new THREE.InstancedMesh(floatGeometry(source.geometry).applyMatrix4(source.matrixWorld), source.material, list.length);
+    list.forEach(([x, y, z, ry, c, s], i) => {
+      im.setMatrixAt(i, m.compose(p.set(x, y, z), q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry), sc.set(1, 0.92 + (s - 0.92) * 0.5, 1)));
+      im.setColorAt(i, white.clone().lerp(c, 0.2));
+    });
+    im.castShadow = true;
+    holder.add(im);
   });
 }
 
