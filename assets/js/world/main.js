@@ -2083,7 +2083,8 @@ async function start() {
     con.group.updateMatrixWorld(true);
     const center = scr.getWorldPosition(new THREE.Vector3()), n = new THREE.Vector3(0, 0, 1).transformDirection(scr.matrixWorld);
     const up = new THREE.Vector3(0, 1, 0).transformDirection(scr.matrixWorld), s = scr.getWorldScale(new THREE.Vector3());
-    const W = 0.64 * s.x, H = 0.4 * s.y, t = Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2), aspect = camera.aspect;
+    const { width, height } = scr.geometry.parameters;
+    const W = width * s.x, H = height * s.y, t = Math.tan(THREE.MathUtils.degToRad(BASE_FOV) / 2), aspect = camera.aspect;
     // far enough back that the screen's width fits, and its height between the top bar and the
     // "Step back" button (its keys are on it)
     const usable = Math.max(0.5, 1 - 250 / Math.max(innerHeight, 400)); // the top bar, the hint and "Step back"
@@ -2190,7 +2191,8 @@ async function start() {
     const scr = LC.con.screen, r = canvas.getBoundingClientRect();
     scr.updateMatrixWorld(true);
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of [[-0.32, -0.2], [0.32, -0.2], [-0.32, 0.2], [0.32, 0.2]]) {
+    const hw = scr.geometry.parameters.width / 2, hh = scr.geometry.parameters.height / 2;
+    for (const [x, y] of [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]]) {
       _sc.set(x, y, 0.001).applyMatrix4(scr.matrixWorld).project(camera);
       const px = (_sc.x * 0.5 + 0.5) * r.width + r.left, py = (-_sc.y * 0.5 + 0.5) * r.height + r.top;
       x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
