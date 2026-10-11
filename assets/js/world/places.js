@@ -13,7 +13,7 @@ import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
 import { buildMachine } from './machine.js';
-import { heroOr } from './hero.js';
+import { heroOr, heroSlot } from './hero.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -415,11 +415,14 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     group.add(flood, flood.target);
     const beacon = mesh(new THREE.SphereGeometry(0.07, 10, 8), glow(PALETTE.coral, 8), [0, 0, 0], group);
     beacon.castShadow = false;
-    { // the highest point of the dish, along its up
+    const onTop = () => { // the highest point of the dish, along its up (again when its model arrives)
       let hi = -Infinity; const v = new THREE.Vector3();
+      dish.updateMatrixWorld(true);
       dish.traverse((m) => { if (!m.isMesh) return; const pos = m.geometry.attributes.position; for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld); const h = v.clone().sub(dish.position).dot(up); if (h > hi) { hi = h; beacon.position.copy(v); } } });
       beacon.position.addScaledVector(up, 0.1);
-    }
+    };
+    onTop();
+    dish.userData.onModel = onTop;
     animated.push((t) => { beacon.visible = ((t + 0.7) % 1.9) < 0.2; });
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
     // a ground station: this is where you send Steve a signal
@@ -618,6 +621,12 @@ function brassTelescope() {
   const tray = mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 3), wood, [0, 0.5, 0], g);
   tray.rotation.y = Math.PI / 6;
   mesh(new THREE.CylinderGeometry(0.13, 0.12, 0.045, 24), brass, [0, HEAD, 0], g);
+  // the tripod so far is the stand-in for the Meshy one (hero slot "telescope-tripod", its head
+  // plate's top at the head's, loaded once the planet is up); the brass tube stays code
+  const tripod = new THREE.Group();
+  tripod.add(...g.children);
+  g.add(tripod);
+  heroSlot('telescope-tripod', tripod);
 
   // the mount turns on the head
   const az = new THREE.Group();

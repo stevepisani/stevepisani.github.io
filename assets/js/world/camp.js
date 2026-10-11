@@ -7,7 +7,7 @@ import { PALETTE, pbr, surface, woodSet } from './materials.js';
 import * as T from './textures.js';
 import { createFire } from './fire.js';
 import { lavaRock, moai, thinkerFallback } from './props.js';
-import { heroOr } from './hero.js';
+import { heroOr, heroSlot } from './hero.js';
 
 function mesh(geo, material, parent, [x, y, z] = [0, 0, 0]) {
   const m = new THREE.Mesh(geo, material);
@@ -40,6 +40,18 @@ function coalsTexture() {
 }
 
 /** A split log: bark round the outside, pale end grain, charred where it's been in the fire. */
+/** The Meshy log, stretched to the stand-in's 1.5 m by 0.34, centred on its axis like it. */
+function benchFit(model) {
+  // measured on its own, not as the bench lies turned in the camp
+  const parent = model.parent;
+  parent.remove(model);
+  model.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model).getSize(new THREE.Vector3());
+  parent.add(model);
+  model.scale.set(1.5 / size.x, 0.34 / size.y, 0.36 / size.z);
+  model.position.y = -0.17;
+}
+
 function log(length, radius, bark, end) {
   const g = new THREE.Group();
   const body = mesh(new THREE.CylinderGeometry(radius, radius * 1.05, length, 14), bark, g);
@@ -87,6 +99,7 @@ export function buildCampfire({ quality, heroes }) {
     turn.add(l);
     teepee.add(turn);
   }
+  heroSlot('campfire-logs', teepee); // the Meshy teepee, once the planet is up
   // the fire: a big flame and a smaller one turned through it, for body
   const fire = createFire({ width: 0.9, height: 1.35, light: 7, distance: 11, shadow: quality.high });
   fire.group.position.y = 0.05;
@@ -108,7 +121,9 @@ export function buildCampfire({ quality, heroes }) {
   // benches: logs round the fire, bedded into the real ground under both ends (it falls away
   // from the camp's flat plane). The one you sit on is placed by seatToward().
   const bench = (a, groundY, r = 1.55) => {
-    const b = log(1.5, 0.17, bark, endGrain);
+    // the log is the stand-in for the Meshy one (hero slot "log-bench"), stretched to its size
+    const b = new THREE.Group();
+    b.add(heroSlot('log-bench', new THREE.Group().add(log(1.5, 0.17, bark, endGrain)), { fit: benchFit }));
     b.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     b.rotation.y = -a + Math.PI / 2; // lies across the line to the fire
     b.updateMatrix();

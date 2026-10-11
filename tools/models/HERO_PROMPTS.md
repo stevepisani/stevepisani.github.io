@@ -20,7 +20,8 @@ procedural stand-in; drop a GLB in `assets/models/hero/`, list it in
 ```
 
 Models are auto-scaled to `height` (metres), centred, and set on the ground. Optional keys:
-- `rotateY` (radians) if the model faces the wrong way; the front should face +Z.
+- `rotateY` (radians) if the model faces the wrong way; the front should face +Z. `rotate`
+  ([x, y, z] radians) for one lying the wrong way.
 - `roughness`, `metalness`: material factors. With PBR maps they multiply the maps
   (`roughness: 0.5` makes a glaze glossier); without a roughness map roughness defaults to 0.7.
 - `tint` (a `PALETTE` key) and `brightness` (a number) multiply the base colour. Use them when
@@ -31,10 +32,15 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   scaled, grounded model (front +Z). Only `launch-console` uses it: `screen` [x, y, z, width,
   height] (the live screen's plane, just in front of the glass), `lamps` [y, z, span] (the row of
   status lamps along the top of the screen housing) and `button` [x, y, z] (the red button, on
-  the desk). Measure them again whenever the model changes: cast rays at it (three.js
-  `Raycaster` on the GLB's geometry) from the front and from above.
-- `lazy`: load it after the scene is up (things nobody sees until they ask for them, like the
-  bottles the robot pours from), not before the reveal.
+  the desk). `rocket` gives `engines` [height of the nozzles' mouths, how far apart] for the
+  engine test's flames and `badge` [height, hull radius there, size] for the site's logo on
+  its front (-Z). Measure them again whenever the model changes: cast rays at it (three.js
+  `Raycaster` on the GLB's geometry) from the front, the sides and from above.
+- `lazy`: load it after the scene is up, not before the reveal: the bottles the robot pours
+  from, and every model that replaces a code-built thing (the rocket, the telescope's tripod,
+  the radio dish, the message bottles, the glass floats, the campfire's logs and benches, the
+  bar stools). Those are built in code first and swapped for the model when it arrives
+  (`hero.js` `heroSlot()` / `fillSlots()`), so a slow connection never holds up the planet.
 
 Lights, fire, and hanging cords are added by the world, so don't bake them in. The `robot`
 slot replaces only the bartender's body: it still turns, rolls and rattles, but the
@@ -128,6 +134,48 @@ Texture: Clear glass bottle showing nearly black dark brown coffee liqueur insid
 > A 1960s space-age rocket launch control console, one solid freestanding unit: a heavy steel cabinet desk 1.3 metres wide and 0.7 metres deep standing on a dark plinth, a wide sloped control panel at waist height covered in rows of toggle switches and small round indicator lamps, and built into the back of the desk a boxy CRT monitor housing at eye height with a large flat dark rectangular glass screen facing forward, rounded corners, a thick bezel. Cream enamel and teal painted steel, chrome trim, rivets, 1.45 metres tall overall. Facing forward. Realistic PBR, game-ready.
 
 Texture: Cream white baked enamel painted steel cabinet with deep teal painted side panels and kick plate, brushed chrome trim and handles, black bakelite knobs and toggle switches, small round indicator lamps, a dark charcoal plinth. The screen is plain dark green-black glass with nothing on it. Slightly worn paint, realistic industrial materials.
+
+**Replacing code-built props** (generated 2026-10-11; each the shape prompt, then its texture prompt):
+
+**rocket** (4.25 m; the flames, smoke and badge are added by `rocket.js`)
+> A small stubby model of the Apollo Saturn V moon rocket standing on four landing legs. White body with black bands and the black and white roll pattern on the lower stage. Straight sided cylinders all the way up: wide first stage, same-width second stage, slightly narrower third stage, a short tapered adapter, a small grey cone capsule and a thin red lattice escape tower with a pointed tip on top. Four small black fins at the bottom corners. Five large black engine bells clustered under the base. No side boosters. 3.6 metres tall. Realistic PBR, game-ready.
+
+Texture: Glossy white painted rocket stages with black roll pattern bands and black stripes like the Saturn V, a few riveted seams and slight scorch marks near the base, dark metal engine bells, grey capsule, red escape tower. Realistic materials.
+
+**telescope-tripod** (the brass tube stays code: it turns on the mount, and Meshy's tubes came out stubby or on a post)
+> A wooden surveyor's tripod for an antique brass telescope: three tapered square varnished wooden legs with brass hinges at the top and pointed brass feet, a small triangular wooden accessory tray held by brass spreader rods halfway down, and a round flat brass head plate on top with nothing mounted on it. 1.25 metres tall, standing upright. Realistic PBR, game-ready.
+
+Texture: Varnished warm honey-brown hardwood legs with visible grain, polished brass hinges, head plate, spreader rods and pointed feet, a little worn. Realistic materials.
+
+**radio-dish**
+> A 1960s radio telescope dish antenna on a pedestal: a deep bowl-shaped white parabolic reflector dish 2 metres across, tilted up toward the sky, with a feed horn on three thin struts at its center, a counterweight and a steel yoke behind it, on a thick round steel column on a round concrete pad. Realistic PBR, game-ready.
+
+Texture: Off-white painted steel reflector dish with faint panel seams, grey steel struts, yoke and feed horn, dark grey painted column, rough grey concrete pad, slightly weathered. Realistic industrial materials.
+
+**message-bottle** (made see-through in code, so the letter shows; the cork that's pulled is code)
+> A single old message in a bottle: an empty clear green glass wine bottle with a long neck, weathered and frosted by sand and sea, a few barnacles near the base, no label, a cork in the neck. Standing upright, 26 cm tall. Realistic PBR, game-ready.
+
+Texture: Dark green glass bottle, frosted and scuffed by sand, a few pale barnacles near the base, a light brown cork in the neck. Realistic materials.
+
+**glass-float** (tinted and lit from inside in code, each its own colour)
+> A single Japanese glass fishing float: a round hand-blown aqua blue sea glass ball 30 cm across, completely covered by a knotted diamond-pattern net of thin brown rope that wraps the whole ball, gathered into a small loop at the top. Realistic PBR, game-ready.
+
+Texture: Translucent aqua blue-green hand-blown glass ball with tiny bubbles and a glossy surface, coarse dark brown knotted rope net. Realistic materials.
+
+**campfire-logs** (the fire, coals and sparks are code)
+> A campfire log teepee, unlit: five split firewood logs leaning in at an angle against each other, their tops meeting in a point over the middle and their bottoms spread out in a circle on the ground, like a cone. Rough bark, charred black at the bottoms, a little ash underneath. 1 metre tall. Realistic PBR, game-ready.
+
+Texture: Rough dark brown oak bark on the logs, pale split wood faces, charred black ends at the bottom, grey white ash and small embers underneath. Realistic materials.
+
+**log-bench** (stretched in code to the bench's 1.5 m)
+> A single round tree log lying on its side on the ground as a seat, 1.5 metres long and 35 cm thick, rough grey-brown bark, sawn flat ends showing growth rings, a few knots. Only the log, nothing on top of it. Realistic PBR, game-ready.
+
+Texture: Rough grey-brown weathered oak bark, pale sawn end grain with growth rings, worn smooth on top where people sit. Realistic materials.
+
+**bar-stool** (two tries came out as bentwood cafe stools; "thick light tan bamboo poles with visible nodes" fixed it)
+> A Polynesian tiki bar stool built from thick light tan bamboo poles with visible nodes and joints: four straight bamboo legs, two bamboo cross rings, and a round padded seat covered in woven rattan, lashed together with dark cane strips. Chunky and rustic, 1950s Hawaiian style. 75 cm tall. Realistic PBR, game-ready.
+
+Texture: Light tan bamboo poles with darker nodes, a woven natural rattan seat top, dark brown cane lashing at the joints. Realistic materials.
 
 ## Licence check before committing a model
 Whatever you generate is published on a public website. Use a tier whose licence allows
