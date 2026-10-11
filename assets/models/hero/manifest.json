@@ -111,7 +111,8 @@
   "glass-float": {
     "file": "glass-float.glb",
     "height": 0.36,
-    "lazy": true
+    "lazy": true,
+    "tinted": true
   },
   "campfire-logs": {
     "file": "campfire-logs.glb",

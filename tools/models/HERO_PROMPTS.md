@@ -36,6 +36,8 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   engine test's flames and `badge` [height, hull radius there, size] for the site's logo on
   its front (-Z). Measure them again whenever the model changes: cast rays at it (three.js
   `Raycaster` on the GLB's geometry) from the front, the sides and from above.
+- `tinted`: its copies are tinted and lit by their own texture in code (the glass floats), so that
+  form of its shader is compiled ahead too.
 - `instance`: for a lazy model there are dozens of, standing still (the trail lanterns and their
   posts, the torches): every copy is drawn at once as one InstancedMesh, not one mesh each.
 - `lazy`: load it after the scene is up, not before the reveal: the bottles the robot pours

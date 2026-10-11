@@ -2941,6 +2941,16 @@ async function start() {
     const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
     for (const b of bottles.values()) {
       const staging = new THREE.Group().add(b);
+      // and the forms it's drawn in once it's placed (hero.js): instanced, with and without a colour
+      // each (the rum wall, the lanterns), and lit by its own texture (the floats' tints), so no
+      // shader compiles mid-frame later
+      b.traverse((o) => {
+        if (!o.isMesh) return;
+        const plain = new THREE.InstancedMesh(o.geometry, o.material, 1), tinted = new THREE.InstancedMesh(o.geometry, o.material, 1);
+        tinted.setColorAt(0, new THREE.Color(1, 1, 1));
+        staging.add(plain, tinted);
+        if (b.userData.spec.tinted && o.material.map) staging.add(new THREE.Mesh(o.geometry, Object.assign(o.material.clone(), { emissiveMap: o.material.map })));
+      });
       try {
         if (parallel) await renderer.compileAsync(staging, camera, scene);
         else await new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));

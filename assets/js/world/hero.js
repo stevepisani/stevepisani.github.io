@@ -21,7 +21,11 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     if (res.ok) manifest = await res.json();
   } catch (e) { return heroes; }
 
-  await Promise.all(Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy).map(async ([slot, spec]) => {
+  // Before the reveal, all at once. After it, one at a time with a frame drawn between them: each
+  // model is parsed on the main thread, and thirty at once would hold up the planet for seconds.
+  const entries = Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy);
+  const gap = () => new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 0)));
+  const each = async ([slot, spec]) => {
     try {
       const gltf = await loader.loadAsync(baseUrl + spec.file);
       const root = gltf.scene;
@@ -63,7 +67,9 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
     } catch (e) {
       console.warn('hero prop failed to load, using the procedural one:', slot, e);
     }
-  }));
+  };
+  if (!lazy) await Promise.all(entries.map(each));
+  else for (const entry of entries) { await each(entry); await gap(); }
   return heroes;
 }
 
