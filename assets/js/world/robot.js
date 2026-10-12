@@ -298,7 +298,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const POSES = {
     rest:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.35, 0.12, -0.9, 0.2] },  // shaker at the chest
     greet: { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.2, 2.5, -0.35, 0.4] },   // left hand up: aloha
-    shake: { r: [-2.7, -0.2, -0.5, 0.05], l: [-0.8, 0.25, -1.3, 0.1] },    // shaker up by the dome
+    shake: { r: [0, 0.2, -2, 0.05], l: [-0.35, 0.55, -0.7, 0.4] },           // shaker in front of the right of the chest, the left arm out
     pour:  { r: [-1.45, 0.05, -0.15, 0.1], l: [-0.8, 0.25, -1.3, 0.1] },   // reaching across the counter
     wipe:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-1.05, 0.15, -0.55, 0.3] },  // towel down on the bar top
   };
@@ -308,9 +308,19 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const goal = { pos: new THREE.Vector3(), heading: 0 };
   const from = { pos: new THREE.Vector3(), heading: 0 };
   let moveT = 1, moveDur = 0.9;
-  let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
+  let clock = 0, shakeFrom = -1, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
+  // The shake: hard strokes from in front of the right of the chest (LO) to up past the right of the
+  // head (HI), one-handed (its arms are too short to cap the tin without passing through itself),
+  // the left arm out for balance, swinging a little against each stroke. Both found by searching
+  // the joints for poses where neither arm nor the tin touches the robot or the bar (and every
+  // pose between them): change them only after checking that again.
+  const SHAKE_LO = [0, 0.2, -2], SHAKE_HI = [-1.7, 0.4, -1.6], STROKES = 3.3; // a second
+  const BALANCE_LO = [-0.35, 0.55, -0.7], BALANCE_HI = [-0.6, 0.7, -0.45];
+  let shakeHold = null; // tests: hold the stroke at 0 (LO) to 1 (HI)
   let rolled = 0;
   let idleFor = 0; // seconds at rest with nothing to do: now and then it wipes down the bar
+  const watching = new THREE.Vector3(), _w = new THREE.Vector3();
+  let watchOn = false, headYaw = 0, headPitch = 0;
 
   function moveTo(pos, heading, dur = 0.9) {
     from.pos.copy(root.position); from.heading = root.rotation.y;
@@ -341,19 +351,73 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     if (held) return held[1].userData.tip.clone();
     return new THREE.Vector3(0, -0.11, 0);
   };
-  function solveArm(side, world, init, fine) {
+  // What the arms keep out of: the robot itself, as boxes in the body's frame (round the head
+  // whichever way it's turned), and what the bar says is solid (setSolids: boxes in the parent's
+  // frame, the counter). Each arm is checked as a string of balls along it and what it holds.
+  const SELF = [
+    [-0.24, 0.26, -0.24, 0.24, 0.44, 0.24],  // skirt
+    [-0.26, 0.42, -0.19, 0.26, 0.64, 0.22],  // hips and their lamps
+    [-0.28, 0.62, -0.21, 0.28, 0.67, 0.21],  // red band
+    [-0.29, 0.65, -0.19, 0.29, 1.11, 0.2],   // shirt
+    [-0.27, 0.92, -0.19, 0.27, 1.16, 0.245], // the lei down the chest
+    [0.08, 0.74, 0.15, 0.24, 0.96, 0.26],    // pocket and umbrella
+    [-0.31, 1.09, -0.21, 0.31, 1.18, 0.24],  // shoulder plate, the lei on it
+    [-0.31, 1.18, -0.31, 0.31, 1.75, 0.31],  // neck and head
+  ].map((b) => new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5])));
+  let solids = [];
+  const _q = new THREE.Vector3(), _m = new THREE.Matrix4(), _toParent = new THREE.Matrix4();
+  const depth = (q, b, r) => {
+    const dx = Math.max(b.min.x - q.x, q.x - b.max.x), dy = Math.max(b.min.y - q.y, q.y - b.max.y), dz = Math.max(b.min.z - q.z, q.z - b.max.z);
+    const out = Math.hypot(Math.max(dx, 0), Math.max(dy, 0), Math.max(dz, 0));
+    return r - (out > 0 ? out : Math.max(dx, dy, dz)); // > 0: that far in
+  };
+  // how far into anything an arm is, squared and summed (0: clear). `self` alone skips the bar.
+  function clash(side, a, local, selfOnly, working) {
+    let sum = 0;
+    const test = (m, x, y, z, r, bar) => {
+      _q.set(x, y, z).applyMatrix4(m);
+      for (const b of SELF) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
+      if (bar && !selfOnly && solids.length) {
+        _q.applyMatrix4(_toParent);
+        for (const b of solids) { const d = depth(_q, b, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
+      }
+    };
+    const up = a.shoulder.matrix;
+    for (const y of [0.12, 0.17, 0.22, 0.29]) test(up, 0, -y, 0, 0.05, true); // the bellows, the elbow
+    _m.multiplyMatrices(up, a.elbow.matrix);
+    for (const y of [0.07, 0.14, 0.21]) test(_m, 0, -y, 0, 0.036, true);
+    _m.multiply(a.hand.matrix);
+    test(_m, 0, 0, 0, 0.045, true);
+    // what it holds, from the back of it to its tip; at work, the last few cm may touch what it works on
+    const back = side === 'l' && rig.tools.real.visible ? rig.tools.real.userData.back : null;
+    const from = back || new THREE.Vector3(0, -0.06, 0), n = 5;
+    for (let i = 0; i <= n; i++) {
+      const k = i / n;
+      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || k < 0.7);
+    }
+    return sum;
+  }
+  function solveArm(side, world, init, fine, prefer = null) {
     const a = side === 'r' ? rig.right : rig.left, s = side === 'r' ? -1 : 1;
     const local = tipLocal(side), tip = new THREE.Vector3();
+    body.updateMatrixWorld(true);
+    if (root.parent) _toParent.copy(root.parent.matrixWorld).invert().multiply(body.matrixWorld); else _toParent.copy(body.matrixWorld);
+    const selfOnly = !world && !prefer;
+    // with nowhere to reach (`world` null), it holds as near `prefer` (or `init`) as it can
+    const near = prefer || init;
     const cost = (p) => {
       a.shoulder.rotation.set(p[0], 0, s * p[1]);
       a.elbow.rotation.x = p[2];
+      a.shoulder.updateMatrix(); a.elbow.updateMatrix();
+      const hit = 150 * clash(side, a, local, selfOnly, !!world);
+      if (!world) return hit + 0.02 * ((p[0] - near[0]) ** 2 + (p[1] - near[1]) ** 2 + (p[2] - near[2]) ** 2);
       a.shoulder.updateMatrixWorld(true);
       tip.copy(local).applyMatrix4(a.hand.matrixWorld);
-      return tip.distanceToSquared(world) + 0.0004 * p[1] * p[1]; // keep elbows in when it can
+      return tip.distanceToSquared(world) + 0.0004 * p[1] * p[1] + hit; // keep elbows in when it can
     };
     // from where it is (fine), or the best of a few natural starts, so it doesn't settle in a
     // poor fold of the arm
-    const starts = fine ? [init] : [init, POSES.rest.r, [-0.03, -0.65, -1.72], [-1.0, -0.4, -1.0], [-1.8, 0, -0.6]];
+    const starts = fine || !world ? [init] : [init, POSES.rest.r, [-0.03, -0.65, -1.72], [-1.0, -0.4, -1.0], [-1.8, 0, -0.6]];
     let p = null, best = Infinity;
     for (const s0 of starts) { const c = cost(s0); if (c < best) { best = c; p = s0.slice(0, 3); } }
     for (let step = fine ? 0.08 : 0.5; step > 0.003; step *= 0.5) {
@@ -367,6 +431,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         }
       }
     }
+    a.shoulder.rotation.set(cur[side][0], 0, s * cur[side][1]); a.elbow.rotation.x = cur[side][2];
+    a.shoulder.updateMatrixWorld(true);
     return p;
   }
   function solveWork(time, fresh) {
@@ -377,7 +443,11 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     root.updateMatrixWorld(true);
     for (const side of ['r', 'l']) {
       const w = work[side];
-      if (!w) continue;
+      if (!w) {
+        // the free arm keeps clear of the counter it's standing at
+        if (fresh) { const p = solveArm(side, null, POSES.rest[side], false, POSES.rest[side]); target[side] = [...p, target[side][3]]; if (reducedMotion) cur[side] = [...target[side]]; }
+        continue;
+      }
       const at = w.at.clone();
       if (w.wiggle === 'stir' && !reducedMotion) { at.x += Math.cos(time * 9) * 0.012; at.z += Math.sin(time * 9) * 0.012; }
       if (w.wiggle === 'swizzle' && !reducedMotion) at.y += Math.sin(time * 16) * 0.018;
@@ -389,6 +459,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     root.position.copy(was.pos); root.rotation.y = was.rot;
     root.updateMatrixWorld(true);
     applyArms();
+  }
+
+  // The set poses, nudged once to the nearest where neither arm passes through the robot (the
+  // shake has its own, checked by hand: see SHAKE_LO).
+  if (rig.right) {
+    for (const [k, P] of Object.entries(POSES)) if (k !== 'shake') for (const side of ['r', 'l']) P[side] = [...solveArm(side, null, P[side]), P[side][3]];
+    cur.r = [...POSES.rest.r]; cur.l = [...POSES.rest.l];
   }
 
   function applyArms() {
@@ -426,14 +503,21 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       pose('greet', 1.8);
     },
     shake(seconds) {
+      shakeFrom = clock;
       shakeUntil = clock + seconds;
       pose('shake', seconds, 'rest');
     },
+    /** For tests: hold the shake at `u` (0 in front of the chest, 1 over the shoulder), or null. */
+    holdShake(u) { shakeHold = u; },
     pour(seconds) { pose('pour', seconds, 'rest'); },
     /** Talking (answering you): the gauge flickers with the words, the lamps chatter, the head nods. */
     talk(on) { talking = !!on; },
+    /** What its arms must keep out of besides itself: boxes (THREE.Box3) in the parent's frame. */
+    setSolids(boxes) { solids = boxes; },
     /** Where its head is (for looking it in the eye). */
     get head() { return rig.head; },
+    /** Keep its eyes (the dial) on a world point while it works, or null to look ahead again. */
+    watch(point) { if (point) watching.copy(point); watchOn = !!point; },
 
     /* ---------- Making a drink ---------- */
     /** Roll to `spot` (parent frame) facing `heading`. */
@@ -458,6 +542,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         const grip = height * 0.45;
         if (object) { object.rotation.set(Math.PI, 0, 0); object.position.set(0, grip, 0); g.add(object); }
         g.userData.tip = new THREE.Vector3(0, grip - height, 0).applyEuler(g.rotation).add(g.position);
+        g.userData.back = new THREE.Vector3(0, grip, 0).applyEuler(g.rotation).add(g.position);
       }
       rig.shaker.visible = shaker && name !== 'garnishR';
     },
@@ -512,13 +597,21 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       idleFor = resting && !reducedMotion ? idleFor + dt : 0;
       if (idleFor > 9) { idleFor = 0; pose('wipe', 2.6); }
       if (target === POSES.wipe && !reducedMotion) { cur.l[0] += Math.sin(clock * 5.5) * 0.012; cur.l[1] += Math.cos(clock * 5.5) * 0.012; }
-      const shaking = clock < shakeUntil;
-      if (shaking && !reducedMotion) {
-        const w = Math.sin(clock * 34);
-        if (rig.right) { cur.r[0] = target.r[0] + w * 0.22; cur.r[2] = target.r[2] - w * 0.3; }
-        body.rotation.z = w * 0.02;
-        body.position.y = Math.abs(w) * 0.012; // a tin toy rattles when it works
+      const shaking = clock < shakeUntil || shakeHold !== null;
+      if (shaking && !reducedMotion && rig.right) {
+        // in over a third of a second, strokes snapping at each end, out over the last third
+        const el = clock - shakeFrom, k = shakeHold !== null ? 1 : Math.min(1, el / 0.35, (shakeUntil - clock) / 0.35);
+        const w = Math.sin(el * Math.PI * 2 * STROKES), snap = Math.sign(w) * Math.abs(w) ** 0.55;
+        const u = shakeHold !== null ? shakeHold : 0.5 + 0.5 * snap;
+        for (let i = 0; i < 3; i++) {
+          cur.r[i] = target.r[i] + (SHAKE_LO[i] + (SHAKE_HI[i] - SHAKE_LO[i]) * u - target.r[i]) * k;
+          cur.l[i] = target.l[i] + (BALANCE_LO[i] + (BALANCE_HI[i] - BALANCE_LO[i]) * (1 - u) - target.l[i]) * k;
+        }
+        body.rotation.x = -0.05 * u * k;                 // leaning into it
+        body.rotation.z = snap * 0.025 * k;
+        body.position.y = Math.abs(w) * 0.014 * k;       // a tin toy rattles when it works
       } else {
+        body.rotation.x = 0;
         body.rotation.z = 0;
         // a little bob on the wheel, only when motion is allowed
         body.position.y = reducedMotion ? 0 : Math.sin(t * 2.1) * 0.006;
@@ -536,8 +629,20 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         rig.valve.scale.set(pulse, 1, pulse);
         // belly lamps blink in turn (all on under reduced motion)
         rig.lamps.forEach((l, i) => { l.visible = reducedMotion || Math.floor((talking ? clock * 7 : t * 1.5)) % 3 !== i; });
-        // a small nod now and then as it talks
-        rig.head.rotation.x += ((talking && !reducedMotion ? Math.max(0, Math.sin(clock * 3.1)) * 0.06 : 0) - rig.head.rotation.x) * Math.min(1, dt * 6);
+        // the head turns to what its hands are doing (watch()), on a short delay like eyes leading
+        let yaw = 0, pitch = 0;
+        if (watchOn) {
+          rig.head.parent.updateMatrixWorld(true);
+          rig.head.parent.worldToLocal(_w.copy(watching)).sub(rig.head.position).sub(new THREE.Vector3(0, 0.19, 0)); // from the face's middle
+          yaw = THREE.MathUtils.clamp(Math.atan2(_w.x, _w.z), -0.75, 0.75);
+          pitch = THREE.MathUtils.clamp(Math.atan2(-_w.y, Math.hypot(_w.x, _w.z)), -0.35, 0.5);
+        }
+        const look = reducedMotion ? 1 : Math.min(1, dt * 5);
+        headYaw += (yaw - headYaw) * look;
+        headPitch += (pitch - headPitch) * look;
+        rig.head.rotation.y = headYaw;
+        // and a small nod now and then as it talks
+        rig.head.rotation.x = headPitch + (talking && !reducedMotion ? Math.max(0, Math.sin(clock * 3.1)) * 0.06 : 0);
       }
     },
   };
