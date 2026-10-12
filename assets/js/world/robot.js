@@ -372,7 +372,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     return r - (out > 0 ? out : Math.max(dx, dy, dz)); // > 0: that far in
   };
   // how far into anything an arm is, squared and summed (0: clear). `self` alone skips the bar.
-  function clash(side, a, local, selfOnly) {
+  function clash(side, a, local, selfOnly, working) {
     let sum = 0;
     const test = (m, x, y, z, r, bar) => {
       _q.set(x, y, z).applyMatrix4(m);
@@ -388,12 +388,12 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     for (const y of [0.07, 0.14, 0.21]) test(_m, 0, -y, 0, 0.036, true);
     _m.multiply(a.hand.matrix);
     test(_m, 0, 0, 0, 0.045, true);
-    // what it holds, from the back of it to its tip; the last few cm may touch what it works on
+    // what it holds, from the back of it to its tip; at work, the last few cm may touch what it works on
     const back = side === 'l' && rig.tools.real.visible ? rig.tools.real.userData.back : null;
     const from = back || new THREE.Vector3(0, -0.06, 0), n = 5;
     for (let i = 0; i <= n; i++) {
       const k = i / n;
-      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, k < 0.7);
+      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || k < 0.7);
     }
     return sum;
   }
@@ -409,7 +409,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       a.shoulder.rotation.set(p[0], 0, s * p[1]);
       a.elbow.rotation.x = p[2];
       a.shoulder.updateMatrix(); a.elbow.updateMatrix();
-      const hit = 40 * clash(side, a, local, selfOnly);
+      const hit = 40 * clash(side, a, local, selfOnly, !!world);
       if (!world) return hit + 0.02 * ((p[0] - near[0]) ** 2 + (p[1] - near[1]) ** 2 + (p[2] - near[2]) ** 2);
       a.shoulder.updateMatrixWorld(true);
       tip.copy(local).applyMatrix4(a.hand.matrixWorld);
