@@ -942,7 +942,7 @@ async function start() {
   // step at a time (bar.make's focus()), with the view narrowed like leaning in to watch closely.
   // Something you asked for, so the camera moves; eased like a head turn, snapped under
   // reduced motion. You sit back once the drink's in front of you.
-  const BASE_FOV = camera.fov, LEAN_FOV = BASE_FOV * (coarse ? 0.66 : 0.52);
+  const BASE_FOV = camera.fov, LEAN_FOV = BASE_FOV * (coarse ? 0.8 : 0.72); // close enough to watch the hands, wide enough to see the robot work
   // `eye`, `aim` and `fov` are where it's headed; `eyeNow` and `fovNow` ease after them, so going
   // from the chalkboard straight to the work is one head turn.
   const view = { k: 0, want: 0, eye: new THREE.Vector3(), look: new THREE.Vector3(), aim: new THREE.Vector3(), hold: 0, job: null, fov: LEAN_FOV, eyeNow: new THREE.Vector3(), fovNow: LEAN_FOV };

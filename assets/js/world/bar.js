@@ -765,15 +765,16 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     // Where to look to see what it's doing now (world space): the vessel it's pouring into,
     // the shaker while it shakes, the glass for the rest, then the drink as it comes to you.
     const _f = new THREE.Vector3();
+    // Framed so you see the hand and what it's working on together: between the two.
+    const _h = new THREE.Vector3();
     J.focus = () => {
       const st = J.all[Math.max(0, Math.min(i, J.all.length - 1))];
-      if (st.do === 'shake' && !tin.parent) {
-        // up toward the shaker, but not so far you lose the counter: it's shaken up by its dome
-        const tip = robot.tip('r');
-        if (tip) { bar.worldToLocal(_f.copy(tip)); _f.y = Math.min(_f.y, BAR_TOP + 0.32); return bar.localToWorld(_f); }
-      }
-      if (st.do === 'pour' && shaken) return bar.localToWorld(_f.copy(tin.position).add(new THREE.Vector3(0, 0.1, 0)));
-      return bar.localToWorld(_f.copy(glass.group.position).add(new THREE.Vector3(0, st.do === 'serve' ? 0.06 : 0.1, 0)));
+      const vessel = st.do === 'pour' && shaken ? bar.localToWorld(_f.copy(tin.position).add(new THREE.Vector3(0, 0.1, 0)))
+        : bar.localToWorld(_f.copy(glass.group.position).add(new THREE.Vector3(0, st.do === 'serve' ? 0.06 : 0.1, 0)));
+      const hand = st.do === 'shake' && !tin.parent ? 'r' : st.do === 'pour' || st.do === 'stir' || st.do === 'swizzle' ? 'l' : st.do === 'strain' ? 'r' : null;
+      const tip = hand && robot.tip(hand);
+      if (!tip) return vessel;
+      return vessel.lerp(_h.copy(tip), st.do === 'shake' ? 0.6 : 0.4);
     };
     // the middle of the work: where you lean in toward
     J.center = bar.localToWorld(glass.group.position.clone().lerp(TIN, 0.5).setY(BAR_TOP + 0.1));
@@ -846,6 +847,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     update(t, dt = 0) {
       for (const f of animated) f(t);
       if (job) job.advance(dt);
+      robot.watch(job ? job.focus() : null); // its eyes on the work
       robot.update(dt, t);
       for (let i = sliding.length - 1; i >= 0; i--) {
         const s = sliding[i];

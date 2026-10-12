@@ -298,7 +298,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const POSES = {
     rest:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.35, 0.12, -0.9, 0.2] },  // shaker at the chest
     greet: { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.2, 2.5, -0.35, 0.4] },   // left hand up: aloha
-    shake: { r: [-2.7, -0.2, -0.5, 0.05], l: [-0.8, 0.25, -1.3, 0.1] },    // shaker up by the dome
+    shake: { r: [-0.35, -0.4, -1.25, 0.05], l: [-0.6, 0.4, -1.3, 0.1] },   // shaker level in front of the chest, the left hand coming to cap it
     pour:  { r: [-1.45, 0.05, -0.15, 0.1], l: [-0.8, 0.25, -1.3, 0.1] },   // reaching across the counter
     wipe:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-1.05, 0.15, -0.55, 0.3] },  // towel down on the bar top
   };
@@ -308,9 +308,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const goal = { pos: new THREE.Vector3(), heading: 0 };
   const from = { pos: new THREE.Vector3(), heading: 0 };
   let moveT = 1, moveDur = 0.9;
-  let clock = 0, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
+  let clock = 0, shakeFrom = -1, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
+  // The shake: hard strokes from in front of the chest (LO) to up over the right shoulder (HI), the
+  // left hand capping the far end of the tin all the way. Right arm only: the left one follows.
+  const SHAKE_LO = [-0.35, -0.4, -1.25], SHAKE_HI = [-1.85, -0.2, -1.55], STROKES = 3.3; // a second
+  let shakeHold = null; // tests: hold the stroke at 0 (LO) to 1 (HI)
   let rolled = 0;
   let idleFor = 0; // seconds at rest with nothing to do: now and then it wipes down the bar
+  const watching = new THREE.Vector3(), _w = new THREE.Vector3();
+  let watchOn = false, headYaw = 0, headPitch = 0;
 
   function moveTo(pos, heading, dur = 0.9) {
     from.pos.copy(root.position); from.heading = root.rotation.y;
@@ -426,14 +432,19 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       pose('greet', 1.8);
     },
     shake(seconds) {
+      shakeFrom = clock;
       shakeUntil = clock + seconds;
       pose('shake', seconds, 'rest');
     },
+    /** For tests: hold the shake at `u` (0 in front of the chest, 1 over the shoulder), or null. */
+    holdShake(u) { shakeHold = u; },
     pour(seconds) { pose('pour', seconds, 'rest'); },
     /** Talking (answering you): the gauge flickers with the words, the lamps chatter, the head nods. */
     talk(on) { talking = !!on; },
     /** Where its head is (for looking it in the eye). */
     get head() { return rig.head; },
+    /** Keep its eyes (the dial) on a world point while it works, or null to look ahead again. */
+    watch(point) { if (point) watching.copy(point); watchOn = !!point; },
 
     /* ---------- Making a drink ---------- */
     /** Roll to `spot` (parent frame) facing `heading`. */
@@ -512,13 +523,24 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       idleFor = resting && !reducedMotion ? idleFor + dt : 0;
       if (idleFor > 9) { idleFor = 0; pose('wipe', 2.6); }
       if (target === POSES.wipe && !reducedMotion) { cur.l[0] += Math.sin(clock * 5.5) * 0.012; cur.l[1] += Math.cos(clock * 5.5) * 0.012; }
-      const shaking = clock < shakeUntil;
-      if (shaking && !reducedMotion) {
-        const w = Math.sin(clock * 34);
-        if (rig.right) { cur.r[0] = target.r[0] + w * 0.22; cur.r[2] = target.r[2] - w * 0.3; }
-        body.rotation.z = w * 0.02;
-        body.position.y = Math.abs(w) * 0.012; // a tin toy rattles when it works
+      const shaking = clock < shakeUntil || shakeHold !== null;
+      if (shaking && !reducedMotion && rig.right) {
+        // in over a third of a second, strokes snapping at each end, out over the last third
+        const el = clock - shakeFrom, k = shakeHold !== null ? 1 : Math.min(1, el / 0.35, (shakeUntil - clock) / 0.35);
+        const w = Math.sin(el * Math.PI * 2 * STROKES), snap = Math.sign(w) * Math.abs(w) ** 0.55;
+        const u = shakeHold !== null ? shakeHold : 0.5 + 0.5 * snap;
+        for (let i = 0; i < 3; i++) cur.r[i] = target.r[i] + (SHAKE_LO[i] + (SHAKE_HI[i] - SHAKE_LO[i]) * u - target.r[i]) * k;
+        applyArms();
+        // the left pincer stays on the far end of the tin
+        root.updateMatrixWorld(true);
+        const cap = new THREE.Vector3(0, -0.23, 0).applyMatrix4(rig.right.hand.matrixWorld);
+        const l = solveArm('l', cap, cur.l, true);
+        for (let i = 0; i < 3; i++) cur.l[i] += (l[i] - cur.l[i]) * k;
+        body.rotation.x = -0.05 * u * k;                 // leaning into it
+        body.rotation.z = snap * 0.025 * k;
+        body.position.y = Math.abs(w) * 0.014 * k;       // a tin toy rattles when it works
       } else {
+        body.rotation.x = 0;
         body.rotation.z = 0;
         // a little bob on the wheel, only when motion is allowed
         body.position.y = reducedMotion ? 0 : Math.sin(t * 2.1) * 0.006;
@@ -536,8 +558,20 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         rig.valve.scale.set(pulse, 1, pulse);
         // belly lamps blink in turn (all on under reduced motion)
         rig.lamps.forEach((l, i) => { l.visible = reducedMotion || Math.floor((talking ? clock * 7 : t * 1.5)) % 3 !== i; });
-        // a small nod now and then as it talks
-        rig.head.rotation.x += ((talking && !reducedMotion ? Math.max(0, Math.sin(clock * 3.1)) * 0.06 : 0) - rig.head.rotation.x) * Math.min(1, dt * 6);
+        // the head turns to what its hands are doing (watch()), on a short delay like eyes leading
+        let yaw = 0, pitch = 0;
+        if (watchOn) {
+          rig.head.parent.updateMatrixWorld(true);
+          rig.head.parent.worldToLocal(_w.copy(watching)).sub(rig.head.position).sub(new THREE.Vector3(0, 0.19, 0)); // from the face's middle
+          yaw = THREE.MathUtils.clamp(Math.atan2(_w.x, _w.z), -0.75, 0.75);
+          pitch = THREE.MathUtils.clamp(Math.atan2(-_w.y, Math.hypot(_w.x, _w.z)), -0.35, 0.5);
+        }
+        const look = reducedMotion ? 1 : Math.min(1, dt * 5);
+        headYaw += (yaw - headYaw) * look;
+        headPitch += (pitch - headPitch) * look;
+        rig.head.rotation.y = headYaw;
+        // and a small nod now and then as it talks
+        rig.head.rotation.x = headPitch + (talking && !reducedMotion ? Math.max(0, Math.sin(clock * 3.1)) * 0.06 : 0);
       }
     },
   };
