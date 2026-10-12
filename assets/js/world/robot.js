@@ -617,7 +617,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     /** For tests: what each hand is reaching for, and where its tip is (parent frame). */
     debug() {
       const toParent = (v) => (v && root.parent ? root.parent.worldToLocal(v) : v);
-      return { work: work && { r: work.r && work.r.at, l: work.l && work.l.at }, r: toParent(this.tip('r')), l: toParent(this.tip('l')),
+      const grip = rig.left && toParent(GRIP.clone().applyMatrix4(rig.left.hand.matrixWorld)); // the left pincer's grip, which drive() moves
+      return { work: work && { r: work.r && work.r.at, l: work.l && work.l.at }, r: toParent(this.tip('r')), l: toParent(this.tip('l')), grip,
         held: rig.tools && Object.entries(rig.tools).filter(([, g]) => g.visible).map(([k]) => k), target, cur };
     },
     /** Where a hand's held thing ends, in world space (null without arms). */

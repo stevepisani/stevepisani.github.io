@@ -608,6 +608,9 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   // bottles in the order they're poured. It spins as the robot sets up and comes round with this
   // drink's bottles, and turns a slot between pours to bring the next one to its hand.
   const CADDY = new THREE.Vector3(0.56, BAR_TOP, 0.44), CADDY_R = 0.135, TRAY = 0.03;
+  // it turns a little to its right to pour, so its left hand reaches both the caddy and the tin
+  // without crossing in front of itself
+  const POUR_TURN = -0.35;
   const caddy = (() => {
     const g = new THREE.Group(), spin = new THREE.Group();
     g.position.copy(CADDY);
@@ -628,8 +631,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     }
     add(spin, new THREE.CylinderGeometry(0.009, 0.009, 0.26, 8), brass, 0.15);                        // the post
     add(spin, new THREE.TorusGeometry(0.03, 0.007, 8, 20), brass, 0.31);                               // and its carrying ring
-    // facing the robot's left shoulder, standing where it makes drinks
-    const FRONT = Math.atan2(MAKE_SPOT.x + 0.33 - CADDY.x, MAKE_SPOT.z - CADDY.z);
+    // facing the robot's left shoulder, standing where it makes drinks, turned to pour
+    const FRONT = Math.atan2(MAKE_SPOT.x + 0.33 * Math.cos(POUR_TURN) - CADDY.x, MAKE_SPOT.z - 0.33 * Math.sin(POUR_TURN) - CADDY.z);
     let slots = [], from = 0, to = 0, k = 1, dur = 0.4, swap = null;
     const ease = (x) => { const c = 1.6; return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2; }; // overshoots a little, and settles: it's on a bearing
     return {
@@ -801,6 +804,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       // each step: what it starts, what it's done by the end (so skipping, or a long frame, lands right)
       enter(st) {
         const W = vesselTop(glass.group, glass.mouth);
+        if (st.do === 'pour') robot.roll(MAKE_SPOT, POUR_TURN, 0.5);
+        else if (st.do !== 'set' && st.do !== 'serve') robot.roll(MAKE_SPOT, 0, 0.5); // and square again for the rest
         if (st.do === 'set') {
           // the caddy spins and comes round with this drink's bottles, the first in front
           const used = new Set();
