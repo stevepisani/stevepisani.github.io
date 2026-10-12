@@ -356,7 +356,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   };
   // What the arms keep out of: the robot itself, as boxes in the body's frame (round the head
   // whichever way it's turned), and what the bar says is solid (setSolids: boxes in the parent's
-  // frame, the counter). Each arm is checked as a string of balls along it and what it holds.
+  // frame: the counter, and low things a working pincer reaches into, the caddy). Each arm is checked as a string of balls along it and what it holds.
   const SELF = [
     [-0.24, 0.26, -0.24, 0.24, 0.44, 0.24],  // skirt
     [-0.26, 0.42, -0.19, 0.26, 0.64, 0.22],  // hips and their lamps
@@ -377,12 +377,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   // how far into anything an arm is, squared and summed (0: clear). `self` alone skips the bar.
   function clash(side, a, local, selfOnly, working) {
     let sum = 0;
+    // bar: true for everything solid, 'high' to skip the low things a working pincer reaches into
     const test = (m, x, y, z, r, bar) => {
       _q.set(x, y, z).applyMatrix4(m);
       for (const b of SELF) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
       if (bar && !selfOnly && solids.length) {
         _q.applyMatrix4(_toParent);
-        for (const b of solids) { const d = depth(_q, b, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
+        for (const { box, low } of solids) { if (low && bar === 'high') continue; const d = depth(_q, box, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
       }
     };
     const up = a.shoulder.matrix;
@@ -405,7 +406,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const from = new THREE.Vector3(0, -0.06, 0), n = 5;
     for (let i = 0; i <= n; i++) {
       const k = i / n;
-      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || k < 0.7);
+      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || (k < 0.7 && 'high'));
     }
     return sum;
   }
@@ -540,7 +541,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     /** Talking (answering you): the gauge flickers with the words, the lamps chatter, the head nods. */
     talk(on) { talking = !!on; },
     /** What its arms must keep out of besides itself: boxes (THREE.Box3) in the parent's frame. */
-    setSolids(boxes) { solids = boxes; },
+    setSolids(boxes, low = []) { solids = [...boxes.map((box) => ({ box })), ...low.map((box) => ({ box, low: true }))]; },
     /** Where its head is (for looking it in the eye). */
     get head() { return rig.head; },
     /** Keep its eyes (the dial) on a world point while it works, or null to look ahead again. */

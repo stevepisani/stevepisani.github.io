@@ -428,11 +428,6 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const robot = tinRobot({ hero: heroes && heroes.has('robot') ? heroOr(heroes, 'robot') : null, reducedMotion });
   robot.setHome(ROBOT_HOME, -0.55); // three-quarters on, so you see its face from the path
   bar.add(robot.group);
-  // its arms keep out of the counter (the top and the front under it; see Counter above)
-  robot.setSolids([
-    new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
-    new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
-  ]);
 
   /* ---------- Palms around the plinth ---------- */
   // [x, z, which way it leans, height]. The third leans in over the bar's left side, not out:
@@ -624,11 +619,11 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     add(g, new THREE.CylinderGeometry(0.06, 0.075, 0.012, 24), chromeM, 0.006);                       // the foot it turns on
     add(spin, new THREE.CylinderGeometry(CADDY_R + 0.06, CADDY_R + 0.065, 0.02, 40), M.top, 0.02);   // a lacquered tray
     add(spin, new THREE.TorusGeometry(CADDY_R + 0.06, 0.006, 6, 48), brass, TRAY).rotation.x = Math.PI / 2;
-    add(spin, new THREE.TorusGeometry(CADDY_R + 0.05, 0.004, 6, 48), brass, 0.11).rotation.x = Math.PI / 2; // the rail that keeps them standing
+    add(spin, new THREE.TorusGeometry(CADDY_R + 0.05, 0.004, 6, 48), brass, 0.07).rotation.x = Math.PI / 2; // the rail that keeps them standing
     for (let i = 0; i < 4; i++) {
-      const rod = add(spin, new THREE.CylinderGeometry(0.003, 0.003, CADDY_R + 0.05, 6), brass, 0.11);
+      const rod = add(spin, new THREE.CylinderGeometry(0.003, 0.003, CADDY_R + 0.05, 6), brass, 0.07);
       rod.rotation.set(0, (i * Math.PI) / 2, Math.PI / 2);
-      rod.position.set(Math.cos((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2, 0.11, -Math.sin((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2);
+      rod.position.set(Math.cos((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2, 0.07, -Math.sin((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2);
     }
     add(spin, new THREE.CylinderGeometry(0.009, 0.009, 0.26, 8), brass, 0.15);                        // the post
     add(spin, new THREE.TorusGeometry(0.03, 0.007, 8, 20), brass, 0.31);                               // and its carrying ring
@@ -689,6 +684,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       },
     };
   })();
+  // its arms keep out of the counter (the top and the front under it; see Counter above), and out
+  // of the caddy's tray and rail but for the pincer reaching in for a bottle
+  const CADDY_OUT = CADDY_R + 0.065;
+  robot.setSolids([
+    new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
+    new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
+  ], [new THREE.Box3(new THREE.Vector3(CADDY.x - CADDY_OUT, BAR_TOP, CADDY.z - CADDY_OUT), new THREE.Vector3(CADDY.x + CADDY_OUT, BAR_TOP + 0.08, CADDY.z + CADDY_OUT))]);
   // until the real ones come, the four the house is known for, as plain bottles
   caddy.load(['planteray', 'campari', 'chartreuse', 'coffee liqueur'].map((l) => ({ object: plainBottle(bottleColor(l)), height: 0.27 })));
   function setBottles(heroes) {
@@ -699,7 +701,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   // One pour, as a path for the left pincer and the bottle in it: over the caddy, down to the
   // bottle, lift it out, arc it over the vessel turning its label to you, tip it to pour, a twist
   // to cut the drip, back, and set it down. `t` is seconds into the pour.
-  const POUR = { hover: 0.25, turn: 0.25, above: 0.65, grip: 0.8, take: 0.86, lift: 1.05, arc: 1.5, tip: 1.7, pour: 2.2, twist: 2.4, back: 2.8, down: 2.95, end: 3.05 };
+  const POUR = { hover: 0.25, turn: 0.25, above: 0.65, grip: 0.8, take: 0.86, lift: 1.05, arc: 1.5, tip: 1.7, pour: 2.2, twist: 2.4, back: 2.8, down: 2.95, end: 3.2 };
   const sm = (a, b, t) => { const x = THREE.MathUtils.clamp((t - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
   const bez = (a, c, b, k) => a.clone().multiplyScalar((1 - k) ** 2).addScaledVector(c, 2 * k * (1 - k)).addScaledVector(b, k * k);
   const lerpA = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
@@ -735,7 +737,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       yaw = lerpA(Math.PI / 2, front, k); tilt = END * (1 - k);
       const s0 = neckAt(END, Math.PI / 2, 0.03);
       at = bez(s0, s0.clone().lerp(above, 0.5).addScaledVector(UP, 0.1), above, k);
-    } else at = above.clone().lerp(pick, sm(POUR.back, POUR.down, t)), open = 0.08 + 0.32 * sm(POUR.down, POUR.end, t);
+    } else if (t < POUR.down + 0.08) at = above.clone().lerp(pick, sm(POUR.back, POUR.down, t)), open = 0.08 + 0.32 * sm(POUR.down, POUR.down + 0.08, t);
+    else at = pick.clone().lerp(above, sm(POUR.down + 0.08, POUR.end, t)), open = 0.4; // let go, and lift clear
     return { at, quat: quat(tilt, yaw), carried: t >= POUR.take && t < POUR.down, pouring: t > POUR.tip - 0.05 && t < POUR.pour };
   }
   const SET = { rockscubes: 'A rocks glass, full of ice.', collinscrushed: 'A collins glass, packed with crushed ice.', coupe: 'A chilled coupe.' };
