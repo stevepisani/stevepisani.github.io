@@ -298,7 +298,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const POSES = {
     rest:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.35, 0.12, -0.9, 0.2] },  // shaker at the chest
     greet: { r: [-0.55, -0.12, -1.25, 0.1], l: [-0.2, 2.5, -0.35, 0.4] },   // left hand up: aloha
-    shake: { r: [-0.35, -0.4, -1.25, 0.05], l: [-0.6, 0.4, -1.3, 0.1] },   // shaker level in front of the chest, the left hand coming to cap it
+    shake: { r: [0, 0.2, -2, 0.05], l: [-0.35, 0.55, -0.7, 0.4] },           // shaker in front of the right of the chest, the left arm out
     pour:  { r: [-1.45, 0.05, -0.15, 0.1], l: [-0.8, 0.25, -1.3, 0.1] },   // reaching across the counter
     wipe:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-1.05, 0.15, -0.55, 0.3] },  // towel down on the bar top
   };
@@ -309,9 +309,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   const from = { pos: new THREE.Vector3(), heading: 0 };
   let moveT = 1, moveDur = 0.9;
   let clock = 0, shakeFrom = -1, shakeUntil = -1, poseUntil = -1, after = 'rest', talking = false;
-  // The shake: hard strokes from in front of the chest (LO) to up over the right shoulder (HI), the
-  // left hand capping the far end of the tin all the way. Right arm only: the left one follows.
-  const SHAKE_LO = [-0.35, -0.4, -1.25], SHAKE_HI = [-1.85, -0.2, -1.55], STROKES = 3.3; // a second
+  // The shake: hard strokes from in front of the right of the chest (LO) to up past the right of the
+  // head (HI), one-handed (its arms are too short to cap the tin without passing through itself),
+  // the left arm out for balance, swinging a little against each stroke. Both found by searching
+  // the joints for poses where neither arm nor the tin touches the robot or the bar (and every
+  // pose between them): change them only after checking that again.
+  const SHAKE_LO = [0, 0.2, -2], SHAKE_HI = [-1.7, 0.4, -1.6], STROKES = 3.3; // a second
+  const BALANCE_LO = [-0.35, 0.55, -0.7], BALANCE_HI = [-0.6, 0.7, -0.45];
   let shakeHold = null; // tests: hold the stroke at 0 (LO) to 1 (HI)
   let rolled = 0;
   let idleFor = 0; // seconds at rest with nothing to do: now and then it wipes down the bar
@@ -529,13 +533,10 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         const el = clock - shakeFrom, k = shakeHold !== null ? 1 : Math.min(1, el / 0.35, (shakeUntil - clock) / 0.35);
         const w = Math.sin(el * Math.PI * 2 * STROKES), snap = Math.sign(w) * Math.abs(w) ** 0.55;
         const u = shakeHold !== null ? shakeHold : 0.5 + 0.5 * snap;
-        for (let i = 0; i < 3; i++) cur.r[i] = target.r[i] + (SHAKE_LO[i] + (SHAKE_HI[i] - SHAKE_LO[i]) * u - target.r[i]) * k;
-        applyArms();
-        // the left pincer stays on the far end of the tin
-        root.updateMatrixWorld(true);
-        const cap = new THREE.Vector3(0, -0.23, 0).applyMatrix4(rig.right.hand.matrixWorld);
-        const l = solveArm('l', cap, cur.l, true);
-        for (let i = 0; i < 3; i++) cur.l[i] += (l[i] - cur.l[i]) * k;
+        for (let i = 0; i < 3; i++) {
+          cur.r[i] = target.r[i] + (SHAKE_LO[i] + (SHAKE_HI[i] - SHAKE_LO[i]) * u - target.r[i]) * k;
+          cur.l[i] = target.l[i] + (BALANCE_LO[i] + (BALANCE_HI[i] - BALANCE_LO[i]) * (1 - u) - target.l[i]) * k;
+        }
         body.rotation.x = -0.05 * u * k;                 // leaning into it
         body.rotation.z = snap * 0.025 * k;
         body.position.y = Math.abs(w) * 0.014 * k;       // a tin toy rattles when it works
