@@ -379,7 +379,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       for (const b of SELF) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
       if (bar && !selfOnly && solids.length) {
         _q.applyMatrix4(_toParent);
-        for (const b of solids) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
+        for (const b of solids) { const d = depth(_q, b, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
       }
     };
     const up = a.shoulder.matrix;
@@ -409,7 +409,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       a.shoulder.rotation.set(p[0], 0, s * p[1]);
       a.elbow.rotation.x = p[2];
       a.shoulder.updateMatrix(); a.elbow.updateMatrix();
-      const hit = 40 * clash(side, a, local, selfOnly, !!world);
+      const hit = 150 * clash(side, a, local, selfOnly, !!world);
       if (!world) return hit + 0.02 * ((p[0] - near[0]) ** 2 + (p[1] - near[1]) ** 2 + (p[2] - near[2]) ** 2);
       a.shoulder.updateMatrixWorld(true);
       tip.copy(local).applyMatrix4(a.hand.matrixWorld);
