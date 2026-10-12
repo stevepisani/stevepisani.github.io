@@ -554,7 +554,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   // Where things stand on the counter, so each is under the hand that works it: the tin in the
   // middle (the left hand pours into it, the right picks it up to shake), and the glass by the
   // right hand to strain into, or by the left if it's built in the glass.
-  const WORK = { shaken: new THREE.Vector3(-0.15, BAR_TOP, 0.34), built: new THREE.Vector3(0.24, BAR_TOP, 0.34) };
+  const WORK = { shaken: new THREE.Vector3(-0.15, BAR_TOP, 0.34), built: new THREE.Vector3(0.14, BAR_TOP, 0.34) }; // the built one clear of the caddy
   const TIN = new THREE.Vector3(0.06, BAR_TOP, 0.36);
   const TIN_MOUTH = new THREE.Vector3(0, 0.13, 0);
   const OZ = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3 };

@@ -368,6 +368,9 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     [-0.31, 1.18, -0.31, 0.31, 1.75, 0.31],  // neck and head
   ].map((b) => new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5])));
   let solids = [];
+  // how far clear of the bar: a working hand, enough not to graze it on the way; a resting one
+  // more, so it stays clear while the robot turns
+  let clear = 0.015;
   const _q = new THREE.Vector3(), _m = new THREE.Matrix4(), _toParent = new THREE.Matrix4();
   const depth = (q, b, r) => {
     const dx = Math.max(b.min.x - q.x, q.x - b.max.x), dy = Math.max(b.min.y - q.y, q.y - b.max.y), dz = Math.max(b.min.z - q.z, q.z - b.max.z);
@@ -383,7 +386,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       for (const b of SELF) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
       if (bar && !selfOnly && solids.length) {
         _q.applyMatrix4(_toParent);
-        for (const { box, low } of solids) { if (low && bar === 'high') continue; const d = depth(_q, box, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
+        for (const { box, low } of solids) { if (low && bar === 'high') continue; const d = depth(_q, box, r + clear); if (d > 0) sum += d * d; }
       }
     };
     const up = a.shoulder.matrix;
@@ -417,6 +420,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     if (root.parent) _toParent.copy(root.parent.matrixWorld).invert().multiply(body.matrixWorld); else _toParent.copy(body.matrixWorld);
     if (carried) carryAxis.set(0, 1, 0).applyQuaternion(carriedIn(body, _bq)); // the bottle's up, in the body's frame
     const selfOnly = !world && !prefer;
+    clear = world ? 0.015 : 0.045;
     // with nowhere to reach (`world` null), it holds as near `prefer` (or `init`) as it can
     const near = prefer || init;
     const cost = (p) => {
