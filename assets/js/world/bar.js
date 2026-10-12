@@ -808,8 +808,9 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       // each step: what it starts, what it's done by the end (so skipping, or a long frame, lands right)
       enter(st) {
         const W = vesselTop(glass.group, glass.mouth);
-        if (st.do === 'pour') robot.roll(POUR_SPOT, POUR_TURN, 0.5);
-        else if (st.do !== 'set' && st.do !== 'serve') robot.roll(MAKE_SPOT, 0, 0.5); // and square again for the rest
+        // over to pour, and to stir or swizzle (the left hand's work), clear of the caddy; square again for the rest
+        if (st.do === 'pour' || st.do === 'stir' || st.do === 'swizzle') robot.roll(POUR_SPOT, POUR_TURN, 0.5);
+        else if (st.do !== 'set' && st.do !== 'serve') robot.roll(MAKE_SPOT, 0, 0.5);
         if (st.do === 'set') {
           // the caddy spins and comes round with this drink's bottles, the first in front
           const used = new Set();
