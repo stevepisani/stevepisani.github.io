@@ -428,6 +428,11 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const robot = tinRobot({ hero: heroes && heroes.has('robot') ? heroOr(heroes, 'robot') : null, reducedMotion });
   robot.setHome(ROBOT_HOME, -0.55); // three-quarters on, so you see its face from the path
   bar.add(robot.group);
+  // its arms keep out of the counter (the top and the front under it; see Counter above)
+  robot.setSolids([
+    new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
+    new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
+  ]);
 
   /* ---------- Palms around the plinth ---------- */
   // [x, z, which way it leans, height]. The third leans in over the bar's left side, not out:
