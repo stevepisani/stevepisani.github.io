@@ -13,7 +13,7 @@ import { PALETTE } from './materials.js';
  * bottles the robot pours from) are left out, and loaded instead by `{ lazy: true }` once the
  * scene is up.
  */
-export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
+export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) { // lazy: false | true | 'bar'
   const heroes = new Map();
   let manifest = {};
   try {
@@ -23,7 +23,8 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) {
 
   // Before the reveal, all at once. After it, one at a time with a frame drawn between them: each
   // model is parsed on the main thread, and thirty at once would hold up the planet for seconds.
-  const entries = Object.entries(manifest).filter(([, spec]) => !!spec.lazy === lazy);
+  // `lazy: true` after the reveal; `lazy: "bar"` only when asked for (the bottles a drink is made from)
+  const entries = Object.entries(manifest).filter(([, spec]) => (lazy === 'bar' ? spec.lazy === 'bar' : !!spec.lazy === lazy && spec.lazy !== 'bar'));
   const gap = () => new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 0)));
   const each = async ([slot, spec]) => {
     try {

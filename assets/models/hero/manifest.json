@@ -188,5 +188,80 @@
     "file": "rum-slim.glb",
     "height": 0.31,
     "lazy": true
+  },
+  "bottle-gin": {
+    "file": "bottle-gin.glb",
+    "height": 0.29,
+    "lazy": "bar"
+  },
+  "bottle-vermouth": {
+    "file": "bottle-vermouth.glb",
+    "height": 0.32,
+    "lazy": "bar"
+  },
+  "bottle-bourbon": {
+    "file": "bottle-bourbon.glb",
+    "height": 0.3,
+    "lazy": "bar"
+  },
+  "bottle-appleton": {
+    "file": "bottle-appleton.glb",
+    "height": 0.3,
+    "lazy": "bar"
+  },
+  "bottle-smithcross": {
+    "file": "bottle-smithcross.glb",
+    "height": 0.27,
+    "lazy": "bar"
+  },
+  "bottle-threestars": {
+    "file": "bottle-threestars.glb",
+    "height": 0.3,
+    "lazy": "bar"
+  },
+  "bottle-falernum": {
+    "file": "bottle-falernum.glb",
+    "height": 0.3,
+    "lazy": "bar"
+  },
+  "bottle-passionfruit": {
+    "file": "bottle-passionfruit.glb",
+    "height": 0.2,
+    "lazy": "bar"
+  },
+  "bottle-cointreau": {
+    "file": "bottle-cointreau.glb",
+    "height": 0.25,
+    "lazy": "bar"
+  },
+  "bottle-demerara": {
+    "file": "bottle-demerara.glb",
+    "height": 0.22,
+    "lazy": "bar"
+  },
+  "bottle-orgeat": {
+    "file": "bottle-orgeat.glb",
+    "height": 0.22,
+    "lazy": "bar"
+  },
+  "bottle-pineapple": {
+    "file": "bottle-pineapple.glb",
+    "height": 0.22,
+    "lazy": "bar"
+  },
+  "bottle-lime": {
+    "file": "bottle-lime.glb",
+    "height": 0.22,
+    "lazy": "bar"
+  },
+  "bottle-orange": {
+    "file": "bottle-orange.glb",
+    "height": 0.22,
+    "lazy": "bar"
+  },
+  "bottle-espresso": {
+    "file": "bottle-espresso.glb",
+    "height": 0.08,
+    "lazy": "bar"
   }
 }
