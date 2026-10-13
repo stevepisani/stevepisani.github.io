@@ -2954,8 +2954,10 @@ async function start() {
         if (b.userData.spec.tinted && o.material.map) staging.add(new THREE.Mesh(o.geometry, Object.assign(o.material.clone(), { emissiveMap: o.material.map })));
       });
       try {
-        if (parallel) await renderer.compileAsync(staging, camera, scene);
-        else await new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));
+        // never more than a second and a half: a browser whose compile never reports done (seen
+        // on phones) gets the model anyway, at the cost of a hitch the first time it's drawn
+        const compiled = parallel ? renderer.compileAsync(staging, camera, scene) : new Promise((ok) => whenIdle(() => { renderer.compile(staging, camera, scene); ok(); }));
+        await Promise.race([compiled, new Promise((ok) => setTimeout(ok, 1500))]);
       } catch (e) {}
       staging.remove(b);
     }

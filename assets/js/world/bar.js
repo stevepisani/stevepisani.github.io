@@ -594,7 +594,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   function bottleFor(line, used) {
     const r = REAL.find(([re]) => re.test(line.toLowerCase()));
     const hero = r && models.get('bottle-' + r[1]);
-    if (!hero) return { line, object: plainBottle(bottleColor(line)), height: 0.27, plain: true, hero: null };
+    if (!hero) return { line, object: plainBottle(bottleColor(line)), height: 0.27, plain: true, hero: null, coming: !!r }; // coming: it has a model, not here yet
     const object = used.has(hero) ? hero.clone(true) : hero;
     used.add(hero);
     return { line, object, height: hero.userData.height || (hero.userData.height = heightOf(hero)), plain: false, hero };
@@ -924,6 +924,12 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         J.dt = dtStep;
         if (J.frozen) return J.during(J.all[i], t, DUR[J.all[i].do]); // held on one step (tests)
         t += dtStep;
+        // the glass is out: give the drink's real bottles a moment to arrive (up to six seconds) before
+        // the first pour, so it isn't made from plain stand-ins on a slow connection
+        if (i >= 0 && J.all[i].do === 'set' && t >= DUR.set && J.items && J.items.some((it) => it.plain && it.coming) && (J.waited = (J.waited || 0) + dtStep) < 6) {
+          t = DUR.set - 1e-3;
+          return J.during(J.all[i], t, DUR.set);
+        }
         while (i < 0 || t >= DUR[J.all[i].do]) {
           if (i >= 0) { t -= DUR[J.all[i].do]; J.finish(J.all[i]); }
           i++;
