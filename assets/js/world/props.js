@@ -1231,7 +1231,7 @@ const GLASSES = {
 export function barGlass(kind = 'rocks') {
   const G = GLASSES[kind] || GLASSES.rocks;
   const group = new THREE.Group();
-  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.15, clearcoat: 1, depthWrite: false, side: THREE.DoubleSide });
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.13, clearcoat: 1, depthWrite: false }); // the near wall only: the far one hazed the drink
   const pts = [];
   if (G.stem) {
     // foot, stem, and a wide shallow bowl
