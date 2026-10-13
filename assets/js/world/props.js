@@ -1256,7 +1256,7 @@ export function barGlass(kind = 'rocks') {
   const inner = G.r - G.wall;
   const depth = (G.stem ? G.h - G.base : G.h - G.base) * 0.9;
   // see-through, so the ice shows in it: drawn after the ice and before the glass
-  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.15, roughness: 0.1, transparent: true, opacity: 0.86, depthWrite: false }); // a little glow to read in the dark; more washes reds out to pink
+  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.05, roughness: 0.1, transparent: true, opacity: 0.88, depthWrite: false }); // a little glow to read in the dark; more washes reds out to pink
   let liquid;
   if (G.stem) {
     const cap = [];
