@@ -1256,7 +1256,7 @@ export function barGlass(kind = 'rocks') {
   const inner = G.r - G.wall;
   const depth = (G.stem ? G.h - G.base : G.h - G.base) * 0.9;
   // see-through, so the ice shows in it: drawn after the ice and before the glass
-  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.12, roughness: 0.1, transparent: true, opacity: 0.72, depthWrite: false }); // a little glow to read in the dark; more washes reds out to pink
+  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.15, roughness: 0.1, transparent: true, opacity: 0.86, depthWrite: false }); // a little glow to read in the dark; more washes reds out to pink
   let liquid;
   if (G.stem) {
     const cap = [];
@@ -1328,7 +1328,7 @@ export function barGlass(kind = 'rocks') {
     if (!g) return;
     // on the rim or on top, facing you (+z), big enough to read from the stool
     if (name === 'pineapple') { g.position.set(G.r * 0.75, G.h + 0.004, G.r * 0.4); g.rotation.y = 0.5; }
-    else if (name === 'orange') { g.position.set(-G.r * 0.55, G.h - 0.006, G.r * 0.75); g.rotation.set(0, -0.5, 0); } // a wheel cut to the middle and set on the rim
+    else if (name === 'orange') { g.position.set(-G.r * 0.6, G.h - 0.006, G.r * 0.8); g.rotation.set(0, Math.atan2(0.8, 0.6), 0); } // a wheel cut to the middle and set across the rim
     else if (name === 'mint') g.position.set(-0.006, G.h + 0.004, 0.004);
     else if (name === 'beans') g.position.set(0.002, (kind === 'rocks' ? G.h - 0.012 : G.base + depth), -0.006);
     group.add(g);
@@ -1342,6 +1342,7 @@ export function barGlass(kind = 'rocks') {
   };
 }
 
+let citrus = null; // the orange wheel's face, drawn once
 /** A garnish, full size (the robot holds one, then it goes on the glass). */
 export function garnishFor(name) {
   const g = new THREE.Group();
@@ -1361,7 +1362,8 @@ export function garnishFor(name) {
     }
   } else if (name === 'orange') {
     // a wheel, cut to the middle and set on the rim, its face to you
-    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.006, 24), [pbr({ color: PALETTE.orange, roughness: 0.6 }), pbr({ color: PALETTE.pineapple, roughness: 0.5, emissive: PALETTE.orange, emissiveIntensity: 0.2 }), pbr({ color: PALETTE.pineapple, roughness: 0.5, emissive: PALETTE.orange, emissiveIntensity: 0.2 })]);
+    const face = pbr({ map: (citrus = citrus || T.citrusWheel()), roughness: 0.35 });
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.006, 24), [pbr({ color: PALETTE.orange, roughness: 0.6 }), face, face]);
     wheel.rotation.x = Math.PI / 2;
     wheel.position.y = 0.014;
     g.add(wheel);
