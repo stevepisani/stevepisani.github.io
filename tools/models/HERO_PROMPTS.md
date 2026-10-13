@@ -40,13 +40,12 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   form of its shader is compiled ahead too.
 - `instance`: for a lazy model there are dozens of, standing still (the trail lanterns and their
   posts, the torches): every copy is drawn at once as one InstancedMesh, not one mesh each.
-- `lazy`: load it after the scene is up, not before the reveal: the four house bottles in the
-  robot's caddy, and every model that replaces a code-built thing (the rocket, the telescope's tripod,
+- `lazy`: load it after the scene is up, not before the reveal: every model that replaces a code-built thing (the rocket, the telescope's tripod,
   the radio dish, the message bottles, the glass floats, the campfire's logs and benches, the
   bar stools, the canoe, the signpost, the torches, the trail lanterns, the rum wall). Those are built in code first and swapped for the model when it arrives
   (`hero.js` `heroSlot()` / `fillSlots()`), so a slow connection never holds up the planet.
-  `"lazy": "bar"` waits until someone sits down at the bar: the rest of the bottles a drink is
-  made from, which most visitors never see.
+  `"lazy": "bar"` waits until someone walks up to the bar: the bottles in the robot's caddy,
+  which most visitors never see.
 
 Lights, fire, and hanging cords are added by the world, so don't bake them in. The `robot`
 slot replaces only the bartender's body: it still turns, rolls and rattles, but the

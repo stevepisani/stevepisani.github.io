@@ -589,14 +589,15 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     return g;
   };
   const heightOf = (o) => new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y;
-  // the bottle a line pours from: { object, height } (a copy if the drink uses it twice)
+  // the bottle a line pours from: { line, object, height, hero } (a copy if the drink uses it
+  // twice), or a plain one (`plain`) until its model is here
   function bottleFor(line, used) {
     const r = REAL.find(([re]) => re.test(line.toLowerCase()));
     const hero = r && models.get('bottle-' + r[1]);
-    if (!hero) return { object: plainBottle(bottleColor(line)), height: 0.27 };
+    if (!hero) return { line, object: plainBottle(bottleColor(line)), height: 0.27, plain: true, hero: null };
     const object = used.has(hero) ? hero.clone(true) : hero;
     used.add(hero);
-    return { object, height: hero.userData.height || (hero.userData.height = heightOf(hero)) };
+    return { line, object, height: hero.userData.height || (hero.userData.height = heightOf(hero)), plain: false, hero };
   }
 
   // The caddy: a 1950s revolving bottle caddy by the robot's left hand, holding the drink's
@@ -637,15 +638,13 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       load(items) {
         for (const it of slots) if (it.object.parent === spin) spin.remove(it.object);
         const n = Math.max(items.length, 4);
-        slots = items.map((it, i) => {
-          const a = (i * Math.PI * 2) / n;
-          it.object.position.set(CADDY_R * Math.sin(a), TRAY, CADDY_R * Math.cos(a));
-          it.object.quaternion.identity();
-          it.object.rotation.y = a;
-          it.object.traverse((o) => { o.userData.noBatch = true; });
-          spin.add(it.object);
-          return { ...it, a };
-        });
+        slots = items; // the same items the drink pours from, so a swap reaches both
+        items.forEach((it, i) => { it.a = (i * Math.PI * 2) / n; this.replace(i); });
+      },
+      /** Slot `i`'s item has a new object (the real bottle has come): take `old` out, stand it in. */
+      swap(i, old) {
+        if (old && old.parent) old.parent.remove(old);
+        this.replace(i);
       },
       get slots() { return slots; },
       get angle() { return spin.rotation.y; },
@@ -674,6 +673,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         o.position.set(CADDY_R * Math.sin(a), TRAY, CADDY_R * Math.cos(a));
         o.quaternion.identity();
         o.rotation.y = a;
+        o.traverse((m) => { m.userData.noBatch = true; });
         spin.add(o);
       },
       update(dt) {
@@ -691,11 +691,25 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
     new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
   ], [new THREE.Box3(new THREE.Vector3(CADDY.x - CADDY_OUT, BAR_TOP, CADDY.z - CADDY_OUT), new THREE.Vector3(CADDY.x + CADDY_OUT, BAR_TOP + 0.08, CADDY.z + CADDY_OUT))]);
-  // until the real ones come, the four the house is known for, as plain bottles
-  caddy.load(['planteray', 'campari', 'chartreuse', 'coffee liqueur'].map((l) => ({ object: plainBottle(bottleColor(l)), height: 0.27 })));
+  // the four the house is known for, as plain bottles until the real ones come
+  caddy.load(['planteray', 'campari', 'chartreuse', 'meletti'].map((l) => bottleFor(l, new Set())));
+  // Models arriving (setBottles): every plain bottle whose real one is now here is swapped for it,
+  // in the caddy or in the drink about to be made, even mid-drink (not the one in its hand)
+  function upgrade(items) {
+    const used = new Set(items.map((it) => it.hero).filter(Boolean));
+    items.forEach((it, i) => {
+      if (!it.plain || (job && job.held === i && items === caddy.slots)) return;
+      const b = bottleFor(it.line, used);
+      if (b.plain) return;
+      const old = it.object;
+      Object.assign(it, b);
+      if (caddy.slots === items) caddy.swap(i, old);
+    });
+  }
   function setBottles(heroes) {
     for (const [k, v] of heroes) if (k.startsWith('bottle-')) models.set(k, v);
-    if (!job && heroes.has('bottle-planteray')) caddy.load(['planteray', 'campari', 'chartreuse', 'meletti'].map((l) => bottleFor(l, new Set())));
+    upgrade(caddy.slots);
+    if (job && job.items && job.items !== caddy.slots) upgrade(job.items);
   }
 
   // One pour, as a path for the left pincer and the bottle in it: over the caddy, down to the
@@ -998,6 +1012,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     /** The favorite-drinks chalkboard: { group, face, rows, size, rowAt(uv), mark(i) }. */
     board,
     setBottles,
+    /** For tests: what's in the caddy, line by line, and whether it's the real bottle yet. */
+    caddySlots: () => caddy.slots.map((it) => ({ line: it.line, real: !it.plain })),
     /** Where sound effects go (sound.js `play`). */
     setSfx(fn) { sfx = fn; },
     robot,

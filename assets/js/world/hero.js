@@ -9,9 +9,9 @@ import * as THREE from 'three';
 import { PALETTE } from './materials.js';
 
 /**
- * Load the hero props. Slots marked `"lazy": true` (things nobody sees until they ask, like the
- * bottles the robot pours from) are left out, and loaded instead by `{ lazy: true }` once the
- * scene is up.
+ * Load the hero props. Slots marked `"lazy": true` (models that replace code-built things) are
+ * left out, and loaded instead by `{ lazy: true }` once the scene is up; `"lazy": "bar"` (the
+ * bottles the robot pours from) by `{ lazy: 'bar' }`, when someone walks up to the bar.
  */
 export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) { // lazy: false | true | 'bar'
   const heroes = new Map();

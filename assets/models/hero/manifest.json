@@ -37,22 +37,22 @@
   "bottle-planteray": {
     "file": "bottle-planteray.glb",
     "height": 0.26,
-    "lazy": true
+    "lazy": "bar"
   },
   "bottle-campari": {
     "file": "bottle-campari.glb",
     "height": 0.3,
-    "lazy": true
+    "lazy": "bar"
   },
   "bottle-chartreuse": {
     "file": "bottle-chartreuse.glb",
     "height": 0.28,
-    "lazy": true
+    "lazy": "bar"
   },
   "bottle-meletti": {
     "file": "bottle-meletti.glb",
     "height": 0.3,
-    "lazy": true
+    "lazy": "bar"
   },
   "launch-console": {
     "file": "launch-console.glb",

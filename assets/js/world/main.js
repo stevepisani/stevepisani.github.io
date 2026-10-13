@@ -963,6 +963,7 @@ async function start() {
   function startMaking(idx) {
     const recipe = (data.drinks || [])[idx];
     if (!recipe) return;
+    loadBarBottles();
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
     if (state !== 'seat' || ordering) return;
     if (making) making.cancel();
@@ -2658,7 +2659,7 @@ async function start() {
     if (state === 'walk') {
       // the bartender waves you over once as you walk up (again if you wander off and come back)
       const toBar = player.pos.distanceTo(barSpot.approach);
-      if (!beckoned && toBar < 9 && toBar > 2.5) { beckoned = true; bar.beckon(player.pos); }
+      if (!beckoned && toBar < 9 && toBar > 2.5) { beckoned = true; bar.beckon(player.pos); loadBarBottles(); } // the bottles, so they're here by the time you order
       else if (toBar > 13) beckoned = false;
       player.enabled = panel.hidden && menu.hidden;
       player.update(dt);
@@ -2934,9 +2935,8 @@ async function start() {
   bar.setSfx((name, ...args) => sound.play(name, ...args));
   window.__world.sound = sound;
 
-  // The lazy heroes (the house's bottles in the robot's caddy, and the models that replace
-  // code-built things: hero.js heroSlot): they load once the scene is up, and their shaders
-  // compile off to the side before they're shown.
+  // The lazy heroes (the models that replace code-built things: hero.js heroSlot): they load
+  // once the scene is up, and their shaders compile off to the side before they're shown.
   const heroUrl = modelsUrl.replace(/props\.glb$/, 'hero/');
   async function prepare(models) {
     // one at a time, each when the browser's idle (where shaders can't compile in parallel, each is a pause)
@@ -2966,11 +2966,10 @@ async function start() {
     fillSlots(models, { into: scene });
     batcher.note();
     rebake = 3;
-    bar.setBottles(models);
     window.__world.bottles = models.size;
   }), 2500);
-  // the rest of the bottles a drink can be made from (two and a half megabytes most visitors
-  // never need): when someone sits down at the bar
+  // the bottles a drink is made from (three megabytes most visitors never need): when someone
+  // walks up to the bar, or orders from elsewhere
   let barBottles = null;
   loadBarBottles = () => {
     barBottles = barBottles || loadHeroes(loader, heroUrl, { lazy: 'bar' }).then(prepare).then((models) => {
