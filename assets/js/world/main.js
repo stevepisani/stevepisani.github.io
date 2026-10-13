@@ -1226,6 +1226,7 @@ async function start() {
     if (document.activeElement !== chatInput) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
   });
   let leaving = false;
+  let loadBarBottles = () => {}; // set once the scene's up (the lazy heroes, below)
   function sitDown({ pickUp = false, then = null } = {}) {
     leaving = false;
     seatLook.yaw = seatLook.pitch = 0;
@@ -1236,6 +1237,7 @@ async function start() {
     tip.hidden = true;
     setState('seat');
     bar.greet();
+    loadBarBottles();
     seatPose = poseLooking(bar.seat.eye, bar.seat.look);
     // step up behind the stool, dip down onto it with an eye on the bar, settle facing the robot
     const S = bar.seat;
@@ -2932,14 +2934,14 @@ async function start() {
   bar.setSfx((name, ...args) => sound.play(name, ...args));
   window.__world.sound = sound;
 
-  // The lazy heroes (the real bottles the robot pours from, and the models that replace code-built
-  // things: hero.js heroSlot): they load once the scene is up, and their shaders compile off to
-  // the side before they're shown.
-  whenIdle(() => loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { lazy: true }).then(async (bottles) => {
-    if (!bottles.size) return;
+  // The lazy heroes (the house's bottles in the robot's caddy, and the models that replace
+  // code-built things: hero.js heroSlot): they load once the scene is up, and their shaders
+  // compile off to the side before they're shown.
+  const heroUrl = modelsUrl.replace(/props\.glb$/, 'hero/');
+  async function prepare(models) {
     // one at a time, each when the browser's idle (where shaders can't compile in parallel, each is a pause)
     const parallel = renderer.extensions.has('KHR_parallel_shader_compile');
-    for (const b of bottles.values()) {
+    for (const b of models.values()) {
       const staging = new THREE.Group().add(b);
       // and the forms it's drawn in once it's placed (hero.js): instanced, with and without a colour
       // each (the rum wall, the lanterns), and lit by its own texture (the floats' tints), so no
@@ -2957,12 +2959,25 @@ async function start() {
       } catch (e) {}
       staging.remove(b);
     }
-    fillSlots(bottles, { into: scene });
+    return models;
+  }
+  whenIdle(() => loadHeroes(loader, heroUrl, { lazy: true }).then(prepare).then((models) => {
+    if (!models.size) return;
+    fillSlots(models, { into: scene });
     batcher.note();
     rebake = 3;
-    bar.setBottles(bottles);
-    window.__world.bottles = bottles.size;
+    bar.setBottles(models);
+    window.__world.bottles = models.size;
   }), 2500);
+  // the rest of the bottles a drink can be made from (two and a half megabytes most visitors
+  // never need): when someone sits down at the bar
+  let barBottles = null;
+  loadBarBottles = () => {
+    barBottles = barBottles || loadHeroes(loader, heroUrl, { lazy: 'bar' }).then(prepare).then((models) => {
+      bar.setBottles(models);
+      window.__world.barBottles = models.size;
+    });
+  };
 }
 
 start().catch((err) => {

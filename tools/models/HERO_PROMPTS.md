@@ -40,11 +40,13 @@ Models are auto-scaled to `height` (metres), centred, and set on the ground. Opt
   form of its shader is compiled ahead too.
 - `instance`: for a lazy model there are dozens of, standing still (the trail lanterns and their
   posts, the torches): every copy is drawn at once as one InstancedMesh, not one mesh each.
-- `lazy`: load it after the scene is up, not before the reveal: the bottles the robot pours
-  from, and every model that replaces a code-built thing (the rocket, the telescope's tripod,
+- `lazy`: load it after the scene is up, not before the reveal: the four house bottles in the
+  robot's caddy, and every model that replaces a code-built thing (the rocket, the telescope's tripod,
   the radio dish, the message bottles, the glass floats, the campfire's logs and benches, the
   bar stools, the canoe, the signpost, the torches, the trail lanterns, the rum wall). Those are built in code first and swapped for the model when it arrives
   (`hero.js` `heroSlot()` / `fillSlots()`), so a slow connection never holds up the planet.
+  `"lazy": "bar"` waits until someone sits down at the bar: the rest of the bottles a drink is
+  made from, which most visitors never see.
 
 Lights, fire, and hanging cords are added by the world, so don't bake them in. The `robot`
 slot replaces only the bartender's body: it still turns, rolls and rattles, but the
@@ -133,6 +135,83 @@ Texture: Clear glass bottle showing vivid chartreuse yellow-green liqueur inside
 > Exactly one single bottle, alone: a Meletti coffee liqueur bottle from Italy, a tall slim cylindrical glass bottle with a short neck, filled with nearly black coffee liqueur, a vintage cream label with red and black lettering, a dark cap. One bottle only, standing upright, centered, nothing else.
 
 Texture: Clear glass bottle showing nearly black dark brown coffee liqueur inside, a vintage cream paper label with an ornate red and black border, the red word MELETTI and the words Caffè and Ascoli Piceno in black, a small gold crest, a black cap with a thin gold band. Realistic product materials.
+
+The rest of the bottles the robot pours from (8,000-triangle previews, generated 2026-10-12; `lazy: "bar"`):
+
+**bottle-gin**: Tanqueray, the gin in Il Professore
+> Exactly one single bottle, alone: a Tanqueray London Dry gin bottle, a squat round dark green glass bottle shaped like a cocktail shaker, wide round shoulders, a short neck, a red wax seal medallion on the front, a silver screw cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Dark emerald green glass bottle with clear gin inside, a red wax seal medallion with a gold crest on the front, a white label with black lettering reading TANQUERAY LONDON DRY GIN, a silver screw cap. Realistic product materials.
+
+**bottle-vermouth**: Carpano Antica Formula, the sweet vermouth
+> Exactly one single bottle, alone: a Carpano Antica Formula sweet vermouth bottle, a tall heavy dark brown glass bottle with rounded shoulders and a short neck, an ornate cream label with red and black engraving, a dark red foil top. One bottle only, standing upright, centered, nothing else.
+
+Texture: Dark brown glass bottle with dark red-brown vermouth inside, an ornate cream paper label with red and black engraving reading Carpano Antica Formula, a dark red foil capsule on the neck. Realistic product materials.
+
+**bottle-bourbon**: Buffalo Trace, for the Boulevardier
+> Exactly one single bottle, alone: a Buffalo Trace bourbon bottle, a tall glass bottle with a flat front and rounded sides, sloping shoulders and a short neck, filled with amber bourbon, a cream label with a small buffalo, a cork stopper with a wooden top. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing amber bourbon inside, a cream paper label with a small dark green buffalo and dark lettering reading BUFFALO TRACE Kentucky Straight Bourbon Whiskey, a dark green neck band, a cork stopper with a wooden top. Realistic product materials.
+
+**bottle-appleton**: Appleton Estate, the dark rum in the OG Hurricane
+> Exactly one single bottle, alone: an Appleton Estate Jamaica rum bottle, a tall round glass bottle with sloping shoulders and a medium neck, filled with dark amber rum, a black and gold label, a gold screw cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing dark amber rum inside, a black label with gold lettering reading APPLETON ESTATE Jamaica Rum, a gold neck band, a gold screw cap. Realistic product materials.
+
+**bottle-smithcross**: Smith & Cross, the Jamaican rum in the House Tiki
+> Exactly one single bottle, alone: a Smith and Cross Jamaica rum bottle, a short wide round glass bottle with round shoulders and a short neck, filled with dark amber rum, a cream paper label with old-fashioned black and green lettering, a dark cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing dark amber rum inside, a cream paper label with old-fashioned black and dark green lettering reading SMITH & CROSS Traditional Jamaica Rum, a dark brown cap. Realistic product materials.
+
+**bottle-threestars**: Planteray 3 Stars, the light rum
+> Exactly one single bottle, alone: a Planteray 3 Stars white rum bottle, a tall clear glass bottle with sloping shoulders, filled with clear rum, a white and silver label with three stars, a thin woven raffia band at the neck, a silver cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing clear white rum inside, a white and silver label with three small stars and dark lettering reading PLANTERAY 3 Stars, a thin natural raffia band at the neck, a silver cap. Realistic product materials.
+
+**bottle-falernum**: John D. Taylor's Velvet Falernum (and the allspice dram line)
+> Exactly one single bottle, alone: a John D. Taylor's Velvet Falernum bottle, a tall slim clear glass bottle with a long neck, filled with pale golden liqueur, a white label with red lettering, a gold screw cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing pale golden falernum liqueur inside, a white label with red lettering reading John D. Taylor's Velvet Falernum, a gold screw cap. Realistic product materials.
+
+**bottle-passionfruit**: Liber & Co. passion fruit syrup
+> Exactly one single bottle, alone: a Liber and Co passion fruit syrup bottle, a small squat clear glass apothecary bottle with a short neck, filled with deep orange gold syrup, a black and cream label, a black cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing deep orange gold passion fruit syrup inside, a black label with cream lettering reading Liber & Co. Passion Fruit Syrup, a black cap. Realistic product materials.
+
+**bottle-cointreau**: Cointreau, the orange liqueur
+> Exactly one single bottle, alone: a Cointreau orange liqueur bottle, a squat square amber orange glass bottle with rounded corners and embossed glass, a short neck, a red ribbon shaped label across the front, a black cap. One bottle only, standing upright, centered, nothing else.
+
+Texture: Amber orange tinted glass bottle with embossed glass, a red ribbon shaped label with white lettering reading COINTREAU across the front, a black cap. Realistic product materials.
+
+**bottle-demerara**: demerara and rich simple syrup, a plain bar bottle (2nd preview: the first had a soap-pump top)
+> Exactly one single bottle, alone: a plain clear glass bar bottle with round shoulders and a short neck with a plain metal cap, filled with dark amber demerara syrup, a strip of white tape as a label. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing dark amber demerara syrup inside, a strip of white masking tape with DEMERARA handwritten in black marker, a chrome cap. Realistic product materials.
+
+**bottle-orgeat**: orgeat, a plain bar bottle
+> Exactly one single bottle, alone: a plain clear glass bar bottle with a chrome speed pourer spout in its neck, filled with milky off-white almond orgeat syrup, a strip of white tape as a label. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing milky off-white almond orgeat syrup inside, a strip of white masking tape with ORGEAT handwritten in black marker, a chrome cap. Realistic product materials.
+
+**bottle-pineapple**: pineapple juice
+> Exactly one single bottle, alone: a plain clear glass bar juice bottle with a chrome speed pourer spout in its neck, filled with cloudy golden yellow pineapple juice, a strip of white tape as a label. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing cloudy golden yellow pineapple juice inside, a strip of white masking tape with PINEAPPLE handwritten in black marker, a chrome cap. Realistic product materials.
+
+**bottle-lime**: lime juice
+> Exactly one single bottle, alone: a plain clear glass bar juice bottle with a chrome speed pourer spout in its neck, filled with cloudy pale green lime juice, a strip of white tape as a label. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing cloudy pale green lime juice inside, a strip of white masking tape with LIME handwritten in black marker, a chrome cap. Realistic product materials.
+
+**bottle-orange**: orange juice
+> Exactly one single bottle, alone: a plain clear glass bar juice bottle with a chrome speed pourer spout in its neck, filled with bright orange juice, a strip of white tape as a label. One bottle only, standing upright, centered, nothing else.
+
+Texture: Clear glass bottle showing bright orange juice inside, a strip of white masking tape with ORANGE handwritten in black marker, a chrome cap. Realistic product materials.
+
+**bottle-espresso**: the espresso, in a little glass pitcher
+> Exactly one small object, alone: a glass espresso shot pitcher with a little handle and a pour spout, holding a double shot of black espresso with a thick tan crema on top. One object only, standing upright, centered, nothing else.
+
+Texture: Clear glass pitcher showing black espresso inside with a thick tan crema on top, a clear glass handle. Realistic product materials.
 
 **launch-console**: launch control by the rocket pad (the screen, lamps, red button and its guard are added by `props.js`; generated 2026-10-11)
 > A 1960s space-age rocket launch control console, one solid freestanding unit: a heavy steel cabinet desk 1.3 metres wide and 0.7 metres deep standing on a dark plinth, a wide sloped control panel at waist height covered in rows of toggle switches and small round indicator lamps, and built into the back of the desk a boxy CRT monitor housing at eye height with a large flat dark rectangular glass screen facing forward, rounded corners, a thick bezel. Cream enamel and teal painted steel, chrome trim, rivets, 1.45 metres tall overall. Facing forward. Realistic PBR, game-ready.

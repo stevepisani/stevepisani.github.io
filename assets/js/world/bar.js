@@ -428,11 +428,6 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const robot = tinRobot({ hero: heroes && heroes.has('robot') ? heroOr(heroes, 'robot') : null, reducedMotion });
   robot.setHome(ROBOT_HOME, -0.55); // three-quarters on, so you see its face from the path
   bar.add(robot.group);
-  // its arms keep out of the counter (the top and the front under it; see Counter above)
-  robot.setSolids([
-    new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
-    new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
-  ]);
 
   /* ---------- Palms around the plinth ---------- */
   // [x, z, which way it leans, height]. The third leans in over the bar's left side, not out:
@@ -559,7 +554,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   // Where things stand on the counter, so each is under the hand that works it: the tin in the
   // middle (the left hand pours into it, the right picks it up to shake), and the glass by the
   // right hand to strain into, or by the left if it's built in the glass.
-  const WORK = { shaken: new THREE.Vector3(-0.15, BAR_TOP, 0.34), built: new THREE.Vector3(0.24, BAR_TOP, 0.34) };
+  const WORK = { shaken: new THREE.Vector3(-0.15, BAR_TOP, 0.34), built: new THREE.Vector3(0.14, BAR_TOP, 0.34) }; // the built one clear of the caddy
   const TIN = new THREE.Vector3(0.06, BAR_TOP, 0.36);
   const TIN_MOUTH = new THREE.Vector3(0, 0.13, 0);
   const OZ = { '½': 0.5, '¼': 0.25, '¾': 0.75, '⅓': 1 / 3, '⅔': 2 / 3 };
@@ -570,24 +565,184 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   const BOTTLES = [['coffee liqueur', 'coffee'], ['kahl', 'coffee'], ['espresso', 'espresso'], ['campari', 'campari'], ['chartreuse', 'chartreuse'],
     ['falernum', 'falernum'], ['vermouth', 'vermouth'], ['pineapple', 'pineapple'], ['lime', 'lime'], ['rum', 'rum'], ['gin', 'gin'], ['syrup', 'syrup'], ['sugar', 'syrup']];
   const bottleColor = (line) => PALETTE[(BOTTLES.find(([k]) => line.toLowerCase().includes(k)) || [0, 'amber'])[1]];
-  // The real bottles (hero models, loaded once the scene is up: setBottles): they stand on the
-  // counter by the work, and the robot picks up the one a line calls for and pours from it.
-  const REAL = [['planteray', 'bottle-planteray'], ['campari', 'bottle-campari'], ['chartreuse', 'bottle-chartreuse'], ['meletti', 'bottle-meletti'], ['coffee liqueur', 'bottle-meletti']];
-  const shelf = new Map(); // slot -> { standing (on the counter), hand (the one it pours from), height }
-  const realFor = (line) => { const r = REAL.find(([k]) => line.toLowerCase().includes(k)); return r && shelf.get(r[1]); };
+  // The bottles. Each line of a recipe is poured from its own bottle: the real one, a hero
+  // model (`bottle-*`, loaded once the scene is up: setBottles), or until then a plain bottle
+  // tinted to match. First match wins.
+  const REAL = [
+    [/planteray/, 'planteray'], [/campari/, 'campari'], [/chartreuse/, 'chartreuse'], [/meletti|coffee liqueur|kahl/, 'meletti'],
+    [/espresso/, 'espresso'], [/\bgin\b/, 'gin'], [/vermouth/, 'vermouth'], [/bourbon/, 'bourbon'],
+    [/dark rum/, 'appleton'], [/aged|jamaica/, 'smithcross'], [/light rum|agricole/, 'threestars'],
+    [/falernum|allspice/, 'falernum'], [/passion/, 'passionfruit'], [/orange liqueur|curaçao|cointreau/, 'cointreau'],
+    [/orgeat/, 'orgeat'], [/syrup|sugar/, 'demerara'], [/pineapple/, 'pineapple'], [/lime/, 'lime'], [/orange/, 'orange'],
+  ];
+  const models = new Map(); // the hero models, once they're here
+  // a plain bottle, tinted: what it pours from until the real one has loaded
+  const plainBottle = (color) => {
+    const g = new THREE.Group();
+    const glassMat = pbr({ color, roughness: 0.15, emissive: color, emissiveIntensity: 0.45 }); // lit from the back bar
+    const add = (geo, m, y) => { const o = new THREE.Mesh(geo, m); o.position.y = y; o.castShadow = true; g.add(o); };
+    add(new THREE.CylinderGeometry(0.034, 0.034, 0.16, 14), glassMat, 0.08);
+    add(new THREE.CylinderGeometry(0.0345, 0.0345, 0.06, 14), pbr({ color: PALETTE.cream, roughness: 0.8 }), 0.08); // label
+    add(new THREE.CylinderGeometry(0.012, 0.034, 0.05, 12), glassMat, 0.185);
+    add(new THREE.CylinderGeometry(0.011, 0.012, 0.05, 10), glassMat, 0.235);
+    add(new THREE.CylinderGeometry(0.013, 0.013, 0.02, 10), pbr({ color: PALETTE.chrome, metalness: 0.7, roughness: 0.3 }), 0.26);
+    return g;
+  };
+  const heightOf = (o) => new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).y;
+  // the bottle a line pours from: { object, height } (a copy if the drink uses it twice)
+  function bottleFor(line, used) {
+    const r = REAL.find(([re]) => re.test(line.toLowerCase()));
+    const hero = r && models.get('bottle-' + r[1]);
+    if (!hero) return { object: plainBottle(bottleColor(line)), height: 0.27 };
+    const object = used.has(hero) ? hero.clone(true) : hero;
+    used.add(hero);
+    return { object, height: hero.userData.height || (hero.userData.height = heightOf(hero)) };
+  }
+
+  // The caddy: a 1950s revolving bottle caddy by the robot's left hand, holding the drink's
+  // bottles in the order they're poured. It spins as the robot sets up and comes round with this
+  // drink's bottles, and turns a slot between pours to bring the next one to its hand.
+  const CADDY = new THREE.Vector3(0.56, BAR_TOP, 0.44), CADDY_R = 0.135, TRAY = 0.03;
+  // to pour it rolls a little to its right and turns, so its left hand reaches the caddy, the tin
+  // and the glass without crossing in front of itself (found by searching spots and turns for
+  // arm poses that reach all three clear of the robot)
+  const POUR_SPOT = MAKE_SPOT.clone().add(new THREE.Vector3(-0.15, 0, 0)), POUR_TURN = -0.2;
+  const caddy = (() => {
+    const g = new THREE.Group(), spin = new THREE.Group();
+    g.position.copy(CADDY);
+    g.userData.noBatch = true; // it turns
+    g.add(spin);
+    bar.add(g);
+    const brass = pbr({ color: PALETTE.amber, metalness: 0.75, roughness: 0.3 });
+    const chromeM = pbr({ color: PALETTE.chrome, metalness: 0.8, roughness: 0.25 });
+    const add = (parent, geo, m, y) => { const o = new THREE.Mesh(geo, m); o.position.y = y; o.castShadow = o.receiveShadow = true; parent.add(o); return o; };
+    add(g, new THREE.CylinderGeometry(0.06, 0.075, 0.012, 24), chromeM, 0.006);                       // the foot it turns on
+    add(spin, new THREE.CylinderGeometry(CADDY_R + 0.06, CADDY_R + 0.065, 0.02, 40), M.top, 0.02);   // a lacquered tray
+    add(spin, new THREE.TorusGeometry(CADDY_R + 0.06, 0.006, 6, 48), brass, TRAY).rotation.x = Math.PI / 2;
+    add(spin, new THREE.TorusGeometry(CADDY_R + 0.05, 0.004, 6, 48), brass, 0.07).rotation.x = Math.PI / 2; // the rail that keeps them standing
+    for (let i = 0; i < 4; i++) {
+      const rod = add(spin, new THREE.CylinderGeometry(0.003, 0.003, CADDY_R + 0.05, 6), brass, 0.07);
+      rod.rotation.set(0, (i * Math.PI) / 2, Math.PI / 2);
+      rod.position.set(Math.cos((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2, 0.07, -Math.sin((i * Math.PI) / 2) * (CADDY_R + 0.05) / 2);
+    }
+    add(spin, new THREE.CylinderGeometry(0.009, 0.009, 0.26, 8), brass, 0.15);                        // the post
+    add(spin, new THREE.TorusGeometry(0.03, 0.007, 8, 20), brass, 0.31);                               // and its carrying ring
+    // facing the robot's left shoulder, standing where it makes drinks, turned to pour
+    const FRONT = Math.atan2(POUR_SPOT.x + 0.33 * Math.cos(POUR_TURN) - CADDY.x, POUR_SPOT.z - 0.33 * Math.sin(POUR_TURN) - CADDY.z);
+    let slots = [], from = 0, to = 0, k = 1, dur = 0.4, swap = null;
+    const ease = (x) => { const c = 1.6; return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2; }; // overshoots a little, and settles: it's on a bearing
+    return {
+      group: g,
+      /** Put `items` ({ object, height }) round the ring, labels out, in pour order. */
+      load(items) {
+        for (const it of slots) if (it.object.parent === spin) spin.remove(it.object);
+        const n = Math.max(items.length, 4);
+        slots = items.map((it, i) => {
+          const a = (i * Math.PI * 2) / n;
+          it.object.position.set(CADDY_R * Math.sin(a), TRAY, CADDY_R * Math.cos(a));
+          it.object.quaternion.identity();
+          it.object.rotation.y = a;
+          it.object.traverse((o) => { o.userData.noBatch = true; });
+          spin.add(it.object);
+          return { ...it, a };
+        });
+      },
+      get slots() { return slots; },
+      get angle() { return spin.rotation.y; },
+      get tallest() { return slots.reduce((h, s) => Math.max(h, s.height), 0); },
+      /** The caddy's turn that puts slot `i` in front of the robot (always turning the same way). */
+      frontTurn(i) {
+        let th = FRONT - slots[i].a;
+        while (th > to + 1e-3) th -= Math.PI * 2;
+        while (th < to - Math.PI * 2 + 1e-3) th += Math.PI * 2;
+        return th;
+      },
+      /** Turn to `th` over `seconds`; `then` runs halfway (a swap, while it's a blur). */
+      turn(th, seconds = 0.4, then = null) {
+        from = spin.rotation.y; to = th; dur = seconds; k = 0; swap = then;
+        if (reducedMotion || seconds <= 0) { k = 1; spin.rotation.y = to; if (swap) { swap(); swap = null; } }
+      },
+      /** Where slot `i`'s bottle stands (the bar's frame), with the caddy turned to `th`. */
+      base(i, th = to) {
+        const a = slots[i].a + th;
+        return new THREE.Vector3(CADDY.x + CADDY_R * Math.sin(a), CADDY.y + TRAY, CADDY.z + CADDY_R * Math.cos(a));
+      },
+      FRONT,
+      /** Put a bottle back in its slot. */
+      replace(i) {
+        const it = slots[i], o = it.object, a = it.a;
+        o.position.set(CADDY_R * Math.sin(a), TRAY, CADDY_R * Math.cos(a));
+        o.quaternion.identity();
+        o.rotation.y = a;
+        spin.add(o);
+      },
+      update(dt) {
+        if (k >= 1) return;
+        k = Math.min(1, k + dt / dur);
+        spin.rotation.y = from + (to - from) * (swap ? k * k * (3 - 2 * k) : ease(k));
+        if (swap && k >= 0.5) { swap(); swap = null; }
+      },
+    };
+  })();
+  // its arms keep out of the counter (the top and the front under it; see Counter above), and out
+  // of the caddy's tray and rail but for the pincer reaching in for a bottle
+  const CADDY_OUT = CADDY_R + 0.065;
+  robot.setSolids([
+    new THREE.Box3(new THREE.Vector3(-2.075, DECK + 0.855, 0.17), new THREE.Vector3(2.075, DECK + 0.945, 1.09)),
+    new THREE.Box3(new THREE.Vector3(-1.9, DECK, 0.24), new THREE.Vector3(1.9, DECK + 0.85, 0.86)),
+  ], [new THREE.Box3(new THREE.Vector3(CADDY.x - CADDY_OUT, BAR_TOP, CADDY.z - CADDY_OUT), new THREE.Vector3(CADDY.x + CADDY_OUT, BAR_TOP + 0.08, CADDY.z + CADDY_OUT))]);
+  // until the real ones come, the four the house is known for, as plain bottles
+  caddy.load(['planteray', 'campari', 'chartreuse', 'coffee liqueur'].map((l) => ({ object: plainBottle(bottleColor(l)), height: 0.27 })));
   function setBottles(heroes) {
-    const slots = ['bottle-planteray', 'bottle-campari', 'bottle-chartreuse', 'bottle-meletti'].filter((k) => heroes.has(k));
-    slots.forEach((k, n) => {
-      const standing = heroes.get(k);
-      standing.position.set(-0.5 - n * 0.11, BAR_TOP, 0.26 + (n % 2) * 0.05); // a little row at the robot's end of the counter
-      standing.rotation.y = 0.3 - n * 0.25;
-      bar.add(standing);
-      const height = new THREE.Box3().setFromObject(standing).getSize(new THREE.Vector3()).y;
-      shelf.set(k, { standing, hand: standing.clone(true), height });
-    });
+    for (const [k, v] of heroes) if (k.startsWith('bottle-')) models.set(k, v);
+    if (!job && heroes.has('bottle-planteray')) caddy.load(['planteray', 'campari', 'chartreuse', 'meletti'].map((l) => bottleFor(l, new Set())));
+  }
+
+  // One pour, as a path for the left pincer and the bottle in it: over the caddy, down to the
+  // bottle, lift it out, arc it over the vessel turning its label to you, tip it to pour, a twist
+  // to cut the drip, back, and set it down. `t` is seconds into the pour.
+  const POUR = { hover: 0.25, turn: 0.25, above: 0.65, grip: 0.8, take: 0.86, lift: 1.05, arc: 1.5, tip: 1.7, pour: 2.2, twist: 2.4, back: 2.8, down: 2.95, end: 3.2 };
+  const sm = (a, b, t) => { const x = THREE.MathUtils.clamp((t - a) / (b - a), 0, 1); return x * x * (3 - 2 * x); };
+  const bez = (a, c, b, k) => a.clone().multiplyScalar((1 - k) ** 2).addScaledVector(c, 2 * k * (1 - k)).addScaledVector(b, k * k);
+  const lerpA = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;
+  function pourPath(P, t) {
+    const { pick, above, hover, into, h, grip, start, front } = P; // where it takes it, over it, clear of them all, the vessel's mouth
+    // how the bottle is turned: spun about itself (`yaw`), then tipped toward the vessel (`tilt`)
+    let tilt = 0, yaw = front, at, open = 0.08;
+    const away = new THREE.Vector3().subVectors(CADDY, into).setY(0).normalize(); // from the vessel toward the caddy
+    const axis = new THREE.Vector3().crossVectors(away, UP).normalize();
+    const quat = (tl, yw) => new THREE.Quaternion().setFromAxisAngle(axis, tl).multiply(new THREE.Quaternion().setFromAxisAngle(UP, yw));
+    // where the pincer has to be for the neck to sit over the vessel, at a tilt
+    const neckAt = (tl, yw, rise = 0) => into.clone().add(new THREE.Vector3(0, 0.07 + rise, 0)).sub(new THREE.Vector3(0, h - grip, 0).applyQuaternion(quat(tl, yw)));
+    const PRE = 0.9, POURING = 2.05, FULL = 2.35, END = 0.7; // radians of tilt
+    // up clear of the caddy while it turns, then down onto the bottle
+    if (t < POUR.above - 0.2) at = start.clone().lerp(hover, sm(0, POUR.hover, t)), open = 0.4;
+    else if (t < POUR.above) at = hover.clone().lerp(above, sm(POUR.above - 0.2, POUR.above, t)), open = 0.4;
+    else if (t < POUR.grip) at = above.clone().lerp(pick, sm(POUR.above, POUR.grip, t)), open = 0.4;
+    else if (t < POUR.lift) at = pick.clone().addScaledVector(UP, 0.13 * sm(POUR.take, POUR.lift, t)), open = 0.4 - 0.32 * sm(POUR.grip, POUR.take, t);
+    else if (t < POUR.arc) {
+      const k = sm(POUR.lift, POUR.arc, t);
+      yaw = lerpA(front, 0, k); tilt = PRE * k;
+      const end = neckAt(PRE, 0), lifted = pick.clone().addScaledVector(UP, 0.13);
+      at = bez(lifted, lifted.clone().lerp(end, 0.5).addScaledVector(UP, 0.1), end, k);
+    } else if (t < POUR.pour) {
+      yaw = 0; tilt = t < POUR.tip ? PRE + (POURING - PRE) * sm(POUR.arc, POUR.tip, t) : POURING + (FULL - POURING) * sm(POUR.tip, POUR.pour, t);
+      at = neckAt(tilt, 0);
+    } else if (t < POUR.twist) {
+      const k = sm(POUR.pour, POUR.twist, t);
+      yaw = (Math.PI / 2) * k; tilt = FULL + (END - FULL) * k;
+      at = neckAt(tilt, yaw, 0.03 * k);
+    } else if (t < POUR.back) {
+      const k = sm(POUR.twist, POUR.back, t);
+      yaw = lerpA(Math.PI / 2, front, k); tilt = END * (1 - k);
+      const s0 = neckAt(END, Math.PI / 2, 0.03);
+      at = bez(s0, s0.clone().lerp(above, 0.5).addScaledVector(UP, 0.1), above, k);
+    } else if (t < POUR.down + 0.08) at = above.clone().lerp(pick, sm(POUR.back, POUR.down, t)), open = 0.08 + 0.32 * sm(POUR.down, POUR.down + 0.08, t);
+    else at = pick.clone().lerp(above, sm(POUR.down + 0.08, POUR.end, t)), open = 0.4; // let go, and lift clear
+    return { at, quat: quat(tilt, yaw), carried: t >= POUR.take && t < POUR.down, pouring: t > POUR.tip - 0.05 && t < POUR.pour };
   }
   const SET = { rockscubes: 'A rocks glass, full of ice.', collinscrushed: 'A collins glass, packed with crushed ice.', coupe: 'A chilled coupe.' };
-  const DUR = { set: 1.5, pour: 1.8, shake: 2.8, strain: 2.0, stir: 2.6, swizzle: 2.8, garnish: 1.8, serve: 1.2 };
+  const DUR = { set: 1.5, pour: POUR.end, shake: 2.8, strain: 2.0, stir: 2.6, swizzle: 2.8, garnish: 1.8, serve: 1.2 };
   const tinMesh = (() => {
     const g = new THREE.Group();
     const m = chromeTin();
@@ -631,7 +786,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     let acc = 0;
     const steps = [
       { do: 'set', text: M.set || SET[kind + (M.ice || '')] || 'A glass.' },
-      ...recipe.build.map((line, i) => { acc += amounts[i] || total / recipe.build.length; return { do: 'pour', text: line, color: bottleColor(line), level: acc / total }; }),
+      ...recipe.build.map((line, i) => { acc += amounts[i] || total / recipe.build.length; return { do: 'pour', text: line, color: bottleColor(line), level: acc / total, slot: i }; }),
       ...extra,
     ];
     const glass = barGlass(kind);
@@ -653,17 +808,34 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       // each step: what it starts, what it's done by the end (so skipping, or a long frame, lands right)
       enter(st) {
         const W = vesselTop(glass.group, glass.mouth);
+        // over to pour, and to stir or swizzle (the left hand's work), clear of the caddy; square again for the rest
+        if (st.do === 'pour' || st.do === 'stir' || st.do === 'swizzle') robot.roll(POUR_SPOT, POUR_TURN, 0.5);
+        else if (st.do !== 'set' && st.do !== 'serve') robot.roll(MAKE_SPOT, 0, 0.5);
         if (st.do === 'set') {
+          // the caddy spins and comes round with this drink's bottles, the first in front
+          const used = new Set();
+          J.items = recipe.build.map((line) => bottleFor(line, used));
+          let th = caddy.FRONT;
+          while (th > caddy.angle - Math.PI * 4) th -= Math.PI * 2;
+          caddy.turn(th, 1.2, () => { caddy.load(J.items); J.loaded = true; });
           robot.roll(MAKE_SPOT, 0);
           robot.hold('none', { shaker: !shaken });
           const at = { at: W.clone().add(new THREE.Vector3(0, 0.03, 0)), pincer: true };
           robot.reach(near === 'r' ? at : null, near === 'l' ? at : null);
         } else if (st.do === 'pour') {
-          const real = realFor(st.text);
-          if (real) { real.standing.visible = false; robot.hold('real', { object: real.hand, height: real.height, shaker: !shaken }); st.real = real; }
-          else robot.hold('bottle', { color: st.color, shaker: !shaken });
-          const into = shaken ? vesselTop(tin, TIN_MOUTH) : W;
-          robot.reach(null, { at: into.clone().add(new THREE.Vector3(0, 0.11, -0.01)) }); // poured from a height, so you see it fall
+          // its bottle comes round to the front, and it's poured (pourPath)
+          if (!J.loaded) { caddy.load(J.items); J.loaded = true; }
+          const item = J.items[st.slot], h = item.height, grip = h * 0.55;
+          st.th = caddy.frontTurn(st.slot);
+          const pick = caddy.base(st.slot, st.th).addScaledVector(UP, grip);
+          const start = robot.tip('l') ? bar.worldToLocal(robot.tip('l')) : pick.clone();
+          const top = CADDY.y + TRAY + caddy.tallest + 0.06;
+          st.P = { pick, grip, h, start, front: caddy.FRONT,
+            above: pick.clone().addScaledVector(UP, h - grip + 0.05),
+            hover: new THREE.Vector3(start.x, Math.max(top, start.y), start.z),
+            into: shaken ? vesselTop(tin, TIN_MOUTH) : W };
+          robot.hold('none', { shaker: !shaken });
+          robot.reach(null, { at: st.P.hover }); // the other arm out of the way
         } else if (st.do === 'shake') {
           robot.hold('none', { shaker: false });
           robot.reach({ at: vesselTop(tin, TIN_MOUTH).add(new THREE.Vector3(0, 0.02, 0)), pincer: true }, null);
@@ -688,7 +860,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         const pouring = t > 0.45 && t < dur - 0.3;
         if (st.do === 'set') { if (t > 0.45 && !glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (M.ice) sfx('clink'); if (shaken) bar.add(tin); } }
         else if (st.do === 'pour') {
-          if (pouring) pourStream(robot.tip('l') || new THREE.Vector3(), shaken ? vesselTop(tin, TIN_MOUTH) : vesselTop(glass.group, glass.mouth), st.color); else flowing(false);
+          // with reduced motion: three still moments, not the path between them
+          const tt = reducedMotion ? (t < 0.5 ? POUR.take : t < dur - 0.3 ? (POUR.tip + POUR.pour) / 2 : POUR.end) : t;
+          if (!st.turned && tt >= POUR.turn) { st.turned = true; caddy.turn(st.th, 0.35); }
+          const q = pourPath(st.P, tt);
+          if (q.carried && !st.held && !st.back) { robot.carry(J.items[st.slot].object, { height: st.P.h, grip: st.P.grip }); st.held = true; J.held = st.slot; }
+          if (!q.carried && st.held) { putBack(st); }
+          robot.drive(q.at, q.quat, q.open);
+          if (q.pouring && st.held) pourStream(robot.tip('l') || new THREE.Vector3(), st.P.into, st.color); else flowing(false);
           if (!shaken && stream.visible) setLevel(Math.min(st.level * END.pour, level + (st.level * END.pour - level) * Math.min(1, J.dt * 3.5)));
         } else if (st.do === 'shake') {
           if (t > 0.45 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.6); sfx('shake', dur - 0.6); }
@@ -717,8 +896,8 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       },
       finish(st) {
         flowing(false);
-        if (st.do === 'set') { if (!glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } }
-        else if (st.do === 'pour') { if (!shaken) setLevel(st.level * END.pour); if (st.real) st.real.standing.visible = true; } // and puts it back
+        if (st.do === 'set') { if (!glass.group.parent) { bar.add(glass.group); glass.ice(M.ice); if (shaken) bar.add(tin); } if (!J.loaded) { caddy.load(J.items); J.loaded = true; caddy.turn(caddy.frontTurn(0), 0); } }
+        else if (st.do === 'pour') { if (!shaken) setLevel(st.level * END.pour); if (st.held) putBack(st); if (!st.turned) { st.turned = true; caddy.turn(st.th, 0); } }
         else if (st.do === 'shake') { bar.remove(tin); }
         else if (st.do === 'strain') { setLevel(END.strain); if (M.foam) glass.foam(PALETTE[M.foam]); }
         else if (st.do === 'stir') setLevel(END.stir);
@@ -761,12 +940,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
         finished = true; job = null;
         flowing(false);
         bar.remove(glass.group, tin);
-        for (const r of shelf.values()) r.standing.visible = true;
+        if (J.held !== undefined && J.held !== null) { robot.carry(null); caddy.replace(J.held); J.held = null; }
         robot.reach(null, null);
         robot.hold('towel', { shaker: true });
       },
     };
     const placeGarnish = (name) => glass.garnish(name);
+    // a bottle back in its slot in the caddy
+    function putBack(st) { robot.carry(null); caddy.replace(st.slot); st.held = false; st.back = true; J.held = null; }
     // Where to look to see what it's doing now (world space): the vessel it's pouring into,
     // the shaker while it shakes, the glass for the rest, then the drink as it comes to you.
     const _f = new THREE.Vector3();
@@ -788,11 +969,12 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     return {
       skip: () => J.skip(),
       cancel: () => J.cancel(),
-      /** For tests: jump to step `k`, as if the ones before it had been done, and hold it there. */
-      seek(k) {
+      /** For tests: jump to step `k`, as if the ones before it had been done, and hold it there, `at` seconds in (later on the same step: further on). */
+      seek(k, at = 0.6) {
+        if (J.frozen && k === i) { t = at; J.during(J.all[k], t, DUR[J.all[k].do]); return; }
         J.frozen = true;
         for (let n = Math.max(0, i); n < k; n++) { if (n > i) J.enter(J.all[n]); J.finish(J.all[n]); }
-        i = k; t = 0.6;
+        i = k; t = at;
         J.enter(J.all[k]);
         if (J.all[k].do !== 'serve') onStep && onStep(k, steps.length, J.all[k].text);
         J.during(J.all[k], t, DUR[J.all[k].do]);
@@ -852,6 +1034,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     update(t, dt = 0) {
       for (const f of animated) f(t);
       if (job) job.advance(dt);
+      caddy.update(dt);
       robot.watch(job ? job.focus() : null); // its eyes on the work
       robot.update(dt, t);
       for (let i = sliding.length - 1; i >= 0; i--) {

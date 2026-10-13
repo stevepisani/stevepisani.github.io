@@ -6,8 +6,9 @@
 #   glass:   what it's served in (optional)
 #   build:   ingredients, one per line. Amounts in oz (½ ¼ ¾ ⅓ work) set how far each pour
 #            fills the glass when the robot makes it
-#            (a line naming Planteray, Campari, Chartreuse or Meletti / coffee liqueur is poured
-#            from that real bottle, a hero model; the rest from a bottle tinted to match)
+#            (each line is poured from its real bottle, a hero model: `REAL` in
+#            assets/js/world/bar.js says which words pick which bottle; a line it doesn't know
+#            is poured from a plain bottle tinted to match)
 #   method:  how to make it
 #   note:    anything else (optional)
 #   make:    how the robot makes it at the bar ("Make me one"), step by step:

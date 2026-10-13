@@ -268,13 +268,6 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       hand.add(g);
       return g;
     };
-    const bottleGlass = pbr({ color: PALETTE.amber, roughness: 0.15, emissive: PALETTE.amber, emissiveIntensity: 0.45 }); // lit from the back bar
-    const bottle = tool(left.hand, 0.15, 1.05);
-    mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.12, 14), bottleGlass, [0, -0.02, 0], bottle); // held by the shoulder of it
-    mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.05, 14), pbr({ color: PALETTE.cream, roughness: 0.8 }), [0, -0.02, 0], bottle); // label
-    mesh(new THREE.CylinderGeometry(0.011, 0.028, 0.035, 12), bottleGlass, [0, -0.095, 0], bottle);
-    mesh(new THREE.CylinderGeometry(0.009, 0.011, 0.07, 10), M.chrome, [0, -0.15, 0], bottle); // a pour spout
-    bottle.children.forEach((m) => { m.position.y += 0.04; }); // the pincer grips the body
     const rod = (hand, material, prongs) => {
       const g = tool(hand, 0.26, 1.5);
       mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.3, 6), material, [0, -0.11, 0], g);
@@ -287,8 +280,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const spoon = rod(left.hand, M.chrome, false);
     const swizzle = rod(left.hand, pbr({ color: PALETTE.bamboo, roughness: 0.7 }), true);
     const garnish = tool(left.hand, 0.03, 1.2), garnishR = tool(right.hand, 0.03, 1.2); // whatever bar.js hands it
-    const real = tool(left.hand, 0.2, 1.05); // a real bottle (a hero model), held round the body, neck first
-    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { bottle, spoon, swizzle, garnish, garnishR, real }, bottleGlass });
+    // a bottle picked up by the body (carry()): turned by drive(), its wrist free, so it stays
+    // upright as it's carried and tips only to pour
+    const carry = new THREE.Group();
+    carry.position.y = -0.09; // between the pincer's fingers
+    carry.visible = false;
+    left.hand.add(carry);
+    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { spoon, swizzle, garnish, garnishR, carry } });
     // what comes and goes, blinks or changes colour as it works: never merged with the rest (batch.js)
     for (const o of [antenna, shaker, rig.towel, ...lamps, ...Object.values(rig.tools)]) if (o) o.userData.noBatch = true;
   }
@@ -330,7 +328,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     if (reducedMotion) { root.position.copy(pos); root.rotation.y = heading; }
   }
   function pose(name, seconds = 0, then = 'rest') {
-    work = null;
+    work = null; driving = false;
     target = POSES[name];
     poseUntil = seconds ? clock + seconds : -1;
     after = then;
@@ -341,6 +339,11 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   // descent on the real joints (a few dozen forward passes), solved for where the robot is
   // headed so it arrives with its hands already in place.
   let work = null;
+  // carrying a bottle: drive() puts the pincer's grip at a point and turns the bottle to
+  // `carryQuat` (the parent's frame) whatever the arm is doing, like a free wrist
+  let driving = false, carried = null, carryH = 0, carryGrip = 0;
+  const carryQuat = new THREE.Quaternion(), lastAt = new THREE.Vector3(), carryAxis = new THREE.Vector3();
+  const GRIP = new THREE.Vector3(0, -0.09, 0), _hq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _bq = new THREE.Quaternion(), _id = new THREE.Matrix4();
   const LIM = [[-3.1, 0.8], [-1.2, 1.4], [-2.4, 0]];
   const tipLocal = (side) => {
     if (side === 'r') {
@@ -353,7 +356,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   };
   // What the arms keep out of: the robot itself, as boxes in the body's frame (round the head
   // whichever way it's turned), and what the bar says is solid (setSolids: boxes in the parent's
-  // frame, the counter). Each arm is checked as a string of balls along it and what it holds.
+  // frame: the counter, and low things a working pincer reaches into, the caddy). Each arm is checked as a string of balls along it and what it holds.
   const SELF = [
     [-0.24, 0.26, -0.24, 0.24, 0.44, 0.24],  // skirt
     [-0.26, 0.42, -0.19, 0.26, 0.64, 0.22],  // hips and their lamps
@@ -365,6 +368,9 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     [-0.31, 1.18, -0.31, 0.31, 1.75, 0.31],  // neck and head
   ].map((b) => new THREE.Box3(new THREE.Vector3(b[0], b[1], b[2]), new THREE.Vector3(b[3], b[4], b[5])));
   let solids = [];
+  // how far clear of the bar: a working hand, enough not to graze it on the way; a resting one
+  // more, so it stays clear while the robot turns
+  let clear = 0.015;
   const _q = new THREE.Vector3(), _m = new THREE.Matrix4(), _toParent = new THREE.Matrix4();
   const depth = (q, b, r) => {
     const dx = Math.max(b.min.x - q.x, q.x - b.max.x), dy = Math.max(b.min.y - q.y, q.y - b.max.y), dz = Math.max(b.min.z - q.z, q.z - b.max.z);
@@ -374,12 +380,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
   // how far into anything an arm is, squared and summed (0: clear). `self` alone skips the bar.
   function clash(side, a, local, selfOnly, working) {
     let sum = 0;
+    // bar: true for everything solid, 'high' to skip the low things a working pincer reaches into
     const test = (m, x, y, z, r, bar) => {
       _q.set(x, y, z).applyMatrix4(m);
       for (const b of SELF) { const d = depth(_q, b, r); if (d > 0) sum += d * d; }
       if (bar && !selfOnly && solids.length) {
         _q.applyMatrix4(_toParent);
-        for (const b of solids) { const d = depth(_q, b, r + 0.015); if (d > 0) sum += d * d; } // a hand's width clear, so it doesn't graze it on the way
+        for (const { box, low } of solids) { if (low && bar === 'high') continue; const d = depth(_q, box, r + clear); if (d > 0) sum += d * d; }
       }
     };
     const up = a.shoulder.matrix;
@@ -388,21 +395,32 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     for (const y of [0.07, 0.14, 0.21]) test(_m, 0, -y, 0, 0.036, true);
     _m.multiply(a.hand.matrix);
     test(_m, 0, 0, 0, 0.045, true);
+    // a bottle it carries, from its base to its neck (kept out of the robot; on the counter is
+    // where it's picked up and put down)
+    if (side === 'l' && carried) {
+      const g = _q.copy(GRIP).applyMatrix4(_m).clone();
+      for (let i = 0; i <= 4; i++) {
+        const y = -carryGrip + (carryH * i) / 4;
+        test(_id, g.x + carryAxis.x * y, g.y + carryAxis.y * y, g.z + carryAxis.z * y, 0.04, false);
+      }
+      return sum;
+    }
     // what it holds, from the back of it to its tip; at work, the last few cm may touch what it works on
-    const back = side === 'l' && rig.tools.real.visible ? rig.tools.real.userData.back : null;
-    const from = back || new THREE.Vector3(0, -0.06, 0), n = 5;
+    const from = new THREE.Vector3(0, -0.06, 0), n = 5;
     for (let i = 0; i <= n; i++) {
       const k = i / n;
-      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || k < 0.7);
+      test(_m, from.x + (local.x - from.x) * k, from.y + (local.y - from.y) * k, from.z + (local.z - from.z) * k, 0.035, !working || (k < 0.7 && 'high'));
     }
     return sum;
   }
   function solveArm(side, world, init, fine, prefer = null) {
     const a = side === 'r' ? rig.right : rig.left, s = side === 'r' ? -1 : 1;
-    const local = tipLocal(side), tip = new THREE.Vector3();
+    const local = side === 'l' && driving ? GRIP : tipLocal(side), tip = new THREE.Vector3();
     body.updateMatrixWorld(true);
     if (root.parent) _toParent.copy(root.parent.matrixWorld).invert().multiply(body.matrixWorld); else _toParent.copy(body.matrixWorld);
+    if (carried) carryAxis.set(0, 1, 0).applyQuaternion(carriedIn(body, _bq)); // the bottle's up, in the body's frame
     const selfOnly = !world && !prefer;
+    clear = world ? 0.015 : 0.045;
     // with nowhere to reach (`world` null), it holds as near `prefer` (or `init`) as it can
     const near = prefer || init;
     const cost = (p) => {
@@ -468,6 +486,20 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     cur.r = [...POSES.rest.r]; cur.l = [...POSES.rest.l];
   }
 
+  // the carried bottle's turn in `frame`'s frame (it's set in the parent's)
+  function carriedIn(frame, out) {
+    if (root.parent) root.parent.getWorldQuaternion(_pq); else _pq.identity();
+    return out.copy(frame.getWorldQuaternion(_hq).invert()).multiply(_pq).multiply(carryQuat);
+  }
+  // turn what it carries to carryQuat, and note where its neck is now (for tip())
+  function orient() {
+    const g = rig.tools && rig.tools.carry;
+    if (!g || !carried) return;
+    rig.left.hand.updateMatrixWorld(true);
+    carriedIn(rig.left.hand, g.quaternion);
+    g.userData.tip = new THREE.Vector3(0, carryH - carryGrip, 0).applyQuaternion(g.quaternion).add(g.position);
+  }
+
   function applyArms() {
     if (!rig.right) return;
     for (const [side, a] of [['r', rig.right], ['l', rig.left]]) {
@@ -513,7 +545,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     /** Talking (answering you): the gauge flickers with the words, the lamps chatter, the head nods. */
     talk(on) { talking = !!on; },
     /** What its arms must keep out of besides itself: boxes (THREE.Box3) in the parent's frame. */
-    setSolids(boxes) { solids = boxes; },
+    setSolids(boxes, low = []) { solids = [...boxes.map((box) => ({ box })), ...low.map((box) => ({ box, low: true }))]; },
     /** Where its head is (for looking it in the eye). */
     get head() { return rig.head; },
     /** Keep its eyes (the dial) on a world point while it works, or null to look ahead again. */
@@ -523,28 +555,56 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     /** Roll to `spot` (parent frame) facing `heading`. */
     roll(spot, heading, dur = 0.9) { moveTo(spot, heading, dur); },
     /**
-     * What the left pincer holds: 'towel' (its usual), 'bottle' (tinted `color`), 'spoon',
-     * 'swizzle', 'garnish' (with `object` in it), 'real' (a real bottle, `object`, standing on
-     * y = 0 and `height` tall: held round the body, neck toward the pour), or nothing.
-     * `shaker` shows or hides the one in the right.
+     * What a pincer holds: 'towel' (the left's usual), 'spoon', 'swizzle', 'garnish' (with
+     * `object` in it; `side` 'r' for the right), or nothing. `shaker` shows or hides the one in
+     * the right. (A bottle is carry()'d.)
      */
-    hold(item, { color, object, shaker = true, side = 'l', height = 0.25 } = {}) {
+    hold(item, { object, shaker = true, side = 'l' } = {}) {
       if (!rig.tools) return;
       const name = item === 'garnish' && side === 'r' ? 'garnishR' : item;
       rig.towel.visible = item === 'towel';
-      for (const [k, g] of Object.entries(rig.tools)) g.visible = k === name;
-      if (item === 'bottle' && color !== undefined) { rig.bottleGlass.color.set(color); rig.bottleGlass.emissive.set(color); }
+      for (const [k, g] of Object.entries(rig.tools)) if (k !== 'carry') g.visible = k === name;
       if (item === 'garnish') { rig.tools[name].clear(); if (object) rig.tools[name].add(object); }
-      if (item === 'real') {
-        const g = rig.tools.real;
-        g.clear();
-        // held round the body, neck first: the base sticks out behind the pincer
-        const grip = height * 0.45;
-        if (object) { object.rotation.set(Math.PI, 0, 0); object.position.set(0, grip, 0); g.add(object); }
-        g.userData.tip = new THREE.Vector3(0, grip - height, 0).applyEuler(g.rotation).add(g.position);
-        g.userData.back = new THREE.Vector3(0, grip, 0).applyEuler(g.rotation).add(g.position);
-      }
       rig.shaker.visible = shaker && name !== 'garnishR';
+    },
+    /**
+     * Take `object` (standing on its own y = 0, `height` tall) in the left pincer, gripped `grip`
+     * up from its base; null lets go. Returns what it was carrying, to put back where it goes.
+     */
+    carry(object, { height = 0.25, grip = height * 0.55 } = {}) {
+      const g = rig.tools && rig.tools.carry;
+      if (!g) return null;
+      const was = carried;
+      if (was) g.remove(was);
+      carried = object || null;
+      g.visible = !!carried;
+      if (carried) {
+        carryH = height; carryGrip = grip;
+        carried.position.set(0, -grip, 0);
+        carried.quaternion.identity();
+        g.add(carried);
+        rig.towel.visible = false;
+        orient();
+      }
+      return was;
+    },
+    /**
+     * Move the left pincer's grip to `at` (the parent's frame), turning what it carries to `quat`
+     * (the parent's frame), the pincer `open` (0 shut, 0.45 wide). Called every frame along a path;
+     * the arm follows it closely (snaps to it under reduced motion), kept clear of itself.
+     */
+    drive(at, quat, open = 0.1) {
+      if (!rig.right) return;
+      carryQuat.copy(quat);
+      const far = !driving || lastAt.distanceTo(at) > 0.12;
+      driving = true; lastAt.copy(at);
+      work = { r: work && work.r, l: { at: at.clone(), driven: true } };
+      poseUntil = -1;
+      root.updateMatrixWorld(true);
+      const world = root.parent ? root.parent.localToWorld(at.clone()) : at.clone();
+      target.l = [...solveArm('l', world, far ? target.l : cur.l, !far), open];
+      if (reducedMotion) cur.l = [...target.l];
+      applyArms(); orient();
     },
     /**
      * Put a hand's held thing where it's needed: `r` / `l` are { at (a point in the parent frame),
@@ -552,6 +612,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
      * cap, or the pincer when `pincer`. null for both ends it.
      */
     reach(r, l) {
+      driving = false;
       work = r || l ? { r, l } : null;
       if (!work) { pose('rest'); return; }
       target = { r: [...POSES.rest.r], l: [...POSES.rest.l] };
@@ -561,7 +622,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     /** For tests: what each hand is reaching for, and where its tip is (parent frame). */
     debug() {
       const toParent = (v) => (v && root.parent ? root.parent.worldToLocal(v) : v);
-      return { work: work && { r: work.r && work.r.at, l: work.l && work.l.at }, r: toParent(this.tip('r')), l: toParent(this.tip('l')),
+      const grip = rig.left && toParent(GRIP.clone().applyMatrix4(rig.left.hand.matrixWorld)); // the left pincer's grip, which drive() moves
+      return { work: work && { r: work.r && work.r.at, l: work.l && work.l.at }, r: toParent(this.tip('r')), l: toParent(this.tip('l')), grip,
         held: rig.tools && Object.entries(rig.tools).filter(([, g]) => g.visible).map(([k]) => k), target, cur };
     },
     /** Where a hand's held thing ends, in world space (null without arms). */
@@ -589,7 +651,8 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       if (poseUntil > 0 && clock > poseUntil) { poseUntil = -1; target = POSES[after]; if (reducedMotion) { cur.r = [...target.r]; cur.l = [...target.l]; } }
       if (!reducedMotion) {
         const k = 1 - Math.exp(-dt * 9);
-        for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) cur[side][i] += (target[side][i] - cur[side][i]) * k;
+        const kd = 1 - Math.exp(-dt * 30); // a carried bottle follows its path closely
+        for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) cur[side][i] += (target[side][i] - cur[side][i]) * (side === 'l' && driving ? kd : k);
       }
       // Idle: every so often, wipe the counter in little circles. Only when motion is allowed, and
       // only when it's standing at rest with nothing else to do.
@@ -617,6 +680,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         body.position.y = reducedMotion ? 0 : Math.sin(t * 2.1) * 0.006;
       }
       applyArms();
+      orient();
       if (rig.needle) {
         // the gauge swings to VOLCANIC while shaking, idles near MILD
         // (+z rotation swings it left, toward MILD; the scale spans ±2.2 rad)
