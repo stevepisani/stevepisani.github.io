@@ -199,14 +199,18 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     const valve = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.08, 10), glow(PALETTE.amber, 2.4), [0, 0.45, 0], head, { cast: false });
     const dome = mesh(new THREE.SphereGeometry(0.145, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), M.glass, [0, 0.41, 0], head, { cast: false });
     dome.renderOrder = 1;
-    // the antenna on a coil spring, so it wobbles like a toy's
+    // the antenna on a coil spring, so it wobbles like a toy's: all of it sways from the coil's foot
+    const whip = new THREE.Group();
+    whip.position.y = 0.56;
+    whip.userData.noBatch = true;
+    head.add(whip);
     {
       const pts = [];
-      for (let i = 0; i <= 60; i++) { const k = i / 60; pts.push(new THREE.Vector3(Math.cos(k * 28) * 0.018, 0.56 + k * 0.1, Math.sin(k * 28) * 0.018)); }
-      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.004, 5), M.chrome, [0, 0, 0], head);
+      for (let i = 0; i <= 60; i++) { const k = i / 60; pts.push(new THREE.Vector3(Math.cos(k * 28) * 0.018, k * 0.1, Math.sin(k * 28) * 0.018)); }
+      mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.004, 5), M.chrome, [0, 0, 0], whip);
     }
-    mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.14, 6), M.chrome, [0, 0.72, 0], head);
-    const antenna = mesh(new THREE.SphereGeometry(0.028, 10, 8), glow(PALETTE.coral, 4), [0, 0.79, 0], head, { cast: false });
+    mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.14, 6), M.chrome, [0, 0.16, 0], whip);
+    const antenna = mesh(new THREE.SphereGeometry(0.028, 10, 8), glow(PALETTE.coral, 4), [0, 0.23, 0], whip, { cast: false });
 
     /* ---------- Jointed arms with pincer hands ---------- */
     const arm = (s) => {
@@ -286,7 +290,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     carry.position.y = -0.09; // between the pincer's fingers
     carry.visible = false;
     left.hand.add(carry);
-    Object.assign(rig, { head, needle, ears, valve, antenna, left, right, lamps, shaker, tools: { spoon, swizzle, garnish, garnishR, carry } });
+    Object.assign(rig, { head, needle, ears, valve, antenna, whip, left, right, lamps, shaker, tools: { spoon, swizzle, garnish, garnishR, carry } });
     // what comes and goes, blinks or changes colour as it works: never merged with the rest (batch.js)
     for (const o of [antenna, shaker, rig.towel, ...lamps, ...Object.values(rig.tools)]) if (o) o.userData.noBatch = true;
   }
@@ -301,6 +305,13 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     wipe:  { r: [-0.55, -0.12, -1.25, 0.1], l: [-1.05, 0.15, -0.55, 0.3] },  // towel down on the bar top
   };
   const cur = { r: [...POSES.rest.r], l: [...POSES.rest.l] };
+  // Springs, so things overshoot a little and settle, like a tin toy's: the arms' joints, the
+  // body's lean as it rolls, the antenna on its coil, and the gauge's needle
+  const vel = { r: [0, 0, 0, 0], l: [0, 0, 0, 0] };
+  const spring = (x, v, to, w, z, dt) => { const a = w * w * (to - x) - 2 * z * w * v; v += a * dt; return [x + v * dt, v]; };
+  const sway = { lean: 0, leanV: 0, roll: 0, rollV: 0, wx: 0, wxV: 0, wz: 0, wzV: 0, needleV: 0 };
+  const lastPos = new THREE.Vector3(), lastVel = new THREE.Vector3(), _v = new THREE.Vector3();
+  let lastYaw = 0, lastSpin = 0;
   let target = POSES.rest;
   const home = { pos: new THREE.Vector3(), heading: 0 };
   const goal = { pos: new THREE.Vector3(), heading: 0 };
@@ -517,6 +528,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
     setHome(pos, heading) {
       home.pos.copy(pos); home.heading = heading;
       root.position.copy(pos); root.rotation.y = heading;
+      lastPos.copy(pos); lastVel.set(0, 0, 0); lastYaw = heading; // so it doesn't lurch on its first frame
       goal.pos.copy(pos); goal.heading = heading;
     },
     /** Roll to `spot` and turn to face `guest` (both in the parent frame). */
@@ -644,15 +656,40 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         rolled += before.distanceTo(root.position) + Math.abs(dt * 0.6); // a turn-in-place still turns the wheel a little
       }
       wheel.rotation.x = rolled / WHEEL_R;
+      // Follow-through: top-heavy on one wheel, it leans back as it sets off and forward as it
+      // stops, out as it turns; the antenna on its coil swings after it
+      if (!reducedMotion && dt > 0) {
+        const h = Math.min(dt, 0.05);
+        _v.subVectors(root.position, lastPos).divideScalar(h);
+        const accel = _v.clone().sub(lastVel).divideScalar(h);
+        const fwd = accel.x * Math.sin(root.rotation.y) + accel.z * Math.cos(root.rotation.y);
+        const spin = lerpAngle(0, root.rotation.y - lastYaw, 1) / h;
+        lastVel.copy(_v); lastPos.copy(root.position); lastYaw = root.rotation.y;
+        const leanTo = THREE.MathUtils.clamp(-fwd * 0.02, -0.12, 0.12), rollTo = THREE.MathUtils.clamp(-spin * 0.04, -0.08, 0.08);
+        for (let n = 0, steps = Math.ceil(h / 0.01), q = h / steps; n < steps; n++) {
+          [sway.lean, sway.leanV] = spring(sway.lean, sway.leanV, leanTo, 9, 0.35, q);
+          [sway.roll, sway.rollV] = spring(sway.roll, sway.rollV, rollTo, 9, 0.35, q);
+          // the antenna is pushed by the body's lean and the head's turn, and rings on its coil
+          [sway.wx, sway.wxV] = spring(sway.wx, sway.wxV, -sway.leanV * 0.25 - (headPitch - lastSpin) * 2, 15, 0.12, q);
+          [sway.wz, sway.wzV] = spring(sway.wz, sway.wzV, sway.rollV * 0.25 + spin * 0.03, 15, 0.12, q);
+        }
+        lastSpin = headPitch;
+        sway.wx = THREE.MathUtils.clamp(sway.wx, -0.6, 0.6); sway.wz = THREE.MathUtils.clamp(sway.wz, -0.6, 0.6);
+        if (rig.whip) rig.whip.rotation.set(sway.wx, 0, sway.wz);
+      }
       // making a drink: keep stirring / swizzling (re-solved each frame from where the arm is)
       if (work && ((work.l && work.l.wiggle) || (work.r && work.r.wiggle))) solveWork(clock, false);
       if (rig.tools && rig.tools.swizzle.visible && !reducedMotion) rig.tools.swizzle.rotation.y += dt * 40; // spun between the palms
       // arms ease toward the target pose, then back to `after`
       if (poseUntil > 0 && clock > poseUntil) { poseUntil = -1; target = POSES[after]; if (reducedMotion) { cur.r = [...target.r]; cur.l = [...target.l]; } }
       if (!reducedMotion) {
-        const k = 1 - Math.exp(-dt * 9);
-        const kd = 1 - Math.exp(-dt * 30); // a carried bottle follows its path closely
-        for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) cur[side][i] += (target[side][i] - cur[side][i]) * (side === 'l' && driving ? kd : k);
+        // each joint on a spring that overshoots a little and settles; a carried bottle follows its
+        // path closely; in small steps, so a slow frame doesn't throw it
+        const kd = 1 - Math.exp(-dt * 30);
+        for (const side of ['r', 'l']) for (let i = 0; i < 4; i++) {
+          if (side === 'l' && driving) { cur[side][i] += (target[side][i] - cur[side][i]) * kd; vel[side][i] = 0; continue; }
+          for (let n = 0, steps = Math.ceil(dt / 0.01), h = dt / steps; n < steps; n++) [cur[side][i], vel[side][i]] = spring(cur[side][i], vel[side][i], target[side][i], 13, 0.55, h);
+        }
       }
       // Idle: every so often, wipe the counter in little circles. Only when motion is allowed, and
       // only when it's standing at rest with nothing else to do.
@@ -669,13 +706,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
         for (let i = 0; i < 3; i++) {
           cur.r[i] = target.r[i] + (SHAKE_LO[i] + (SHAKE_HI[i] - SHAKE_LO[i]) * u - target.r[i]) * k;
           cur.l[i] = target.l[i] + (BALANCE_LO[i] + (BALANCE_HI[i] - BALANCE_LO[i]) * (1 - u) - target.l[i]) * k;
+          vel.r[i] = vel.l[i] = 0; // the springs pick up from wherever the shake leaves them
         }
-        body.rotation.x = -0.05 * u * k;                 // leaning into it
-        body.rotation.z = snap * 0.025 * k;
+        body.rotation.x = -0.05 * u * k + sway.lean;     // leaning into it
+        body.rotation.z = snap * 0.025 * k + sway.roll;
         body.position.y = Math.abs(w) * 0.014 * k;       // a tin toy rattles when it works
+        sway.wxV += snap * 40 * k * dt; sway.wzV += w * 25 * k * dt; // and its antenna boings
       } else {
-        body.rotation.x = 0;
-        body.rotation.z = 0;
+        body.rotation.x = sway.lean;
+        body.rotation.z = sway.roll;
         // a little bob on the wheel, only when motion is allowed
         body.position.y = reducedMotion ? 0 : Math.sin(t * 2.1) * 0.006;
       }
@@ -684,10 +723,15 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       if (rig.needle) {
         // the gauge swings to VOLCANIC while shaking, idles near MILD
         // (+z rotation swings it left, toward MILD; the scale spans ±2.2 rad)
-        const aim = shaking ? -1.9
-          : talking && !reducedMotion ? 0.9 + Math.sin(clock * 13) * 0.35 + Math.sin(clock * 7.3) * 0.25 // the needle flickers with the words
-            : 1.6 + (reducedMotion ? 0 : Math.sin(t * 1.3) * 0.05);
-        rig.needle.rotation.z += (aim - rig.needle.rotation.z) * (reducedMotion ? 1 : Math.min(1, dt * 8));
+        // how hard it's working: all out shaking (straining against it), partway while it tips a
+        // bottle, flickering as it talks; on a spring, so it swings past and settles
+        const tipped = carried ? 1 - _v.set(0, 1, 0).applyQuaternion(carryQuat).y : 0; // 0 upright to 2 upside down
+        const aim = shaking ? -1.9 + (reducedMotion ? 0 : Math.sin(clock * 23) * 0.12)
+          : carried ? 1.6 - Math.min(1, tipped / 1.4) * 1.5
+            : talking && !reducedMotion ? 0.9 + Math.sin(clock * 13) * 0.35 + Math.sin(clock * 7.3) * 0.25 // the needle flickers with the words
+              : 1.6 + (reducedMotion ? 0 : Math.sin(t * 1.3) * 0.05);
+        if (reducedMotion) rig.needle.rotation.z = aim;
+        else for (let n = 0, steps = Math.ceil(Math.min(dt, 0.05) / 0.01), q = Math.min(dt, 0.05) / steps; n < steps; n++) [rig.needle.rotation.z, sway.needleV] = spring(rig.needle.rotation.z, sway.needleV, aim, 10, 0.25, q);
         rig.antenna.visible = (t % 2) > 0.15 || reducedMotion;
         const pulse = 1 + (reducedMotion ? 0 : Math.sin(t * 3) * 0.15);
         rig.valve.scale.set(pulse, 1, pulse);
