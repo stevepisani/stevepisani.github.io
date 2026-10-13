@@ -13,7 +13,7 @@ import { PALETTE } from './materials.js';
  * left out, and loaded instead by `{ lazy: true }` once the scene is up; `"lazy": "bar"` (the
  * bottles the robot pours from) by `{ lazy: 'bar' }`, when someone walks up to the bar.
  */
-export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) { // lazy: false | true | 'bar'
+export async function loadHeroes(loader, baseUrl, { lazy = false, first = [], onEach = null } = {}) { // lazy: false | true | 'bar'
   const heroes = new Map();
   let manifest = {};
   try {
@@ -25,10 +25,19 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) { // la
   // model is parsed on the main thread, and thirty at once would hold up the planet for seconds.
   // `lazy: true` after the reveal; `lazy: "bar"` only when asked for (the bottles a drink is made from)
   const entries = Object.entries(manifest).filter(([, spec]) => (lazy === 'bar' ? spec.lazy === 'bar' : !!spec.lazy === lazy && spec.lazy !== 'bar'));
+  // `first`: slots wanted soonest (the bottles of the drink just ordered)
+  entries.sort(([a], [b]) => (first.includes(a) ? 0 : 1) - (first.includes(b) ? 0 : 1));
+  // After the reveal every file is asked for at once, so the network fetches them together, and
+  // each is parsed in turn as it's needed; `onEach(slot, holder)` hands each over as it's ready.
+  const files = lazy ? new Map(entries.map(([slot, spec]) => {
+    const f = fetch(baseUrl + spec.file).then((r) => { if (!r.ok) throw new Error(`${r.status} ${spec.file}`); return r.arrayBuffer(); });
+    f.catch(() => {}); // reported when it's parsed
+    return [slot, f];
+  })) : null;
   const gap = () => new Promise((ok) => requestAnimationFrame(() => setTimeout(ok, 0)));
   const each = async ([slot, spec]) => {
     try {
-      const gltf = await loader.loadAsync(baseUrl + spec.file);
+      const gltf = files ? await loader.parseAsync(await files.get(slot), baseUrl) : await loader.loadAsync(baseUrl + spec.file);
       const root = gltf.scene;
       // turn first, so centring and grounding use the turned footprint (`rotate`: [x, y, z]
       // radians, for a model lying the wrong way; `rotateY` for one facing the wrong way)
@@ -65,6 +74,7 @@ export async function loadHeroes(loader, baseUrl, { lazy = false } = {}) { // la
       holder.add(root);
       holder.userData.spec = spec; // for slots that place parts on the model (the launch console)
       heroes.set(slot, holder);
+      if (onEach) await onEach(slot, holder);
     } catch (e) {
       console.warn('hero prop failed to load, using the procedural one:', slot, e);
     }

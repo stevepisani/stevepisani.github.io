@@ -963,7 +963,7 @@ async function start() {
   function startMaking(idx) {
     const recipe = (data.drinks || [])[idx];
     if (!recipe) return;
-    loadBarBottles();
+    loadBarBottles(recipe.build);
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
     if (state !== 'seat' || ordering) return;
     if (making) making.cancel();
@@ -2969,13 +2969,15 @@ async function start() {
     window.__world.bottles = models.size;
   }), 2500);
   // the bottles a drink is made from (three megabytes most visitors never need): when someone
-  // walks up to the bar, or orders from elsewhere
   let barBottles = null;
-  loadBarBottles = () => {
-    barBottles = barBottles || loadHeroes(loader, heroUrl, { lazy: 'bar' }).then(prepare).then((models) => {
-      bar.setBottles(models);
-      window.__world.barBottles = models.size;
-    });
+  // walks up to the bar, or orders from elsewhere: all fetched at once, the drink's own first, each
+  // handed to the robot the moment it's ready
+  loadBarBottles = (lines = []) => {
+    barBottles = barBottles || loadHeroes(loader, heroUrl, {
+      lazy: 'bar',
+      first: bar.bottleKeys(lines),
+      onEach: async (slot, model) => { const one = new Map([[slot, model]]); await prepare(one); bar.setBottles(one); },
+    }).then((models) => { window.__world.barBottles = models.size; });
   };
 }
 

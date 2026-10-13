@@ -1012,6 +1012,10 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     /** The favorite-drinks chalkboard: { group, face, rows, size, rowAt(uv), mark(i) }. */
     board,
     setBottles,
+    /** The bottle models a drink's lines pour from (`bottle-*`), or with none, the four the caddy starts with. */
+    bottleKeys(lines = []) {
+      return (lines.length ? lines : ['planteray', 'campari', 'chartreuse', 'meletti']).map((l) => REAL.find(([re]) => re.test(l.toLowerCase()))).filter(Boolean).map(([, k]) => 'bottle-' + k);
+    },
     /** For tests: what's in the caddy, line by line, and whether it's the real bottle yet. */
     caddySlots: () => caddy.slots.map((it) => ({ line: it.line, real: !it.plain })),
     /** Where sound effects go (sound.js `play`). */
