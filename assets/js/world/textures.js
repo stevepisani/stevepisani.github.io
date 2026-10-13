@@ -812,3 +812,20 @@ export function plumeria() {
   }
   return texture(c);
 }
+
+/** The cut face of a citrus wheel: rind, white pith, and segments with white between them. */
+export function citrusWheel(color = PALETTE.orange) {
+  const S = 64;
+  const [c, g] = canvas(S, S);
+  const m = S / 2;
+  g.fillStyle = css(color); g.beginPath(); g.arc(m, m, m, 0, Math.PI * 2); g.fill();          // rind
+  g.fillStyle = '#fbf3df'; g.beginPath(); g.arc(m, m, m - 3, 0, Math.PI * 2); g.fill();       // pith
+  for (let i = 0; i < 10; i++) {                                                               // segments
+    const a = (i / 10) * Math.PI * 2;
+    g.fillStyle = css(color);
+    g.beginPath(); g.moveTo(m + Math.cos(a + 0.05) * 3, m + Math.sin(a + 0.05) * 3);
+    g.arc(m, m, m - 6, a + 0.06, a + (Math.PI * 2) / 10 - 0.06); g.closePath(); g.fill();
+  }
+  g.fillStyle = 'rgba(255,255,255,.25)'; g.beginPath(); g.arc(m - 6, m - 8, m / 3, 0, Math.PI * 2); g.fill(); // it's wet
+  return texture(c);
+}
