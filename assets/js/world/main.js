@@ -963,6 +963,7 @@ async function start() {
   function startMaking(idx) {
     const recipe = (data.drinks || [])[idx];
     if (!recipe) return;
+    loadBarBottles();
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
     if (state !== 'seat' || ordering) return;
     if (making) making.cancel();
@@ -2658,7 +2659,7 @@ async function start() {
     if (state === 'walk') {
       // the bartender waves you over once as you walk up (again if you wander off and come back)
       const toBar = player.pos.distanceTo(barSpot.approach);
-      if (!beckoned && toBar < 9 && toBar > 2.5) { beckoned = true; bar.beckon(player.pos); }
+      if (!beckoned && toBar < 9 && toBar > 2.5) { beckoned = true; bar.beckon(player.pos); loadBarBottles(); } // the bottles, so they're here by the time you order
       else if (toBar > 13) beckoned = false;
       player.enabled = panel.hidden && menu.hidden;
       player.update(dt);
