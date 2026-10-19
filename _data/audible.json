@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
-      "seq": "1.5",
+      "series": "The Captive's War",
+      "seq": "",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -2699,7 +2699,7 @@
       "genre": "Business & Careers",
       "minutes": 1037,
       "released": "2014-10-07",
-      "cover": "https://m.media-amazon.com/images/I/51cqafqROkL._SL500_.jpg",
+      "cover": "https://m.media-amazon.com/images/I/51dTEDapXPL._SL500_.jpg",
       "sample": "https://samples.audible.com/bk/sans/006807/bk_sans_006807_sample.mp3",
       "finished": true,
       "finished_on": "2023-01-23",
@@ -5798,5 +5798,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-17"
+  "updated": "2026-10-19"
 }
