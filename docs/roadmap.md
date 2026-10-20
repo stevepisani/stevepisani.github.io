@@ -99,6 +99,8 @@ rather than leaving it in a chat.
   be on the site (the database refuses it). Today and each leg of a trip show what's saved
   nearby, with "Add to this day". In SJPJr, `find_places`, and `get_today` has saved nearby. The
   places with no coordinates are found by the Places API (New), capped at 1,000 calls a month.
+- Oct 2026: the rocket is scenery now: tapping it no longer leaves for the classic site (the
+  menu's "Regular website" link does that).
 - Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with
   how it was known; on Today, "Wore it" logs the planned outfit in one tap (Undo, Change, or pick
   the pieces at home) and a line about the day saves as you leave it, offline too; each past day
