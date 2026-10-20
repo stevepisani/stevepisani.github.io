@@ -15,8 +15,8 @@
   <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high">
   {%- comment -%} The hero models the first frame needs (written by npm run build from their manifest):
   fetched alongside the script rather than after it has run. {%- endcomment %}
-  <link rel="preload" href="{{ '/assets/images/earth/earth-day.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
-  <link rel="preload" href="{{ '/assets/images/earth/earth-night.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
+  <link rel="preload" href="{{ '/assets/images/earth/earth-day-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
+  <link rel="preload" href="{{ '/assets/images/earth/earth-night-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
   {%- for f in site.data.hero_preload %}
   <link rel="preload" href="{{ '/assets/models/hero/' | append: f | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
   {%- endfor %}
