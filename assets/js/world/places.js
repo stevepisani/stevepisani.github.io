@@ -176,7 +176,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
 
   let launchControl = null; // the launch console, for main.js (below)
   // Your ship (rocket.js): how you got here, a Saturn V cut down into an Outer Wilds-style lander,
-  // standing on its legs on a landing pad. "Fly home" leaves for the classic site. At night it
+  // standing on its legs on a landing pad (scenery: the menu links to the classic site). At night it
   // has to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and a
   // beacon on the escape tower's nose blinks like an aircraft's.
   {
@@ -238,7 +238,6 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
       pad.add(flood, flood.target);
     }
     colliders.push({ center: pad.position.clone(), radius: 1.2 });
-    interactables.push({ id: 'rocket', label: 'Your rocket', verb: 'Fly to the classic site', object: rocket, point: pad.position.clone(), approach: surfacePoint(dirFrom(0.66, 1.42)), radius: 2.6 });
 
     // Launch control: a console beside the pad, off to one side of where the path comes in, its
     // screen counting down to the next launch anywhere (site.js launches(): Launch Library 2,

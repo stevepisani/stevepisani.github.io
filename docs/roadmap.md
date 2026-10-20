@@ -86,6 +86,8 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the rocket is scenery now: tapping it no longer leaves for the classic site (the
+  menu's "Regular website" link does that).
 - Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with
   how it was known; on Today, "Wore it" logs the planned outfit in one tap (Undo, Change, or pick
   the pieces at home) and a line about the day saves as you leave it, offline too; each past day
