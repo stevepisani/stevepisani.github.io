@@ -33,7 +33,7 @@ design: row-level security guards every table.
   secret still trusted), `auth.json` and the email templates through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
-  copies the `ANTHROPIC_API_KEY` repo secret into the project's function secrets, and deploys
+  copies the `ANTHROPIC_API_KEY` and `GOOGLE_MAPS_API_KEY` repo secrets into the project's function secrets, and deploys
   every function (Supabase CLI, `--use-api`, no Docker). To try a change before merging, run the
   workflow on your branch (Actions → Supabase → Run workflow). Every hour it also asks the API for
   something, because free projects pause after a week without requests, makes the smaller copies of
@@ -57,7 +57,10 @@ What's in the database:
 | `wardrobe_items`, `wardrobe_variants`, `wardrobe_products`, `wardrobe_photos`, view `wardrobe_closet` | the wardrobe (in SJPJr, `/apps`): each owned garment, the colour and size it is, the garment as sold, its photos; the view resolves them flat (`docs/apps.md`) | each member their own rows; what's linked must be theirs too |
 | `trips` | the wardrobe's trips | each member their own |
 | `events` | what happened, a day at a time: what Steve wore and a line about the day (later visits, meals, buys), each with how it was known; only added to, the newest of a day standing, Undo to the trash (`docs/apps.md`, "Days") | each member their own; a day's trip must be theirs |
-| `photos` bucket | every private app's pictures, a folder per app (recipe photos from before Oct 2026 are at the root) | members only |
+| `places`, view `public_places` | Places, a tab in SJPJr: what Steve saved in Google Maps, one record a place, each with its lists and the files it came from, waiting for review, private until shared or made public; `places_guard` marks what can never be public (home, work, labeled places, lodging, near home) and a check enforces it; `places_import()` adds and merges an import (`docs/apps.md`, "Places") | each member their own; other members read what's kept and shared or public; anyone reads `public_places` (kept, public, not sensitive: name, lists, a rounded location, stars) |
+| `inbox` | raw evidence not yet filed, kept as it came: today, each Google Takeout imported, its files under `photos/inbox/<owner>/` | each member their own |
+| `places_api_usage`, `places_api_take(n)` | the Places API's calls this month, capped at 1,000 | members take through the function; nobody reads the table |
+| `photos` bucket | every private app's pictures and files, a folder per app (recipe photos from before Oct 2026 are at the root) | members; `wardrobe/` and `inbox/` each person's own folder |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
 | `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts; members read rows; everyone reads daily totals |
 | `bartender_usage`, `bartender_asks`, `bartender_take()`, `bartender_spent()` | the bartender's limits and token log | service role only |
@@ -79,6 +82,13 @@ refused a token (the error, and the token's non-personal claims), and keeps the 
 client id as who recorded what a chat logs (`events.recorded_by`). It keeps the weather half an
 hour per place and day, so a chat's get_today and get_trip ask Open-Meteo once. No running cost.
 See `docs/apps.md`.
+
+`supabase/functions/places-locate`: finds where the saved places with no coordinates are (a
+saved list gives only a name and a link), 25 a call, by the Places API (New) Text Search with a
+field mask of only `places.id,places.location,places.formattedAddress`, as the member (row-level
+security applies), each batch taken from `places_api_take` first (1,000 a month; the key's own
+daily quota is a backstop). With no `GOOGLE_MAPS_API_KEY` it answers `missing_key` and changes
+nothing. Deployed with `--no-verify-jwt`, checking the caller itself like the others.
 
 ## The telescope's moon (`supabase/functions/sky`)
 
@@ -163,6 +173,9 @@ Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't r
 - `SUPABASE_ACCESS_TOKEN`: the Supabase Management API, for `supabase.yml`.
 - `ANTHROPIC_API_KEY`: copied into the bartender function's secrets on deploy. A monthly spend
   limit is also set in the Anthropic console, as a backstop to the cap in code.
+- `GOOGLE_MAPS_API_KEY`: the Places API (New), for `places-locate`; copied into the function
+  secrets on deploy. A Google Cloud key restricted to Places API (New), with a per-day quota of
+  100 as a backstop to the cap in code (the steps are in `docs/roadmap.md`, "Waiting on Steve").
 - `CLOUDFLARE_API_TOKEN` (Cloudflare Pages: Edit) and `CLOUDFLARE_ACCOUNT_ID`: the MCP server's
   address, for `mcp-proxy.yml` (`docs/apps.md`).
 - `AUDIBLE_AUTH`: the Audible device registration, for `audible.yml` (above).
@@ -179,6 +192,7 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | The bartender (capped at 1,000 replies a month) | up to about $5 |
 | Audible sync (a minute of Actions a day) | $0 |
 | mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
+| Places API (New), finding saved places (capped at 1,000 calls a month, inside Google's free monthly calls for Text Search) | $0 |
 | The telescope's moon (an edge function call per visitor per hour, on the free plan's 500,000 a month) | $0 |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.

@@ -12,6 +12,7 @@
 import { chromium } from 'playwright';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
+import { zipSync } from 'fflate';
 import { join, extname, resolve, relative } from 'node:path';
 import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
@@ -1488,6 +1489,128 @@ async function card(page, shot) {
   step('in the host\'s dark theme');
 }
 
+// Places (the tab): a Google Takeout zip, made from the made-up export (tools/fixtures/takeout/),
+// chosen on a phone. Its files go in the inbox, the places through places_import, and they wait
+// for review; a list is kept at once and put on the site (by what it is, never by ids), a labeled
+// place can't be; the ones with no coordinates ask places-locate, which says there's no key yet.
+// Then Today: what's saved near home, and on a day of the trip, near where he is, with a way to
+// put one on that day. The places table here is a made-up PostgREST: just the filters the app uses.
+async function placesTab(page, shot) {
+  await page.goto(base + '/404.html'); // for the Supabase settings in its head
+  const asked = await member(page, page, { me: { name: 'Steve', sections: ['today', 'closet', 'trips', 'places', 'recipes'] } });
+  const table = [];
+  const HOME_AT = { lat: 39.95, lon: -75.17 };
+  const metres = (a, b) => { const r = (d) => (d * Math.PI) / 180, h = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lon - a.lon) / 2) ** 2; return 2 * 6371000 * Math.asin(Math.sqrt(h)); };
+  // places_guard, the short version
+  const guard = (p) => (p.label ? (/^home$/i.test(p.label) ? 'home' : 'personal') : /hotel/i.test(p.name) ? 'lodging' : p.lat != null && metres(HOME_AT, p) <= 1000 ? 'near_home' : null);
+  const unq = (s) => s.replace(/^"|"$/g, '');
+  const matches = (p, params) => [...params].every(([k, v]) => {
+    if (['select', 'order', 'offset', 'limit'].includes(k)) return true;
+    const [, op, val] = /^(\w+)\.(.*)$/.exec(v) || [];
+    if (op === 'eq') return String(p[k]) === unq(val);
+    if (op === 'neq') return String(p[k]) !== unq(val);
+    if (op === 'is') return val === 'null' ? p[k] == null : true;
+    if (op === 'in') return val.slice(1, -1).split(',').map(unq).includes(String(p[k]));
+    if (op === 'cs') return val.slice(1, -1).split(',').map(unq).every((x) => p[k].includes(x));
+    return true;
+  });
+  await page.route(/supabase\.co\/(rest\/v1\/(places|inbox)|rest\/v1\/rpc\/places_import|functions\/v1\/places-locate)/, (route) => {
+    const req = route.request(), url = new URL(req.url()), method = req.method();
+    const json = (b, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(b) });
+    if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
+    const body = (() => { try { return req.postDataJSON(); } catch (e) { return null; } })();
+    asked.push({ method, path: url.pathname + url.search, body });
+    if (url.pathname.endsWith('/rpc/places_import')) {
+      let added = 0, merged = 0;
+      for (const p of body.places) {
+        const had = table.find((x) => x.import_key === p.import_key);
+        if (had) { had.lists = [...new Set([...had.lists, ...p.lists])].sort(); merged++; continue; }
+        table.push({ id: `pl${table.length + 1}`, owner: 'u1', status: 'review', visibility: 'private', created_at: new Date().toISOString(), ...p, sensitive: guard(p) });
+        added++;
+      }
+      return json({ added, merged });
+    }
+    if (url.pathname.endsWith('/functions/v1/places-locate')) return json({ located: 0, left: table.filter((p) => p.lat == null).length, missing_key: true });
+    if (url.pathname.endsWith('/rest/v1/inbox')) return method === 'POST' ? json({ id: 'in1', owner: 'u1', status: 'new', ...body }, 201) : json([]);
+    if (method === 'GET') return json(table.filter((p) => matches(p, url.searchParams)));
+    if (method === 'PATCH') { const hit = table.filter((p) => matches(p, url.searchParams)); for (const p of hit) Object.assign(p, body); return json([]); }
+    return json([]);
+  });
+  await page.clock.setFixedTime(new Date('2026-09-01T10:00:00-04:00')); // at home
+  await page.goto(base + '/apps/#places');
+  await until(page, () => !document.getElementById('places-view').hidden && document.getElementById('places-body').hidden);
+  if (!(await page.isVisible('#tabs a[data-value="places"]')) || (await page.textContent('#app-title')) !== 'Places') throw new Error('the Places tab isn\'t there, or doesn\'t say where it is');
+  await shot('places-empty');
+  step('Places, empty: what to pick in Takeout, and a button to choose the file');
+
+  // the export, zipped as Google zips it (a folder called Takeout), with something that isn't read
+  const root = new URL('./fixtures/takeout/', import.meta.url);
+  const walk = (dir) => readdirSync(new URL(dir, root)).flatMap((f) => (statSync(new URL(dir + f, root)).isDirectory() ? walk(`${dir}${f}/`) : [`${dir}${f}`]));
+  const zip = zipSync({ ...Object.fromEntries(walk('').map((p) => [p, readFileSync(new URL(p, root))])), 'Takeout/Maps/Commute routes/Commute routes.json': new TextEncoder().encode('{}') });
+  page.on('dialog', (d) => d.accept()); // "Put … on the site?"
+  await page.setInputFiles('#places-file', { name: 'takeout-20261020T215939Z-1-001.zip', mimeType: 'application/zip', buffer: Buffer.from(zip) });
+  await until(page, () => document.querySelectorAll('#places-rows .place').length === 11);
+  const uploads = asked.filter((a) => a.method === 'POST' && a.path.includes('/object/photos/inbox/u1/in1/')).map((a) => decodeURIComponent(a.path));
+  if (uploads.length !== 5 || uploads.some((u) => /Commute/.test(u))) throw new Error(`the inbox should keep the five files read, and only those: ${uploads.join(', ')}`);
+  if (!asked.some((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/inbox') && a.body?.paths?.length === 5)) throw new Error("the inbox row wasn't given its files");
+  if (!/11 new places/.test(await page.textContent('#app-toast'))) throw new Error(`the import should say what it added: ${await page.textContent('#app-toast')}`);
+  if (!(await page.textContent('#places-status-chips')).includes('To review11')) throw new Error('every place should wait for review');
+  await shot('places-imported');
+  step('a Takeout zip: its five files kept in the inbox (nothing else), 11 places waiting for review');
+
+  // a list: keep it all, then the site; one request each, by the list, not its ids
+  await page.click('#places-lists button:has-text("Bars We Like")');
+  await page.click('#places-keep-all');
+  await until(page, () => document.getElementById('places-keep-all').hidden);
+  const keepAll = asked.filter((a) => a.method === 'PATCH' && a.path.startsWith('/rest/v1/places')).pop();
+  if (!/status=eq\.review/.test(keepAll.path) || !/lists=cs\./.test(keepAll.path) || /id=/.test(keepAll.path) || table.filter((p) => p.status === 'kept').length !== 3) throw new Error(`keeping a list: ${keepAll.path}`);
+  await page.click('#places-list-seg button[data-value="public"]');
+  await until(page, () => document.querySelector('#places-list-seg [data-value="public"]').getAttribute('aria-pressed') === 'true');
+  if (table.filter((p) => p.visibility === 'public').map((p) => p.name).sort().join() !== 'Coconut Room,Harbour Bar & Grill,Lava & Bamboo') throw new Error('the list should be on the site, all three');
+  await shot('places-list');
+  step('a list: "Keep all 3" and "The site", one request each by the list');
+
+  // a labeled place: kept, it can go to Lexi, never the site
+  await page.click('#places-lists button:has-text("Every list")');
+  await page.click('#places-status-chips button:has-text("To review")');
+  await page.click('.place__open:has-text("Home")');
+  await until(page, () => document.getElementById('place-sheet').open);
+  await page.click('#place-status [data-value="kept"]');
+  await until(page, () => !document.querySelector('#place-who [data-value="shared"]').disabled);
+  if (!(await page.isDisabled('#place-who [data-value="public"]')) || !/It's home/.test(await page.textContent('#place-why'))) throw new Error('home should never be offered for the site, and say why');
+  await shot('places-home');
+  await page.click('#place-sheet [data-close]');
+  step('home, kept: Lexi can see it if he likes, the site never (and it says why)');
+
+  // the saved lists come with no coordinates: places-locate, which has no key here, says so
+  await page.click('#places-status-chips button:has-text("All")');
+  await page.click('#places-locate');
+  await until(page, () => /Google Maps key/.test(document.getElementById('app-toast').textContent));
+  step('2 with no location: "Find where they are" asks the server, which says the key is missing');
+
+  // Today, at home: saved within 2 km of the labeled Home (not Home itself)
+  await page.click('#tabs a[data-value="today"]');
+  await until(page, () => document.querySelector('#today-view .saved-near'));
+  const atHome = await page.textContent('#today-view .saved-near');
+  if (!atHome.includes('Corner Tiki') || /Home|Aunt|Harbour/.test(atHome)) throw new Error(`Saved nearby at home: ${flatText(atHome)}`);
+  await shot('today-home');
+  step('Today at home: Saved nearby, the labeled places left out');
+
+  // a day of the trip, in Florence: what's near the leg, and a tap puts one on the day
+  await page.clock.setFixedTime(new Date('2026-10-15T10:00:00+02:00'));
+  await page.goto(base + '/apps/');
+  await until(page, () => document.querySelector('#today-view .saved-near .saved-near__add'));
+  const away = await page.textContent('#today-view .saved-near');
+  if (!/Caffè Stand-in/.test(away) || !/Lava & Bamboo/.test(away) || /Corner Tiki/.test(away)) throw new Error(`Saved nearby in Florence: ${flatText(away)}`);
+  await shot('today-away');
+  await page.locator('#today-view .saved-near__row', { hasText: 'Lava & Bamboo' }).locator('.saved-near__add').click();
+  await until(page, () => /Undo/.test(document.getElementById('app-toast').textContent));
+  const plan = asked.filter((a) => a.method === 'PATCH' && a.path.includes('/rest/v1/trips')).pop();
+  const day = plan?.body?.days?.find((d) => d.date === '2026-10-15');
+  if (!day?.activities?.some((a) => a.title === 'Lava & Bamboo' && a.place_id && a.type === 'dining')) throw new Error(`adding it to the day sent ${JSON.stringify(plan?.body?.days?.find((d) => d.date === '2026-10-15'))}`);
+  step('Today in Florence: Saved nearby, and "Add to this day" puts it on the plan with its place');
+}
+
 // Without WebGL the menu is the page, and its links are real
 async function noWebGL(page, shot) {
   await page.goto(base + '/');
@@ -1500,6 +1623,7 @@ async function noWebGL(page, shot) {
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
+if (want('apps')) await session('places tab', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'America/New_York' }, placesTab);
 if (want('apps')) await session('another member', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US' }, another);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
 if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);

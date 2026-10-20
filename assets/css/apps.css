@@ -268,7 +268,7 @@ body:has(.app-dialog[open]) { overflow: hidden; }
 /* wide, the sections sit beside the title, top right (between that and a phone, under it) */
 @media (min-width: 1000px) {
   .app:has(.tabbar:not([hidden])) { position: relative; }
-  .app:has(.tabbar:not([hidden])) .page-head { padding-right: 500px; }
+  .app:has(.tabbar:not([hidden])) .page-head { padding-right: 620px; }
   .tabbar { position: absolute; top: 34px; right: max(20px, env(safe-area-inset-right)); margin: 0; }
 }
 .tabbar a[aria-current] svg { fill: color-mix(in srgb, currentColor 16%, transparent); }
@@ -873,3 +873,47 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .wore-pick:focus-visible { outline: none; }
 .wore-pick:focus-visible .wore-pick__photo { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wore-pick__name { font-size: .82rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- Places (_includes/places.html, lib/places.js): bringing them in, the list, a place ---------- */
+.places-in { display: grid; gap: 12px; margin: 0 0 18px; padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: var(--card); }
+.places-in__title { margin: 0 0 4px; font: 600 1.15rem/1.25 var(--font-display); }
+.places-in__how { margin: 0; color: var(--ink-2); font-size: .95rem; line-height: 1.45; }
+.places-in__pick { justify-self: start; cursor: pointer; }
+.places-in__pick.is-busy { opacity: .6; pointer-events: none; }
+/* once there are places, it folds to a line at the bottom of the page */
+.places-in.is-small { order: 2; margin: 24px 0 0; padding: 14px 16px; border-style: dashed; background: none; }
+.places-in.is-small .places-in__title { font: 600 .95rem var(--font-body); }
+.places-in.is-small .places-in__how { font-size: .88rem; }
+#places-view:not([hidden]) { display: flex; flex-direction: column; }
+.places-list-bar { display: grid; gap: 10px; margin: 0 0 14px; padding: 14px 16px; border-radius: 16px; background: var(--bg-2); }
+.places-list-bar p { margin: 0; }
+.places-list-bar__text { font-weight: 600; }
+.places-list-bar__who { display: grid; gap: 8px; }
+.places-list-bar__label { color: var(--ink-2); font-size: .88rem; }
+.places-list-bar__note, .place-sheet__why { color: var(--ink-2); font-size: .88rem; line-height: 1.4; }
+.places-list-bar .btn { justify-self: start; }
+.places { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.place { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); min-width: 0; }
+.place.is-dismissed { opacity: .55; }
+.place__open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 8px 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.place__text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.place__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.place__more { color: var(--ink-2); font-size: .86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.place__keep { flex: none; }
+.place-sheet__name { margin: 2px 0 4px; font: 600 1.4rem/1.2 var(--font-display); }
+.place-sheet__address, .place-sheet__from { margin: 0 0 8px; color: var(--ink-2); font-size: .92rem; }
+.place-sheet__rating { margin: 6px 0; color: var(--sun, var(--accent)); letter-spacing: .08em; }
+.place-sheet__review, .place-sheet__note { margin: 0 0 10px; line-height: 1.45; }
+.place-sheet .settings__part { display: grid; gap: 8px; margin: 14px 0; }
+.place-sheet .seg button:disabled { opacity: .4; cursor: not-allowed; }
+/* saved nearby: on Today, and folded under each place of a trip */
+.saved-near__list { list-style: none; margin: 0; padding: 0; display: grid; }
+.saved-near__row { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.saved-near__row:last-child { border-bottom: 0; }
+.saved-near__text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.saved-near__name { font-weight: 600; color: var(--ink); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-near__more { color: var(--ink-2); font-size: .84rem; }
+.saved-near__add { flex: none; min-height: 44px; }
+.saved-near__pick { flex: none; max-width: 9.5rem; min-height: 44px; }
+.leg__saved { margin-top: 6px; }
+.leg__saved summary { display: flex; align-items: center; min-height: 44px; color: var(--ink-2); font-size: .92rem; cursor: pointer; }

@@ -10,6 +10,7 @@ import { garmentsOf } from "./trips.js";
 import { HOME } from "../../_shared/home.js";
 import { conditionOf } from "../../_shared/weather.js";
 import { ONE_A_DAY, standing, byDay, wears } from "../../_shared/days.js";
+import { nearOf, homeOf, placeOut } from "./places.js";
 
 const KINDS = ONE_A_DAY; // what log_day records today; get_history reads any kind
 const MAX_DAYS = 400; // the longest history one call reads
@@ -18,7 +19,7 @@ const TOOLS = [
   {
     name: "get_today",
     title: "Get today",
-    description: "Everything about one day in one call, the call to start with for \"what should I wear today\" or anything about today: the date and where Steve is (the trip leg he's on, else home; today is by that place's clock); the weather; the outfit planned (names and photo ids); what's been logged as worn and the day's journal line; the day's activities; the next journey and tonight's stay; the \"In the app\" link. date: another day instead (YYYY-MM-DD).",
+    description: "Everything about one day in one call, the call to start with for \"what should I wear today\" or anything about today: the date and where Steve is (the trip leg he's on, else home; today is by that place's clock); the weather; the outfit planned (names and photo ids); what's been logged as worn and the day's journal line; the day's activities; the next journey and tonight's stay; a few saved places nearby (find_places has more); the \"In the app\" link. date: another day instead (YYYY-MM-DD).",
     inputSchema: { type: "object", properties: { date: DATE }, additionalProperties: false },
     annotations: { ...read, openWorldHint: true },
   },
@@ -152,7 +153,9 @@ async function getToday(args, ctx) {
   const w = await dayOf(ctx, args.date);
   const { date, trip: t } = w, isToday = date === w.today;
   const plan = t ? (t.days || []).find((d) => d.date === date) || null : null;
-  const [weather, events] = await Promise.all([weatherOf(ctx, w.seen, w, date), ctx.events.list({ from: date, to: date })]);
+  const [weather, events, saved] = await Promise.all([weatherOf(ctx, w.seen, w, date), ctx.events.list({ from: date, to: date }), ctx.places ? ctx.places.list().catch(() => []) : []]);
+  // what's saved near where he is that day (on a trip, that day's place; at home, home itself)
+  const near = nearOf(saved, w.at === "trip" ? w : homeOf(saved), w.at === "trip" ? 5 : 2);
   const day = byDay(events).get(date) || {};
   // the next journey from then, on any trip not over yet; and that night's bed
   const ahead = w.trips.filter((x) => (span(x)[1] || "") >= addDays(date, -1));
@@ -182,6 +185,7 @@ async function getToday(args, ctx) {
     journal ? `Journal: "${journal.text}"` : "Journal: nothing yet.",
     next ? `Next journey: ${transportLine(next)}` : "",
     bed ? `Tonight: ${lodgingLine(bed)}${bed.check_out === addDays(date, 1) ? " (check out tomorrow)" : ""}` : "",
+    near.length ? `Saved nearby: ${near.map(({ p, m }) => `${p.name} (${m < 1000 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`}${p.rating ? `, ${p.rating}★` : ""}) [id ${p.id}]`).join("; ")}.` : "",
     `In the app: ${link}`,
   ].filter(Boolean).join("\n");
   const strip = (r, keys) => pick(r, keys);
@@ -195,6 +199,7 @@ async function getToday(args, ctx) {
       worn, journal,
       next_journey: next && strip(next, ["id", "trip_id", "type", "date", "origin", "destination", "origin_code", "destination_code", "departure_time", "arrival_time", "carrier", "number", "confirmation"]),
       tonight: bed && strip(bed, ["id", "name", "place", "address", "check_in", "check_out", "confirmation"]),
+      saved_nearby: near.map(({ p, m }) => placeOut(p, m)),
       link,
     },
   };
