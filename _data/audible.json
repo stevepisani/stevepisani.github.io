@@ -695,7 +695,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
-      "seq": "",
+      "series": "Captive's War",
+      "seq": "1.5",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -2454,8 +2454,7 @@
       "title": "Exit Rich",
       "subtitle": "The 6 P Method to Sell Your Business for Huge Profit",
       "authors": [
-        "Michelle Seiler Tucker",
-        "Sharon L. Lechter"
+        "Michelle Seiler Tucker"
       ],
       "narrators": [
         "Eleanor Caudill"
@@ -4003,7 +4002,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Relationships, Parenting & Personal Development",
+      "genre": "Biographies & Memoirs",
       "minutes": 817,
       "released": "2018-11-28",
       "cover": "https://m.media-amazon.com/images/I/51TNypSYkoL._SL500_.jpg",
@@ -5246,8 +5245,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "Dune",
-      "seq": "1",
+      "series": "The Dune Sequence",
+      "seq": "12",
       "genre": "Literature & Fiction",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5798,5 +5797,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-19"
+  "updated": "2026-10-20"
 }
