@@ -516,7 +516,6 @@ async function start() {
     if (it.id === 'menu') return sitDown({ pickUp: true });
     if (it.id === 'drinks') return sitDown({ then: () => lookAtBoard() });
     if (it.id === 'make') return sitDown({ then: () => startMaking(it.make) });
-    if (it.id === 'rocket') { location.href = menu.querySelector('.menu__foot a').href; return; }
     if (it.id === 'campfire') return sitAtFire();
     if (it.id === 'hammock') return lieInHammock();
     if (it.id === 'stones') return goToShore();

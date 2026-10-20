@@ -48,7 +48,8 @@ jobs:
 
   smoke:
     needs: build
-    runs-on: ubuntu-latest
+    # pinned: on ubuntu-latest's move to Ubuntu 26 (Oct 2026) `playwright install --with-deps` fails
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
