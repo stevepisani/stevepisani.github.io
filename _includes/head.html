@@ -8,10 +8,9 @@
   // Set the theme before first paint so there's no flash.
   try { var t = localStorage.getItem('theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="{{ site.supabase.url }}" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+{%- comment -%} The fonts are the site's own (tools/fonts.mjs): their rules inline, so nothing blocks the first paint {%- endcomment %}
+<style>{% include fonts-site.css %}</style>
 <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
 {% if page.layout == 'app' %}<link rel="stylesheet" href="{{ '/assets/css/apps.css' | relative_url }}?v={{ site.time | date: '%s' }}">
 <meta name="robots" content="noindex">

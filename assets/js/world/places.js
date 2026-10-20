@@ -381,7 +381,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
   // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
   // the trail comes in, and roast marshmallows.
   {
-    const cf = buildCampfire({ quality, heroes });
+    const cf = buildCampfire({ quality });
     const camp = cf.group;
     put(camp, SPOTS.campfire, { heading: 0.8 }, 3);
     camp.updateMatrixWorld(true);

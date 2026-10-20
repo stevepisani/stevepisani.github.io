@@ -7,7 +7,7 @@ import { PALETTE, pbr, surface, woodSet } from './materials.js';
 import * as T from './textures.js';
 import { createFire } from './fire.js';
 import { lavaRock, moai, thinkerFallback } from './props.js';
-import { heroOr, heroSlot } from './hero.js';
+import { heroSlot } from './hero.js';
 
 function mesh(geo, material, parent, [x, y, z] = [0, 0, 0]) {
   const m = new THREE.Mesh(geo, material);
@@ -70,7 +70,7 @@ function log(length, radius, bark, end) {
  * local height under that point, once the camp is placed) and returns the seat's poses (local):
  * { eye, look, stand, dip, rise }.
  */
-export function buildCampfire({ quality, heroes }) {
+export function buildCampfire({ quality }) {
   const group = new THREE.Group();
   const bark = surface(woodSet(PALETTE.stain), { roughness: 0.9, bumpScale: 2 });
   const endGrain = pbr({ color: PALETTE.bamboo, roughness: 0.9 });
@@ -135,8 +135,9 @@ export function buildCampfire({ quality, heroes }) {
   // company at the fire: the Thinker on his rock in one place round it, a moai behind the log
   // in another (seatToward() puts them either side of yours; places.js sinks them into the
   // ground, which curves away from the camp's flat plane)
-  const watcher = heroOr(heroes, 'moai', () => moai({ height: 2.4 }));
-  const thinker = heroOr(heroes, 'thinker', thinkerFallback);
+  // (both are on the far side from where you land, so their models load after the reveal)
+  const watcher = heroSlot('moai', new THREE.Group().add(moai({ height: 2.4 })));
+  const thinker = heroSlot('thinker', new THREE.Group().add(thinkerFallback()));
   group.add(watcher, thinker);
   const faceFire = (o, a, r) => { o.position.set(Math.cos(a) * r, 0, Math.sin(a) * r); o.rotation.y = Math.atan2(-o.position.x, -o.position.z); };
 

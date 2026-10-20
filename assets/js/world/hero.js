@@ -149,6 +149,6 @@ export function heroModel(slot) { return loaded.get(slot); }
 
 /** Clone a loaded hero for `slot`, or build the fallback. */
 export function heroOr(heroes, slot, fallback) {
-  const h = heroes && heroes.get(slot);
+  const h = (heroes && heroes.get(slot)) || loaded.get(slot); // or a lazy one, once it's in
   return h ? h.clone(true) : fallback();
 }

@@ -3,14 +3,16 @@
 <head>
   {% include head.html %}
   <script>document.documentElement.dataset.theme = 'dark';</script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Caveat:wght@500&display=swap">
+  <style>{% include fonts-world.css %}</style>
   <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
   <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
   <!-- The whole world, three.js included, is one minified file (npm run build, tools/build-js.mjs) -->
   {%- comment -%} The bundle URLs carry the build time, so a cached page and the script it loads always
   belong to the same build: GitHub Pages caches each for ten minutes, and a page from one build with the
   script from another stalls on the first frame. {%- endcomment -%}
-  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}">
+  {%- comment -%} First in line: nothing on the planet starts until the script runs, and the models below
+  would otherwise share the connection with it equally. {%- endcomment %}
+  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high">
   {%- comment -%} The hero models the first frame needs (written by npm run build from their manifest):
   fetched alongside the script rather than after it has run. {%- endcomment %}
   <link rel="preload" href="{{ '/assets/images/earth/earth-day.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
@@ -25,6 +27,6 @@
     {{ content }}
   </main>
   <script src="{{ '/assets/js/dist/site.js' | relative_url }}?v={{ site.time | date: '%s' }}" defer></script>
-  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" data-models="{{ '/assets/models/props.glb' | relative_url }}" data-earth="{{ '/assets/images/earth/' | relative_url }}"></script>
+  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high" data-models="{{ '/assets/models/props.glb' | relative_url }}" data-earth="{{ '/assets/images/earth/' | relative_url }}"></script>
 </body>
 </html>

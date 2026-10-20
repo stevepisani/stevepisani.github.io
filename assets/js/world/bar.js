@@ -75,11 +75,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
 
   // The mug set: the teal tiki mug, a parrot mug and a pineapple mug (generated hero models),
   // each falling back to the procedural mug. Drinks, the shelf and the counter all draw on it.
+  // They load after the reveal (they're small from where you land), the procedural mug standing in
+  // until then; `now` (a drink being served, fitted to its mug) takes whichever is there and keeps it.
   const MUGS = ['tiki-mug', 'parrot-mug', 'pineapple-mug'];
   const mugFallback = [PALETTE.teal, PALETTE.coral, PALETTE.amber];
-  const anyMug = (i, { garnish = true } = {}) => {
+  const anyMug = (i, { garnish = true, now = false } = {}) => {
     const slot = MUGS[i % MUGS.length];
-    return heroOr(heroes, slot, () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish }));
+    const stand = () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish });
+    return now ? heroOr(heroes, slot, stand) : heroSlot(slot, new THREE.Group().add(stand()));
   };
 
   /* ---------- Plinth and deck ---------- */
@@ -506,7 +509,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     setTimeout(() => {
       const i = Math.max(0, ORDER.indexOf(id));
       // always the open-topped tiki mug, so you can look into it; the drink's colour changes
-      const d = anyMug(0, { garnish: false });
+      const d = anyMug(0, { garnish: false, now: true });
       // The drink: a glossy surface just below the rim, so there's something to look into.
       // Fitted to the rim itself (the mug's highest vertices), not the bounding box, which
       // the handle pulls off-centre.

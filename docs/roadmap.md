@@ -86,6 +86,12 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: a faster load. The planet asks for a quarter less before it appears (the campfire's
+  moai and Thinker and the mugs load after, like the other models), builds the planet while the
+  models download, and fetches its script first; on a slow phone it's built about 4 s sooner. The
+  fonts are the site's own now, not Google's, so nothing from another server holds up the first
+  paint: the other pages' Lighthouse score went from 86-88 to 97-98 on a phone. Next, if wanted:
+  the launch console as a slot (230 KB more off the first frame).
 - Oct 2026: the rocket is scenery now: tapping it no longer leaves for the classic site (the
   menu's "Regular website" link does that).
 - Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with

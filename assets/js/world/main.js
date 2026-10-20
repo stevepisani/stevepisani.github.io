@@ -287,7 +287,8 @@ async function start() {
   if (!webgl2()) return fallback('no WebGL2');
   // Launch screen: say what's happening, and let it paint between the heavy steps.
   const progress = $('veil-progress'), status = $('veil-status');
-  const setProgress = (k) => progress.style.setProperty('--p', k);
+  let shown = 0;
+  const setProgress = (k) => progress.style.setProperty('--p', shown = Math.max(shown, k));
   const step = (k, text) => {
     setProgress(k);
     if (text) status.textContent = text;
@@ -308,11 +309,23 @@ async function start() {
   // Models: one GLB, plus fonts for the canvas textures.
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const modelsUrl = document.querySelector('script[data-models]').dataset.models;
-  await step(0.1, 'Loading the bar…');
-  const [gltf] = await Promise.all([
-    new Promise((res, rej) => loader.load(modelsUrl, res, (e) => e.total && setProgress(0.1 + 0.4 * (e.loaded / e.total)), rej)),
+  // Everything the first frame needs is asked for at once (most of it's already coming, preloaded
+  // by world.html), and the planet and sky are built while it arrives: on a slow connection the
+  // download is most of the wait, and building them is most of the rest.
+  let got = 0;
+  const want = document.querySelectorAll('link[rel="preload"][as="fetch"]').length || 1;
+  const modelsIn = Promise.all([
+    new Promise((res, rej) => loader.load(modelsUrl, res, undefined, rej)),
+    // the bar fills as each model the first frame needs is in (world.html preloads exactly those)
+    loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { onEach: () => setProgress(0.1 + 0.6 * ++got / want) }),
     fontsReady(),
   ]);
+  modelsIn.catch(() => {}); // reported where it's awaited
+  await step(0.1, 'Shaping the planet…');
+  const sky = buildSky({ quality });
+  const planet = buildPlanet({ quality, trailEdge, keepClear });
+  await step(0.4, 'Loading the bar…');
+  const [gltf, heroes] = await modelsIn;
   const library = new Map(gltf.scene.children.map((c) => [c.name, c]));
   restyle(gltf.scene, { tint: 0xd8cfc4 });
   const prop = (name, scale = 1) => {
@@ -325,10 +338,6 @@ async function start() {
     return o;
   };
 
-  const heroes = await loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'));
-  await step(0.55, 'Shaping the planet…');
-  const sky = buildSky({ quality });
-  const planet = buildPlanet({ quality, trailEdge, keepClear });
   await step(0.7, 'Stocking the bar…');
   const bar = buildBar({ prop, quality, favorites: (data.drinks || []).map((d) => d.name), heroes, reducedMotion });
   // the site's logo (the 180px touch icon) goes on the rocket
