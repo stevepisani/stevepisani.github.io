@@ -1255,8 +1255,9 @@ export function barGlass(kind = 'rocks') {
   // The drink: straight glasses fill as a cylinder; the coupe's bowl as a cap that widens.
   const inner = G.r - G.wall;
   const depth = (G.stem ? G.h - G.base : G.h - G.base) * 0.9;
-  // see-through, so the ice shows in it: drawn after the ice and before the glass
-  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.05, roughness: 0.1, transparent: true, opacity: 0.88, depthWrite: false }); // a little glow to read in the dark; more washes reds out to pink
+  // solid, so it reads as a full drink from the stool (see-through, the glass's base and the
+  // counter showed through it and it looked hollow); the ice shows where it rides above it
+  const liquidMat = pbr({ color: PALETTE.amber, emissive: PALETTE.amber, emissiveIntensity: 0.05, roughness: 0.1 }); // a little glow to read in the dark; more washes reds out to pink
   let liquid;
   if (G.stem) {
     const cap = [];
@@ -1268,7 +1269,6 @@ export function barGlass(kind = 'rocks') {
     liquid = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.98, inner * 0.98, 1, 24).translate(0, 0.5, 0), liquidMat);
     liquid.position.y = G.base;
   }
-  liquid.renderOrder = 1.5;
   liquid.visible = false;
   group.add(liquid);
   let level = 0;
@@ -1299,7 +1299,7 @@ export function barGlass(kind = 'rocks') {
       });
     } else if (type === 'crushed') {
       // packed to the rim: a rough column, and a mound on top once it's topped up
-      const col = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.95, inner * 0.95, G.h - G.base - 0.004, 16, 6), iceMat);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(inner * 0.94, inner * 0.94, G.h - G.base - 0.004, 16, 6), iceMat);
       const pos = col.geometry.attributes.position;
       for (let i = 0; i < pos.count; i++) { const k = 1 + Math.sin(i * 12.9898) * 0.05; pos.setX(i, pos.getX(i) * k); pos.setZ(i, pos.getZ(i) * k); }
       col.geometry.computeVertexNormals();
@@ -1320,17 +1320,17 @@ export function barGlass(kind = 'rocks') {
     group.add(f);
   }
   function frost(k) { // a swizzle frosts the glass over
-    glassMat.opacity = 0.15 + k * 0.5;
+    glassMat.opacity = 0.13 + k * 0.22; // misted, not white: the drink's colour still shows through
     glassMat.roughness = 0.05 + k * 0.6;
   }
   function garnish(name) {
     const g = garnishFor(name);
     if (!g) return;
     // on the rim or on top, facing you (+z), big enough to read from the stool
-    if (name === 'pineapple') { g.position.set(G.r * 0.75, G.h + 0.004, G.r * 0.4); g.rotation.y = 0.5; }
+    if (name === 'pineapple') { g.position.set(G.r * 0.95, G.h, G.r * 0.3); g.rotation.y = -0.3; } // on the rim to your right, its cut face to you
     else if (name === 'orange') { g.position.set(-G.r * 0.6, G.h - 0.006, G.r * 0.8); g.rotation.set(0, Math.atan2(0.8, 0.6), 0); } // a wheel cut to the middle and set across the rim
     else if (name === 'mint') g.position.set(-0.006, G.h + 0.004, 0.004);
-    else if (name === 'beans') g.position.set(0.002, (kind === 'rocks' ? G.h - 0.012 : G.base + depth), -0.006);
+    else if (name === 'beans') g.position.set(0.002, G.base + Math.max(level, 0.5) * depth + 0.003, -0.006); // floating on it
     group.add(g);
   }
   return {
@@ -1347,17 +1347,25 @@ let citrus = null; // the orange wheel's face, drawn once
 export function garnishFor(name) {
   const g = new THREE.Group();
   if (name === 'pineapple') {
-    // a wedge with its rind, notched onto the rim, and a fan of leaves
-    const flesh = pbr({ color: PALETTE.pineapple, roughness: 0.6, emissive: PALETTE.pineapple, emissiveIntensity: 0.12 });
-    const rind = pbr({ color: PALETTE.stain, roughness: 0.8 });
-    const wedge = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.016, 8, 1, false, -Math.PI / 6, Math.PI / 3).rotateX(Math.PI / 2), [rind, flesh, flesh]);
-    wedge.rotation.z = -Math.PI / 2;
-    g.add(wedge);
+    // a wedge cut from a wheel, slit and sat on the rim: its point in over the drink, the rind
+    // outside the glass, and a few of the crown's leaves tucked in behind it standing up. In its
+    // own frame +x is out from the glass, the rim at the origin, the cut face toward +z.
+    const flesh = pbr({ color: PALETTE.pineapple, roughness: 0.55, emissive: PALETTE.pineapple, emissiveIntensity: 0.15 });
+    const rind = pbr({ color: PALETTE.stain, roughness: 0.85 });
+    const R = 0.05, half = Math.PI / 7, apex = -0.034; // the wheel's radius, the wedge's half-angle, its point (inside the rim)
+    const sector = (r0, r1) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(Math.cos(-half) * r0, Math.sin(-half) * r0);
+      sh.absarc(0, 0, r1, -half, half, false);
+      if (r0 > 0) sh.absarc(0, 0, r0, half, -half, true); else sh.lineTo(0, 0);
+      return new THREE.ExtrudeGeometry(sh, { depth: 0.014, bevelEnabled: false, curveSegments: 8 }).translate(apex, 0, -0.007);
+    };
+    g.add(new THREE.Mesh(sector(0, R - 0.006), flesh), new THREE.Mesh(sector(R - 0.006, R), rind));
     const leafM = pbr({ color: PALETTE.leaf, roughness: 0.7, side: THREE.DoubleSide });
     for (let i = 0; i < 3; i++) {
-      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.075, 4).scale(1, 1, 0.35), leafM);
-      leaf.position.set(0.04, 0.035, 0);
-      leaf.rotation.z = -0.35 + i * 0.35 - 0.2;
+      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.007, 0.06, 4).translate(0, 0.03, 0).scale(1, 1, 0.3), leafM); // from its foot
+      leaf.position.set(apex + R * 0.8, Math.sin(half) * R * 0.4, -0.009);
+      leaf.rotation.z = -0.15 - (i - 1) * 0.3;
       g.add(leaf);
     }
   } else if (name === 'orange') {

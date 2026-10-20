@@ -86,6 +86,11 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the robot's drinks, put right after the bottle work: it rolls to whatever its working
+  hand works on, so it really picks up the tin, strains into the glass (the stream shows and the
+  glass fills), stands the spoon in the glass and sets the garnish on; the drink reads full again
+  (no white disc through it), the pineapple wedge sits on the rim with its leaves, the beans float.
+  A tap sits you only on or near your stool; the rest of the bar walks you up to it.
 - Oct 2026: a faster load. The planet asks for a quarter less before it appears (the campfire's
   moai and Thinker and the mugs load after, like the other models), builds the planet while the
   models download, and fetches its script first; on a slow phone it's built about 4 s sooner. The
