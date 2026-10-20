@@ -5,22 +5,32 @@
 //   then `overlay`, drawn untouched on top: things that must look exactly like the page (the menu
 //   card in your hands, which the HTML menu takes over from).
 //
-// Phones and weak GPUs get a lighter tier: no AO, cheaper bloom, no grain.
+// Phones and weak GPUs get a lighter tier: no AO, cheaper bloom, no grain. N8AO is its own
+// bundle (ao.js → dist/ao.js), so phones never download it: `loadAO()` fetches it for the high
+// tier, handing it this bundle's three.js and postprocessing.
 import * as THREE from 'three';
 import {
   EffectComposer, RenderPass, EffectPass, BloomEffect, ToneMappingEffect, ToneMappingMode,
   VignetteEffect, NoiseEffect, SMAAEffect, BlendFunction,
 } from 'postprocessing';
-import { N8AOPostPass } from 'n8ao';
+import libs from 'ao-libs';
 
-export function createPipeline(renderer, scene, camera, { high }) {
+/** dist/ao.js, beside this bundle and from the same build (`?v=`); resolves to its N8AOPostPass, or null. */
+export function loadAO() {
+  globalThis.__aoLibs = libs;
+  const url = new URL('./ao.js', import.meta.url);
+  url.search = new URL(import.meta.url).search;
+  return import(/* by URL: never part of world.js */ url.href).then((m) => m.N8AOPostPass).catch((e) => { console.warn('no ambient occlusion', e); return null; });
+}
+
+export function createPipeline(renderer, scene, camera, { high, N8AOPostPass = null }) {
   // postprocessing does its own tone mapping at the end of the chain
   renderer.toneMapping = THREE.NoToneMapping;
   const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
   composer.addPass(new RenderPass(scene, camera));
 
   let ao = null;
-  if (high) {
+  if (high && N8AOPostPass) {
     ao = new N8AOPostPass(scene, camera, 1, 1);
     Object.assign(ao.configuration, {
       aoRadius: 1.1,          // metres; the props are small

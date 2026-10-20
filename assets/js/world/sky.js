@@ -152,10 +152,22 @@ export function buildSky({ quality }) {
     const url = (document.querySelector('script[data-earth]') || { dataset: {} }).dataset.earth || '/assets/images/earth/';
     const loader = new THREE.TextureLoader();
     const ready = { value: 0 };
-    const tex = (f) => loader.load(url + f, () => { ready.value += 0.5; }, undefined, () => {});
-    const day = tex('earth-day.webp'), night = tex('earth-night.webp');
+    // 1024 wide for the first frame (it's about 200 px across in the sky), 2048 once the planet's
+    // up (`earth.userData.sharpen()`, main.js), for the telescope
+    const setUp = (t) => { t.anisotropy = 4; t.wrapS = THREE.RepeatWrapping; return t; };
+    const tex = (f) => setUp(loader.load(url + f, () => { ready.value += 0.5; }, undefined, () => {}));
+    const day = tex('earth-day-1k.webp'), night = tex('earth-night-1k.webp');
     day.colorSpace = THREE.SRGBColorSpace;
-    for (const t of [day, night]) { t.anisotropy = 4; t.wrapS = THREE.RepeatWrapping; }
+    earth.userData.sharpen = () => {
+      for (const [name, srgb] of [['day', true], ['night', false]]) {
+        loader.load(url + `earth-${name}.webp`, (t) => {
+          if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+          const was = mat.uniforms[name].value;
+          mat.uniforms[name].value = setUp(t);
+          was.dispose();
+        }, undefined, () => {});
+      }
+    };
     const mat = new THREE.ShaderMaterial({
       uniforms: { day: { value: day }, night: { value: night }, ready, sun: { value: sunDir }, time: uniforms.time },
       fog: false,

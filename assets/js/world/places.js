@@ -13,7 +13,7 @@ import { shrub } from './decor.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
 import { buildMachine } from './machine.js';
-import { heroOr, heroSlot } from './hero.js';
+import { heroSlot } from './hero.js';
 
 // Where things are, as (polar angle from the bar, longitude). The bar is at polar 0.
 export const SPOTS = {
@@ -90,7 +90,7 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent) {
   return m;
 }
 
-export function buildPlaces({ prop, quality, heroes, badge = null }) {
+export function buildPlaces({ prop, quality, badge = null }) {
   const group = new THREE.Group();
   const animated = [];
   const colliders = [];
@@ -243,20 +243,30 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     // screen counting down to the next launch anywhere (site.js launches(): Launch Library 2,
     // cached an hour), its lamps the colour of that launch's status. Lean in to it (main.js, the
     // terminal) for the next five, and the red button's engine test.
-    const con = launchConsole({ shell: heroes && heroes.has('launch-console') ? heroOr(heroes, 'launch-console') : null });
+    // It's out of sight from where you land, so it starts built from boxes and becomes the model
+    // once that loads after the reveal (a slot: the whole console is built again around the model,
+    // which places its screen, lamps and button).
+    let con = launchConsole();
+    const desk = new THREE.Group().add(con.group);
     const inLocal = pad.worldToLocal(surfacePoint(dirFrom(0.66, 1.42))).setY(0);
     const a = Math.atan2(inLocal.z, inLocal.x) - 0.8;
     const at = pad.localToWorld(new THREE.Vector3(Math.cos(a) * 3.4, 0, Math.sin(a) * 3.4)).normalize();
-    put(con.group, at, {}, 0.8);
-    con.group.updateMatrixWorld(true);
-    const toPath = con.group.worldToLocal(surfacePoint(dirFrom(0.66, 1.42)));
-    con.group.rotateY(Math.atan2(toPath.x, toPath.z)); // the screen toward you as you come up the path
-    con.group.updateMatrixWorld(true);
-    colliders.push({ center: con.group.position.clone(), radius: 0.7 });
-    const front = surfacePoint(con.group.localToWorld(new THREE.Vector3(0, 0, 1.2)).normalize());
-    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launches', object: con.group, point: con.group.position.clone(), approach: front, radius: 1.6 });
+    put(desk, at, {}, 0.8);
+    desk.updateMatrixWorld(true);
+    const toPath = desk.worldToLocal(surfacePoint(dirFrom(0.66, 1.42)));
+    desk.rotateY(Math.atan2(toPath.x, toPath.z)); // the screen toward you as you come up the path
+    desk.updateMatrixWorld(true);
+    colliders.push({ center: desk.position.clone(), radius: 0.7 });
+    const front = surfacePoint(desk.localToWorld(new THREE.Vector3(0, 0, 1.2)).normalize());
+    interactables.push({ id: 'console', label: 'Launch control', verb: 'Next launches', object: desk, point: desk.position.clone(), approach: front, radius: 1.6 });
     // what it shows: the next launch to come (or one you've picked at the terminal), once a second
     let launches = null, picked = -1, lastSecond = -1, lastT = performance.now();
+    heroSlot('launch-console', desk, { fit: (model) => {
+      desk.remove(model);
+      con = launchConsole({ shell: model });
+      desk.add(con.group);
+      lastSecond = -1; // draw the screen again at once
+    } });
     setTimeout(() => { if (window.launches) window.launches().then((l) => { launches = l; }).catch(() => { launches = false; }); }, 4000); // after the planet's up
     const next = () => (launches ? launches.find((l) => new Date(l.net) > Date.now() - 600e3) || launches[0] : null);
     animated.push((t) => {
@@ -272,7 +282,7 @@ export function buildPlaces({ prop, quality, heroes, badge = null }) {
     });
     // for main.js: the console, the launches, the engine test
     launchControl = {
-      con,
+      get con() { return con; },
       get launches() { return launches; },
       set launches(l) { launches = l; lastSecond = -1; },
       next,

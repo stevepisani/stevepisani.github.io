@@ -80,7 +80,8 @@
         0.723,
         0.355
       ]
-    }
+    },
+    "lazy": true
   },
   "rocket": {
     "file": "rocket.glb",

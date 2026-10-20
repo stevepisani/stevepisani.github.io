@@ -5,6 +5,7 @@
 //   dist/world.js   the homepage's planet (assets/js/world/main.js and everything it imports,
 //                   three.js and the post-processing included), one file, one request
 //   dist/rapier-*.js the physics engine, loaded once the planet is up (import() in physics.js)
+//   dist/ao.js      ambient occlusion (N8AO), for computers only, loaded by URL (render.js)
 //   dist/portal.js  the real place through the door: Spark, the splat renderer, with its own
 //                   three.js, loaded by URL when someone steps through (portal.js)
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
@@ -47,6 +48,42 @@ const rapierWasm = {
   },
 };
 
+// N8AO (ambient occlusion, computers only) is its own bundle, dist/ao.js, but must use the
+// planet's three.js and postprocessing, not copies. So: read what it imports from them, have
+// world.js hand exactly those over (`import libs from 'ao-libs'` in render.js, set on
+// globalThis.__aoLibs) and build ao.js with those imports read back from there.
+const n8aoImports = (() => {
+  const src = readFileSync(root + 'node_modules/n8ao/dist/N8AO.js', 'utf8'), mods = {};
+  for (const [, names, mod] of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*"([^"]+)"/g)) {
+    mods[mod] = [...new Set([...(mods[mod] || []), ...names.split(',').map((n) => n.trim().split(/\s+as\s+/)[0]).filter(Boolean)])];
+  }
+  if (!mods.three) throw new Error('n8ao no longer imports three the way tools/build-js.mjs expects: update the ao-libs plugin');
+  return mods;
+})();
+const aoLibs = {
+  name: 'ao-libs',
+  setup(b) {
+    // in world.js: the object to hand over
+    b.onResolve({ filter: /^ao-libs$/ }, () => ({ path: 'ao-libs', namespace: 'ao-libs' }));
+    b.onLoad({ filter: /.*/, namespace: 'ao-libs' }, () => {
+      const mods = Object.entries(n8aoImports);
+      return {
+        resolveDir: root,
+        contents: mods.map(([mod, names], i) => `import { ${names.map((n) => `${n} as m${i}_${n}`).join(', ')} } from ${JSON.stringify(mod)};`).join('\n')
+          + `\nexport default { ${mods.map(([mod, names], i) => `${JSON.stringify(mod)}: { ${names.map((n) => `${n}: m${i}_${n}`).join(', ')} }`).join(', ')} };`,
+      };
+    });
+  },
+};
+const aoFromWorld = {
+  name: 'ao-from-world',
+  setup(b) {
+    // in ao.js: each of those imports read from what world.js handed over
+    b.onResolve({ filter: /.*/ }, ({ path, importer }) => (importer.includes('n8ao') && n8aoImports[path] ? { path, namespace: 'ao-from-world' } : undefined));
+    b.onLoad({ filter: /.*/, namespace: 'ao-from-world' }, ({ path }) => ({ contents: `export const { ${n8aoImports[path].join(', ')} } = globalThis.__aoLibs[${JSON.stringify(path)}];` }));
+  },
+};
+
 writeLibrary(root);
 const heroes = JSON.parse(readFileSync(root + 'assets/models/hero/manifest.json', 'utf8'));
 writeFileSync(root + '_data/hero_preload.json', JSON.stringify(Object.values(heroes).filter((h) => !h.lazy).map((h) => h.file)) + '\n');
@@ -54,7 +91,9 @@ rmSync(out, { recursive: true, force: true });
 const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
-  { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm], metafile: true },
+  { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm, aoLibs], metafile: true },
+  // ambient occlusion, for computers only (render.js loads it by URL), on world.js's three.js
+  { ...common, entryPoints: { ao: 'assets/js/world/ao.js' }, outdir: out, format: 'esm', plugins: [aoFromWorld], metafile: true },
   // through the door (portal.js): Spark and a three.js of its own, loaded by URL only when someone
   // steps in, so it never touches the world's one request
   { ...common, entryPoints: { portal: 'assets/js/world/portal.js' }, outdir: out, format: 'esm', metafile: true },
@@ -75,5 +114,5 @@ if (watch) {
   // (it happens when something imported both directly and by import() is shared).
   const shared = outputs['assets/js/dist/world.js'].imports.filter((i) => i.kind === 'import-statement');
   if (shared.length) throw new Error(`world.js imports ${shared.map((i) => i.path).join(', ')} statically; keep import() targets self-contained`);
-  for (const [file, o] of Object.entries({ ...outputs, ...results[2].metafile.outputs, ...results[3].metafile.outputs, ...results[4].metafile.outputs })) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
+  for (const [file, o] of Object.entries(Object.assign({}, outputs, ...results.slice(2).map((r) => r.metafile.outputs)))) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
 }

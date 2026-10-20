@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { createPipeline } from './render.js';
+import { createPipeline, loadAO } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
 import { buildPlanet, surfacePoint, surfaceRadius, pondK, BAR_DIR, POND, RADIUS } from './planet.js';
@@ -66,6 +66,7 @@ function onSwipe(el, step) {
 }
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = { high: !coarse && innerWidth > 900 && (navigator.deviceMemory || 8) >= 4 };
+const aoIn = quality.high ? loadAO() : null; // ambient occlusion, computers only, asked for at once
 
 let state = 'loading';
 const setState = (s) => { state = s; root.dataset.state = s; };
@@ -343,7 +344,7 @@ async function start() {
   // the site's logo (the 180px touch icon) goes on the rocket
   const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
-  const places = buildPlaces({ prop, quality, heroes, badge });
+  const places = buildPlaces({ prop, quality, badge });
   places.machine.camera = camera; // the inside of the planet is drawn only when you're near enough to see in
   scene.add(sky.group, planet.group, bar.group, places.group);
   for (const l of bar.loose) scene.add(l.object); // the bar's fallen coconuts live in world space
@@ -401,7 +402,7 @@ async function start() {
     player.pitch = Math.atan2(upAmt, Math.sqrt(Math.max(0, to.lengthSq() - upAmt * upAmt)));
   }
 
-  const pipeline = createPipeline(renderer, scene, camera, quality);
+  const pipeline = createPipeline(renderer, scene, camera, { ...quality, N8AOPostPass: await aoIn });
 
   function resize() {
     const w = root.clientWidth, h = root.clientHeight;
@@ -2925,6 +2926,7 @@ async function start() {
     physics.addFixed(m.group.position, m.group.quaternion, m.solids);
     window.__world.physics = physics;
   }).catch((e) => console.warn('physics', e)), 1200);
+  whenIdle(() => sky.earth.userData.sharpen(), 4000); // Earth at full size, for the telescope
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
   fireflies = createFireflies(scene, DB);
