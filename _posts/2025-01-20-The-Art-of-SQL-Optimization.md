@@ -2,7 +2,6 @@
 layout: post
 title: "The Art of SQL Optimization: Beyond the Basics"
 date: 2025-01-20T14:30:00+00:00
-author: Steve
 image_url: https://images.pexels.com/photos/270348/pexels-photo-270348.jpeg?auto=compress&cs=tinysrgb&w=2000&h=400&fit=crop
 description: "Advanced SQL optimization techniques that go beyond basic indexing and query structure."
 ---

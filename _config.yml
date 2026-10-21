@@ -10,6 +10,7 @@ timezone: America/New_York
 lang: en_US
 author:
   name: Steve Pisani
+  twitter: StevenPisani
 twitter:
   username: StevenPisani
 links:
@@ -33,10 +34,17 @@ highlighter: rouge
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
+  - jekyll-sitemap
 
 defaults:
   - scope: { path: "", type: posts }
     values: { layout: post }
+  - scope: { path: "" }  # the picture a shared link shows (the planet's first frame), unless a page has its own
+    values: { image: /assets/images/share.jpg }
+  - scope: { path: apps }  # the private app, and where it used to be: not for search engines
+    values: { sitemap: false }
+  - scope: { path: recipe_tracker }
+    values: { sitemap: false }
 
 include:
   - .sqlfluff

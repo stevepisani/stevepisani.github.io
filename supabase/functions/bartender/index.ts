@@ -2,22 +2,22 @@
 // POST { messages: [{ role: "user" | "assistant", content: string }, ...], stream?: true }
 //   -> with stream: true (what the site sends), the reply as plain text, streamed as it's said
 //   -> otherwise { reply }
-// When the model can't answer (no credit, an outage) the reply is empty (or { error }), and the
-// site answers from its own facts instead (assets/js/world/barback.js).
+// When the model can't answer (no credit, an outage, a limit reached) the reply is empty (or
+// { error }), and the site answers from its own facts instead (assets/js/world/barback.js).
 // It knows what the site knows (/bartender.json, built from the site's _data), answers in a
 // line or two, and stays inside the limits the database keeps (bartender_take): a monthly
-// reply cap and 20 questions an hour per visitor. Deployed by .github/workflows/supabase.yml.
+// reply cap and 20 questions an hour per visitor. The prompt is cached (it's the same for
+// everyone), so a reply costs about a quarter of what it would. Deployed by .github/workflows/supabase.yml.
 import Anthropic from "npm:@anthropic-ai/sdk@0.129.0";
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 160; // a hard stop a little past the "under 40 words" the prompt asks for
-const MONTHLY_CAP = 1000; // about $5 a month at this prompt size
+const MONTHLY_CAP = 4000; // about $5 a month with the prompt cached (docs/backend.md)
 const SITE = "https://stevenpisani.com";
 const ALLOWED = [SITE, "http://localhost:4000", "http://127.0.0.1:4000"];
 const MAX_TURNS = 12, MAX_CHARS = 400;
 const CLOSED = "The bar's closed for a moment.";
-const CAPPED = "That's all the talking I can do for now. The menu's right in front of you, and Steve reads his email.";
 const BUSY = "Busy night. Give me a minute and ask again.";
 const AGAIN = "Hm. Ask me that another way?";
 
@@ -127,7 +127,11 @@ function reply(body: unknown, status: number, origin: string) {
 const plain = (s: string) => s.replace(/\*|__|`|^#+\s*/gm, "").replace(/\s*\n+\s*/g, " ");
 const plainAll = (s: string) => plain(s).replace(/(^|\W)_([^_\n]+)_(?!\w)/g, "$1$2").trim();
 
-const spent = (u: Anthropic.Usage) => db.rpc("bartender_spent", { input_tokens: u.input_tokens, output_tokens: u.output_tokens })
+// Input logged as what it's billed like: a cache write is 1.25 times an input token, a read a tenth.
+const spent = (u: Anthropic.Usage) => db.rpc("bartender_spent", {
+  input_tokens: Math.round(u.input_tokens + 1.25 * (u.cache_creation_input_tokens ?? 0) + 0.1 * (u.cache_read_input_tokens ?? 0)),
+  output_tokens: u.output_tokens,
+})
   .then(({ error }) => { if (error) console.error(error); });
 
 Deno.serve(async (req) => {
@@ -155,10 +159,13 @@ Deno.serve(async (req) => {
     system().catch((e) => { console.error(e); return null; }),
   ]);
   if (take.error) { console.error(take.error); return reply({ error: CLOSED }, 503, origin); }
-  if (!take.data) return reply({ reply: CAPPED }, 200, origin);
+  if (!take.data) return reply({ reply: "" }, 200, origin); // over a limit: the site answers on its own
   if (sys === null) return reply({ error: CLOSED }, 503, origin);
 
-  const stream = anthropic.messages.stream({ model: MODEL, max_tokens: MAX_TOKENS, system: sys, messages });
+  // The prompt is the same for everyone, so it's cached: a read costs a tenth of sending it again.
+  // Haiku caches only a prompt of 4,096 tokens or more; bartender.json keeps the brief past that.
+  const prompt = [{ type: "text" as const, text: sys, cache_control: { type: "ephemeral" as const } }];
+  const stream = anthropic.messages.stream({ model: MODEL, max_tokens: MAX_TOKENS, system: prompt, messages });
 
   if (!wantStream) {
     try {

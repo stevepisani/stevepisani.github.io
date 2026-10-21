@@ -2,13 +2,14 @@
 // they are. Supabase Realtime presence over a plain WebSocket (the Phoenix protocol, no client
 // library): you join the `planet` channel under a random key made fresh for this page, and
 // track where you are (a direction on the planet, rounded, and nothing else) when you've moved.
-// At most 200 are drawn, one Points object, so a crowd costs the same as a few.
+// At most 200 are drawn, one Points object, so a crowd costs the same as a few. Every update goes
+// to everyone, so they're sent at most every 15 s, and supabase/realtime.json caps the rest.
 import * as THREE from 'three';
 import { surfaceRadius } from './planet.js';
 
 const MAX = 200;
 const TOPIC = 'realtime:planet';
-const HEARTBEAT = 25000, MIN_TRACK_GAP = 4000, MIN_MOVE = 0.06; // ~1.2 m of planet at radius 20
+const HEARTBEAT = 25000, MIN_TRACK_GAP = 15000, MIN_MOVE = 0.06; // ~1.2 m of planet at radius 20
 
 function spriteTexture() {
   const c = document.createElement('canvas');
