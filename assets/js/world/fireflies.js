@@ -3,7 +3,9 @@
 // library): you join the `planet` channel under a random key made fresh for this page, and
 // track where you are (a direction on the planet, rounded, and nothing else) when you've moved.
 // At most 200 are drawn, one Points object, so a crowd costs the same as a few. Every update goes
-// to everyone, so they're sent at most every 15 s, and supabase/realtime.json caps the rest.
+// to everyone, so they're sent at most every 15 s, and supabase/realtime.json caps the rest. The
+// channel is private: its rules (20261021000100_hardening.sql) let anyone in for presence only,
+// so nobody can broadcast to the whole planet.
 import * as THREE from 'three';
 import { surfaceRadius } from './planet.js';
 
@@ -68,7 +70,7 @@ export function createFireflies(scene, { url, key }) {
     } catch (e) { return; }
     ws.onopen = () => {
       retry = 1000;
-      send(TOPIC, 'phx_join', { config: { broadcast: { self: false }, presence: { key: me }, postgres_changes: [] }, access_token: key });
+      send(TOPIC, 'phx_join', { config: { broadcast: { self: false }, presence: { key: me }, postgres_changes: [], private: true }, access_token: key });
       clearInterval(beat);
       beat = setInterval(() => send('phoenix', 'heartbeat', {}), HEARTBEAT);
     };

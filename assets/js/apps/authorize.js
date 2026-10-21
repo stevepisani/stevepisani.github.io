@@ -11,6 +11,9 @@ const id = new URLSearchParams(location.search).get('authorization_id');
 const say = (text) => { $('#consent-note').textContent = text; };
 
 start(async () => {
+  // never inside another site's frame, where a click on Allow could be lured (the site can't send
+  // a header that forbids framing: GitHub Pages)
+  if (window.top !== window.self) return say('Open this page on its own to approve a connection.');
   if (!id) return say('Nothing to approve here. This page opens when ChatGPT or Claude asks to connect.');
   const { data, error } = await db.auth.oauth.getAuthorizationDetails(id);
   if (error || !data) return say("That request has expired or was already answered. Start connecting again from ChatGPT or Claude.");
