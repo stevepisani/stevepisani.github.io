@@ -21,10 +21,12 @@ design: row-level security guards every table.
   inactivity limit, so a phone stays signed in until it signs out; `docs/apps.md`, "Staying
   signed in").
 - `realtime.json`: Realtime's limits, the fireflies' cost cap. Presence goes to everyone on the
-  planet, so its messages grow with the square of the crowd: at most 100 connected at once (the
-  rest see no fireflies and try again later) and 5 presence updates a second across the project,
-  so at most about 1.8 million messages an hour, and far fewer in practice (each visitor sends at
-  most one update every 15 s).
+  planet, so its messages grow with the square of the crowd: at most 50 connected at once (the
+  rest see no fireflies and try again later) and 2 presence updates a second across the project,
+  so at most about 360,000 messages an hour (8.6 million a day, about $9 a day beyond Pro's
+  included 5 million a month, only if it were full around the clock), and far fewer in practice (each visitor sends at most one
+  update every 15 s). This is the site's cap: the organization's spend cap would also hold up the
+  other projects in it, so it stays off.
 - `templates/<name>.html`: Auth's emails, each the auth config's `mailer_templates_<name>_content`.
   `magic_link.html` is the sign-in email: the link and the code (`{{ .ConfirmationURL }}`,
   `{{ .Token }}`), the code being how the home-screen app signs in (`docs/apps.md`, "Signing in").
