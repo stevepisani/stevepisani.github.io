@@ -92,6 +92,7 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the two 2025 posts rewritten in Steve's voice, with drawings: "Slow SQL Is Usually One of Four Things" and "Boring Data Pipelines Are the Good Kind" (same dates and addresses). The drawings are inline SVG on the theme's tokens (`.fig` in `site.css`), so they follow light, dark and terminal, and scroll sideways on a phone instead of shrinking.
 - Oct 2026: polish before sharing the site on Hacker News: the fireflies capped in code (`supabase/realtime.json`: 50 connected, 2 presence updates a second, at most 360,000 messages an hour; each visitor updates at most every 15 s), the bartender's prompt cached so the same $5 buys 4,000 replies a month instead of 1,000, the suggested questions answered in the page for nothing, and the house answering when a limit's reached instead of "That's all the talking I can do", a picture for shared links (the planet), real descriptions on every page, `@StevenPisani` as the author everywhere, a sitemap and `robots.txt`, text contrast to WCAG AA on the light theme (the orange a shade deeper), typos in the posts, and the Lab at `/lab/` (it shared a name with the `lab/` folder). Checked: row security (nothing readable signed out), the photos bucket private, `public_places` showing only what's marked for the site, the bartender capped.
 - Oct 2026: Places, a tab in SJPJr: a Google Takeout zip chosen in the app (starred, reviewed,
   labeled, saved lists and his own My Maps) is kept in the new inbox as it came, and becomes one
