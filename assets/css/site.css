@@ -10,9 +10,9 @@
   --card: #ffffff;
   --ink: #1d1b18;
   --ink-2: #57524a;
-  --ink-3: #8a847a;
+  --ink-3: #6e685e;
   --line: #e4ddd1;
-  --accent: #e0531f;       /* a warm, slightly-too-loud orange */
+  --accent: #c4471a;       /* a warm, slightly-too-loud orange, dark enough for text (4.6:1) */
   --accent-ink: #ffffff;
   --accent-soft: #fde4d8;
   --link: #b33c10;

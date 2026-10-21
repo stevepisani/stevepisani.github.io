@@ -92,6 +92,7 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: polish before sharing the site on Hacker News: a picture for shared links (the planet), real descriptions on every page, `@StevenPisani` as the author everywhere, a sitemap and `robots.txt`, text contrast to WCAG AA on the light theme (the orange a shade deeper), typos in the posts, and the Lab at `/lab/` (it shared a name with the `lab/` folder). Checked: row security (nothing readable signed out), the photos bucket private, `public_places` showing only what's marked for the site, the bartender capped.
 - Oct 2026: Places, a tab in SJPJr: a Google Takeout zip chosen in the app (starred, reviewed,
   labeled, saved lists and his own My Maps) is kept in the new inbox as it came, and becomes one
   record a place, each waiting for review and private until Steve shares it with Lexi or puts it

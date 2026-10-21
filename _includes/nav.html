@@ -8,7 +8,7 @@
       {%- assign here = page.url | remove: '.html' -%}
       <a href="{{ '/about' | relative_url }}" {% if here == '/about' %}aria-current="page"{% endif %}>About</a>
       <a href="{{ '/blog' | relative_url }}" {% if here == '/blog' or page.layout == 'post' %}aria-current="page"{% endif %}>Writing</a>
-      <a href="{{ '/lab' | relative_url }}" {% if here == '/lab' %}aria-current="page"{% endif %}>Lab</a>
+      <a href="{{ '/lab/' | relative_url }}" {% if here == '/lab/' %}aria-current="page"{% endif %}>Lab</a>
       <a href="{{ '/bookshelf' | relative_url }}" {% if here == '/bookshelf' %}aria-current="page"{% endif %}>Books</a>
       {%- comment %} shown by site.js to someone signed in to the private apps on this browser {% endcomment %}
       <a href="{{ '/apps/' | relative_url }}" data-members hidden>Apps</a>
