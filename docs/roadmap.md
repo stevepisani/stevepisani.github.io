@@ -95,8 +95,11 @@ rather than leaving it in a chat.
   moai and Thinker and the mugs load after, like the other models), builds the planet while the
   models download, and fetches its script first; on a slow phone it's built about 4 s sooner. The
   fonts are the site's own now, not Google's, so nothing from another server holds up the first
-  paint: the other pages' Lighthouse score went from 86-88 to 97-98 on a phone. Next, if wanted:
-  the launch console as a slot (230 KB more off the first frame).
+  paint: the other pages' Lighthouse score went from 86-88 to 97-98 on a phone. Then a second
+  pass: the launch console loads after the reveal too, the Earth comes in small first (full size
+  a few seconds later, for the telescope), and phones skip the ambient-occlusion code they never
+  used. Before the planet appears it's now 1.2 MB, down from 2.66 MB; on a slow phone it's built
+  at 9 s instead of 15 s.
 - Oct 2026: the rocket is scenery now: tapping it no longer leaves for the classic site (the
   menu's "Regular website" link does that).
 - Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with
