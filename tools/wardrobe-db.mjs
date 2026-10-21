@@ -148,6 +148,7 @@ export async function wardrobeDb() {
       byRef: async (ref) => (await q(`select * from public.events where client_ref = $1`, [ref]))[0] || null,
       add: async (list) => { const out = []; for (const r of list) out.push(await insert('events', r)); return out; },
     },
+    places: { list: () => q(`select * from public.places where owner = auth.uid() and status <> 'dismissed' order by name`) },
     client: null,
     locate: async (place) => ({ name: place.split(',')[0], country: 'Italy', lat: 43.8, lon: 11.2 }),
     weather: async (leg) => ({ kind: 'typical', days: [{ date: leg.from, hi: 20, lo: 11, rain: 30, kind: 'typical' }], summary: { hi: 20, lo: 11, wet: 9 } }),
