@@ -75,11 +75,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
 
   // The mug set: the teal tiki mug, a parrot mug and a pineapple mug (generated hero models),
   // each falling back to the procedural mug. Drinks, the shelf and the counter all draw on it.
+  // They load after the reveal (they're small from where you land), the procedural mug standing in
+  // until then; `now` (a drink being served, fitted to its mug) takes whichever is there and keeps it.
   const MUGS = ['tiki-mug', 'parrot-mug', 'pineapple-mug'];
   const mugFallback = [PALETTE.teal, PALETTE.coral, PALETTE.amber];
-  const anyMug = (i, { garnish = true } = {}) => {
+  const anyMug = (i, { garnish = true, now = false } = {}) => {
     const slot = MUGS[i % MUGS.length];
-    return heroOr(heroes, slot, () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish }));
+    const stand = () => tikiMug({ glaze: mugFallback[i % MUGS.length], shape: i % 2 ? 'moai' : 'tall', garnish });
+    return now ? heroOr(heroes, slot, stand) : heroSlot(slot, new THREE.Group().add(stand()));
   };
 
   /* ---------- Plinth and deck ---------- */
@@ -484,7 +487,9 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   ];
 
   const interactables = [
-    { id: 'seat', label: "Steve's", verb: 'Sit at the bar', object: bar, point: toWorld(0, 1, 1.8), approach: toWorld(0, 0, 2.35), radius: 2.6 },
+    // a tap sits you only on or close to your stool (`near`); anywhere else on the bar walks you up to it
+    { id: 'seat', label: "Steve's", verb: 'Sit at the bar', object: bar, point: toWorld(sx, DECK + 0.78, 1.42), approach: toWorld(0, 0, 2.35), radius: 2.6,
+      near: (worldPoint) => { const p = bar.worldToLocal(worldPoint.clone()); return p.y < DECK + 1.3 && Math.hypot(p.x - sx, p.z - stools[1].position.z) < 0.55; } },
     // listed after the bar, so clicking the card itself picks it up (and walks you over if need be)
     { id: 'menu', label: 'Menu', verb: 'Pick up the menu', object: menuCard, point: toWorld(0.05, BAR_TOP + 0.1, 0.95), approach: toWorld(0, 0, 2.35), radius: 2.6 },
     { id: 'drinks', label: 'Favorite drinks', verb: 'Read the recipes', object: boardGroup, point: toWorld(-0.95, DECK + 2.19, -1.65), approach: toWorld(0, 0, 2.35), radius: 2.6 },
@@ -506,7 +511,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     setTimeout(() => {
       const i = Math.max(0, ORDER.indexOf(id));
       // always the open-topped tiki mug, so you can look into it; the drink's colour changes
-      const d = anyMug(0, { garnish: false });
+      const d = anyMug(0, { garnish: false, now: true });
       // The drink: a glossy surface just below the rim, so there's something to look into.
       // Fitted to the rim itself (the mug's highest vertices), not the bounding box, which
       // the handle pulls off-centre.
@@ -608,6 +613,14 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
   // and the glass without crossing in front of itself (found by searching spots and turns for
   // arm poses that reach all three clear of the robot)
   const POUR_SPOT = MAKE_SPOT.clone().add(new THREE.Vector3(-0.15, 0, 0)), POUR_TURN = -0.2;
+  // Each arm reaches straight out in front of its shoulder, so for the rest it rolls along the
+  // counter until that shoulder is behind what it works on: the tin it picks up, the glass it
+  // strains into and garnishes, the glass it sets out (`ARM_X`: found by solving the arms at
+  // spots along the counter). Stirring and swizzling, the rod stood in a glass on its left, need
+  // it further over and turned (`STIR`, found the same way).
+  const ARM_X = 0.35;
+  const reachFrom = (side, at) => new THREE.Vector3(at.x + (side === 'r' ? ARM_X : -ARM_X), DECK, MAKE_SPOT.z);
+  const STIR = { spot: new THREE.Vector3(WORK.built.x - 0.64, DECK, MAKE_SPOT.z), turn: -0.35 };
   const caddy = (() => {
     const g = new THREE.Group(), spin = new THREE.Group();
     g.position.copy(CADDY);
@@ -822,9 +835,11 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       // each step: what it starts, what it's done by the end (so skipping, or a long frame, lands right)
       enter(st) {
         const W = vesselTop(glass.group, glass.mouth);
-        // over to pour, and to stir or swizzle (the left hand's work), clear of the caddy; square again for the rest
-        if (st.do === 'pour' || st.do === 'stir' || st.do === 'swizzle') robot.roll(POUR_SPOT, POUR_TURN, 0.5);
-        else if (st.do !== 'set' && st.do !== 'serve') robot.roll(MAKE_SPOT, 0, 0.5);
+        // over to pour, clear of the caddy; then to wherever the working hand reaches what it works on
+        if (st.do === 'pour') robot.roll(POUR_SPOT, POUR_TURN, 0.5);
+        else if (st.do === 'stir' || st.do === 'swizzle') robot.roll(STIR.spot, STIR.turn, 0.5);
+        else if (st.do === 'shake') robot.roll(reachFrom('r', TIN), 0, 0.5);
+        else if (st.do === 'strain' || st.do === 'garnish') robot.roll(reachFrom(near, W), 0, 0.5);
         if (st.do === 'set') {
           // the caddy spins and comes round with this drink's bottles, the first in front
           const used = new Set();
@@ -832,7 +847,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
           let th = caddy.FRONT;
           while (th > caddy.angle - Math.PI * 4) th -= Math.PI * 2;
           caddy.turn(th, 1.2, () => { caddy.load(J.items); J.loaded = true; });
-          robot.roll(MAKE_SPOT, 0);
+          robot.roll(reachFrom(near, W), 0);
           robot.hold('none', { shaker: !shaken });
           const at = { at: W.clone().add(new THREE.Vector3(0, 0.03, 0)), pincer: true };
           robot.reach(near === 'r' ? at : null, near === 'l' ? at : null);
@@ -858,7 +873,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
           robot.reach({ at: W.clone().add(new THREE.Vector3(0, 0.09, -0.015)) }, null);
         } else if (st.do === 'stir' || st.do === 'swizzle') {
           robot.hold(st.do === 'stir' ? 'spoon' : 'swizzle', { shaker: !shaken });
-          robot.reach(null, { at: glass.group.position.clone().add(new THREE.Vector3(0, glass.height * 1.25 * 0.5, 0)), wiggle: st.do });
+          robot.reach(null, { at: glass.group.position.clone().add(new THREE.Vector3(0, glass.height * 1.25 * 0.6, 0)), wiggle: st.do });
         } else if (st.do === 'garnish') {
           st.left = garnishes.slice();
           st.next = 0;
@@ -884,7 +899,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
           if (q.pouring && st.held) pourStream(robot.tip('l') || new THREE.Vector3(), st.P.into, st.color); else flowing(false);
           if (!shaken && stream.visible) setLevel(Math.min(st.level * END.pour, level + (st.level * END.pour - level) * Math.min(1, J.dt * 3.5)));
         } else if (st.do === 'shake') {
-          if (t > 0.45 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.6); sfx('shake', dur - 0.6); }
+          if (t > 0.6 && tin.parent) { bar.remove(tin); robot.hold('none', { shaker: true }); robot.shake(dur - 0.75); sfx('shake', dur - 0.75); } // once it's there
         } else if (st.do === 'strain') {
           if (pouring) pourStream(robot.tip('r') || new THREE.Vector3(), vesselTop(glass.group, glass.mouth), PALETTE[M.color] ?? PALETTE.amber); else flowing(false);
           if (stream.visible) setLevel(level + (END.strain - level) * Math.min(1, J.dt * 2.5));

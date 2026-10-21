@@ -99,6 +99,17 @@ rather than leaving it in a chat.
   be on the site (the database refuses it). Today and each leg of a trip show what's saved
   nearby, with "Add to this day". In SJPJr, `find_places`, and `get_today` has saved nearby. The
   places with no coordinates are found by the Places API (New), capped at 1,000 calls a month.
+- Oct 2026: the robot's drinks, put right after the bottle work: it rolls to whatever its working
+  hand works on, so it really picks up the tin, strains into the glass (the stream shows and the
+  glass fills), stands the spoon in the glass and sets the garnish on; the drink reads full again
+  (no white disc through it), the pineapple wedge sits on the rim with its leaves, the beans float.
+  A tap sits you only on or near your stool; the rest of the bar walks you up to it.
+- Oct 2026: a faster load. The planet asks for a quarter less before it appears (the campfire's
+  moai and Thinker and the mugs load after, like the other models), builds the planet while the
+  models download, and fetches its script first; on a slow phone it's built about 4 s sooner. The
+  fonts are the site's own now, not Google's, so nothing from another server holds up the first
+  paint: the other pages' Lighthouse score went from 86-88 to 97-98 on a phone. Next, if wanted:
+  the launch console as a slot (230 KB more off the first frame).
 - Oct 2026: the rocket is scenery now: tapping it no longer leaves for the classic site (the
   menu's "Regular website" link does that).
 - Oct 2026: a record of each day (vision rule 2): one `events` table, only added to, each row with

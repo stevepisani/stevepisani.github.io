@@ -7,7 +7,8 @@
     "file": "tiki-mug.glb",
     "height": 0.17,
     "tint": "aqua",
-    "brightness": 2.2
+    "brightness": 2.2,
+    "lazy": true
   },
   "puffer-lamp": {
     "file": "puffer-lamp.glb",
@@ -20,19 +21,23 @@
   },
   "moai": {
     "file": "moai.glb",
-    "height": 2.4
+    "height": 2.4,
+    "lazy": true
   },
   "parrot-mug": {
     "file": "parrot-mug.glb",
-    "height": 0.2
+    "height": 0.2,
+    "lazy": true
   },
   "pineapple-mug": {
     "file": "pineapple-mug.glb",
-    "height": 0.17
+    "height": 0.17,
+    "lazy": true
   },
   "thinker": {
     "file": "thinker.glb",
-    "height": 1.5
+    "height": 1.5,
+    "lazy": true
   },
   "bottle-planteray": {
     "file": "bottle-planteray.glb",
