@@ -1,8 +1,8 @@
 # The Supabase project, as code (supabase/, applied by tools/supabase.mjs).
 # - deploy: on a merge that touches supabase/, applies new migrations and the auth settings,
-#   copies ANTHROPIC_API_KEY into the project's function secrets, and deploys the functions
-#   (supabase/functions/*). Needs the SUPABASE_ACCESS_TOKEN and ANTHROPIC_API_KEY repo
-#   secrets; without the first the job says so and passes.
+#   copies ANTHROPIC_API_KEY and GOOGLE_MAPS_API_KEY into the project's function secrets, and
+#   deploys the functions (supabase/functions/*). Needs the SUPABASE_ACCESS_TOKEN repo secret
+#   (without it the job says so and passes); without either key, it warns and goes on.
 # - logs: run by hand with "logs" ticked, prints what the edge functions did lately
 #   (tools/supabase-logs.mjs: paths and statuses only) and changes nothing.
 # - keepalive: hourly. Asks the public API for something, since free projects pause after a week
@@ -36,6 +36,7 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
     steps:
       - name: Token?
         id: token
@@ -67,11 +68,16 @@ jobs:
           else
             echo "::warning::No ANTHROPIC_API_KEY secret; the bartender will answer that the bar's closed."
           fi
+          if [ -n "$GOOGLE_MAPS_API_KEY" ]; then
+            supabase secrets set --project-ref "$ref" GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
+          else
+            echo "::warning::No GOOGLE_MAPS_API_KEY secret; places without coordinates stay unlocated (docs/backend.md, Secrets)."
+          fi
           for f in supabase/functions/*/index.ts; do
             name=$(basename "$(dirname "$f")")
             # these check who's calling themselves: the MCP server's OAuth discovery comes without
             # a token, and both take tokens from the newer signing keys
-            case "$name" in mcp|wardrobe-link) flags=--no-verify-jwt ;; *) flags= ;; esac
+            case "$name" in mcp|wardrobe-link|places-locate) flags=--no-verify-jwt ;; *) flags= ;; esac
             supabase functions deploy "$name" --project-ref "$ref" --use-api $flags
           done
       - name: Photo copies (vision and thumbnail sizes, for the MCP server)

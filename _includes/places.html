@@ -1,0 +1,71 @@
+{%- comment -%} Places, a section of SJPJr (apps/index.html; assets/js/apps/lib/places.js; docs/apps.md, "Places"): the places from Google Maps, each waiting in review until it's kept or dismissed, private until it's shared or made public. Steve's own. {%- endcomment %}
+<div id="places-view" hidden>
+  <section class="places-in" id="places-in">
+    <div>
+      <h2 class="places-in__title" id="places-in-title">Bring in your Google Maps places</h2>
+      <p class="places-in__how" id="places-in-how">From <a href="https://takeout.google.com/" target="_blank" rel="noopener">Google Takeout</a>: pick Maps (your places), Saved and My Maps, export, then choose the zip here. Nothing is shared until you say so.</p>
+    </div>
+    <label class="btn btn--small places-in__pick" id="places-pick"><span>Choose the Takeout file</span><input class="visually-hidden" id="places-file" type="file" accept=".zip,.json,.csv,.kml,.kmz,application/zip" multiple></label>
+    <p class="add-status" id="places-status" role="status" hidden></p>
+  </section>
+
+  <div id="places-body" hidden>
+    <div class="closet-bar">
+      <label class="search"><svg aria-hidden="true"><use href="#i-search"/></svg><input id="places-search" type="search" placeholder="Search" aria-label="Search your places" enterkeyhint="search"></label>
+    </div>
+    <div class="cats" id="places-status-chips" role="group" aria-label="Show"></div>
+    <div class="cats" id="places-lists" role="group" aria-label="List"></div>
+    <div class="places-list-bar" id="places-list-bar" hidden>
+      <p class="places-list-bar__text" id="places-list-text"></p>
+      <button class="btn btn--small" id="places-keep-all" type="button" hidden></button>
+      <div class="places-list-bar__who" id="places-list-who" hidden>
+        <span class="places-list-bar__label" id="places-list-who-label">Who sees this list</span>
+        <div class="seg" id="places-list-seg" role="group" aria-labelledby="places-list-who-label">
+          <button type="button" data-value="private" aria-pressed="false">Only you</button>
+          <button type="button" data-value="shared" aria-pressed="false">Lexi</button>
+          <button type="button" data-value="public" aria-pressed="false">The site</button>
+        </div>
+        <p class="places-list-bar__note" id="places-list-note"></p>
+      </div>
+    </div>
+    <ul class="places" id="places-rows" aria-live="polite"></ul>
+    <p class="app-empty" id="places-empty" hidden></p>
+    <p class="app-foot"><button class="link-btn" id="places-more" type="button" hidden>Show more</button></p>
+    <p class="app-foot"><button class="link-btn" id="places-locate" type="button" hidden></button></p>
+  </div>
+</div>
+
+<dialog class="app-dialog place-sheet" id="place-sheet" aria-labelledby="place-name">
+  <form method="dialog">
+    <header class="dialog-bar">
+      <span></span>
+      <span class="dialog-bar__state" aria-live="polite">Saves as you go</span>
+      <button class="link-btn dialog-bar__ok" type="button" data-close>Done</button>
+    </header>
+    <p class="sheet__cat" id="place-lists"></p>
+    <h2 class="place-sheet__name" id="place-name"></h2>
+    <p class="place-sheet__address" id="place-address"></p>
+    <p class="place-sheet__rating" id="place-rating" hidden></p>
+    <p class="place-sheet__review" id="place-review" hidden></p>
+    <p class="place-sheet__note" id="place-note" hidden></p>
+    <p><a class="btn btn--ghost btn--small btn--icon" id="place-map" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-pin"/></svg>Open in Google Maps</a></p>
+    <section class="settings__part" aria-labelledby="place-keep-title">
+      <h3 class="part-title" id="place-keep-title">Keep it?</h3>
+      <div class="seg" id="place-status" role="group" aria-labelledby="place-keep-title">
+        <button type="button" data-value="kept" aria-pressed="false">Keep</button>
+        <button type="button" data-value="review" aria-pressed="false">Not sure</button>
+        <button type="button" data-value="dismissed" aria-pressed="false">Dismiss</button>
+      </div>
+    </section>
+    <section class="settings__part" aria-labelledby="place-who-title">
+      <h3 class="part-title" id="place-who-title">Who sees it</h3>
+      <div class="seg" id="place-who" role="group" aria-labelledby="place-who-title">
+        <button type="button" data-value="private" aria-pressed="false">Only you</button>
+        <button type="button" data-value="shared" aria-pressed="false">Lexi</button>
+        <button type="button" data-value="public" aria-pressed="false">The site</button>
+      </div>
+      <p class="place-sheet__why" id="place-why" hidden></p>
+    </section>
+    <p class="place-sheet__from" id="place-from"></p>
+  </form>
+</dialog>

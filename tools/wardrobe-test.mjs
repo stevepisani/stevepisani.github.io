@@ -37,7 +37,8 @@ const { db, q, run, migrations, signIn, ctx, insert, uploads, steveVariant } = a
   const photos = await q(`select * from public.wardrobe_photos order by path`);
   ok(photos.length === 2 && photos.every((f) => f.role === 'garment') && photos.find((f) => f.item_id === IDS.darkBrown)?.file_id === 'file-tag-38', 'migration: every photo in use is kept, in the photos table', photos);
   ok((await q(`select count(*)::int as n from public.wardrobe_items where variant_id is null and name = 'Brown suede loafers'`))[0].n === 1, 'migration: other items are left alone');
-  for (const f of migrations.filter((f) => f >= '20261005')) await run(f); // again: nothing changes
+  // again: nothing changes (all but members_name, whose check on sections predates the Places tab)
+  for (const f of migrations.filter((f) => f >= '20261005' && !f.includes('members_name'))) await run(f);
   ok((await q(`select count(*)::int as n from public.wardrobe_products`))[0].n === 1 && (await q(`select count(*)::int as n from public.wardrobe_variants`))[0].n === 3 && (await q(`select count(*)::int as n from public.wardrobe_photos`))[0].n === 2, 'migration: running it twice changes nothing');
 }
 

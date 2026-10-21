@@ -1,7 +1,8 @@
 // SJPJr (/apps, apps/index.html), the app: Today (the next thing to do, what you're
-// wearing, the weather where you are), the Closet (your clothes, each with a photo cut out of its
-// background, what it is, and where to buy another), Trips (the weather, what to wear each day and
-// what to pack) and Recipes (lib/recipes.js, shared). Each member sees only their sections (me()
+// wearing, the weather where you are, what's saved near you), the Closet (your clothes, each with a
+// photo cut out of its background, what it is, and where to buy another), Trips (the weather, what
+// to wear each day and what to pack), Places (lib/places.js: from Google Maps) and Recipes
+// (lib/recipes.js, shared). Each member sees only their sections (me()
 // in the database). The wardrobe and trips are private to their owner (tables public.wardrobe_items,
 // public.trips and the trip's parts: trip_packing, trip_bags, trip_transport, trip_lodging,
 // trip_resources; photos under photos/wardrobe/<owner id>/). A garment may belong to a variant and
@@ -25,6 +26,7 @@ import { locate, legWeather } from '../../../supabase/functions/_shared/weather.
 import { byDay, wears } from '../../../supabase/functions/_shared/days.js';
 import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway, HOME } from './lib/travel.js';
 import * as recipes from './lib/recipes.js';
+import * as places from './lib/places.js';
 import { units, setUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
@@ -39,7 +41,7 @@ const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear
 const catName = Object.fromEntries(CATS);
 let list = [], links = new Map(), failed = false, uid = null, offline = false, me = null;
 // the sections, in the tabs' order; each member sees the ones me() names (null: all of them)
-const SECTIONS = ['today', 'closet', 'trips', 'recipes'];
+const SECTIONS = ['today', 'closet', 'trips', 'places', 'recipes'];
 let sections = SECTIONS;
 const can = (s) => sections.includes(s);
 let view = { cat: '', colour: '', season: '', dress: '', shelf: 'in' };
@@ -482,7 +484,7 @@ $('#photo-remove').addEventListener('click', async () => {
   paintSheet();
 });
 // ---------- Where you are: the address says, so Back works and any view can be linked ----------
-// #today, #closet, #trips, #recipes, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over
+// #today, #closet, #trips, #places, #recipes, #trip/<id>, #trip/<id>/pack, and #item/<id> (an item over
 // the view). A section the member doesn't see isn't there: its address goes home.
 let trips = [], parts = noParts(), openTrip = null, ready = false, shown = null, shownHash = '', pushedItem = false, nextMode = 'view';
 let events = []; // what happened, a day at a time (public.events): what was worn, a line about the day
@@ -520,7 +522,7 @@ function route() {
 // with no address (opening the app, from the Home Screen or a link), Today; for a member without
 // Today, their first section
 const home = () => [SECTIONS.find(can) || 'recipes'];
-const DEPTH = { today: 0, closet: 0, trips: 0, recipes: 0, trip: 1, pack: 2 };
+const DEPTH = { today: 0, closet: 0, trips: 0, places: 0, recipes: 0, trip: 1, pack: 2 };
 const scrolls = {}; // where each view was scrolled to, so coming back to it lands there
 function showView(name, id) {
   const was = shown, wasHash = shownHash, hash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
@@ -559,7 +561,7 @@ const hello = (d = new Date()) => `${d.getHours() >= 5 && d.getHours() < 12 ? 'G
 function title() {
   const t = openTrip, back = shown === 'trip' ? ['#trips', 'Trips'] : shown === 'pack' && t ? [`#trip/${t.id}`, t.name] : null;
   if (shown === 'today') return here({ title: hello(), over: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), bar: 'Today' });
-  const name = shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : shown === 'recipes' ? 'Recipes' : 'Closet';
+  const name = shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : shown === 'places' ? 'Places' : shown === 'recipes' ? 'Recipes' : 'Closet';
   here({ title: name, back });
 }
 // only the sections this member sees, and no tab bar for just one
@@ -578,6 +580,7 @@ function redraw() {
   if (shown === 'trips') return drawTrips();
   if (shown === 'trip') return drawTrip();
   if (shown === 'pack') return drawPack();
+  if (shown === 'places') return places.draw();
   if (shown === 'recipes') return null; // it draws itself (lib/recipes.js)
   return render();
 }
@@ -795,6 +798,13 @@ async function drawTrip() {
       list.setAttribute('aria-label', `Day by day in ${l.place}`);
       li.append(list);
     } else if (!past) li.append(el('p', 'leg__weather', 'Weather unavailable right now.'));
+    // what's saved around there (Places), folded: each a tap from Maps, or onto one of its days
+    const near = places.nearby(l, 8, 8);
+    if (near.length) {
+      const fold = el('details', 'leg__saved'), dates = Array.from({ length: daysBetween(l.from, l.to) + 1 }, (_, i) => addDays(l.from, i));
+      fold.append(el('summary', '', `Saved nearby · ${near.length}`), places.nearbyPart(null, near, { dates, label: (d) => fmtDay(d, { weekday: 'short' }), add: (p, d) => addToDay(t, d, p) }));
+      li.append(fold);
+    }
     legs.append(li);
   });
   // day by day: the planned days, each with its place, weather and outfit laid flat
@@ -1030,6 +1040,10 @@ async function drawToday() {
     const later = trips.filter((x) => span(x)[0] > today).sort((x, y) => span(x)[0].localeCompare(span(y)[0]))[0];
     if (later) { const part2 = el('section', 'today__part'); part2.append(el('h2', 'part-title', 'Next trip'), tripCard(later)); side.push(part2); }
   }
+  // 5. what's saved near where you are that day (on a trip, that day's place; at home, home), each
+  // a tap from Maps, and on a trip a tap onto the day's plan
+  const near = places.nearby(away ? legOn(t, date) : places.homeSpot() || HOME, away ? 5 : 2);
+  if (near.length) side.splice(away ? 1 : 0, 0, places.nearbyPart('Saved nearby', near, away ? { dates: [date], add: (p, d) => addToDay(t, d, p) } : null));
   const main = el('div', 'today__main'), aside = el('div', 'today__side');
   main.append(...(journey ? [journey] : []), card, wxCard);
   if (journey) journey.classList.add('today__part');
@@ -1050,6 +1064,19 @@ async function drawToday() {
 const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
 const tripOnDate = (date) => trips.find((t) => { const [a, b] = span(t); return a && a <= date && date <= b; }) || null;
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16)));
+// A saved place onto a day of a trip, as one of its activities (its place_id says which place, so
+// SJPJr's plan_days keeps it); Undo puts the day back as it was
+async function addToDay(t, date, p) {
+  const before = t.days, had = before.find((d) => d.date === date);
+  if (had?.activities?.some((a) => a.place_id === p.id)) return toast(`${p.name} is already on ${fmtDay(date, { weekday: 'short' })}.`);
+  const act = { id: newId(), title: p.name, type: places.activityType(p), ...(p.address && { location: p.address }), place_id: p.id };
+  const days = had ? before.map((d) => (d === had ? { ...d, activities: [...(d.activities || []), act] } : d)) : [...before, { date, items: [], activities: [act] }];
+  if (!(await tripRows.set(t.id, { days }))) return;
+  t.days = days;
+  keepCopy();
+  redraw();
+  toast(`Added ${p.name} to ${fmtDay(date, { weekday: 'short' })}.`, false, async () => { if (await tripRows.set(t.id, { days: before })) { t.days = before; keepCopy(); redraw(); } });
+}
 const QUEUE_DAYS = 'wardrobe-days-queue';
 const dayQueue = { add: {}, gone: {}, ...kept(QUEUE_DAYS) }; // id → the row to add; id → when it went to the trash (null: back out of it)
 const keepDayQueue = () => keep(QUEUE_DAYS, dayQueue);
@@ -1606,7 +1633,10 @@ async function load() {
   route();
 }
 const loadRecipes = () => (can('recipes') ? recipes.load({ offline: offline || !navigator.onLine }) : null);
-addEventListener('online', () => { if (uid) { load(); loadRecipes(); } });
+const loadPlaces = () => (can('places') ? places.load({ user: me, offline: offline || !navigator.onLine }) : null);
+// Today and a trip show what's saved nearby, so they're drawn again once the places are in
+places.onChange(() => { if (ready && (shown === 'today' || shown === 'trip')) redraw(); });
+addEventListener('online', () => { if (uid) { load(); loadRecipes(); loadPlaces(); } });
 start(async (user) => {
   uid = user.id;
   me = user;
@@ -1616,16 +1646,19 @@ start(async (user) => {
   unitsSeg.closest('.settings__part').hidden = !mine(); // no weather, no °F or °C
   await load();
   loadRecipes();
+  loadPlaces();
 }, () => {
   list = []; trips = []; parts = noParts(); events = []; openTrip = null; uid = null; me = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
   recipes.clear();
+  places.clear();
 }, { offline: true });
-fresh(() => { load(); loadRecipes(); });
+fresh(() => { load(); loadRecipes(); loadPlaces(); });
 
 // Pull to refresh, at the top of any section: the data again, and the weather (it's what changes
 // on Today and a trip when nothing else has); a toast says which
 pull(async () => {
   if (shown === 'recipes') { await recipes.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
+  if (shown === 'places') { await places.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
   const before = JSON.stringify([list, trips, parts, events]), weathered = ['today', 'trip'].includes(shown);
   weatherCache.clear();
   await load();

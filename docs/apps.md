@@ -2,8 +2,8 @@
 
 Small tools for life at home, on the site but only for members: Steve and Lexi today. Since Oct
 2026 they're one app, **SJPJr** (`/apps`, installed full screen on Steve's iPhone), in
-sections: Today, Closet, Trips and Recipes. Each member sees the sections that are theirs (Steve
-all four, Lexi Recipes). One sign-in, one look, one small kit, so a new section is a table, some
+sections: Today, Closet, Trips, Places and Recipes. Each member sees the sections that are theirs
+(Steve all five, Lexi Recipes). One sign-in, one look, one small kit, so a new section is a table, some
 markup and a module, and nothing else.
 
 ## How it fits together
@@ -68,10 +68,10 @@ Resume…), no footer, no "members only" line.
 - **Who's signed in**: `public.members` has `name` and `sections`
   (`supabase/migrations/20261007000100_members_name.sql`), read through `me()` (the caller's own
   row; the table itself stays unreadable). The name greets them; with none stored, the start of
-  their email, capitalised. `sections` is which of today, closet, trips and recipes they see (new
+  their email, capitalised. `sections` is which of today, closet, trips, places and recipes they see (new
   members: recipes). The wardrobe and trips are each person's own by row-level security, and
   Steve's are the only ones, so Lexi's row is `{recipes}`; giving someone more is a migration that
-  changes their row. If `me()` can't answer (before the migration has run), everyone sees all four.
+  changes their row. If `me()` can't answer (before the migration has run), everyone sees all of them.
   Both are kept on the phone (`apps-me:<email>`) for opening with no connection.
 - **Feels like an app**: buttons, tabs, chips, cards and the bars don't select as text or bring
   up the callout on a long press (`user-select: none`, `-webkit-touch-callout: none`, on controls
@@ -229,6 +229,56 @@ offers the library too). The old page could also fetch an NYT Cooking collection
 dropped (third-party proxies, and no way to test it). If it's missed, the way to do it is an edge
 function.
 
+## Places (the Places tab)
+
+What Steve saved, starred, reviewed and labeled in Google Maps, and his own My Maps: his own,
+private until he says otherwise (`supabase/migrations/20261020000100_places.sql`;
+`lib/places.js`, its markup `_includes/places.html`).
+
+- **Bringing them in.** There's no Google API for saved places in the US, so it's a Google
+  Takeout file: in Takeout pick Maps (your places), Saved and My Maps, then choose the zip in the
+  tab (or the files themselves). The zip is opened in the browser (fflate), and only the files
+  worth reading are kept (`_shared/takeout.js` says which: `Saved Places.json` → "Starred",
+  `Reviews.json` → "Reviewed" with the stars and words, `Labeled places.json` → "Labeled",
+  `Saved/<list>.csv` → that list, `My Maps/<map>.kmz` → the map's name, its layer as the
+  category). Nothing else in an export (location history included) is read or kept.
+- **The inbox** (`public.inbox`, vision rule 4): each import is a row (kind, source, name,
+  status new/done/failed, what came of it), its files kept as they came under
+  `photos/inbox/<owner>/<inbox id>/`, private to the owner (the storage policy makes `inbox/`
+  and `wardrobe/` each person's own). It's where other raw evidence will go next.
+- **One record a place** (`public.places`): the same place from two files is one (by Google's id
+  in its Maps link, `cid`, else the label, else name and location), with every list it's on and
+  `sources`, each file it came from with the inbox row. `places_import(inbox_id, places)` adds and
+  merges in one call (lists joined, blanks filled), so importing again doubles nothing, and marks
+  the inbox row done with how many were added and merged.
+- **Review.** Every place starts in `review`; Keep (one, or "Keep all" for a list, one request by
+  the list, never by ids) or Dismiss (Undo). Dismissed places stay, out of the way, so a new
+  import doesn't bring them back.
+- **Who sees it** (`visibility`): Only you (private, the default), Lexi (shared: kept places are
+  readable by other members), The site (public). Per place in its sheet, or a whole list at once.
+  The database decides what can be public: `places_guard` marks a place `sensitive` (home and
+  work by their label, any other labeled place, somewhere you stay, anything within 1 km of home
+  or work), the mark is never taken off, and a check refuses public for anything sensitive or not
+  kept. The app greys the button out and says why. Anyone reads public places only through the
+  `public_places` view: name, lists, category, country, a location to 4 decimals, his stars and
+  the Maps link; never the address, notes or reviews.
+- **Where they are.** Starred, reviewed, labeled and My Maps places come with coordinates; a
+  saved list's don't. "Find where N places are on the map" (also run after each import) calls the
+  `places-locate` edge function: 25 at a time by the Places API (New) Text Search, asking only for
+  the id, location and address, counted and capped at 1,000 calls a month
+  (`places_api_take`); a place it can't find is marked so and not asked again. Without the
+  `GOOGLE_MAPS_API_KEY` secret it says so and changes nothing.
+- **Nearby.** Today shows "Saved nearby": at home, within 2 km of the labeled Home (else the
+  city); on a trip, within 5 km of that day's leg, each with "Add to this day" (an activity on
+  the trip's day, with its `place_id`, Undo). Each leg of a trip has "Saved nearby" folded, with a
+  day picker. Labeled places and dismissed ones never show there. A copy is kept on the phone
+  (`places-copy:<user>`, without the reviews) for opening with no connection.
+- **Tests**: `tools/places-test.mjs` (the reader on a made-up export in `tools/fixtures/takeout/`,
+  the import twice, what can never be public, the view, each person's own, the inbox, the cap,
+  `find_places` and `get_today`), and the smoke test's "places tab" session (a zip chosen on a
+  phone, a list kept and put on the site, Home refused for it, locate without a key, Today at
+  home and in Florence).
+
 ## The wardrobe (`/apps`: Today, the Closet and Trips)
 
 Steve's clothes: private to him, not shared (table `wardrobe_items`, rows owned by `auth.uid()`;
@@ -268,7 +318,7 @@ wardrobe MCP server, signed in as him (below).
   copy, or a link) it opens on Today; someone without Today, on their first section. A section a
   member doesn't see isn't there: its address goes home. The heading says where you are (Today's
   greeting, Closet, Trips, the trip's name, Packing, Recipes), with the way back up in the bar
-  ("‹ Trips"); the tabs (Today, Closet, Trips, Recipes, with icons, only the member's, and none
+  ("‹ Trips"); the tabs (Today, Closet, Trips, Places, Recipes, with icons, only the member's, and none
   for one section) sit at the bottom on a phone. Each view
   keeps its scroll, so coming back lands where you were; the tab you're on, tapped again, goes to
   the top. Going in to a trip or its packing slides in from the right; an item grows out of the
@@ -611,6 +661,19 @@ reads it. The instructions say to start with `get_today` for anything about toda
   before it), every way of logging, the history's counts, the newest standing, Undo and the trash,
   and another member seeing and changing none of it.
 
+### Places
+
+`areas/places.js`, on `public.places` (above), read-only: what's kept and who sees it are Steve's
+to set in the app.
+
+- **`find_places`** (read-only): by words (`q`), `list`, `status` (kept, review or any), or
+  near somewhere: `near` (a place's name, located like a trip's leg; "home" is the labeled Home),
+  `lat` and `lon`, or `trip_id` and `date` (that day's leg), within `radius_km` (3 by default),
+  nearest first. Dismissed places are left out, and labeled ones unless `list` is "Labeled".
+  Each has its id, lists, stars, review, distance and Maps link.
+- `get_today` has `saved_nearby` (5 km on a trip, 2 km at home), and `plan_days` takes a
+  `place_id` on an activity, so "put that bar on Friday" lands on the trip with the place.
+
 ### Adding an area
 
 1. `supabase/functions/mcp/areas/<area>.js`: its tools (each with a title, read-only or write
@@ -626,7 +689,7 @@ reads it. The instructions say to start with `get_today` for anything about toda
 5. The tool list below, and the consent page's line (`apps/authorize.html`) if it's records.
 
 - **Tools** (read-only marked so): `get_today` (read-only; start here for anything about today),
-  `log_day` and `get_history` (read-only) ("Days" above); `find_items` (start here for clothes; one entry per physical piece, flat:
+  `log_day` and `get_history` (read-only) ("Days" above); `find_places` (read-only, "Places" above); `find_items` (start here for clothes; one entry per physical piece, flat:
   product and variant facts filled in; by words, category, season, dressiness, which matches where
   it mostly belongs or also works, and warmth), `get_item` (the piece whole: flat, product,
   variant, what's set on it alone, photos with their roles and ids, and every fact's source),

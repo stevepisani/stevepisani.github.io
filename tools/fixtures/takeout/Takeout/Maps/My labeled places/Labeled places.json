@@ -1,0 +1,4 @@
+{"type":"FeatureCollection","features":[
+{"geometry":{"coordinates":[-75.1700,39.9500],"type":"Point"},"properties":{"address":"10 Pretend Pl, Philadelphia, PA 19103","name":"Home"},"type":"Feature"},
+{"geometry":{"coordinates":[-75.3000,40.0000],"type":"Point"},"properties":{"address":"5 Imaginary Rd, Bryn Mawr, PA 19010","name":"Aunt's House"},"type":"Feature"}
+]}

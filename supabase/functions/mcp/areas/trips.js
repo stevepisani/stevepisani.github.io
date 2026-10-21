@@ -37,6 +37,7 @@ const ACTIVITY = {
     end_time: { type: "string", description: "HH:MM, local." },
     location: { type: "string" },
     notes: { type: "string" },
+    place_id: { type: "string", description: "A saved place's id (find_places), when it's one of them." },
   },
   required: ["title"],
   additionalProperties: false,
@@ -339,7 +340,7 @@ async function call(name, args, ctx) {
         const title = str(x.title, 200, `An activity on ${d.date}`, { required: true });
         const start_time = clock(x.start_time, `${title}'s start_time`), end_time = clock(x.end_time, `${title}'s end_time`);
         if (start_time && end_time && end_time < start_time) throw new Invalid(`${title} ends before it starts (${start_time}–${end_time}).`);
-        return pick({ id: had.some((y) => y.id === x.id) || /^[0-9a-f-]{36}$/.test(x.id || "") ? x.id : uuid(), title, type: oneOf(x.type, ACTIVITY_TYPES, `${title}'s type`), start_time, end_time, location: str(x.location, 200, "location"), notes: str(x.notes, 500, "notes") }, ["id", "title", "type", "start_time", "end_time", "location", "notes"]);
+        return pick({ id: had.some((y) => y.id === x.id) || /^[0-9a-f-]{36}$/.test(x.id || "") ? x.id : uuid(), title, type: oneOf(x.type, ACTIVITY_TYPES, `${title}'s type`), start_time, end_time, location: str(x.location, 200, "location"), notes: str(x.notes, 500, "notes"), place_id: str(x.place_id, 64, "place_id") }, ["id", "title", "type", "start_time", "end_time", "location", "notes", "place_id"]);
       }).sort((x, y) => (x.start_time || "99").localeCompare(y.start_time || "99"));
       const occasion = str(d.occasion, 200, "occasion"), note = str(d.note, 500, "note");
       if (!ids.length && !occasion && !note && !activities.length) { days.delete(d.date); continue; }

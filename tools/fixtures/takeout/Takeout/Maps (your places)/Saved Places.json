@@ -1,0 +1,5 @@
+{"type":"FeatureCollection","features":[
+{"geometry":{"coordinates":[11.2500,43.7700],"type":"Point"},"properties":{"date":"2026-09-01T10:00:00Z","google_maps_url":"http://maps.google.com/?cid=111","location":{"address":"Via Finta 1, 50123 Firenze FI, Italy","country_code":"IT","name":"Hotel Example Firenze"}},"type":"Feature"},
+{"geometry":{"coordinates":[11.2560,43.7702],"type":"Point"},"properties":{"date":"2026-09-02T10:00:00Z","google_maps_url":"http://maps.google.com/?cid=222","location":{"address":"Piazza Inventata 2, 50122 Firenze FI, Italy","country_code":"IT","name":"Caffè Stand-in"}},"type":"Feature"},
+{"geometry":{"coordinates":[0,0],"type":"Point"},"properties":{"date":"2020-01-01T00:00:00Z","google_maps_url":"http://maps.google.com/?q=nothing","Comment":"No location information is available for this saved place"},"type":"Feature"}
+]}

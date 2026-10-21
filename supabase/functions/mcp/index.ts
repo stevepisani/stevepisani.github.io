@@ -208,6 +208,17 @@ Deno.serve(async (req) => {
       byRef: (ref: string) => one(db.from("events").select("*").eq("client_ref", ref).maybeSingle()),
       add: (list: Record<string, unknown>[]) => rows(db.from("events").insert(list).select()),
     },
+    // the saved places (areas/places.js), read only; what's dismissed is left out
+    places: {
+      list: async () => {
+        const out: Record<string, unknown>[] = [];
+        for (let from = 0; ; from += 1000) {
+          const page = await rows(db.from("places").select("id, name, address, country_code, lat, lon, google_url, lists, category, label, rating, review, note, sensitive, status").eq("owner", uid).neq("status", "dismissed").order("name").range(from, from + 999));
+          out.push(...page);
+          if (page.length < 1000) return out;
+        }
+      },
+    },
     client: typeof claims.client_id === "string" ? claims.client_id : null, // who recorded what's logged from a chat
     cardScript,
     storageOrigin: SUPABASE, // where the photos load from, for the card's allowed sources

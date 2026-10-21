@@ -6,20 +6,18 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **The inbox, next** (`docs/vision.md`, rule 4): one place for everything not yet filed, kept
-   raw (photos, links, screenshots, receipts, files), each with where it came from; processed now,
-   overnight in a batch, or later by a better model, and turned into records and events (the days'
-   record is in: `events`, `docs/apps.md`, "Days"), with Steve reviewing what the model isn't sure
-   of. Places' Takeout file is the first thing it takes, so it comes before them.
+0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
+   file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
+   Next: photos, links, screenshots and receipts dropped in the same way, processed now, overnight
+   in a batch, or later by a better model, into records and events, with Steve reviewing what the
+   model isn't sure of.
 
-0. **Places, from Google Maps, after the inbox: the next shared piece, for SJPJr and the planet alike.** Steve's
-   Google Maps saved lists and starred places, from a Takeout file dropped into a private import
-   screen; every place private until approved in review; home, work, lodging, any trip hotel and
-   anything near home can never be public; coordinates from the Places API (New) on the server
-   (inside its free monthly caps, with a quota set). In SJPJr: "Saved nearby" on Today and each
-   leg of a trip, and "Add to this day". On the site: the lists Steve marks public, on a map and
-   on the planet: on Earth, in the sky (`sky.js` `earthPoint(lat, lon)` puts a place on the globe; how they look there is to be designed). v2: Google's Data Portability API if
-   it reaches US accounts. Starts once the key is in (Waiting on Steve).
+0. **Places on the site, and on the planet.** The places are in SJPJr (`docs/apps.md`, "Places");
+   what Steve marks "The site" is already readable by anyone through the `public_places` view
+   (name, lists, a 4-decimal location, his stars; never the address, notes or reviews). Next: a
+   map of them on the site, and on the planet: on Earth, in the sky (`sky.js` `earthPoint(lat,
+   lon)` puts a place on the globe; how they look there is to be designed). Then the inbox's other
+   sources, and v2: Google's Data Portability API if it reaches US accounts.
 
 0. **SJPJr, the MCP server, grows by area** (`docs/apps.md`, "Adding an area"). First the
    wardrobe and trips working end to end in ChatGPT (the card, packing for the Europe trip), then,
@@ -51,9 +49,8 @@ rather than leaving it in a chat.
    passively, tools not features, one inbox, trust on a dial, measure before switching). In order:
    - more kinds of event: visits, cooking, buying (the table takes them as they are; "wore" and
      "journal" are in);
-   - one inbox for raw evidence (first in this list, above), and visibility (private, shared,
-     public) on every record;
-   - places (first in this list, above);
+   - the inbox's other sources (first in this list, above), and visibility (private, shared,
+     public) on every record (places have it);
    - a dozen real tasks with known answers, run against SJPJr whenever the model changes;
    - passive sources, one at a time into the inbox: the office camera (a morning frame matched to
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
@@ -62,9 +59,18 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
-- **A Google Maps key for places (next up):** a Google Cloud project with the Places API (New)
-  on, a key restricted to it, a daily quota, saved as a GitHub repo secret (the exact steps when
-  we start).
+- **A Google Maps key for places:** only needed for places a Takeout gives no coordinates for
+  (saved lists, like "Want to go"). In the Google Cloud console (console.cloud.google.com): make
+  a project, turn on billing (Google asks for it even inside the free calls), then APIs & Services,
+  Library, "Places API (New)", Enable; Credentials, Create credentials, API key; edit the key,
+  under API restrictions pick "Restrict key" and only Places API (New); under Quotas for Places
+  API (New), set the per-day limit to 100. Then in GitHub, this repo's Settings, Secrets and
+  variables, Actions, New repository secret: `GOOGLE_MAPS_API_KEY`. The next merge that touches
+  `supabase/` copies it in (or run the Supabase workflow by hand). The code stops at 1,000 calls
+  a month.
+- **A second Takeout, for the saved lists:** the first export had no `Saved/` folder (Want to
+  go, Favorites, his own lists). At takeout.google.com pick only "Saved", export, and choose the
+  zip in the Places tab; what's already there is merged, not doubled.
 - **For passive capture:** the office camera's make and model, which stores' grocery receipts come
   by email, and which card or bank to export.
 
@@ -86,6 +92,13 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: Places, a tab in SJPJr: a Google Takeout zip chosen in the app (starred, reviewed,
+  labeled, saved lists and his own My Maps) is kept in the new inbox as it came, and becomes one
+  record a place, each waiting for review and private until Steve shares it with Lexi or puts it
+  on the site; home, work, labeled places, somewhere he stayed and anything near home can never
+  be on the site (the database refuses it). Today and each leg of a trip show what's saved
+  nearby, with "Add to this day". In SJPJr, `find_places`, and `get_today` has saved nearby. The
+  places with no coordinates are found by the Places API (New), capped at 1,000 calls a month.
 - Oct 2026: the robot's drinks, put right after the bottle work: it rolls to whatever its working
   hand works on, so it really picks up the tin, strains into the glass (the stream shows and the
   glass fills), stands the spoon in the glass and sets the garnish on; the drink reads full again
