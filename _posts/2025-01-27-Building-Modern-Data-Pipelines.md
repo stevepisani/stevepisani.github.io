@@ -2,7 +2,6 @@
 layout: post
 title: "Building Modern Data Pipelines: Lessons from the Trenches"
 date: 2025-01-27T10:00:00+00:00
-author: Steve
 image_url: https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg?auto=compress&cs=tinysrgb&w=2000&h=400&fit=crop
 description: "Key insights and best practices for building scalable, maintainable data pipelines in modern organizations."
 ---

@@ -1208,7 +1208,9 @@ async function start() {
     chatInput.value = '';
     talk.push({ role: 'user', content: q });
     let answer = '';
-    try {
+    // the suggested questions are the house's to answer (barback.js): instant, and no cost
+    if (talk.length === 1 && (data.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
+    if (!answer) try {
       const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}` },
@@ -1228,7 +1230,7 @@ async function start() {
       }
     } catch (err) { /* offline, or the function isn't there: the house answers below */ }
     answer = answer.trim();
-    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, offline): answer from the site's own facts
+    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, a limit, offline): answer from the site's own facts
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
     line.classList.remove('is-thinking');

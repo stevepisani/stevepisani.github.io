@@ -2,11 +2,10 @@
 layout: post
 title:  "SQL Guide"
 date:   2021-02-15T12:00:00+00:00
-author: Steve
 image_url: https://images.unsplash.com/photo-1520589884715-55ac7417f2ee?ixlib=rb-1.2.1&q=85&fm=jpg&crop=entropy&cs=srgb&w=1200
 ---
 
-When writing SQL, it is important to stay consistant to help anyone reading your queries (including _future_ you) quickly understand the logic in your code and pick out errors or opportunities for improvement. By sticking to a style guide, you can remove many of the headaches associated with reading, writing, and reviewing SQL in a team or by yourself. 
+When writing SQL, it is important to stay consistent to help anyone reading your queries (including _future_ you) quickly understand the logic in your code and pick out errors or opportunities for improvement. By sticking to a style guide, you can remove many of the headaches associated with reading, writing, and reviewing SQL in a team or by yourself. 
 
 These suggestions are not written in stone and, if you have a suggestion or disagreement, I would love to chat about it.
 
@@ -67,7 +66,7 @@ The goal of constant SQL formatting is to improve development, review, and under
 - *Always use* *`as`* *when aliasing columns*
 - Use snake_case
 - *Use* *`is_`* *prefix when naming boolean fields*
-- *Alway rename aggregates and function fields*
+- *Always rename aggregates and function fields*
 - *If joins, alias all tables and include when addressing fields*
 - *Use distinct aliases*
 - *Use meaningful CTE names*
