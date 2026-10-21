@@ -6,7 +6,8 @@
 //   - JWT signing keys: an asymmetric one in use (below);
 //   - the auth settings in supabase/auth.json, and the emails in supabase/templates/ (each
 //     <name>.html is the auth config's mailer_templates_<name>_content: magic_link.html is the
-//     sign-in email, with its link and its code).
+//     sign-in email, with its link and its code);
+//   - Realtime's limits in supabase/realtime.json, the fireflies' cost cap (docs/backend.md).
 //
 //   SUPABASE_ACCESS_TOKEN=... node tools/supabase.mjs [--dry-run]
 import { readFileSync, readdirSync } from 'node:fs';
@@ -79,5 +80,17 @@ const changed = Object.fromEntries(Object.entries(auth).filter(([k, v]) => curre
 if (Object.keys(changed).length) {
   console.log(`${dry ? 'would set' : 'setting'} auth: ${Object.keys(changed).join(', ')}`);
   if (!dry) await api('PATCH', '/config/auth', changed);
+}
+// Realtime's limits: the fireflies' presence goes to everyone on the planet, so messages grow with
+// the square of the crowd, and these cap it. Only settings the project reports are sent; one it
+// doesn't is named in a warning rather than failing the run.
+const realtime = JSON.parse(readFileSync(`${repo}/supabase/realtime.json`, 'utf8'));
+const rtNow = await api('GET', '/config/realtime');
+const missing = Object.keys(realtime).filter((k) => !(k in rtNow));
+if (missing.length) console.log(`::warning::Realtime has no ${missing.join(', ')}; not set`);
+const rtChanged = Object.fromEntries(Object.entries(realtime).filter(([k, v]) => k in rtNow && rtNow[k] !== v));
+if (Object.keys(rtChanged).length) {
+  console.log(`${dry ? 'would set' : 'setting'} realtime: ${Object.entries(rtChanged).map(([k, v]) => `${k} ${rtNow[k]} -> ${v}`).join(', ')}`);
+  if (!dry) await api('PATCH', '/config/realtime', rtChanged);
 }
 console.log(dry ? 'dry run done' : 'up to date');

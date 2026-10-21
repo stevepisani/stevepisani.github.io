@@ -1,6 +1,6 @@
 # The backend: Supabase, the bartender, deploys, secrets, money
 
-Everything that isn't static files. There's one backend, a Supabase project on the free plan, and
+Everything that isn't static files. There's one backend, a Supabase project (on the Tabby Stack organization's Pro plan), and
 all of it is code in this repo: nothing is changed by hand in a dashboard.
 
 ## Supabase (`supabase/`)
@@ -20,6 +20,11 @@ design: row-level security guards every table.
   last: an hour's access token renewed by a refresh token that rotates, with no time limit and no
   inactivity limit, so a phone stays signed in until it signs out; `docs/apps.md`, "Staying
   signed in").
+- `realtime.json`: Realtime's limits, the fireflies' cost cap. Presence goes to everyone on the
+  planet, so its messages grow with the square of the crowd: at most 100 connected at once (the
+  rest see no fireflies and try again later) and 5 presence updates a second across the project,
+  so at most about 1.8 million messages an hour, and far fewer in practice (each visitor sends at
+  most one update every 15 s).
 - `templates/<name>.html`: Auth's emails, each the auth config's `mailer_templates_<name>_content`.
   `magic_link.html` is the sign-in email: the link and the code (`{{ .ConfirmationURL }}`,
   `{{ .Token }}`), the code being how the home-screen app signs in (`docs/apps.md`, "Signing in").
@@ -30,7 +35,7 @@ design: row-level security guards every table.
   `deno check --node-modules-dir=none supabase/functions/<name>/index.ts` (the flag keeps Deno from
   looking for the site's own `node_modules`).
 - `tools/supabase.mjs` applies the migrations, the JWT signing keys (one ES256 key in use, the old
-  secret still trusted), `auth.json` and the email templates through the Management API with
+  secret still trusted), `auth.json`, the email templates and `realtime.json` through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
   copies the `ANTHROPIC_API_KEY` and `GOOGLE_MAPS_API_KEY` repo secrets into the project's function secrets, and deploys
@@ -188,7 +193,7 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | Item | Cost |
 |---|---|
 | GitHub Pages and Actions | $0 |
-| Supabase (free plan: 500 MB database, 200 concurrent Realtime connections, which is the fireflies' cap) | $0 |
+| Supabase (the Tabby Stack organization's Pro plan, not counted here; Realtime: 5 million messages a month included, then $2.50 a million, held down by `realtime.json`) | $0 |
 | The bartender (capped at 1,000 replies a month) | up to about $5 |
 | Audible sync (a minute of Actions a day) | $0 |
 | mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
