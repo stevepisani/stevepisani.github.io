@@ -129,10 +129,16 @@ async function planet(page, shot, { phone = false } = {}) {
     const p = it.point.clone().project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
     return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
   }, id);
+  // from far off the stool hides behind the deck's edge, so that tap walks you up to the bar,
+  // standing; a tap on your stool then sits you (only the stool, or near it, does)
   await tap(await onScreen('seat'));
+  await until(page, () => window.__world.state === 'seat' || (window.__world.state === 'walk' && window.__world.player.target), null, 20000);
+  await until(page, () => window.__world.state === 'seat' || !window.__world.player.target, null, 600000);
+  const walkedUp = await page.evaluate(() => window.__world.state === 'walk');
+  if (walkedUp) await tap(await onScreen('seat'));
   await expectState(page, 'seat', 600000);
   await shot('seated');
-  step('tap the bar: walked over and sat down');
+  step(walkedUp ? 'tap the bar: walked up to it; tap the stool: sat down' : 'tap the stool: walked over and sat down');
 
   // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
   await tap(await onScreen('menu'));
@@ -191,16 +197,27 @@ async function planet(page, shot, { phone = false } = {}) {
   await expectState(page, 'walk', 120000);
   step('left the bar');
 
-  // from behind the bar, a tap on it walks you round to the front, not into the counter, and sits you
-  const back = await page.evaluate(() => {
+  // a tap on the bar away from your stool (its far end) walks you up to it but doesn't sit you
+  const barEnd = await page.evaluate(() => {
     const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
-    W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+    W.player.spawn(b.localToWorld(new V(0, 0, 6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
     W.player.applyToCamera();
     W.camera.updateMatrixWorld(true);
-    const p = b.localToWorld(new V(0, 1.6, -1.45)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+    const p = b.localToWorld(new V(-1.7, 1.0, 1.0)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
     return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
   });
-  await tap(back);
+  await tap(barEnd);
+  await until(page, () => window.__world.player.target, null, 20000);
+  await until(page, () => !window.__world.player.target, null, 600000);
+  if (await page.evaluate(() => window.__world.state) !== 'walk') throw new Error('a tap on the far end of the bar sat you down: only your stool should');
+  step('a tap on the bar away from the stool walks you up to it, standing');
+
+  // from behind the bar, going to the seat walks you round to the front, not into the counter, and sits you
+  await page.evaluate(() => {
+    const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
+    W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+    W.goUse('seat');
+  });
   await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
   await expectState(page, 'seat', 600000);
   await page.click('#seat-leave');

@@ -484,7 +484,10 @@ async function start() {
     if (hit.object === ground || hit.object === bridge) return { ground: hit.point };
     const loose = looseMeshes.get(hit.object);
     if (loose) return physics.ready ? { loose, point: hit.point } : { ground: hit.point };
-    return { thing: interactMeshes.get(hit.object), point: hit.point };
+    const thing = interactMeshes.get(hit.object);
+    // the bar away from your stool is somewhere to walk up to, not a seat
+    if (thing.near && !thing.near(hit.point)) { const up = hit.point.clone().normalize(); return { ground: up.multiplyScalar(groundRadius(up)) }; }
+    return { thing, point: hit.point };
   }
 
   /* ---------- Glints: things you can use catch the light, now and then ---------- */

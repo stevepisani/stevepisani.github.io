@@ -273,7 +273,7 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
       return g;
     };
     const rod = (hand, material, prongs) => {
-      const g = tool(hand, 0.26, 1.5);
+      const g = tool(hand, 0.26, 1.9); // steep enough to stand in a glass the arm reaches out over
       mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.3, 6), material, [0, -0.11, 0], g);
       if (prongs) for (let i = 0; i < 5; i++) { // a real swizzle stick: the tip of a branch, with its little spokes
         const prong = mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.03, 4), material, [0, -0.26, 0], g);
