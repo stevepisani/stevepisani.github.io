@@ -113,14 +113,19 @@ menu, drinks, posts, lab, books, the bartender's lines) and streams the reply ba
 markdown markers dropped as they pass, so the first words show in well under a second. Without
 `stream: true` it answers `{ reply }` whole, as before. On the way in, the rate-limit check and the
 brief (fetched once an isolate, refreshed hourly in the background) run side by side; token
-accounting runs after the reply has gone out. Limits, in the database: 1,000 replies a month (about
-$5) and 20 questions an hour per visitor, keyed by a daily-salted hash of the IP, never the IP. It
+accounting runs after the reply has gone out (input logged as billed: a cache write 1.25 times, a
+read a tenth). Limits, in the database: 4,000 replies a month (about $5 with the prompt cached) and
+20 questions an hour per visitor, keyed by a daily-salted hash of the IP, never the IP. It
 declines to talk about clients and points people to email. When the model can't answer (no credit
-left on the Anthropic account, an outage) it sends back nothing, and the page answers from the same
+left on the Anthropic account, an outage, or a limit reached) it sends back nothing, and the page answers from the same
 facts on its own (`assets/js/world/barback.js`: who Steve is, a drink from the chalkboard, what he's
 reading, his latest post, a project, his email; the menu for anything else), so the bar is never
-closed. Only with no connection and no `/bartender.json` does it say the bar's closed for a moment. No prompt caching: Haiku 4.5 caches only a prefix of 4,096 tokens or
-more, and the brief sits right at that line, so it would come and go.
+closed. The suggested questions (`ask` in `_data/bar.yml`) are answered that way too, in the page,
+so only what people type costs anything. Only with no connection and no `/bartender.json` does it
+say the bar's closed for a moment. The prompt is cached (the same for everyone): a reply costs about
+$0.001 while the cache is warm (5 minutes), against $0.004 sent whole. Haiku 4.5 caches only a
+prompt of 4,096 tokens or more, so `bartender.json` lists 30 books a shelf, which keeps the brief at
+about 4,700; trimming it below 4,096 would quietly quadruple the cost.
 
 ## Audible (`tools/audible-sync.py`)
 
@@ -194,7 +199,7 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 |---|---|
 | GitHub Pages and Actions | $0 |
 | Supabase (the Tabby Stack organization's Pro plan, not counted here; Realtime: 5 million messages a month included, then $2.50 a million, held down by `realtime.json`) | $0 |
-| The bartender (capped at 1,000 replies a month) | up to about $5 |
+| The bartender (capped at 4,000 replies a month, prompt cached) | up to about $5 |
 | Audible sync (a minute of Actions a day) | $0 |
 | mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
 | Places API (New), finding saved places (capped at 1,000 calls a month, inside Google's free monthly calls for Text Search) | $0 |
