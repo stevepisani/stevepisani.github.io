@@ -3,36 +3,13 @@ layout: post
 title:  "Rockets and Horses"
 date:   2020-11-05T15:52:00+00:00
 image_url: /assets/images/rockets.webp
+description: "Why the Space Shuttle's boosters supposedly come down to two Roman horses: a walk along one track, and how much of the story holds up."
 ---
 
-One of my favorite bits of Internet lore is the connection between the design of the rocket boosters on the space shuttle and the size of Roman war chariots. Here is the rough retelling: 
+One of my favorite bits of Internet lore is the connection between the design of the rocket boosters on the space shuttle and the size of Roman war chariots. Here is the rough retelling, one stop at a time, with how well each part holds up:
 
-> ### **_"_**
-> The US standard railroad gauge (distance between the rails) is 4ft, 8.5in. This gauge is used because the English built railroads to that gauge and US railroads were built by English expatriates.
->   
-> 
-> <br>_Why did the English build railroads to that gauge?_
-> 
-> Because the first rail lines were built by the same people who built the pre-railroad tramways, and that’s the gauge they used. 
-> 
-> <br>_Why did those wheelwrights use that gauge then?_
-> 
-> Because the people who built the horse-drawn trams used the same jigs and tools that they used for building wagons, which used that wheel spacing.
-> 
-> <br>_Why did the wagons use that odd wheel spacing?_
-> 
-> For the practical reason that any other spacing would break an axle on some of the old, long distance roads, because this is the measure of the old wheel ruts.
-> 
-> <br>_So who built these old rutted roads?_
-> 
-> The first long distance roads in Europe were built by Imperial Rome for their legions and used ever since. The initial ruts were first made by Roman war chariots, which were of uniform military issue. The Imperial Roman chariots were made to be just wide enough to accommodate the back-ends of two war horses.
-> 
-> <br>This story does not end there, however. 
-> 
-> Look at a NASA Space Shuttle and the two big booster rockets attached to the sides of the main fuel tank. These are solid rocket boosters or SRBs. The SRBs are made by Thiokol at their factory at Utah. The engineers who designed the SRBs might have preferred to make them a bit fatter, but the SRBs had to be shipped by train from the factory to the launch site in Florida. The railroad line from the factory runs through a tunnel in the mountains and the SRBs have to fit through that tunnel. The tunnel is slightly wider than the railroad track. 
-> 
-> So, the major design feature of what is arguably the world’s most advanced transportation system was determined by the width of a horse’s ass.
-  
+{% include gauge-walk.html %}
+
 Now, this story may not be _100%_ [factual](https://www.snopes.com/fact-check/railroad-gauge-chariots/) but, I like to believe it is pretty damn close and provides plenty of food for thought. 
 
 The headline in my mind is that `design decisions propagate`.

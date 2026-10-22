@@ -314,6 +314,18 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   <p class="launch-note">Rockets are a big part of why this bar is in orbit. Launch data comes live from <a href="https://thespacedevs.com/llapi" target="_blank" rel="noopener">The Space Devs ↗</a>; photos are theirs and their sources'.</p>
 </template>
 
+<template id="panel-gauge">
+  <p class="kicker">4′ 8½″</p>
+  <h2 id="panel-title">Rockets and Horses</h2>
+  <p>This booster segment came by train, on rails 4 feet 8½ inches apart. The story goes that the gauge comes from the width of two Roman war horses. Here's how each step of it holds up:</p>
+  <ol class="panel__gauge">
+    {%- for s in site.data.gauge %}
+    <li class="is-{{ s.verdict }}"><span>{{ s.when }}</span> <b>{% case s.verdict %}{% when "true" %}True{% when "partly" %}Partly true{% else %}Not true{% endcase %}</b></li>
+    {%- endfor %}
+  </ol>
+  <p class="panel__links"><a class="btn" href="{% for p in site.posts %}{% if p.title == "Rockets and Horses" %}{{ p.url | relative_url }}{% endif %}{% endfor %}#walk">Walk the track</a></p>
+</template>
+
 <template id="panel-contact">
   <h2 id="panel-title">Say hello</h2>
   <p>Want to collaborate, talk shop, or argue about cheesesteaks? Emails are always welcome.</p>

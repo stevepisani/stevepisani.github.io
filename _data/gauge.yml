@@ -1,0 +1,51 @@
+# "Rockets and Horses": the stops of the walk along one track, in the order you walk them
+# (back in time from today's rails to Rome, then forward to the Shuttle). Used by the post's
+# walk (_includes/gauge-walk.html, assets/js/walk/gauge.js) and the planet's flatcar panel.
+#   scene    which set the 3D walk shows (gauge.js SCENES)
+#   when     where and when, a kicker
+#   story    the story as it's usually told
+#   verdict  true | partly | false: how well that link holds up
+#   fact     what's known instead (Snopes, "Railroad Gauge and Roman Chariots")
+- scene: rails
+  when: United States, today
+  story: The US standard railroad gauge is 4 feet 8½ inches, because the English built railroads to that gauge and US railroads were built by English expatriates.
+  verdict: partly
+  fact: The gauge is right. The expatriates aren't. Some early lines bought English locomotives, like the John Bull, and laid track to fit them. The South ran 5 feet until 1886, when it moved its rails in two days.
+- scene: locomotive
+  when: England, 1825
+  story: The English built them that way because the first railways were built by the people who built the tramways before them.
+  verdict: "true"
+  fact: George Stephenson took the gauge of the coal wagonways of Northumberland and Durham, about 4 feet 8 inches, and added half an inch of play.
+- scene: tram
+  when: England, the 1700s
+  story: The tramway builders used the same jigs and tools as the wagon builders, so they used the same wheel spacing.
+  verdict: "true"
+  fact: Close enough. Coal wagons on wooden rails were built like road carts, sized for one horse between the shafts.
+- scene: wagon
+  when: England, the Middle Ages
+  story: The wagons used that spacing because any other would break an axle in the ruts of the old long-distance roads.
+  verdict: "false"
+  fact: There were no standard ruts to fit. Wheel spacing changed from place to place, and Britain's Great Western Railway ran on 7 feet until 1892.
+- scene: ruts
+  when: Roman Britain
+  story: The first long-distance roads were built by Imperial Rome for its legions, and the ruts were made by Roman war chariots.
+  verdict: partly
+  fact: Roman ruts about this wide are real, at Housesteads on Hadrian's Wall. But the legions moved on foot and by cart. Chariots were for racing and parades.
+- scene: horses
+  when: Rome
+  story: The chariots were made just wide enough for the back ends of two war horses.
+  verdict: partly
+  fact: The real constant is the horse. Anything sized to be pulled by one comes out about this wide, in Rome, in England and everywhere else. That's a coincidence, not a line of descent.
+- scene: booster
+  when: Utah, the 1980s
+  story: The Space Shuttle's boosters were made by Thiokol in Utah and shipped by train to Florida, through a tunnel only slightly wider than the track.
+  verdict: partly
+  fact: They did go by rail, in segments. But tunnels are much wider than the track, and nobody has found a sign that one shaped the boosters.
+- scene: shuttle
+  when: Florida, 1981
+  story: So a major design feature of the world's most advanced transportation system was set by the width of a horse's backside.
+  verdict: "false"
+  fact: >-
+    About one out of five, Snopes says. What does hold up is smaller: a cart sized for a horse
+    became a wagonway, the wagonway became a railway, and nobody changed it, because everything
+    after was built on top of it.

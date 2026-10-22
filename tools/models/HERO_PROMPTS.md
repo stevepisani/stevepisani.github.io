@@ -297,6 +297,25 @@ Texture: Dark weathered black iron hood, frame, wire handle and base, a little r
 
 Textures: clear glass showing the spirit inside, a paper label with a simple border and no readable words, the cap or cork.
 
+## Rockets and Horses (the post's walk, not the planet)
+
+The walk in "Rockets and Horses" (`assets/js/walk/`) is built from stand-ins in `sets.js`, at
+real size in metres; these are the models to make for it. Not tiki: plain, realistic, a little
+toy-like, daylight. Every wheeled thing has its wheels 1.435 m apart (inside faces), which is the
+point of the story, so ask for "wheels set 1.435 metres apart" and check it. Under 10k triangles
+and 1024px textures each; the walk loads them after its first frame. Each replaces its stand-in
+by name; the flatcar and its booster are on the planet too, at 0.4 scale.
+
+- **gauge-horse**: a draught horse standing, bay brown with a dark mane and tail, a simple leather collar and harness, no rider, about 1.6 m at the withers, head facing forward. Realistic PBR, game-ready.
+- **gauge-chariot**: a Roman two-wheeled racing chariot, no horses: a small open wooden car with a curved front screen, two spoked wheels on one axle set 1.435 metres apart, a long pole forward. Painted ochre and red. Realistic PBR, game-ready.
+- **gauge-roman-cart**: a heavy Roman two-wheeled cart for supplies, solid plank wheels with iron tyres set 1.435 m apart, a wooden box bed, two shafts forward, no animal. Realistic PBR, game-ready.
+- **gauge-wagon**: a medieval English four-wheeled farm wagon loaded with hay, wooden spoked wheels set 1.435 m apart, shafts forward, no animal. Realistic PBR, game-ready.
+- **gauge-chaldron**: an 18th-century English coal chaldron wagon for a wooden wagonway: a tapering wooden hopper body on four small iron flanged wheels set 1.435 m apart, full of coal. Realistic PBR, game-ready.
+- **gauge-locomotive**: Stephenson's Rocket locomotive of 1829 with its tender: yellow boiler, tall black chimney, two large front driving wheels and small rear wheels, angled cylinders, a wooden tender with a water barrel. Realistic PBR, game-ready.
+- **gauge-boxcar**: a modern North American freight boxcar, boxcar red, sliding door, two four-wheel trucks with wheels 1.435 m apart. Realistic PBR, game-ready.
+- **gauge-booster-car**: a long railroad flatcar carrying one segment of a Space Shuttle solid rocket booster lying on cradles: a white steel cylinder 3.7 m across and 8 m long, two four-wheel trucks with wheels 1.435 m apart. Realistic PBR, game-ready.
+- **gauge-shuttle**: the Space Shuttle stack at lift-off: the orbiter, the orange external tank, two white solid rocket boosters, no launch tower and no flames. About 56 m tall. Realistic PBR, game-ready.
+
 The hammock stays code: its cloth sags between the palms as you lie in it, and there's no frame to model.
 
 ## Licence check before committing a model
