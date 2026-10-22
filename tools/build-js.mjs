@@ -15,7 +15,9 @@
 //                   mounts) split into chunks of their own
 //
 // First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
-// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes. And
+// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes. Then
+// _data/planet.json, Steve's planet as a planet spec (tools/planet.mjs), which the homepage writes
+// into the page for the world; again whenever _data/bar.yml or _data/drinks.yml changes. And
 // _data/hero_preload.json, the hero models the first frame needs (assets/models/hero/manifest.json,
 // all but the lazy ones), which the homepage preloads so they download alongside the script.
 //
@@ -26,6 +28,7 @@
 import * as esbuild from 'esbuild';
 import { rmSync, readFileSync, readdirSync, writeFileSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
+import { writePlanet } from './planet.mjs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -85,6 +88,7 @@ const aoFromWorld = {
 };
 
 writeLibrary(root);
+writePlanet(root);
 const heroes = JSON.parse(readFileSync(root + 'assets/models/hero/manifest.json', 'utf8'));
 writeFileSync(root + '_data/hero_preload.json', JSON.stringify(Object.values(heroes).filter((h) => !h.lazy).map((h) => h.file)) + '\n');
 rmSync(out, { recursive: true, force: true });
@@ -106,6 +110,7 @@ const builds = [
 if (watch) {
   for (const b of builds) await (await esbuild.context(b)).watch();
   for (const f of ['_data/audible.json', '_data/books.yml']) watchFile(root + f, () => { try { writeLibrary(root); } catch (e) { console.error(e.message); } });
+  for (const f of ['_data/bar.yml', '_data/drinks.yml']) watchFile(root + f, () => { try { writePlanet(root); } catch (e) { console.error(e.message); } });
   console.log('Watching assets/js for changes…');
 } else {
   const results = await Promise.all(builds.map((b) => esbuild.build(b)));
