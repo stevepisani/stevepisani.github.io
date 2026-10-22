@@ -6,7 +6,7 @@ import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
 import * as T from './textures.js';
-import { palm, lavaRock, tikiTorch, radioDish, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole, doorway } from './props.js';
+import { palm, lavaRock, tikiTorch, radioDish, petunias, outriggerCanoe, hammock, bookStack, messageBottles, signpost, coconut, glassFloat, launchConsole, doorway } from './props.js';
 import { REAL_PLACES } from './realplaces.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
@@ -19,6 +19,7 @@ import { heroSlot } from './hero.js';
 export const SPOTS = {
   spawn: dirFrom(0.62, Math.PI / 2), // ~12 m out, straight in front of the bar (it faces longitude π/2)
   rocket: dirFrom(0.72, 1.3),
+  petunias: dirFrom(0.74, 1.78), // behind you as you land, on the other side from the landing pad
   telescope: dirFrom(0.5, 2.85),
   campfire: dirFrom(2.55, -1.6),     // around the back
   dish: dirFrom(1.1, -0.2),
@@ -57,8 +58,8 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
-// the dish, the boat and the telescope (they're placed before any of these exist).
-const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4]].map(([d, r]) => [d.clone().normalize(), r]);
+// the dish, the boat, the telescope and the petunias (they're placed before any of these exist).
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4], [SPOTS.petunias, 0.6]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True within `margin` metres of a landmark's footprint. */
 export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
@@ -446,6 +447,13 @@ export function buildPlaces({ prop, quality, badge = null }) {
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
     // a ground station: this is where you send Steve a signal
     interactables.push({ id: 'contact', label: 'Radio dish', verb: 'Get in touch', object: dish, point: dish.position.clone(), approach: surfacePoint(dirFrom(1.01, -0.23)), radius: 2.4 });
+  }
+
+  // A bowl of petunias that has just fallen out of the sky, behind where you land. Not announced
+  // and it never glints: hover it, or walk up to it, and it thinks what it always thinks.
+  {
+    const pot = ground(petunias(), SPOTS.petunias, { heading: headingToward(SPOTS.petunias, SPOTS.spawn) }, 0.8);
+    interactables.push({ id: 'petunias', label: 'A bowl of petunias', verb: 'Oh no, not again.', object: pot, point: pot.position.clone(), approach: surfacePoint(SPOTS.petunias.clone().lerp(SPOTS.spawn, 0.33).normalize()), radius: 1.6, quiet: true });
   }
 
   // An outrigger canoe, pulled up out of the lagoon, for reasons nobody can explain: stern on
