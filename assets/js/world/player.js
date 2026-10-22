@@ -87,10 +87,15 @@ export class Player {
 
   stop() { this.target = null; this.facing = null; }
 
-  /** Turn on the spot to face `point` (world), then call `then`. */
-  face(point, then) {
+  /** Turn on the spot to face `point` (world), then call `then`; `down` also looks down at it. */
+  face(point, then, { down = false } = {}) {
     this.target = null;
-    this.facing = { point: point.clone(), then, until: this.clock + 1.5 };
+    let pitch = null;
+    if (down) {
+      const to = point.clone().sub(this.pos), up = this.up, h = to.dot(up) - this.eye;
+      pitch = THREE.MathUtils.clamp(Math.atan2(h, to.addScaledVector(up, -to.dot(up)).length()), -PITCH_LIMIT, 0);
+    }
+    this.facing = { point: point.clone(), then, pitch, until: this.clock + 1.5 };
   }
 
   update(dt) {
@@ -135,8 +140,9 @@ export class Player {
       }
     }
     if (this.facing && !this.target) {
-      const yaw = this.yawToward(this.facing.point);
-      if (Math.abs(yaw) < 0.05 || this.clock > this.facing.until || !this.enabled) {
+      const yaw = this.yawToward(this.facing.point), f = this.facing;
+      if (f.pitch !== null) { const d = f.pitch - this.pitch; this.pitch += Math.sign(d) * Math.min(Math.abs(d), FACE * 0.6 * dt); }
+      if ((Math.abs(yaw) < 0.05 && (f.pitch === null || Math.abs(f.pitch - this.pitch) < 0.03)) || this.clock > this.facing.until || !this.enabled) {
         const done = this.facing.then;
         this.facing = null;
         done && done();
