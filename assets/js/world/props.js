@@ -493,6 +493,66 @@ export function lavaRock({ size = 0.8, seed = 1 } = {}) {
 
 export { glow };
 
+/* ---------------- A bowl of petunias ---------------- */
+
+/**
+ * A terracotta pot of petunias that has just fallen out of the sky (The Hitchhiker's Guide to
+ * the Galaxy): a shallow dent in the ground, the pot on its side with a bite out of it, its
+ * shards round it, the soil spilled out of its mouth and the petunias in it, still flowering.
+ * About 90 cm across, a few hundred triangles; nothing moves, so batch.js merges it.
+ */
+export function petunias(seed = 42) {
+  const r = rng(seed);
+  const g = new THREE.Group();
+  const clay = pbr({ color: 0xa4512f, roughness: 0.92, side: THREE.DoubleSide });
+  const dirt = pbr({ color: PALETTE.soil, roughness: 1 });
+  const stem = pbr({ color: 0x3d6b2f, roughness: 0.8 });
+  const blooms = [pbr({ color: 0x8a3bb0, roughness: 0.6, side: THREE.DoubleSide }), pbr({ color: 0xc8357f, roughness: 0.6, side: THREE.DoubleSide })];
+  const add = (m, [x, y, z], [rx = 0, ry = 0, rz = 0] = []) => { m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+
+  // the dent it made, ragged at the edge, and clods of earth thrown out round it
+  const dent = new THREE.CircleGeometry(0.34, 14).rotateX(-Math.PI / 2);
+  const dp = dent.attributes.position;
+  for (let i = 1; i < dp.count; i++) { const k = 0.8 + r() * 0.35; dp.setXYZ(i, dp.getX(i) * k, 0, dp.getZ(i) * k); }
+  if (dp.count > 2) dp.setXYZ(dp.count - 1, dp.getX(1), 0, dp.getZ(1)); // close the edge
+  add(new THREE.Mesh(dent, dirt), [0, 0.012, 0]).castShadow = false;
+  const clod = new THREE.IcosahedronGeometry(0.035, 0).scale(1, 0.55, 1);
+  for (let i = 0; i < 14; i++) {
+    const a = r() * TAU, d = 0.3 + r() * 0.22;
+    add(new THREE.Mesh(clod, dirt), [Math.cos(a) * d, 0.008, Math.sin(a) * d], [r(), r() * TAU, r()]).scale.setScalar(0.6 + r() * 0.9);
+  }
+
+  // the pot: a lathe-turned flowerpot with its rolled rim, on its side, the top third of it gone
+  const profile = [[0, 0], [0.07, 0], [0.075, 0.01], [0.11, 0.19], [0.125, 0.195], [0.13, 0.235], [0.118, 0.236], [0.106, 0.2], [0.064, 0.012], [0, 0.012]].map(([x, y]) => new THREE.Vector2(x, y));
+  const pot = add(new THREE.Mesh(new THREE.LatheGeometry(profile, 14, Math.PI / 2 - TAU * 0.85, TAU * 0.7), clay), [0.06, 0.095, 0.02], [0.4, 0.3, Math.PI / 2 + 0.17]);
+  pot.rotation.order = 'ZYX';
+  // the rest of it, in pieces: curved shards of the wall lying where they fell
+  const wall = profile.slice(2, 5);
+  for (let i = 0; i < 5; i++) {
+    const a = r() * TAU, d = 0.2 + r() * 0.25;
+    const piece = new THREE.LatheGeometry(wall, 3, 0, 0.5 + r() * 0.5).translate(-0.1, -0.1, 0);
+    add(new THREE.Mesh(piece, clay), [Math.cos(a) * d, 0.02, Math.sin(a) * d], [Math.PI / 2 + (r() - 0.5) * 0.5, r() * TAU, (r() - 0.5) * 0.6]).scale.setScalar(0.5 + r() * 0.4);
+  }
+
+  // the soil, spilled out of the pot's mouth, and the petunias still in it
+  const lump = new THREE.IcosahedronGeometry(0.1, 1).scale(1, 0.4, 1);
+  for (const [x, z, s] of [[-0.2, 0.03, 1.1], [-0.32, -0.05, 0.75], [-0.12, -0.1, 0.6]]) add(new THREE.Mesh(lump, dirt), [x, 0.025 * s, z], [0, r() * TAU, 0]).scale.setScalar(s);
+  // a petunia: a five-sided trumpet, the five lobes it has
+  const trumpet = new THREE.LatheGeometry([[0.003, 0], [0.007, 0.022], [0.018, 0.036], [0.034, 0.043], [0.04, 0.041]].map(([x, y]) => new THREE.Vector2(x, y)), 5);
+  const stalk = new THREE.CylinderGeometry(0.003, 0.004, 1, 4).translate(0, 0.5, 0);
+  const leaf = new THREE.SphereGeometry(0.03, 6, 4).scale(1, 0.18, 0.5);
+  for (let i = 0; i < 8; i++) {
+    const x = -0.12 - r() * 0.28, z = (r() - 0.5) * 0.3, h = 0.05 + r() * 0.09;
+    const lean = [(r() - 0.5) * 1.1, 0, (r() - 0.5) * 1.1];
+    const s = add(new THREE.Mesh(stalk, stem), [x, 0.02, z], lean);
+    s.scale.y = h;
+    const top = new THREE.Vector3(0, h, 0).applyEuler(s.rotation).add(s.position);
+    add(new THREE.Mesh(trumpet, blooms[i % 2]), top.toArray(), [lean[0] * 1.3, r() * TAU, lean[2] * 1.3]);
+    for (let k = 0; k < 2; k++) add(new THREE.Mesh(leaf, stem), [x + (r() - 0.5) * 0.06, 0.03 + r() * 0.03, z + (r() - 0.5) * 0.06], [(r() - 0.5) * 0.6, r() * TAU, (r() - 0.5) * 0.6]);
+  }
+  return g;
+}
+
 /* ---------------- Moai head ---------------- */
 
 /** A weathered moai: long head, heavy brow, long nose, tight lips, carved from lava rock. */
