@@ -346,6 +346,12 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.unroute(/ll\.thespacedevs\.com/);
   step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
   await expectState(page, 'walk');
+  // the bowl of petunias behind where you land: walk up to it, look down, and it thinks its line
+  await page.evaluate(() => window.__world.goUse('petunias'));
+  await until(page, () => !document.getElementById('bubble').hidden && document.getElementById('bubble').textContent === 'Oh no, not again.', null, 120000);
+  if (await page.evaluate(() => window.__world.player.pitch > -0.3)) throw new Error("walking up to the petunias didn't look down at them");
+  step('the petunias: walked up, looked down, "Oh no, not again."');
+  await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
   // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in

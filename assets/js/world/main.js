@@ -533,7 +533,7 @@ async function start() {
       return it && !used.has('drinks') && !board.on && !making && !held ? [{ key: 'drinks', at: glintPoint(it) }] : [];
     }
     if (state !== 'walk' || carry) return [];
-    const all = interactables.filter((x) => x.id !== 'seat' && x.id !== 'menu' && x.id !== 'drinks' && x.object).map((x) => ({ key: x.id, at: glintPoint(x) }));
+    const all = interactables.filter((x) => x.id !== 'seat' && x.id !== 'menu' && x.id !== 'drinks' && x.object && !x.quiet).map((x) => ({ key: x.id, at: glintPoint(x) }));
     if (physics.ready) for (const l of physics.items) if (!l.held) all.push({ key: l.label, at: l.object.position.clone().addScaledVector(l.object.position.clone().normalize(), (l.radius || 0.15) * 1.6) });
     const fresh = all.filter((x) => !used.has(x.key));
     return fresh.length ? fresh : all;
@@ -555,6 +555,7 @@ async function start() {
     if (it.id === 'launch') return lookThroughScope();
     if (it.id === 'door') return stepThrough(it);
     if (it.id === 'console') return lookAtConsole();
+    if (it.id === 'petunias') return player.face(it.point, () => { if (state === 'walk') say('Oh no, not again.', 4000); }, { down: true });
     // a landmark that's a panel: turn to it first, so it's there when the panel closes
     player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
