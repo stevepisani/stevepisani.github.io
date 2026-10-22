@@ -237,6 +237,25 @@ mark { background: var(--mark); color: inherit; padding: 0 .2em; border-radius: 
 .prose hr { border: 0; border-top: 1px solid var(--line); margin: 2.5em 0; }
 .prose table { border-collapse: collapse; width: 100%; font-size: .95rem; }
 .prose th, .prose td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+.prose .fig { margin: 2em 0; }
+.prose .fig svg { display: block; width: 100%; height: auto; overflow: visible; }
+/* on a phone a drawing keeps a readable size and scrolls sideways on its own */
+@media (max-width: 600px) {
+  .prose .fig { overflow-x: auto; }
+  .prose .fig svg { min-width: 560px; padding-right: 8px; }
+}
+.prose .fig figcaption { margin-top: 10px; font-size: .9rem; color: var(--ink-2); }
+/* a post's drawings: inline SVG on the theme's tokens, so they follow light, dark and terminal */
+.fig .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.fig .soft { fill: var(--bg-2); stroke: var(--line); stroke-width: 1.5; }
+.fig .hot { fill: var(--accent); }
+.fig .hot-line { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig .line { stroke: var(--ink-3); stroke-width: 1.5; fill: none; }
+.fig .dash { stroke: var(--ink-3); stroke-width: 1.5; fill: none; stroke-dasharray: 4 4; }
+.fig text { fill: var(--ink); font: 500 14px var(--font-body); }
+.fig .lbl { fill: var(--ink-2); font: 12px var(--font-mono); }
+.fig .big { font: 700 22px var(--font-display); }
+.fig .on-hot { fill: var(--accent-ink); }
 code, pre { font-family: var(--font-mono); font-size: .88em; }
 :not(pre) > code { background: var(--bg-2); border: 1px solid var(--line); padding: .1em .35em; border-radius: 5px; }
 pre { background: #1d1f24; color: #e7e3da; padding: 18px 20px; border-radius: 12px; overflow-x: auto; line-height: 1.55; }
