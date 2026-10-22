@@ -40,7 +40,11 @@ import { createTerminal, launchOnThisDay } from './terminal.js';
 const $ = (id) => document.getElementById(id);
 const root = $('world');
 const canvas = $('world-canvas');
-const data = JSON.parse($('world-data').textContent);
+// This planet's spec (supabase/functions/_shared/planet.js says what's in one; Steve's is built
+// from _data/ by tools/planet.mjs) and the kit, what every planet shares (the moon's landing sites,
+// famous launches by date), both written into the page
+const { spec, kit } = JSON.parse($('world-data').textContent);
+const items = (id) => (spec.collections[id] || {}).items || [];
 // The one Supabase project (url and public key from _config.yml, in the page head)
 const DB = { url: document.querySelector('meta[name="supabase-url"]').content, key: document.querySelector('meta[name="supabase-key"]').content };
 const TEST = new URLSearchParams(location.search).has('test');
@@ -112,7 +116,7 @@ function openPanel(id, { push = true, from = null } = {}) {
   markCurrent(id);
   if (window.fillLaunch) panelBody.querySelectorAll('[data-launch]').forEach(window.fillLaunch);
   if (window.fillLaunches) panelBody.querySelectorAll('[data-launches]').forEach(window.fillLaunches);
-  panelBody.querySelectorAll('[data-launch-history]').forEach((el) => { const h = launchOnThisDay(data.launchHistory); el.textContent = h ? h.text : ''; });
+  panelBody.querySelectorAll('[data-launch-history]').forEach((el) => { const h = launchOnThisDay(kit.launchHistory); el.textContent = h ? h.text : ''; });
   if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
@@ -340,7 +344,7 @@ async function start() {
   };
 
   await step(0.7, 'Stocking the bar…');
-  const bar = buildBar({ prop, quality, favorites: (data.drinks || []).map((d) => d.name), heroes, reducedMotion });
+  const bar = buildBar({ prop, quality, favorites: items('drinks').map((d) => d.name), heroes, reducedMotion });
   // the site's logo (the 180px touch icon) goes on the rocket
   const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
@@ -974,7 +978,7 @@ async function start() {
     seatLook.yaw = seatLook.pitch = 0;
   }
   function startMaking(idx) {
-    const recipe = (data.drinks || [])[idx];
+    const recipe = items('drinks')[idx];
     if (!recipe) return;
     loadBarBottles(recipe.build);
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
@@ -1075,7 +1079,7 @@ async function start() {
     showHint(`${coarse ? 'Tap' : 'Click'} a drink to see how it's made.`, 'board-pick');
   }
   function showRecipe(i) {
-    const r = (data.drinks || [])[i];
+    const r = items('drinks')[i];
     if (!r || !board.on) return;
     clearHint('board-pick');
     if (board.pick !== i) { sound.play('chalk'); buzz(8); }
@@ -1111,7 +1115,7 @@ async function start() {
   onSwipe(boardCard, stepRecipe);
   // the board's names as buttons too, unseen, for keyboards and screen readers (they're only paint on the board)
   const boardList = $('board-list');
-  boardList.replaceChildren(...(data.drinks || []).slice(0, bar.board.rows).map((r, i) => Object.assign(document.createElement('button'), { type: 'button', textContent: r.name, onclick: () => showRecipe(i) })));
+  boardList.replaceChildren(...items('drinks').slice(0, bar.board.rows).map((r, i) => Object.assign(document.createElement('button'), { type: 'button', textContent: r.name, onclick: () => showRecipe(i) })));
   boardBackBtn.addEventListener('click', () => leaveBoard());
   skipMaking = () => { if (!making) return false; making.skip(); return true; };
   makeSkip.addEventListener('click', skipMaking);
@@ -1179,7 +1183,7 @@ async function start() {
   // under your finger mid-tap (as in any chat app)
   for (const el of [chat.querySelector('button'), chatAsk]) el.addEventListener('pointerdown', (e) => { if (document.activeElement === chatInput) e.preventDefault(); });
   // something to ask, until you've asked something
-  chatAsk.replaceChildren(...(data.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
+  chatAsk.replaceChildren(...(spec.robot.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
     onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
   const talk = [];
   let talking = false, talked = false;
@@ -1210,7 +1214,7 @@ async function start() {
     talk.push({ role: 'user', content: q });
     let answer = '';
     // the suggested questions are the house's to answer (barback.js): instant, and no cost
-    if (talk.length === 1 && (data.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
+    if (talk.length === 1 && (spec.robot.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
     if (!answer) try {
       const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
@@ -1266,12 +1270,12 @@ async function start() {
       if (state !== 'seat') return;
       if (pickUp && panel.hidden) pickUpMenu();
       else if (then && panel.hidden) then();
-      say(data.bartender[0]);
+      say(spec.robot.lines[0]);
       let i = 1;
       clearInterval(chatter);
       // his lines, and one about tonight's moon (pointing you at the telescope)
       const m = window.moonTonight && window.moonTonight();
-      const lines = m ? [...data.bartender, `Tonight's moon: ${m.name.toLowerCase()}. Have a look through the telescope.`] : data.bartender;
+      const lines = m ? [...spec.robot.lines, `Tonight's moon: ${m.name.toLowerCase()}. Have a look through the telescope.`] : spec.robot.lines;
       if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making && !board.on) say(lines[i++ % lines.length]); }, 12000);
     });
   }
@@ -1405,7 +1409,7 @@ async function start() {
     if (k === null) return;
     clearHint('roast');
     say(verdict(k), 3200);
-    const like = (data.likes || [])[eaten++ % Math.max(1, (data.likes || []).length)];
+    const like = items('thoughts')[eaten++ % Math.max(1, items('thoughts').length)];
     clearTimeout(thought);
     if (like) thought = setTimeout(() => { if (state === 'camp') say('On my mind: ' + like, 5000); }, 3400);
   }
@@ -1761,7 +1765,7 @@ async function start() {
   const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), eyeDark = $('eyepiece-dark'), scopeMore = $('scope-more');
   const scopePrev = $('scope-prev'), scopeNext = $('scope-next'), scopeMag = $('eyepiece-mag');
   const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '', nudge: { yaw: 0, pitch: 0 }, cardKey: '', cup: null, lean: null, dark: 0, open: false };
-  const SITES = data.moon || [];
+  const SITES = kit.moon || [];
   const liveLayer = $('eyepiece-live');
   const live = createEyepiece({ layer: liveLayer, db: DB, sites: SITES, sunDir: sky.sunDir, onSite: (i) => openSite(i) });
   const PHASES = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
@@ -2082,7 +2086,7 @@ async function start() {
   const deskFly = (keys, then) => { desk.pose = keys[keys.length - 1]; flyPath(keys, then); };
   const term = createTerminal({
     el: termEl,
-    history: data.launchHistory || [],
+    history: kit.launchHistory || [],
     reduce: reducedMotion,
     sound: { play: (...a) => sound.play(...a) },
     onLeave: () => leaveConsole(),
@@ -2846,7 +2850,7 @@ async function start() {
     boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
-    chatAsk.hidden = chat.hidden || talked || !(data.ask || []).length;
+    chatAsk.hidden = chat.hidden || talked || !(spec.robot.ask || []).length;
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)

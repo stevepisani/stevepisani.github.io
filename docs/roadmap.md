@@ -6,6 +6,19 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
+   [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet,
+   designed by their own ChatGPT or Claude from what they love, on this planet's engine. A planet is
+   one JSON spec (`supabase/functions/_shared/planet.js`): what matters to them (collections), how
+   each is shown (displays), where it lives (places composed from parts in slots), and one look.
+   Every planet has a hub (sign and links), a telescope and a launch pad; the rest is invented per
+   person, never a toggle for Steve's own places. Phases: (1) the spec and the builder, Steve's
+   planet rebuilt on it and a friend's beside it; (2) a Planets MCP server of its own; (3) a
+   friends beta at `/p/name`, invites only; (4) only if friends use it, its own product at
+   mytinyplanet.ai, then mytinyplanet.com at about 20 users. Done: the spec, its checks
+   (`tools/planet-test.mjs`), and Steve's planet read from one (`tools/planet.mjs`). Next: Steve's
+   name out of the world code (PRO-2288), then the displays (PRO-2289).
+
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
    Next: photos, links, screenshots and receipts dropped in the same way, processed now, overnight
@@ -59,6 +72,7 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **My Tiny Planet's second planet:** who gets the first planet that isn't Steve's, and what they're into (Linear PRO-2300).
 - **A Google Maps key for places:** only needed for places a Takeout gives no coordinates for
   (saved lists, like "Want to go"). In the Google Cloud console (console.cloud.google.com): make
   a project, turn on billing (Google asks for it even inside the free calls), then APIs & Services,
