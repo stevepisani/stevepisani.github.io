@@ -237,14 +237,15 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
   </aside>
 </div>
 
+{%- comment -%} The planet's spec (_data/planet.json, from tools/planet.mjs), and the kit: what every
+planet shares (the moon's landing sites, famous launches by date) {%- endcomment -%}
 <script type="application/json" id="world-data">
 {
-  "bartender": {{ site.data.bar.bartender | jsonify }},
-  "likes": {{ site.data.bar.likes | jsonify }},
-  "ask": {{ site.data.bar.ask | jsonify }},
-  "drinks": {{ site.data.drinks | jsonify }},
-  "moon": {{ site.data.moon | jsonify }},
-  "launchHistory": {{ site.data.launch_history | jsonify }}
+  "spec": {{ site.data.planet | jsonify }},
+  "kit": {
+    "moon": {{ site.data.moon | jsonify }},
+    "launchHistory": {{ site.data.launch_history | jsonify }}
+  }
 }
 </script>
 
