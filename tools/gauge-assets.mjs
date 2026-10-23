@@ -93,7 +93,7 @@ async function jpeg(url, path, max) {
   if (existsSync(path)) return;
   let img = await Image.decode(Buffer.from(await (await get(url)).arrayBuffer()));
   if (img.width > max) img = img.resize(max, Image.RESIZE_AUTO);
-  writeFileSync(path, await img.encodeJPEG(82));
+  writeFileSync(path, await img.encodeJPEG(78));
 }
 const pick = (map, size, fmt) => map?.[size]?.[fmt]?.url;
 
@@ -108,9 +108,10 @@ async function texture(kind, ids) {
   if (existsSync(IMAGES + `${kind}-diff.jpg`)) return;
   const [id, f] = await first(kind, ids);
   const key = (want) => Object.keys(f).find((k) => k.toLowerCase() === want);
-  await jpeg(pick(f[key('diffuse')], '2k', 'jpg'), IMAGES + `${kind}-diff.jpg`, 2048);
+  // the colour sharpest where it's seen up close (the ground under the track), the rest smaller
+  await jpeg(pick(f[key('diffuse')], '2k', 'jpg'), IMAGES + `${kind}-diff.jpg`, spec.sharp.includes(kind) ? 2048 : 1024);
   await jpeg(pick(f[key('nor_gl')], '2k', 'jpg'), IMAGES + `${kind}-nor.jpg`, 1024);
-  await jpeg(pick(f[key('rough')], '2k', 'jpg'), IMAGES + `${kind}-rough.jpg`, 1024);
+  await jpeg(pick(f[key('rough')], '2k', 'jpg'), IMAGES + `${kind}-rough.jpg`, 512);
   (manifest._textures ||= {})[kind] = id;
 }
 

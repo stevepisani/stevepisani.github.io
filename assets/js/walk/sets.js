@@ -168,17 +168,33 @@ export function gaugeBar(M, y = 0.2) {
   return g;
 }
 
-/** A tunnel through a rock face, its opening toward -x: about 5 m wide, a little more than the load. */
-export function tunnel(M, depth = 24) {
-  const outer = new THREE.Shape([[-20, 0], [20, 0], [20, 14], [-20, 14]].map(([x, y]) => new THREE.Vector2(x, y)));
+/**
+ * A tunnel into a mountain, its mouth toward -x at x = 0: a stone portal about 5 m wide (a little
+ * more than the load), black inside, and the mountain behind it, a lumpy dome of rock.
+ */
+export function tunnel(M) {
+  const g = new THREE.Group();
+  const face = new THREE.Shape([[-6.5, -1], [6.5, -1], [5, 9.5], [-5, 9.5]].map(([x, y]) => new THREE.Vector2(x, y)));
   const hole = new THREE.Path();
-  hole.moveTo(-2.6, 0); hole.lineTo(2.6, 0); hole.lineTo(2.6, 5.2);
+  hole.moveTo(-2.6, -1); hole.lineTo(2.6, -1); hole.lineTo(2.6, 5.2);
   hole.absarc(0, 5.2, 2.6, 0, Math.PI, false);
-  hole.lineTo(-2.6, 0);
-  outer.holes.push(hole);
-  const m = new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth, bevelEnabled: false }), M.rock);
-  m.rotation.y = Math.PI / 2; // the extrusion along +x
-  return m;
+  hole.lineTo(-2.6, -1);
+  face.holes.push(hole);
+  const portal = mesh(new THREE.ExtrudeGeometry(face, { depth: 6, bevelEnabled: false }), M.portal, [0, 0, 0], g);
+  portal.rotation.y = Math.PI / 2; // the extrusion along +x
+  box(30, 8, 5.4, M.dark, [16, 3.5, 0], g); // the dark inside
+  // the mountain: a dome pushed in and out by a few waves, so no two sides look alike
+  const geo = new THREE.IcosahedronGeometry(1, 5), p = geo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const n = 1 + 0.09 * Math.sin(v.x * 7 + 1) * Math.cos(v.z * 6) + 0.05 * Math.sin(v.y * 11 + v.x * 5) + 0.03 * Math.sin(v.z * 19 + v.y * 13);
+    v.multiplyScalar(n);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  geo.computeVertexNormals();
+  const hill = mesh(geo, M.rock, [23, -9, 0], g);
+  hill.scale.set(25, 26, 36);
+  return g;
 }
 
 /** The Shuttle on the pad, just lifting off: the tank, both boosters lit, the orbiter on the -x side. */

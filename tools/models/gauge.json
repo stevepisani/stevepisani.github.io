@@ -54,6 +54,7 @@
     }
   },
   "sky": ["kloofendal_48d_partly_cloudy", "kiara_1_dawn", "rolling_hills", "meadow_2"],
+  "sharp": ["grass", "stone", "ballast"],
   "textures": {
     "grass": ["aerial_grass_rock", "forrest_ground_01", "brown_mud_leaves_01", "rocky_terrain_02"],
     "stone": ["cobblestone_floor_08", "cobblestone_floor_04", "cobblestone_floor_01", "medieval_blocks_02"],
