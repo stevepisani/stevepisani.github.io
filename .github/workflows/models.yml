@@ -38,13 +38,14 @@ jobs:
         env:
           MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
         run: node tools/gauge-assets.mjs --redo "${{ inputs.redo }}"
-      # whatever was made, and the report, even when something failed (a re-run picks up from here)
+      # whatever was made, even when something failed (a re-run picks up from here); the report
+      # isn't committed but shown as the run's errors. Push again after it: a commit by this
+      # workflow doesn't start the Site checks.
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/models/gauge assets/images/gauge
-          git diff --cached --quiet || git commit -m "Models for Rockets and Horses (tools/gauge-assets.mjs)"
-          git push
+          git add assets/models/gauge assets/images/gauge ':!assets/models/gauge/report.json'
+          git diff --cached --quiet || { git commit -m "Models for Rockets and Horses (tools/gauge-assets.mjs)" && git push; }
       - if: steps.make.outcome != 'success'
-        run: cat assets/models/gauge/report.json && exit 1
+        run: node -e "for (const e of require('./assets/models/gauge/report.json').errors) console.log('::error::' + e)" && exit 1

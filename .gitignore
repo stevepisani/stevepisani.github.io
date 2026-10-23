@@ -14,3 +14,4 @@ _data/library.json
 _data/planet.json
 _data/hero_preload.json
 .gauge-tmp/
+assets/models/gauge/report.json

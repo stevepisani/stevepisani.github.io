@@ -1,7 +1,0 @@
-{
-  "at": "2026-10-23T10:39:18.784Z",
-  "errors": [
-    "MESHY_API_KEY is not set: add it as a repo secret (Settings, Secrets and variables, Actions)"
-  ],
-  "polyhaven": {}
-}
