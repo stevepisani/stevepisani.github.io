@@ -6,11 +6,6 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **Holiday decorations, the rest of them** (`docs/world.md`, `holidays/`): Halloween,
-   Thanksgiving, Christmas Eve, Christmas, New Year's Eve and New Year's Day are in. Steve picked
-   eight plus the eves; still to build: Valentine's Day (a pink neon heart), St. Patrick's Day
-   (green bulbs, a bowler), Easter (eggs to find; its date computed) and the Fourth of July
-   (fireworks over the lagoon, bunting), on `lib/dress.js`.
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet,
    designed by their own ChatGPT or Claude from what they love, on this planet's engine. A planet is
@@ -139,6 +134,10 @@ rather than leaving it in a chat.
   Christmas Eve and Christmas (lights along the roof, wreaths, presents, a Santa hat), and New Year's
   Eve and Day (the year in the gable, a party hat, fireworks; on the eve a countdown to the
   visitor's own midnight). Each is its own 4 to 5 KB file.
+- Oct 2026: the rest of the holidays Steve picked: Valentine's Day (a beating neon heart, rose
+  petals), St. Patrick's Day (a rainbow, a pot of gold, shamrocks), Easter (eggs hidden in the
+  grass, a basket, bunny ears; its date computed) and the Fourth of July (fireworks over the lagoon
+  all night, bunting, flags). Eleven days in all, each its own small file.
 - Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can design a little planet with
   the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
   the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
