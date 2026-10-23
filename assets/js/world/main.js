@@ -36,7 +36,7 @@ import { createHoop, RIM_Z } from './hoop.js';
 import { createBatcher } from './batch.js';
 import { REAL_PLACES } from './realplaces.js';
 import { createTerminal, launchOnThisDay } from './terminal.js';
-import { holidayNow } from '../holidays.js';
+import { holidayNow, holidayAsked } from '../holidays.js';
 import holidayLibs from 'holiday-libs';
 import { readSpec, planetParts, fillPage, tellCard } from './spec.js';
 
@@ -380,6 +380,7 @@ async function start() {
   const holidayColliders = [];
   const decor = holidayIn && (await holidayIn)?.decorate({
     scene, bar, dirFrom, place, headingToward, trailEdge, nearLandmark, addLamp, glow, PALETTE, reducedMotion,
+    preview: holidayAsked(), sfx: (...a) => sound.play(...a),
     colliders: holidayColliders, // theirs, added to yours
     // is a spot within `r` metres of anything solid (a lantern's post, a palm, a rock)?
     solid: (dir, r) => [...bar.colliders, ...places.colliders].some((c) => !c.walkOnly && surfacePoint(dir).distanceTo(c.center) < r + c.radius),
@@ -2923,7 +2924,7 @@ async function start() {
     planet.update(t, camera);
     bar.update(t, dt);
     places.update(t);
-    if (decor) decor.update(t);
+    if (decor) decor.update(t, realDt);
     // (the map must exist first: an unrendered shadow map is a sampler with no texture)
     for (const [l, p] of pointShadows) l.shadow.autoUpdate = !l.shadow.map || camera.position.distanceToSquared(p) < 28 * 28;
     pipeline.render(dt);
@@ -2954,13 +2955,14 @@ async function start() {
   setProgress(1);
   setState('walk');
   $('veil').classList.add('is-gone');
+  decor?.ready?.(); // the planet is on screen (a New Year's Eve preview counts down from here)
   setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 500);
   tellCard('ready');
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
   window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, door: { get view() { return door.view; }, get inside() { return door.inside; }, back: () => stepBack() }, console: { go: () => lookAtConsole(), leave: () => leaveConsole(), term, get open() { return desk.open; }, get burning() { return desk.burnT >= 0; }, get burnT() { return desk.burnT; }, liftoff: (lat, lon) => sky.liftoff(lat, lon), get armed() { return !!(LC && LC.con.armed); } }, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
-  window.__world.holiday = decor ? { id: HOLIDAY, ...decor } : null;
+  window.__world.holiday = decor ? Object.assign(decor, { id: HOLIDAY }) : null;
   window.__sceneReady = true;
 
   // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs);

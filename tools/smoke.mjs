@@ -1646,10 +1646,14 @@ async function placesTab(page, shot) {
 // A holiday: only on its day by the visitor's date, any day with ?holiday=; the planet dressed for it
 // (its decorations a bundle of their own) and the touch beside the name on the other pages
 async function holiday(page, shot) {
-  for (const [date, want] of [[new Date(2026, 9, 31), 'halloween'], [new Date(2027, 9, 31, 23, 59), 'halloween'], [new Date(2026, 9, 30, 23, 59), null], [new Date(2026, 10, 1), null]]) {
+  for (const [date, want] of [
+    [new Date(2026, 9, 31), 'halloween'], [new Date(2027, 9, 31, 23, 59), 'halloween'], [new Date(2026, 9, 30, 23, 59), null], [new Date(2026, 10, 1), null],
+    [new Date(2026, 10, 26), 'thanksgiving'], [new Date(2027, 10, 25), 'thanksgiving'], [new Date(2028, 10, 23), 'thanksgiving'], [new Date(2026, 10, 19), null], [new Date(2026, 10, 27), null],
+    [new Date(2026, 11, 24), 'christmas-eve'], [new Date(2026, 11, 25), 'christmas'], [new Date(2026, 11, 31, 23, 59), 'new-years-eve'], [new Date(2027, 0, 1), 'new-years-day'], [new Date(2027, 0, 2), null],
+  ]) {
     if (holidayOn(date) !== want) throw new Error(`holidayOn(${date.toDateString()}) is ${holidayOn(date)}, not ${want}`);
   }
-  step('Halloween is 31 October, by the local date');
+  step('each holiday falls on its day (Thanksgiving the fourth Thursday of November), by the local date');
   await page.goto(base + '/about?holiday=halloween', { waitUntil: 'load' });
   if (await page.evaluate(() => document.documentElement.dataset.holiday) !== 'halloween') throw new Error('?holiday=halloween: the page is not marked');
   await page.goto(base + '/about?holiday=none', { waitUntil: 'load' });
@@ -1666,6 +1670,19 @@ async function holiday(page, shot) {
   if (h?.id !== 'halloween' || h.count < 8) throw new Error(`Halloween's decorations: ${JSON.stringify(h)}`);
   await shot('halloween');
   step(`the planet on Halloween: ${h.count} jack-o'-lanterns, from its own bundle only that day`);
+  // every other holiday's bundle loads on this three.js and has its decorations
+  const others = await page.evaluate(async (ids) => Promise.all(ids.map(async (id) => typeof (await import(`/assets/js/dist/holidays/${id}.js`)).decorate)), ['thanksgiving', 'christmas-eve', 'christmas', 'new-years-eve', 'new-years-day']);
+  if (others.some((t) => t !== 'function')) throw new Error(`a holiday's bundle has no decorate(): ${others}`);
+  step('every holiday has its bundle');
+  // New Year's Eve: a preview's midnight is 20 seconds in, so the gable counts down to it
+  await page.goto(base + '/?test=1&holiday=new-years-eve');
+  await until(page, () => window.__sceneReady, null, 240000);
+  const year = String(new Date().getFullYear() + 1);
+  if (await page.evaluate(() => window.__world.holiday.shown) !== year) throw new Error(`New Year's Eve shows ${await page.evaluate(() => window.__world.holiday.shown)}, not ${year}`);
+  await until(page, () => /^([1-9]|10)$/.test(window.__world.holiday.shown), null, 60000);
+  await shot('new-years-eve');
+  await until(page, (y) => window.__world.holiday.shown === y, year, 60000); // past midnight
+  step(`New Year's Eve shows ${year}, counts down to midnight, and shows it again after`);
 }
 
 // Without WebGL the menu is the page, and its links are real
