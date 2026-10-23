@@ -55,17 +55,33 @@ async function finished(id, label) {
   throw new Error(`${label}: Meshy took over 30 minutes`);
 }
 
+// the account's recent tasks, so a model already made by a run whose manifest was lost isn't paid
+// for again (a refine keeps its preview's prompt)
+let recent;
+const madeBefore = async (prompt) => {
+  recent ??= get(`${MESHY}?page_size=50&sort_by=-created_at`, { headers: auth }).then((r) => r.json()).catch(() => []);
+  const list = await recent;
+  const ok = (Array.isArray(list) ? list : []).filter((t) => t.status === 'SUCCEEDED' && t.prompt === prompt);
+  return ok.find((t) => t.mode === 'refine') || ok.find((t) => t.mode === 'preview');
+};
+
 async function model(name, m) {
   const out = MODELS + name + '.glb';
   if (existsSync(out) && !redo.has(name)) return;
   const rec = redo.has(name) ? {} : manifest[name] || {};
   manifest[name] = rec;
-  if (!rec.preview) {
-    rec.preview = await task({ mode: 'preview', prompt: `${m.prompt}. ${spec.style}`.slice(0, 600), art_style: 'realistic', ai_model: 'latest', topology: 'triangle', target_polycount: m.polycount, should_remesh: true });
+  const prompt = `${m.prompt}. ${spec.style}`.slice(0, 600);
+  if (!rec.refine && !redo.has(name)) {
+    const t = await madeBefore(prompt);
+    if (t?.mode === 'refine') Object.assign(rec, { preview: t.preview_task_id, refine: t.id });
+    else if (t) rec.preview = t.id;
+  }
+  if (!rec.preview && !rec.refine) {
+    rec.preview = await task({ mode: 'preview', prompt, art_style: 'realistic', ai_model: 'latest', topology: 'triangle', target_polycount: m.polycount, should_remesh: true });
     save();
   }
-  await finished(rec.preview, `${name} preview`);
   if (!rec.refine) {
+    await finished(rec.preview, `${name} preview`);
     rec.refine = await task({ mode: 'refine', preview_task_id: rec.preview, enable_pbr: true, texture_prompt: m.texture.slice(0, 600) });
     save();
   }

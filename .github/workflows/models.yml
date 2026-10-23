@@ -45,7 +45,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/models/gauge assets/images/gauge ':!assets/models/gauge/report.json'
+          git add assets/models/gauge assets/images/gauge
           git diff --cached --quiet || { git commit -m "Models for Rockets and Horses (tools/gauge-assets.mjs)" && git push; }
       - if: steps.make.outcome != 'success'
         run: node -e "for (const e of require('./assets/models/gauge/report.json').errors) console.log('::error::' + e)" && exit 1
