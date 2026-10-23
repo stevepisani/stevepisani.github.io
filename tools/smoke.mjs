@@ -107,6 +107,18 @@ async function pages(page) {
   if (ids.join() !== want.join()) throw new Error(`bookshelf: shelves ${ids} should be ${want}`);
   if (await page.$('.spine') || /read on paper|listened/i.test(await page.textContent('main'))) throw new Error('bookshelf: still tells read and listened apart');
   step(`bookshelf: ${ids.length} shelves in order, ${lib.read.length} books`);
+  // "Rockets and Horses": the walk along one track follows the cards as they scroll, and a drag looks round
+  await page.goto(base + '/2020/11/05/Rockets-and-Horses.html', { waitUntil: 'load' });
+  await until(page, () => window.__walk && document.getElementById('walk').classList.contains('is-live'), null, 60000);
+  const stops = await page.evaluate(() => window.__walk.scenes);
+  await page.evaluate(() => { const s = [...document.querySelectorAll('.walk__stop')].at(-1).getBoundingClientRect(); scrollTo(0, scrollY + s.top + s.height / 2 - innerHeight / 2); });
+  await until(page, (n) => Math.abs(window.__walk.progress() - (n - 1)) < 0.05, stops, 20000);
+  await page.mouse.move(640, 300);
+  await page.mouse.down();
+  await page.mouse.move(400, 300, { steps: 5 });
+  await page.mouse.up();
+  if (!(await page.evaluate(() => document.getElementById('walk').classList.contains('is-dragged')))) throw new Error('the walk: a drag on the scene did nothing');
+  step(`the walk in "Rockets and Horses": ${stops} stops, scrolled to the last, dragged to look round`);
 }
 
 // The planet, everything a visitor can do
@@ -359,6 +371,15 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !document.getElementById('bubble').hidden && document.getElementById('bubble').textContent === 'Oh no, not again.', null, 120000);
   if (await page.evaluate(() => window.__world.player.pitch > -0.3)) throw new Error("walking up to the petunias didn't look down at them");
   step('the petunias: walked up, looked down, "Oh no, not again."');
+  await expectState(page, 'walk');
+  // the booster on its flatcar by the pad: walk up, and its panel tells the gauge's story and links to the walk
+  await page.evaluate(() => window.__world.goUse('gauge'));
+  await until(page, () => document.getElementById('panel').dataset.id === 'gauge' && !document.getElementById('panel').hidden, null, 240000);
+  if (!(await page.$('#panel a[href$="Rockets-and-Horses.html#walk"]'))) throw new Error("the flatcar's panel doesn't link to the walk");
+  await shot('flatcar');
+  await page.keyboard.press('Escape');
+  await until(page, () => document.getElementById('panel').hidden);
+  step('the flatcar: walked up, the gauge panel, a link to the walk');
   await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
@@ -1692,6 +1713,10 @@ async function noWebGL(page, shot) {
   if (await page.isHidden('#menu')) throw new Error('the menu is hidden without WebGL');
   await shot('fallback');
   step('the menu is the page');
+  await page.goto(base + '/2020/11/05/Rockets-and-Horses.html', { waitUntil: 'load' });
+  await page.waitForTimeout(500);
+  if (await page.evaluate(() => document.getElementById('walk').classList.contains('is-live') || !document.querySelector('.walk__card').offsetHeight)) throw new Error('"Rockets and Horses" without WebGL should be its cards');
+  step('"Rockets and Horses": the walk is its cards');
 }
 
 // Someone else's planet, previewed: the page draws the spec in its address (the sign, the menu,
