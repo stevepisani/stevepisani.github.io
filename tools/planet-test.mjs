@@ -1,11 +1,14 @@
 // Planet specs (supabase/functions/_shared/planet.js): Steve's, built from _data/ (tools/planet.mjs),
 // passes; a small planet of someone else's passes; and each way a spec can go wrong is caught, with
-// where and what. Offline, well under a second.
+// where and what. Then what the world draws from a spec (planetParts), a spec packed into an address
+// and back, and the Planets connector (supabase/functions/planets/server.js): its tools, its card,
+// a preview, and a spec with mistakes said back. Offline, well under a second.
 //
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, LIMITS } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, planetParts, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
+import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
 let passed = 0;
@@ -77,5 +80,42 @@ caught(sam, (s) => { s.launchPad.countdowns[0].on = '2027-02-31'; }, /countdowns
 caught(sam, (s) => { s.launchPad.launches = 'some'; }, /^launchPad\.launches:/, 'launches that aren\'t all, none or a provider');
 caught(sam, (s) => { s.launchPad.rocket.colors = ['red']; }, /colors\[0\]: should be a colour/, 'a colour that isn\'t a hex colour');
 caught(sam, (s) => { s.collections.records.items = Array(LIMITS.items).fill('x'.repeat(LIMITS.text)); }, /^spec: larger than 64 KB/, 'a spec over 64 KB');
+
+// ---------- what the world draws ----------
+const parts = planetParts(steve);
+ok(parts.sign === "Steve's" && parts.engraving === "STEVE'S" && parts.board.title === 'Favorite drinks' && parts.board.recipes && parts.board.items[0].build, "Steve's: his sign, and his drinks with their recipes on the chalkboard");
+ok(parts.thoughts.length === steve.collections.thoughts.items.length && parts.robot.lines === steve.robot.lines, "Steve's: the campfire's thoughts and the robot's lines");
+const samParts = planetParts(sam);
+ok(samParts.board.title === 'Tonight' && samParts.board.items.map((x) => x.name).join() === 'Opener,Ballad,Closer' && !samParts.board.recipes, 'a chalkboard of plain names', samParts.board);
+const leastParts = planetParts(least);
+ok(leastParts.sign === 'Sam' && leastParts.board.items.length === 0 && leastParts.thoughts.length === 0 && leastParts.robot.lines.length === 1, 'the least planet: its name on the sign, and a robot that says hello', leastParts);
+ok(planetParts({ ...least, collections: { r: { title: 'R', items: [{ title: 'Dune', by: 'Herbert' }, { by: 'Anon' }, 3] } }, places: [{ id: 'b', kind: 'tiki-bar', displays: [{ kind: 'chalkboard', collection: 'r' }] }] }).board.items.map((x) => x.name).join() === 'Dune,Anon,3', 'an item is named by its name, title or first text');
+
+// ---------- a planet in an address ----------
+const packed = await packPlanet(steve);
+ok(JSON.stringify(await unpackPlanet(packed)) === JSON.stringify(steve), "Steve's planet packs into an address and back");
+ok(/^[\w-]+$/.test(packed) && packed.length < JSON.stringify(steve).length * 0.6, 'packed: address-safe and smaller', packed.length);
+for (const bad of ['', 'not a planet', '%%%', 'A'.repeat(LIMITS.bytes * 2 + 1)]) ok(await unpackPlanet(bad) === null, `not a planet: ${bad.slice(0, 20) || '(empty)'}`);
+
+// ---------- the Planets connector ----------
+const call = async (method, params) => planets.rpc({ jsonrpc: '2.0', id: 1, method, params }, { cardScript: async () => 'window.card = 1; // </script> stays inside' });
+const init = (await call('initialize', { protocolVersion: '2025-06-18' })).result;
+ok(init.protocolVersion === '2025-06-18' && init.serverInfo.name === 'planets' && /get_kit/.test(init.instructions), 'it says who it is and how to use it');
+const tools = (await call('tools/list')).result.tools;
+ok(tools.map((t) => t.name).join() === 'get_kit,preview_planet' && tools.every((t) => t.annotations.readOnlyHint), 'two tools, both read-only (nothing is stored)');
+ok(tools[1]._meta.ui.resourceUri === planets.APP_URI && tools[1]._meta['openai/outputTemplate'] === planets.APP_URI, 'preview_planet shows the card');
+const res = (await call('resources/read', { uri: planets.APP_URI })).result.contents[0];
+ok(res.mimeType === 'text/html;profile=mcp-app' && res.text.includes('window.card = 1') && !res.text.includes('// </script>'), "the card's page carries its script, and the script can't close the tag early");
+ok(res._meta.ui.csp.frameDomains.includes(new URL(PREVIEW_PAGE).origin) && res._meta['openai/widgetCSP'].frame_domains.includes(new URL(PREVIEW_PAGE).origin), 'the card may show the preview page in a frame, in both apps');
+const kit = (await call('tools/call', { name: 'get_kit', arguments: {} })).result;
+ok(checkPlanet(kit.structuredContent.example).length === 0 && kit.structuredContent.drawn_today.length > 3, "get_kit: what's drawn today, and an example that passes", checkPlanet(kit.structuredContent.example));
+const shown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sam } })).result;
+ok(!shown.isError && shown.structuredContent.view === 'planet' && shown.structuredContent.url.startsWith(`${PREVIEW_PAGE}#`) && shown.content[0].text.includes(shown.structuredContent.url), 'a preview: the card, and the link in the text for apps without cards', shown);
+ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(sam), "the preview's link is the planet");
+ok(shown.structuredContent.planet.sign === "Sam's" && shown.structuredContent.planet.board.names.join() === 'Opener,Ballad,Closer' && shown.structuredContent.planet.links.length === 2, 'the plain card has what it needs', shown.structuredContent.planet);
+const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
+ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
+ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
+ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');
 
 console.log(`planet: ${passed} checks passed`);

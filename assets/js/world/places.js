@@ -91,7 +91,7 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent) {
   return m;
 }
 
-export function buildPlaces({ prop, quality, badge = null }) {
+export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" }) {
   const group = new THREE.Group();
   const animated = [];
   const colliders = [];
@@ -327,7 +327,7 @@ export function buildPlaces({ prop, quality, badge = null }) {
     const toBar = tangent(f, bar), toScope = tangent(f, TRAILS[2].points[1]);
     const at = f.clone().multiplyScalar(RADIUS).addScaledVector(toBar.clone().add(toScope).normalize(), 1.6).normalize();
     const dests = [
-      ["Steve's", bar], ['Telescope', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
+      [signName, bar], ['Telescope', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
       ['Lagoon', TRAILS[3].points[1]], ['Campfire', TRAILS[3].points[1]], ['Rocket', TRAILS[0].points[0]],
     ];
     const sign = new THREE.Group();
