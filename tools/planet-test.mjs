@@ -40,7 +40,7 @@ const sam = {
   },
   places: [{ id: 'garage', kind: 'tiki-bar', displays: [{ kind: 'chalkboard', collection: 'setlist' }, { kind: 'star-sky', collection: 'records' }] }],
   robot: { lines: ['Welcome in.'], ask: ['What are you playing?'] },
-  telescope: { engraving: 'Sam', pins: [{ city: 'Austin', note: 'Home', home: true }, { city: 'New Orleans' }], sights: ['moon', 'earth'] },
+  telescope: { engraving: 'Sam', pins: [{ city: 'Austin', lat: 30.27, lon: -97.74, zone: 'America/Chicago', note: 'Home', home: true }, { city: 'New Orleans', lat: 29.95, lon: -90.07, zone: 'America/Chicago' }], sights: ['moon', 'earth'] },
   launchPad: { countdowns: [{ name: 'Album out', on: '2027-03-01' }], launches: { provider: 'Rocket Lab' }, rocket: { name: 'Sam I', colors: ['#c0392b', '#f5f0e6'] } },
 };
 ok(checkPlanet(sam).length === 0, 'a fuller planet of their own passes', checkPlanet(sam));
@@ -74,6 +74,9 @@ caught(sam, (s) => { s.places.push(clone(s.places[0])); }, /^places\[1\]\.id: "g
 caught(sam, (s) => { s.robot.lines.push(''); }, /^robot\.lines\[1\]: empty/, 'an empty line for the robot');
 caught(sam, (s) => { s.telescope.pins[0].home = 'yes'; }, /pins\[0\]\.home: should be true or false/, 'home that isn\'t true or false');
 caught(sam, (s) => { s.telescope.pins[0].street = '1 Main St'; }, /pins\[0\]\.street: not part/, 'an address on a pin');
+caught(sam, (s) => { delete s.telescope.pins[1].lat; }, /pins\[1\]\.lat: should be a latitude/, 'a pin with no latitude');
+caught(sam, (s) => { s.telescope.pins[1].lon = 200; }, /pins\[1\]\.lon: should be a longitude/, 'a longitude off the globe');
+caught(sam, (s) => { s.telescope.pins[1].zone = 'Central Time'; }, /pins\[1\]\.zone: should be a time zone/, 'a time zone that isn\'t one');
 caught(sam, (s) => { s.telescope.sights.push('mars'); }, /sights\[2\]: should be one of moon, sun, earth/, 'a sight there\'s no art for yet');
 caught(sam, (s) => { s.launchPad.countdowns[0].on = 'March 1'; }, /countdowns\[0\]\.on: should be a date/, 'a countdown with no date');
 caught(sam, (s) => { s.launchPad.countdowns[0].on = '2027-02-31'; }, /countdowns\[0\]\.on: should be a date/, 'a date that isn\'t one');
@@ -89,6 +92,8 @@ const samParts = planetParts(sam);
 ok(samParts.board.title === 'Tonight' && samParts.board.items.map((x) => x.name).join() === 'Opener,Ballad,Closer' && !samParts.board.recipes, 'a chalkboard of plain names', samParts.board);
 const leastParts = planetParts(least);
 ok(leastParts.sign === 'Sam' && leastParts.board.items.length === 0 && leastParts.thoughts.length === 0 && leastParts.robot.lines.length === 1, 'the least planet: its name on the sign, and a robot that says hello', leastParts);
+ok(parts.pins[0].city === 'Philadelphia' && parts.pins[0].home && parts.pins.length === 7, "Steve's: Philadelphia ringed on the telescope's Earth, and the world's cities", parts.pins);
+ok(samParts.pins.map((p) => p.city).join() === 'Austin,New Orleans' && leastParts.pins.length === 6 && !leastParts.pins.some((p) => p.home), "their own cities, or a few round the world and no one's home");
 ok(planetParts({ ...least, collections: { r: { title: 'R', items: [{ title: 'Dune', by: 'Herbert' }, { by: 'Anon' }, 3] } }, places: [{ id: 'b', kind: 'tiki-bar', displays: [{ kind: 'chalkboard', collection: 'r' }] }] }).board.items.map((x) => x.name).join() === 'Dune,Anon,3', 'an item is named by its name, title or first text');
 
 // ---------- a planet in an address ----------

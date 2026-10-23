@@ -24,8 +24,9 @@ rather than leaving it in a chat.
    (`tools/planet-test.mjs`), Steve's planet read from one (`tools/planet.mjs`), and an early
    phase 2: the in-chat preview (PRO-2312, `docs/planets.md`), the Planets connector at
    `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
-   the chat. Next: the rest of Steve's name out of the world code (PRO-2288: copy strings, the
-   telescope's cities), then the displays (PRO-2289), so a preview draws more than the sign, the
+   the chat. The telescope's cities now come from the spec too
+   (PRO-2288); what's left of Steve in the world is the bartender's offline answers
+   (`barback.js`), which a preview never shows (no chat). Next: the displays (PRO-2289), so a preview draws more than the sign, the
    menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
    plain card there, with a link to walk around it in the browser).
 

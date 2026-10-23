@@ -43,12 +43,12 @@ how what's built works.
 The sign (neon, the menu card, the signpost, the telescope's ring), the name and home city in
 the top bar, the links as the menu, a tiki bar's chalkboard display (up to six names; tapping one
 shows its other fields, and "Make me one" only for a drink with a recipe), a campfire's
-collection (a thought with each marshmallow) and the robot's lines. A link to a site path means
+collection (a thought with each marshmallow), the robot's lines, and the cities on the
+telescope's Earth (`telescope.pins`, with a few round the world when there are none). A link to a site path means
 something only on Steve's site, so in a preview it's shown but goes nowhere.
 
 The rest of the planet is still Steve's (the hammock's book sky stays empty in a preview; the
-telescope's pins, the launch pad, the places themselves): taking him out of the world's code is
-PRO-2288, and each display and place that reads its spec is PRO-2289 on. A preview never writes:
+launch pad, the places themselves): each display and place that reads its spec is PRO-2289 on. A preview never writes:
 no AI bartender (the chat box is hidden), no bottles sent, no fireflies; the page count does count
 it, as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a server).
 

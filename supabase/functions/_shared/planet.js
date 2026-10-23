@@ -16,7 +16,9 @@
 //                                          what's built on the planet (PLACES), and how each
 //                                          shows its collections (DISPLAYS)
 //     robot: { lines, ask },               what the hub's robot says, and what to ask it
-//     telescope: { engraving, pins: [{ city, note, home }], sights: [...] },
+//     telescope: { engraving, pins: [{ city, lat, lon, zone, note, home }], sights: [...] },
+//                                          pins: cities on the Earth in the eyepiece, each
+//                                          with its time now (zone: an IANA time zone)
 //     launchPad: { countdowns: [{ name, on }], launches, rocket: { name, colors } },
 //   }
 //
@@ -47,6 +49,20 @@ const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;
 const ID = /^[a-z][a-z0-9-]{0,31}$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const COLOR = /^#[0-9a-f]{6}$/i;
+const isZone = (z) => {
+  if (typeof z !== 'string' || !z) return false;
+  try { new Intl.DateTimeFormat('en-US', { timeZone: z }); return true; } catch { return false; }
+};
+
+// The telescope's Earth when a planet pins no cities of its own: a few round the world
+export const WORLD_PINS = [
+  { city: 'Honolulu', lat: 21.31, lon: -157.86, zone: 'Pacific/Honolulu' },
+  { city: 'London', lat: 51.51, lon: -0.13, zone: 'Europe/London' },
+  { city: 'Tokyo', lat: 35.68, lon: 139.69, zone: 'Asia/Tokyo' },
+  { city: 'Sydney', lat: -33.87, lon: 151.21, zone: 'Australia/Sydney' },
+  { city: 'Cape Town', lat: -33.92, lon: 18.42, zone: 'Africa/Johannesburg' },
+  { city: 'Rio', lat: -22.91, lon: -43.17, zone: 'America/Sao_Paulo' },
+];
 
 /** What's wrong with a spec, as a list of "where: what" lines; empty when it's fine. */
 export function checkPlanet(spec) {
@@ -172,8 +188,11 @@ export function checkPlanet(spec) {
       list('telescope.pins', t.pins, LIMITS.pins).forEach((p, i) => {
         const at = `telescope.pins[${i}]`;
         if (!isObj(p)) return fail(at, 'should be an object');
-        only(at, p, ['city', 'note', 'home']);
+        only(at, p, ['city', 'lat', 'lon', 'zone', 'note', 'home']);
         text(`${at}.city`, p.city, LIMITS.name, true);
+        if (typeof p.lat !== 'number' || !(Math.abs(p.lat) <= 90)) fail(`${at}.lat`, 'should be a latitude, -90 to 90');
+        if (typeof p.lon !== 'number' || !(Math.abs(p.lon) <= 180)) fail(`${at}.lon`, 'should be a longitude, -180 to 180');
+        if (!isZone(p.zone)) fail(`${at}.zone`, 'should be a time zone, like America/Chicago');
         text(`${at}.note`, p.note, LIMITS.name * 2);
         if (p.home !== undefined && typeof p.home !== 'boolean') fail(`${at}.home`, 'should be true or false');
       });
@@ -247,6 +266,7 @@ export function planetParts(spec) {
     board: { title: (board && board.title) || 'Tonight', items, recipes: items.some((x) => Array.isArray(x.build)) },
     thoughts: ((fire && fire.items) || []).map(line).filter(Boolean),
     robot: { lines: robot.lines && robot.lines.length ? robot.lines : ['Welcome in. Have a look around.'], ask: robot.ask || [] },
+    pins: (spec.telescope && spec.telescope.pins && spec.telescope.pins.length ? spec.telescope.pins : WORLD_PINS),
   };
 }
 

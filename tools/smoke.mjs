@@ -292,6 +292,8 @@ async function planet(page, shot, { phone = false } = {}) {
   const firstSight = await page.evaluate(() => window.__world.scope.target);
   if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
   await shot('telescope');
+  // Earth's cities come from the spec's telescope pins: Steve's are Philadelphia (ringed) and six round the world
+  if (await page.evaluate(() => document.querySelectorAll('#earth-pins .earth-pin:not(.is-iss)').length !== 7 || document.querySelectorAll('#earth-pins .is-home').length !== 1)) throw new Error("the telescope's Earth doesn't pin Steve's cities, home ringed");
   if (await page.evaluate(() => window.__world.scope.count) > 1) {
     await page.click('#scope-next');
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
