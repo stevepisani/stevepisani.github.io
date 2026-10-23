@@ -112,6 +112,13 @@ security applies), each batch taken from `places_api_take` first (1,000 a month;
 daily quota is a backstop). With no `GOOGLE_MAPS_API_KEY` it answers `missing_key` and changes
 nothing. Deployed with `--no-verify-jwt`, checking the caller itself like the others.
 
+## The Planets connector (`supabase/functions/planets`)
+
+MCP for anyone's ChatGPT or Claude to design a little planet and preview it in the chat
+(`docs/planets.md`). No sign-in, nothing read or stored: `preview_planet` checks a spec and packs
+it into a link to `/p/preview/`. Deployed with `--no-verify-jwt`; at
+`https://mcp.stevenpisani.com/planets` through the proxy.
+
 ## The telescope's moon (`supabase/functions/sky`)
 
 GET -> this hour's moon from NASA's Dial-A-Moon (its picture, how big and how lit it looks, its
@@ -223,5 +230,6 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | mcp.stevenpisani.com (Cloudflare Pages, free plan: 100,000 requests a day) | $0 |
 | Places API (New), finding saved places (capped at 1,000 calls a month, inside Google's free monthly calls for Text Search) | $0 |
 | The telescope's moon (an edge function call per visitor per hour, on the free plan's 500,000 a month) | $0 |
+| The Planets connector (`docs/planets.md`: an edge function call per tool call, nothing stored, no AI of ours; requests over 256 KB refused) | $0 |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.

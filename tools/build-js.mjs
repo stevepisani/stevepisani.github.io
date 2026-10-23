@@ -10,6 +10,8 @@
 //                   three.js, loaded by URL when someone steps through (portal.js)
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
+//   dist/planet-card.js the Planets connector's card (assets/js/mcp-app/planets.js): a planet
+//                   previewed in a chat, by the same shell
 //   dist/apps/*.js  one per app page (every file in assets/js/apps/: SJPJr, the consent page),
 //                   with what they share (lib/: the kit, the Supabase client, the sections SJPJr
 //                   mounts) split into chunks of their own
@@ -105,6 +107,8 @@ const builds = [
   { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
   // the wardrobe's in-chat card for ChatGPT and Claude: one plain script, loaded by the MCP server's page
   { ...common, entryPoints: { 'mcp-app': 'assets/js/mcp-app/widget.js' }, outdir: out, format: 'iife', metafile: true },
+  // the Planets connector's card: the same shell, with only the planet's view (docs/planets.md)
+  { ...common, entryPoints: { 'planet-card': 'assets/js/mcp-app/planets.js' }, outdir: out, format: 'iife', metafile: true },
 ];
 
 if (watch) {

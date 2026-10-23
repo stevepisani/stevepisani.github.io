@@ -16,8 +16,13 @@ rather than leaving it in a chat.
    planet rebuilt on it and a friend's beside it; (2) a Planets MCP server of its own; (3) a
    friends beta at `/p/name`, invites only; (4) only if friends use it, its own product at
    mytinyplanet.ai, then mytinyplanet.com at about 20 users. Done: the spec, its checks
-   (`tools/planet-test.mjs`), and Steve's planet read from one (`tools/planet.mjs`). Next: Steve's
-   name out of the world code (PRO-2288), then the displays (PRO-2289).
+   (`tools/planet-test.mjs`), Steve's planet read from one (`tools/planet.mjs`), and an early
+   phase 2: the in-chat preview (PRO-2312, `docs/planets.md`), the Planets connector at
+   `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
+   the chat. Next: the rest of Steve's name out of the world code (PRO-2288: copy strings, the
+   telescope's cities), then the displays (PRO-2289), so a preview draws more than the sign, the
+   menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
+   plain card there, with a link to walk around it in the browser).
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
@@ -119,6 +124,12 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can design a little planet with
+  the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
+  the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
+  travels in the link, so nothing is stored. Their sign, name, menu, chalkboard, campfire and
+  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app, a plain card
+  with "Walk around it".
 - Oct 2026: a security audit before Hacker News (the advisors, every policy and grant on the live
   project, every function, the client, the workflows, the whole git history: no secret has ever
   been committed). Fixed: the fireflies' channel made private, presence only, so nobody can

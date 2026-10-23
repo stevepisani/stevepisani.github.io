@@ -77,8 +77,9 @@ jobs:
           for f in supabase/functions/*/index.ts; do
             name=$(basename "$(dirname "$f")")
             # these check who's calling themselves: the MCP server's OAuth discovery comes without
-            # a token, and both take tokens from the newer signing keys
-            case "$name" in mcp|wardrobe-link|places-locate) flags=--no-verify-jwt ;; *) flags= ;; esac
+            # a token, and both take tokens from the newer signing keys; the Planets connector is
+            # open to anyone (it reads and stores nothing)
+            case "$name" in mcp|wardrobe-link|places-locate|planets) flags=--no-verify-jwt ;; *) flags= ;; esac
             supabase functions deploy "$name" --project-ref "$ref" --use-api $flags
           done
       - name: Photo copies (vision and thumbnail sizes, for the MCP server)
