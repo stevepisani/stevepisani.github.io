@@ -7,5 +7,65 @@
     "wood": "weathered_brown_planks",
     "ballast": "gravel_floor_02",
     "grass": "aerial_grass_rock"
+  },
+  "horse": {
+    "refine": "01a1687f-8ee6-742a-9d70-f5f847ea4642",
+    "file": "horse.glb",
+    "bytes": 1113132,
+    "made": "2026-10-23"
+  },
+  "chariot": {
+    "refine": "01a1687f-b6d7-7058-bfcb-2ac8e63a8e7f",
+    "file": "chariot.glb",
+    "bytes": 1366720,
+    "made": "2026-10-23"
+  },
+  "roman-cart": {
+    "refine": "01a1687f-90d2-7599-aeae-e2a5d7ed1b8d",
+    "file": "roman-cart.glb",
+    "bytes": 1221540,
+    "made": "2026-10-23"
+  },
+  "wagon": {
+    "refine": "01a16880-32bb-73f7-9f19-a038cfdcc983",
+    "file": "wagon.glb",
+    "bytes": 1921716,
+    "made": "2026-10-23"
+  },
+  "chaldron": {
+    "refine": "01a1687f-b6b9-7157-9b61-9a4639eae1d1",
+    "file": "chaldron.glb",
+    "bytes": 1497744,
+    "made": "2026-10-23"
+  },
+  "locomotive": {
+    "refine": "01a1687f-8ed9-7587-b5d7-ff8d7f0a56ac",
+    "file": "locomotive.glb",
+    "bytes": 2167088,
+    "made": "2026-10-23"
+  },
+  "boxcar": {
+    "refine": "01a1687f-b6b5-70f4-adf8-5388ad4af0b0",
+    "file": "boxcar.glb",
+    "bytes": 1297744,
+    "made": "2026-10-23"
+  },
+  "booster-car": {
+    "refine": "01a1687f-8eb7-7640-a537-7fa85457310f",
+    "file": "booster-car.glb",
+    "bytes": 1592176,
+    "made": "2026-10-23"
+  },
+  "shuttle": {
+    "refine": "01a1687f-8f08-73e0-b57e-3636244d30aa",
+    "file": "shuttle.glb",
+    "bytes": 1278900,
+    "made": "2026-10-23"
+  },
+  "tree": {
+    "refine": "01a16881-4ac4-7627-a48a-6ec3f76d1c8c",
+    "file": "tree.glb",
+    "bytes": 1302408,
+    "made": "2026-10-23"
   }
 }
