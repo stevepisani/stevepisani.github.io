@@ -6,7 +6,7 @@
 // the planet is driven through `window.__world` with `?test=1` and reduced motion.
 //
 //   npm run build && bundle exec jekyll build && npm test            (CI does this)
-//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|nogl]
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|holiday|nogl]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from 'playwright';
@@ -18,6 +18,7 @@ import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
 import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
+import { holidayOn } from '../assets/js/holidays.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
@@ -1636,6 +1637,31 @@ async function placesTab(page, shot) {
   step('Today in Florence: Saved nearby, and "Add to this day" puts it on the plan with its place');
 }
 
+// A holiday: only on its day by the visitor's date, any day with ?holiday=; the planet dressed for it
+// (its decorations a bundle of their own) and the touch beside the name on the other pages
+async function holiday(page, shot) {
+  for (const [date, want] of [[new Date(2026, 9, 31), 'halloween'], [new Date(2027, 9, 31, 23, 59), 'halloween'], [new Date(2026, 9, 30, 23, 59), null], [new Date(2026, 10, 1), null]]) {
+    if (holidayOn(date) !== want) throw new Error(`holidayOn(${date.toDateString()}) is ${holidayOn(date)}, not ${want}`);
+  }
+  step('Halloween is 31 October, by the local date');
+  await page.goto(base + '/about?holiday=halloween', { waitUntil: 'load' });
+  if (await page.evaluate(() => document.documentElement.dataset.holiday) !== 'halloween') throw new Error('?holiday=halloween: the page is not marked');
+  await page.goto(base + '/about?holiday=none', { waitUntil: 'load' });
+  if (await page.evaluate(() => document.documentElement.dataset.holiday)) throw new Error('?holiday=none: the page is still marked');
+  step('?holiday= marks the pages, and none clears it');
+  const loaded = [];
+  page.on('request', (r) => { if (r.url().includes('/holidays/')) loaded.push(r.url()); });
+  await page.goto(base + '/?test=1&holiday=none');
+  await until(page, () => window.__sceneReady, null, 240000);
+  if (loaded.length || await page.evaluate(() => window.__world.holiday)) throw new Error(`no holiday, yet ${loaded.join(', ') || 'decorations'} loaded`);
+  await page.goto(base + '/?test=1&holiday=halloween');
+  await until(page, () => window.__sceneReady, null, 240000);
+  const h = await page.evaluate(() => window.__world.holiday);
+  if (h?.id !== 'halloween' || h.count < 8) throw new Error(`Halloween's decorations: ${JSON.stringify(h)}`);
+  await shot('halloween');
+  step(`the planet on Halloween: ${h.count} jack-o'-lanterns, from its own bundle only that day`);
+}
+
 // Without WebGL the menu is the page, and its links are real
 async function noWebGL(page, shot) {
   await page.goto(base + '/');
@@ -1727,6 +1753,7 @@ if (want('apps')) await session('home-screen app', { viewport: { width: 390, hei
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
+if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

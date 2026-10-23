@@ -114,6 +114,9 @@ mark { background: var(--mark); color: inherit; padding: 0 .2em; border-radius: 
 .site-head__inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; font: 700 1.05rem var(--font-display); }
 .brand img { border-radius: 6px; }
+/* On a holiday (site.js marks <html data-holiday>, assets/js/holidays.js), a small touch beside the name */
+[data-holiday] .brand span::after { content: ""; display: inline-block; width: 1.05em; height: 1.05em; margin-left: .35em; vertical-align: -.15em; background: center / contain no-repeat; }
+[data-holiday="halloween"] .brand span::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 6c-1-2.5 0-4 2-4.5' stroke='%23556b2f' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3Cellipse cx='8' cy='14' rx='6' ry='7.5' fill='%23c9561a'/%3E%3Cellipse cx='16' cy='14' rx='6' ry='7.5' fill='%23c9561a'/%3E%3Cellipse cx='12' cy='14' rx='5' ry='8' fill='%23e8711c'/%3E%3Cpath d='M7 11l2.5-2.5L11 11zM13 11l1.5-2.5L17 11zM6.5 15c2 3 9 3 11 0l-2.5 1-1.5-1-1.5 1.2-1.5-1.2-1.5 1z' fill='%23ffd27a'/%3E%3C/svg%3E"); }
 .site-nav { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-left: auto; }
 .site-nav a { color: var(--ink-2); text-decoration: none; font-weight: 500; font-size: .95rem; padding: 6px 10px; border-radius: 8px; }
 .site-nav a:hover { color: var(--ink); background: var(--bg-2); }

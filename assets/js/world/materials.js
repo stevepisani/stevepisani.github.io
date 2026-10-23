@@ -55,6 +55,8 @@ export const PALETTE = {
   mint: 0x3f8a3a,
   ice: 0xdfeaf2,
   night: 0x070913,     // sky / fog
+  pumpkin: 0xd9621a,   // holidays (world/holidays/): Halloween's jack-o'-lanterns
+  hex: 0x6b2fa0,       // and its purple
 };
 
 const textures = new Map();
