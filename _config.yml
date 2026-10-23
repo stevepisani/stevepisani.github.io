@@ -70,5 +70,6 @@ exclude:
   - assets/js/site.js
   - assets/js/holidays.js
   - assets/js/world
+  - assets/js/walk
   - assets/js/apps
   - assets/js/mcp-app

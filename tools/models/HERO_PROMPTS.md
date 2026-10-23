@@ -297,6 +297,12 @@ Texture: Dark weathered black iron hood, frame, wire handle and base, a little r
 
 Textures: clear glass showing the spirit inside, a paper label with a simple border and no readable words, the cap or cork.
 
+## Rockets and Horses (the post's walk, not the planet)
+
+Its models are listed, with their prompts and how each fits its stand-in, in `gauge.json` here,
+and made by `tools/gauge-assets.mjs` in the Models workflow (it has the `MESHY_API_KEY` secret):
+change a prompt, add `--redo name` (the workflow's `redo` input), and it's made again.
+
 The hammock stays code: its cloth sags between the palms as you lie in it, and there's no frame to model.
 
 ## Licence check before committing a model
