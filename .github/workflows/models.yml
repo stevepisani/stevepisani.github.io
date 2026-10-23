@@ -1,0 +1,50 @@
+# Makes the models, sky and ground textures for the walk in "Rockets and Horses"
+# (tools/gauge-assets.mjs, from tools/models/gauge.json) and commits them to the branch it ran on.
+# Here because it needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy or
+# Poly Haven. It runs whenever gauge.json changes on a branch other than main, or by hand (with
+# `redo`: models to make again, comma-separated). Meshy credits are spent only on what's missing.
+name: Models
+
+on:
+  push:
+    branches-ignore: [main]
+    paths: [tools/models/gauge.json, tools/gauge-assets.mjs]
+  workflow_dispatch:
+    inputs:
+      redo:
+        description: Models to make again (comma-separated names from gauge.json)
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: models-${{ github.ref }}
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Make what's missing
+        id: make
+        continue-on-error: true
+        env:
+          MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
+        run: node tools/gauge-assets.mjs --redo "${{ inputs.redo }}"
+      # whatever was made, and the report, even when something failed (a re-run picks up from here)
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/gauge assets/images/gauge
+          git diff --cached --quiet || git commit -m "Models for Rockets and Horses (tools/gauge-assets.mjs)"
+          git push
+      - if: steps.make.outcome != 'success'
+        run: cat assets/models/gauge/report.json && exit 1

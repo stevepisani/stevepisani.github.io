@@ -1,0 +1,65 @@
+{
+  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures, then shrunk with gltf-transform) into assets/models/gauge/<name>.glb; the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's.",
+  "style": "Photorealistic, real-world materials and weathering, physically based textures, natural daylight colours, no text or logos, game-ready, a single object on its own with no ground or base",
+  "models": {
+    "horse": {
+      "prompt": "A bay draught horse standing still in profile, dark brown coat with black mane, tail and lower legs, a plain leather collar and harness, no rider, no cart, head forward, 1.6 m at the withers",
+      "texture": "Real horse hair coat, glossy bay brown with black points, worn dark leather harness with brass buckles",
+      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "chariot": {
+      "prompt": "An ancient Roman two-wheeled racing chariot without horses: a small open wooden car with a curved front screen, two spoked wooden wheels with iron tyres on one axle, a long pole sticking forward",
+      "texture": "Oiled oak wood, worn ochre and red paint on the front screen, dark iron tyres and fittings",
+      "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "roman-cart": {
+      "prompt": "A heavy ancient Roman two-wheeled supply cart without an animal: solid plank wheels with iron tyres, a box bed of rough planks, two shafts forward",
+      "texture": "Weathered rough-sawn oak, dark iron tyres and nails, dust and mud on the wheels",
+      "polycount": 20000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "wagon": {
+      "prompt": "A medieval English four-wheeled farm wagon loaded with loose hay, wooden spoked wheels, shafts forward, no animal",
+      "texture": "Weathered grey-brown oak, dried golden hay, iron tyres, mud",
+      "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "chaldron": {
+      "prompt": "An 18th century English coal chaldron wagon for a wooden wagonway: a tapering wooden hopper body on a frame with four small iron flanged wheels, heaped with coal, no horse",
+      "texture": "Coal-blackened oak planks, rusty cast iron wheels, lumps of coal",
+      "polycount": 20000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "locomotive": {
+      "prompt": "Stephenson's Rocket steam locomotive of 1829 with its tender: yellow boiler, tall black chimney at the front, two large front driving wheels and two small rear wheels, angled cylinders, a wooden tender carrying a water barrel",
+      "texture": "Glossy yellow painted iron, black iron chimney, polished brass, white-painted wheel spokes, soot, oak tender and barrel",
+      "polycount": 40000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "boxcar": {
+      "prompt": "A modern North American freight railroad boxcar, long and boxy with a sliding side door, ribbed steel sides, two four-wheel trucks with steel wheels",
+      "texture": "Faded boxcar-red painted steel, rust streaks, road grime, dark steel trucks and wheels, no lettering",
+      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "booster-car": {
+      "prompt": "A long heavy-duty railroad flatcar carrying one segment of a Space Shuttle solid rocket booster lying on its side in steel cradles: a white steel cylinder 3.7 m across and 8 m long, two four-wheel trucks with steel wheels",
+      "texture": "White painted steel cylinder with grey joint rings, dark weathered steel flatcar deck and cradles, rust, grime",
+      "polycount": 40000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+    },
+    "shuttle": {
+      "prompt": "The Space Shuttle launch stack: the white orbiter with black heat-shield tiles on its belly and nose, mounted on the side of the large orange external fuel tank, with two white solid rocket boosters on either side of the tank, standing upright, no launch tower, no flames",
+      "texture": "White orbiter with black thermal tiles, rust-orange spray-foam insulation on the external tank, white boosters with grey rings",
+      "polycount": 60000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
+    },
+    "tree": {
+      "prompt": "A single mature English oak tree in full summer leaf, broad rounded crown, thick gnarled trunk",
+      "texture": "Rough grey-brown oak bark, dense green leaves in natural light",
+      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
+    }
+  },
+  "sky": ["kloofendal_48d_partly_cloudy", "kiara_1_dawn", "rolling_hills", "meadow_2"],
+  "textures": {
+    "grass": ["aerial_grass_rock", "forrest_ground_01", "brown_mud_leaves_01", "rocky_terrain_02"],
+    "stone": ["cobblestone_floor_08", "cobblestone_floor_04", "cobblestone_floor_01", "medieval_blocks_02"],
+    "dirt": ["dirt_floor", "brown_mud_02", "dry_ground_01", "mud_forest"],
+    "ballast": ["gravel_floor_02", "gravel_floor", "gravel_road", "aerial_rocks_02"],
+    "rock": ["rock_wall_08", "rock_face", "rock_wall_02", "aerial_rocks_04"],
+    "wood": ["weathered_brown_planks", "wood_planks_dirt", "old_planks_02", "brown_planks_03"]
+  }
+}
