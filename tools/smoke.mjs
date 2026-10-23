@@ -18,6 +18,8 @@ import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
 import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
+import * as planets from '../supabase/functions/planets/server.js';
+import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -1668,6 +1670,78 @@ async function noWebGL(page, shot) {
   step('"Rockets and Horses": the walk is its cards');
 }
 
+// Someone else's planet, previewed: the page draws the spec in its address (the sign, the menu,
+// the chalkboard, the robot's line), says plainly when there's none, and never writes anywhere
+async function preview(page, shot) {
+  const packed = await packPlanet(planets.EXAMPLE);
+  await page.goto(`${base}/p/preview/?test=1#${packed}`);
+  await until(page, () => window.__sceneReady, null, 240000);
+  const got = await page.evaluate(() => ({ name: document.getElementById('topbar-name').textContent, links: [...document.querySelectorAll('.menu__list a')].map((a) => a.getAttribute('href')), sign: document.querySelector('.menu__bar').textContent, veil: document.querySelector('.veil__neon text').textContent, board: [...document.querySelectorAll('#board-list button')].map((b) => b.textContent), seat: window.__world.interactables.find((x) => x.id === 'seat').label }));
+  if (got.name !== 'Sam' || got.sign !== "Sam's" || got.veil !== "Sam's" || got.seat !== "Sam's" || got.links.join() !== 'https://example.com,mailto:sam@example.com' || got.board.join() !== 'Kind of Blue,Blue Train') throw new Error(`the preview didn't draw Sam's planet: ${JSON.stringify(got)}`);
+  await shot('preview');
+  await page.evaluate(() => window.__world.sitDown());
+  await expectState(page, 'seat');
+  await page.evaluate(() => { window.__world.board.open(); window.__world.board.pick(0); });
+  await until(page, () => !document.getElementById('board-card').hidden);
+  if ((await page.textContent('#board-meta')) !== 'Miles Davis · 1959' || await page.isVisible('#board-make') || await page.isVisible('#chat')) throw new Error('a record on the board: its details, no "Make me one", and no AI bartender in a preview');
+  step("Sam's planet from the address: the sign, top bar, menu, chalkboard (a record's details, nothing to make) and no bartender to ask");
+  const bad = await page.context().newPage();
+  await bad.goto(`${base}/p/preview/#not-a-planet`);
+  await until(bad, () => /can’t be drawn/.test(document.getElementById('veil-status').textContent), null, 30000);
+  await bad.close();
+  step('an address with no planet in it says so');
+}
+
+// The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
+// in a frame where 3D can run, and on a phone a plain card with a link to walk around it
+async function planetCard(page, shot) {
+  const ctx = { cardScript: async () => readFileSync(join(root, 'assets/js/dist/planet-card.js'), 'utf8') };
+  const html = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: planets.APP_URI } }, ctx)).result.contents[0].text;
+  const result = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_planet', arguments: { spec: planets.EXAMPLE } } }, ctx)).result;
+  // the preview page, at its real address, from this build
+  await page.route(`${new URL(PREVIEW_PAGE).origin}/**`, (route) => {
+    let f = join(root, decodeURIComponent(new URL(route.request().url()).pathname));
+    if (existsSync(f) && statSync(f).isDirectory()) f = join(f, 'index.html');
+    if (!existsSync(f)) return route.fulfill({ status: 404 });
+    route.fulfill({ contentType: TYPES[extname(f)] || 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: readFileSync(f) });
+  });
+  const host = (await esbuild.build({ stdin: { resolveDir: resolve('.'), loader: 'js', contents: `
+    import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+    window.showCard = async (html, result, platform) => {
+      const frame = document.getElementById('card');
+      const hc = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US', platform };
+      const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {} }, { hostContext: hc });
+      window.opened = [];
+      bridge.onopenlink = async ({ url }) => { window.opened.push(url); return {}; };
+      bridge.onsizechange = ({ height }) => { if (height) frame.style.height = height + 'px'; };
+      bridge.oninitialized = () => { bridge.sendToolInput({ arguments: {} }); bridge.sendToolResult(result); };
+      await bridge.connect(new PostMessageTransport(frame.contentWindow, frame.contentWindow));
+      frame.srcdoc = html;
+    };` }, bundle: true, write: false, format: 'iife', logLevel: 'error' })).outputFiles[0].text;
+  await page.route(`${base}/__host`, (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#f4f4f2"><div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden"><iframe id="card" sandbox="allow-scripts" style="display:block;width:100%;height:120px;border:0"></iframe></div><script>${host}</script>` }));
+  const card = page.frameLocator('#card');
+  const show = async (platform) => { await page.goto(`${base}/__host`); await page.evaluate(([h, r, p]) => window.showCard(h, r, p), [html, result, platform]); };
+  // a phone's app: the plain card, and a way to walk round it in the browser
+  await show('mobile');
+  await card.getByRole('button', { name: 'Walk around it' }).click();
+  const text = flatText(await card.locator('#app').innerText());
+  if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
+  await shot('card-phone');
+  step('in a phone\'s app: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
+  // a computer: the planet itself, in the card
+  await show('desktop');
+  await card.locator('.pl-frame').waitFor();
+  let world = null;
+  for (let i = 0; i < 240 && !world; i++) { world = page.frames().find((f) => f.url().startsWith(PREVIEW_PAGE)); if (!world) await page.waitForTimeout(250); }
+  if (!world) throw new Error('the card never opened the preview page in its frame');
+  await world.waitForFunction(() => window.__sceneReady, null, { timeout: 240000 });
+  if ((await world.textContent('.menu__bar')) !== "Sam's" || (await card.locator('.pl-parts:empty').count()) !== 1) throw new Error("the card's frame should show Sam's planet, and no plain card beside it");
+  await page.waitForTimeout(1500);
+  await shot('card-planet');
+  step('on a computer: the planet itself, walkable, in the card');
+}
+
 const want = (k) => !only || only === k;
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
@@ -1678,6 +1752,8 @@ if (want('apps')) await session('home-screen app', { viewport: { width: 390, hei
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
+if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
+if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
 
 server.close();
