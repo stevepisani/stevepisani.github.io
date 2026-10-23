@@ -125,6 +125,7 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: the two data posts moved to Tabby Stack's blog (tabbystack.io/blog); their old addresses here redirect there (`moved/`, `_layouts/redirect.html`), and /about links to it. This blog is for everything else now.
 - Oct 2026: holidays on the planet, only on the day (the visitor's date; `?holiday=halloween` to
   see it any day): Halloween first, jack-o'-lanterns along the walk and round the bar, bats round
   the roof, orange and purple bulbs, a witch's hat on the bartender, and a pumpkin beside the name

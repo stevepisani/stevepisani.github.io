@@ -18,6 +18,8 @@ links:
   linkedin: &linkedin https://www.linkedin.com/in/steven-pisani/
   github: &github https://github.com/stevepisani
   twitter: &twitter https://twitter.com/StevenPisani
+  tabbystack: https://tabbystack.io
+  tabbystack_blog: https://tabbystack.io/blog
 social:  # for jekyll-seo-tag
   name: Steve Pisani
   links: [*linkedin, *github, *twitter]
