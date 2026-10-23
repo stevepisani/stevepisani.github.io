@@ -1,0 +1,248 @@
+{%- comment -%}
+  The planet: the canvas, the launch screen, the top bar, the menu and everything laid over the
+  3D (assets/js/world/), and the planet's spec and kit for the world to read. The homepage
+  includes it with Steve's planet (planet=, name=, tagline=); /p/preview/ includes it empty
+  (preview=true), and the world fills it in from the spec in the address (docs/planets.md).
+{%- endcomment -%}
+{%- assign planet = include.planet -%}
+{%- assign sign = planet.who.sign | default: planet.who.name -%}
+{%- assign engraving = planet.telescope.engraving | default: sign -%}
+<div class="world" id="world" data-state="loading"{% if include.preview %} data-preview{% endif %}>
+  <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="{{ sign | default: 'A little' }} asteroid: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu."></canvas>
+
+  {%- comment -%}
+    The launch screen looks like the first frame (the sign lit at the end of the path, HIG:
+    Launching) and always shows that something is happening: the neon warms up, the bar keeps
+    moving even while the planet is being built, and a line says what's being done. If it takes
+    a while, a way out appears on its own (CSS only, so it shows even if the script never loads).
+  {%- endcomment -%}
+  <div class="veil" id="veil">
+    {%- comment -%}
+      The sign, drawn in the sign's own centimetres (y down) from the same numbers as bar.js and
+      textures.js neonSign()/signBox(), and set in 3D by world.css at the pose the camera sees it
+      from where you land, so the real one appears exactly on top of it.
+    {%- endcomment -%}
+    <div class="veil__sign" aria-hidden="true">
+      <svg viewBox="-270 -180 540 330">
+        <defs>
+          <filter id="veil-halo" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="3.5"/></filter>
+          <filter id="veil-soft" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>
+          <filter id="veil-bulb" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.8"/></filter>
+          <linearGradient id="veil-face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdc6b8"/><stop offset=".5" stop-color="#e6e2d9"/><stop offset="1" stop-color="#cdc6b8"/></linearGradient>
+        </defs>
+        <g class="veil__neon">
+          <text x="0" y="21.76" stroke="#ff4fa3" stroke-width="9" opacity=".55" filter="url(#veil-halo)">{{ sign }}</text>
+          <text x="0" y="21.76" stroke="#ff4fa3" stroke-width="4.2" opacity=".85" filter="url(#veil-soft)">{{ sign }}</text>
+          <text x="0" y="21.76" stroke="#ff8cc6" stroke-width="3.6">{{ sign }}</text>
+          <text x="0" y="21.76" stroke="#ffd9ea" stroke-width="2.2">{{ sign }}</text>
+        </g>
+        <g class="veil__box">
+          <rect x="-120.5" y="36" width="241" height="56" fill="#24150c"/>
+          <rect x="-115.5" y="41" width="231" height="46" fill="#9a6e2c"/>
+          <rect x="-112.5" y="44" width="225" height="40" fill="url(#veil-face)"/>
+          <rect x="-108.55" y="47.33" width="217.09" height="33.33" fill="none" stroke="#e8634a" stroke-width="1.3" opacity=".7"/>
+          <text x="0" y="70.82" transform="scale(1.0547 1)" fill="#2b2420">WORLD FAMOUS</text>
+          <g fill="#ffc774" filter="url(#veil-bulb)"><circle cx="-114.5" cy="36" r="2.2"/><circle cx="-95.42" cy="36" r="2.2"/><circle cx="-76.33" cy="36" r="2.2"/><circle cx="-57.25" cy="36" r="2.2"/><circle cx="-38.17" cy="36" r="2.2"/><circle cx="-19.08" cy="36" r="2.2"/><circle cx="0" cy="36" r="2.2"/><circle cx="19.08" cy="36" r="2.2"/><circle cx="38.17" cy="36" r="2.2"/><circle cx="57.25" cy="36" r="2.2"/><circle cx="76.33" cy="36" r="2.2"/><circle cx="95.42" cy="36" r="2.2"/><circle cx="114.5" cy="36" r="2.2"/><circle cx="-114.5" cy="92" r="2.2"/><circle cx="-95.42" cy="92" r="2.2"/><circle cx="-76.33" cy="92" r="2.2"/><circle cx="-57.25" cy="92" r="2.2"/><circle cx="-38.17" cy="92" r="2.2"/><circle cx="-19.08" cy="92" r="2.2"/><circle cx="0" cy="92" r="2.2"/><circle cx="19.08" cy="92" r="2.2"/><circle cx="38.17" cy="92" r="2.2"/><circle cx="57.25" cy="92" r="2.2"/><circle cx="76.33" cy="92" r="2.2"/><circle cx="95.42" cy="92" r="2.2"/><circle cx="114.5" cy="92" r="2.2"/></g>
+          <g fill="#fff1d6"><circle cx="-114.5" cy="36" r="2.2"/><circle cx="-95.42" cy="36" r="2.2"/><circle cx="-76.33" cy="36" r="2.2"/><circle cx="-57.25" cy="36" r="2.2"/><circle cx="-38.17" cy="36" r="2.2"/><circle cx="-19.08" cy="36" r="2.2"/><circle cx="0" cy="36" r="2.2"/><circle cx="19.08" cy="36" r="2.2"/><circle cx="38.17" cy="36" r="2.2"/><circle cx="57.25" cy="36" r="2.2"/><circle cx="76.33" cy="36" r="2.2"/><circle cx="95.42" cy="36" r="2.2"/><circle cx="114.5" cy="36" r="2.2"/><circle cx="-114.5" cy="92" r="2.2"/><circle cx="-95.42" cy="92" r="2.2"/><circle cx="-76.33" cy="92" r="2.2"/><circle cx="-57.25" cy="92" r="2.2"/><circle cx="-38.17" cy="92" r="2.2"/><circle cx="-19.08" cy="92" r="2.2"/><circle cx="0" cy="92" r="2.2"/><circle cx="19.08" cy="92" r="2.2"/><circle cx="38.17" cy="92" r="2.2"/><circle cx="57.25" cy="92" r="2.2"/><circle cx="76.33" cy="92" r="2.2"/><circle cx="95.42" cy="92" r="2.2"/><circle cx="114.5" cy="92" r="2.2"/></g>
+        </g>
+      </svg>
+    </div>
+    <div class="veil__load">
+      <span class="veil__bar" aria-hidden="true"><span id="veil-progress"></span></span>
+      <p class="veil__status" id="veil-status" role="status">Opening the bar…</p>
+      {% unless include.preview %}<p class="veil__slow">Taking a while? The sections up top already work, or <a href="{{ '/classic' | relative_url }}">see the site without 3D</a>.</p>{% endunless %}
+    </div>
+  </div>
+
+  <header class="topbar" id="topbar" tabindex="-1">
+    <a class="topbar__id" href="{{ '/' | relative_url }}">
+      <strong id="topbar-name">{{ include.name }}</strong>
+      <span id="topbar-line">{{ include.tagline }}</span>
+    </a>
+    <div class="topbar__end">
+      <nav class="topbar__nav" aria-label="Sections">
+        {% for item in planet.links %}{% unless item.id == 'launch' %}
+        <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>{{ item.label }}</a>
+        {% endunless %}{% endfor %}
+      </nav>
+      <button type="button" class="topbar__menu" id="menu-btn" aria-controls="menu" aria-expanded="false">Menu</button>
+      <button type="button" class="topbar__sound" id="sound-btn" aria-pressed="false" aria-label="Sound off" hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/>
+          <path class="topbar__sound-on" d="M16 9.5a3.5 3.5 0 0 1 0 5M18.5 7a7 7 0 0 1 0 10"/>
+          <path class="topbar__sound-off" d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <p class="hint" id="hint" role="status" aria-live="polite" hidden></p>
+  <div class="beacon" id="beacon" aria-hidden="true" hidden></div>
+  <div class="tip" id="tip" aria-hidden="true" hidden><strong></strong><span></span></div>
+  <p class="world__bubble" id="bubble" aria-live="polite" hidden></p>
+
+  <section class="menu" id="menu" aria-labelledby="menu-title" hidden>
+    <div class="menu__card">
+      <div class="menu__sheet">
+        <button type="button" class="menu__close" id="menu-close" aria-label="Close menu">×</button>
+        <header class="menu__head">
+          {%- capture tiki -%}<svg class="menu__tiki" viewBox="0 0 40 56" aria-hidden="true" focusable="false"><path d="M6 6q14-8 28 0v40q-14 12-28 0z"/><path class="menu__tiki-cut" d="M8 16h24v5H8zM10 24q5-3 9 0q-4 4-9 0zM21 24q5-3 9 0q-4 4-9 0zM17 27h6l2 9h-10zM10 40q10 6 20 0v5q-10 5-20 0z"/><path d="M13 41h3v3h-3zM18.5 41.5h3v3h-3zM24 41h3v3h-3z"/></svg>{%- endcapture -%}
+          {{ tiki }}
+          <p class="menu__bar">{{ sign }}</p>
+          {{ tiki | replace: 'class="menu__tiki"', 'class="menu__tiki menu__tiki--flip"' }}
+        </header>
+        <h1 class="menu__title" id="menu-title">What'll it be?</h1>
+        <ul class="menu__list">
+          {% for item in planet.links %}
+          <li>
+            <a href="{{ item.href | relative_url }}" data-order="{{ item.id }}"{% if item.href contains '://' %} target="_blank" rel="noopener"{% endif %}>
+              <span class="menu__label">{{ item.label }}{% if item.href contains '://' or item.href contains 'mailto:' %}<span class="menu__ext" title="Opens outside this site"> ↗</span>{% endif %}</span>
+              <span class="menu__note">{{ item.note }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+        <div class="menu__foot">
+          <button type="button" class="menu__leave" id="leave">Leave the bar</button>
+          {% unless include.preview %}<a href="{{ '/classic' | relative_url }}">Regular website</a>{% endunless %}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <button type="button" class="seat-leave" id="seat-leave" hidden>Leave the bar</button>
+  <button type="button" class="seat-leave" id="camp-leave" hidden>Leave the fire</button>
+  <button type="button" class="camp-eat" id="camp-eat" hidden>Eat it</button>
+  <button type="button" class="seat-leave" id="hammock-leave" hidden>Get up</button>
+  <button type="button" class="camp-eat" id="hammock-read" hidden>Reading list</button>
+  <aside class="star-card" id="star-card" aria-live="polite" hidden>
+    <div class="star-card__cover" id="star-cover"></div>
+    <div class="star-card__text">
+      <p class="star-card__kind" id="star-kind"></p>
+      <h2 class="star-card__title" id="star-title"></h2>
+      <p class="star-card__meta" id="star-meta"></p>
+      <button type="button" class="book__sample" id="star-sample" aria-pressed="false">▶ Hear a sample</button>
+    </div>
+    <button type="button" class="star-card__close" id="star-close" aria-label="Put it away">×</button>
+    <div class="star-card__steps"><button type="button" id="star-prev" aria-label="Previous book on this shelf">‹</button><span class="star-card__pos" id="star-pos"></span><button type="button" id="star-next" aria-label="Next book on this shelf">›</button></div>
+  </aside>
+  <div class="sky-shelf" id="sky-shelf" hidden>
+    <button type="button" class="sky-shelf__step" id="sky-prev" aria-label="Previous shelf">‹</button>
+    <p class="sky-shelf__name"><span id="sky-name"></span> <span class="sky-shelf__count" id="sky-count"></span></p>
+    <button type="button" class="sky-shelf__step" id="sky-next" aria-label="Next shelf">›</button>
+    <button type="button" class="sky-shelf__close" id="sky-close" aria-label="Back to the whole sky">×</button>
+  </div>
+  <div class="sky-labels" id="sky-labels" aria-hidden="true"></div>
+  <div class="visually-hidden" id="sky-list" aria-label="The books on this shelf" hidden></div>
+  <button type="button" class="seat-leave" id="shore-leave" hidden>Leave the shore</button>
+  <button type="button" class="camp-eat" id="shore-throw" hidden>Hold to throw</button>
+  <button type="button" class="seat-leave" id="carry-drop" hidden>Put it down</button>
+  <button type="button" class="camp-eat" id="carry-throw" hidden>Hold to throw</button>
+  <button type="button" class="seat-leave" id="note-leave" hidden>Leave the shore</button>
+  <button type="button" class="camp-eat" id="note-go" hidden>Write one</button>
+  <form class="note" id="note" hidden>
+    <label class="visually-hidden" for="note-text">Your message</label>
+    <textarea id="note-text" maxlength="280" placeholder="Write a message to whoever finds it…"></textarea>
+    <label class="note__sign"><span>Signed</span><input id="note-sign" maxlength="40" placeholder="(optional)" autocomplete="off"></label>
+    <div class="note__foot">
+      <button type="button" id="note-cancel">Put it back</button>
+      <span class="note__left" id="note-left" aria-live="polite">280 left</span>
+      <button type="submit" class="note__roll">Roll it up</button>
+    </div>
+  </form>
+  <div class="eyepiece__live" id="eyepiece-live"></div>
+  <div class="earth-pins" id="earth-pins" aria-hidden="true" hidden></div>
+  <div class="eyepiece" id="eyepiece" aria-hidden="true">
+    <svg class="eyepiece__ring" viewBox="-100 -100 200 200"><defs><path id="eyepiece-arc" d="M -92 0 A 92 92 0 0 1 92 0"/></defs><text><textPath href="#eyepiece-arc" startOffset="50%" text-anchor="middle" id="eyepiece-mag">{{ engraving | upcase }}</textPath></text></svg>
+  </div>
+  <div class="eyepiece__dark" id="eyepiece-dark" aria-hidden="true"></div>
+  <button type="button" class="seat-leave" id="scope-leave" hidden>Step back</button>
+  <button type="button" class="seat-leave" id="console-leave" hidden>Step back</button>
+  {%- comment -%} Launch control's terminal: laid over the console's screen as you lean in, its keys along the screen's foot (terminal.js) {%- endcomment %}
+  <section class="terminal" id="terminal" aria-label="Launch control" hidden>
+    <div class="terminal__screen" id="term-screen"><div class="terminal__glass">
+      <p class="terminal__top"><span>Launch control</span><span class="terminal__status" id="term-status"></span><span id="term-count"></span></p>
+      <div class="terminal__body">
+        <div class="terminal__text">
+          <h2 class="terminal__name" id="term-name">Checking the manifest…</h2>
+          <p class="terminal__line" id="term-rocket"></p>
+          <p class="terminal__line" id="term-pad"></p>
+          <p class="terminal__line" id="term-when"></p>
+          <p class="terminal__clock" id="term-clock"></p>
+        </div>
+        <div class="terminal__pic" id="term-pic"></div>
+      </div>
+      <p class="terminal__out" id="term-out" aria-live="polite"></p>
+      <p class="terminal__ticker" id="term-ticker"><span></span></p>
+      <form class="terminal__prompt" id="term-form"><label for="term-input">&gt;</label><input id="term-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" placeholder="type help" aria-label="Type a command (help lists them)"></form>
+      <div class="terminal__keys" id="term-keys">
+        <button type="button" id="term-prev" aria-label="The launch before">‹</button>
+        <button type="button" id="term-next" aria-label="The next launch">›</button>
+        <button type="button" id="term-remind">Remind</button>
+        <a class="terminal__watch" id="term-watch" target="_blank" rel="noopener" hidden>Watch</a>
+        <button type="button" class="terminal__test" id="term-test">Engine test</button>
+      </div>
+    </div></div>
+  </section>
+  <button type="button" class="seat-leave" id="door-leave" hidden>Step back through</button>
+  <p class="portal-credit" id="portal-credit" hidden></p>
+  <aside class="scope-card" id="scope-card" aria-live="polite" aria-labelledby="scope-name" hidden>
+    <p class="scope-card__top"><span class="scope-card__kicker" id="scope-kicker">Through the telescope</span> <span class="scope-card__live" id="scope-live" hidden>Live · NASA</span></p>
+    <h2 class="scope-card__name" id="scope-name"></h2>
+    <p class="scope-card__line" id="scope-line"></p>
+    <p class="scope-card__note" id="scope-note"></p>
+    <div class="scope-card__foot">
+      <button type="button" class="scope-card__more" id="scope-more" hidden>The whole moon</button>
+      <span class="scope-card__steps"><button type="button" id="scope-prev" aria-label="Point it at the last one">‹</button><button type="button" id="scope-next" aria-label="Point it at the next one">›</button></span>
+    </div>
+    <button type="button" class="scope-card__close" id="scope-close" aria-label="Put the card away">×</button>
+  </aside>
+  <button type="button" class="seat-leave" id="board-back" hidden>Back to the bar</button>
+  <div class="visually-hidden" id="board-list" aria-label="The drinks on the board" hidden></div>
+  <aside class="board-card" id="board-card" aria-live="polite" aria-labelledby="board-name" hidden>
+    <h2 class="board-card__name" id="board-name"></h2>
+    <p class="board-card__meta" id="board-meta"></p>
+    <ul class="board-card__build" id="board-build"></ul>
+    <p class="board-card__method" id="board-method"></p>
+    <p class="board-card__note" id="board-note"></p>
+    <div class="board-card__foot">
+      <button type="button" class="board-card__make" id="board-make">Make me one</button>
+      <span class="board-card__steps"><button type="button" id="board-prev" aria-label="Previous drink">‹</button><button type="button" id="board-next" aria-label="Next drink">›</button></span>
+    </div>
+    <button type="button" class="board-card__close" id="board-close" aria-label="Back to the board">×</button>
+  </aside>
+  <button type="button" class="camp-eat" id="make-skip" hidden>Skip to the drink</button>
+  <ol class="chat-log" id="chat-log" aria-live="polite" aria-label="Your conversation with the bartender" hidden></ol>
+  <div class="chat-ask" id="chat-ask" hidden></div>
+  <form class="chat" id="chat" hidden>
+    <label class="visually-hidden" for="chat-input">Ask the bartender</label>
+    <input id="chat-input" type="text" maxlength="400" placeholder="Ask the bartender anything" autocomplete="off" enterkeyhint="send">
+    <button type="submit">Ask</button>
+  </form>
+  <div class="making" id="making" role="status" hidden>
+    <p class="making__count" id="making-count"></p>
+    <p class="making__text" id="making-text"></p>
+    <ul class="making__build" id="making-build" aria-hidden="true"></ul>
+    <ol class="making__dots" id="making-dots" aria-hidden="true"></ol>
+  </div>
+
+  <aside class="panel" id="panel" aria-labelledby="panel-title" hidden>
+    <div class="panel__bar">
+      <button type="button" class="panel__back" id="panel-back">← Menu</button>
+      <button type="button" class="panel__close" id="panel-close" aria-label="Close">×</button>
+    </div>
+    <div class="panel__body" id="panel-body"></div>
+  </aside>
+</div>
+
+{%- comment -%} The planet's spec (_data/planet.json, from tools/planet.mjs), and the kit: what every
+planet shares (the moon's landing sites, famous launches by date) {%- endcomment -%}
+<script type="application/json" id="world-data">
+{
+  "spec": {{ planet | jsonify }},
+  "kit": {
+    "moon": {{ site.data.moon | jsonify }},
+    "launchHistory": {{ site.data.launch_history | jsonify }}
+  }
+}
+</script>
