@@ -2256,12 +2256,11 @@ async function start() {
   onSwipe($('term-screen'), (d) => term.step(d));
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
-  // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
-  // a warm dot where it's day, a pale ring where it's night. The globe shows the rest.
-  const CITIES = [['Philadelphia', 39.95, -75.17, 'America/New_York', true], ['Honolulu', 21.31, -157.86, 'Pacific/Honolulu'], ['London', 51.51, -0.13, 'Europe/London'],
-    ['Tokyo', 35.68, 139.69, 'Asia/Tokyo'], ['Sydney', -33.87, 151.21, 'Australia/Sydney'], ['Cape Town', -33.92, 18.42, 'Africa/Johannesburg'], ['Rio', -22.91, -43.17, 'America/Sao_Paulo']];
+  // Earth in the eyepiece: the planet's cities (the spec's telescope pins, or a few round the world)
+  // pinned where they are on it, each with the time there now; a warm dot where it's day, a pale
+  // ring where it's night, home ringed. The globe shows the rest.
   const earthPins = $('earth-pins');
-  const pins = CITIES.map(([name, lat, lon, zone, home]) => {
+  const pins = parts.pins.map(({ city: name, lat, lon, zone, home }) => {
     const el = document.createElement('div');
     el.className = `earth-pin${home ? ' is-home' : ''}`;
     el.innerHTML = '<i></i><span></span>';
