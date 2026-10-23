@@ -15,7 +15,9 @@
       <div class="walk__card">
         <p class="walk__when">{{ s.when }}</p>
         <p class="walk__story">{{ s.story }}</p>
-        <p class="walk__truth is-{{ s.verdict }}"><b>{% case s.verdict %}{% when "true" %}True{% when "partly" %}Partly true{% else %}Not true{% endcase %}.</b> {{ s.fact }}</p>
+        {%- if s.legend %}
+        <p class="walk__legend"><b>The legend:</b> {{ s.legend }}</p>
+        {%- endif %}
       </div>
     </li>
     {%- endfor %}

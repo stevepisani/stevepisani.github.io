@@ -3,49 +3,44 @@
 # walk (_includes/gauge-walk.html, assets/js/walk/gauge.js) and the planet's flatcar panel.
 #   scene    which set the 3D walk shows (gauge.js SCENES)
 #   when     where and when, a kicker
-#   story    the story as it's usually told
-#   verdict  true | partly | false: how well that link holds up
-#   fact     what's known instead (Snopes, "Railroad Gauge and Roman Chariots")
+#   title    a few words for the stop (the planet's panel lists them)
+#   story    what happened, as best it's known (Snopes, "Railroad Gauge and Roman Chariots";
+#            the Rogers Commission report for the boosters)
+#   legend   optional: what the internet version says instead
 - scene: rails
   when: United States, today
-  story: The US standard railroad gauge is 4 feet 8½ inches, because the English built railroads to that gauge and US railroads were built by English expatriates.
-  verdict: partly
-  fact: The gauge is right. The expatriates aren't. Some early lines bought English locomotives, like the John Bull, and laid track to fit them. The South ran 5 feet until 1886, when it moved its rails in two days.
+  title: Standard gauge
+  story: Almost every mile of American track is 4 feet 8½ inches between the rails. It wasn't settled without a fight. In 1863 Lincoln picked 5 feet for the transcontinental railroad, and Congress overruled him. In 1886 the South gave in too. Over two days, crews shifted one rail on more than 11,000 miles of track.
+  legend: English expatriates built America's railroads. Really, early lines bought English locomotives, like the John Bull, and laid track to fit them.
 - scene: locomotive
-  when: England, 1825
-  story: The English built them that way because the first railways were built by the people who built the tramways before them.
-  verdict: "true"
-  fact: George Stephenson took the gauge of the coal wagonways of Northumberland and Durham, about 4 feet 8 inches, and added half an inch of play.
+  when: England, 1825–1846
+  title: Stephenson's gauge
+  story: George Stephenson built his railways to the gauge of the coal wagonways he grew up around, 4 feet 8 inches, then added half an inch of play. In 1829 his Rocket won the trials to run on one of them. Brunel tried 7 feet on the Great Western, and lost. In 1846 Parliament made Stephenson's gauge the rule for new lines.
 - scene: tram
-  when: England, the 1700s
-  story: The tramway builders used the same jigs and tools as the wagon builders, so they used the same wheel spacing.
-  verdict: "true"
-  fact: Close enough. Coal wagons on wooden rails were built like road carts, sized for one horse between the shafts.
+  when: Northumberland, the 1700s
+  title: Wagonways
+  story: Before steam, horses hauled coal from the pits down to the river in wagons on wooden rails. The wagons were built like farm carts, as wide as one horse could pull, and every colliery chose its own spacing.
 - scene: wagon
   when: England, the Middle Ages
-  story: The wagons used that spacing because any other would break an axle in the ruts of the old long-distance roads.
-  verdict: "false"
-  fact: There were no standard ruts to fit. Wheel spacing changed from place to place, and Britain's Great Western Railway ran on 7 feet until 1892.
+  title: Ruts
+  story: Wheels cut ruts into dirt roads, and a cart that didn't match them had a rough ride. But no rut was standard. Carts were as wide as their horse and their builder made them, and the width changed from one county to the next.
+  legend: Any other spacing would snap an axle in the old Roman ruts.
 - scene: ruts
-  when: Roman Britain
-  story: The first long-distance roads were built by Imperial Rome for its legions, and the ruts were made by Roman war chariots.
-  verdict: partly
-  fact: Roman ruts about this wide are real, at Housesteads on Hadrian's Wall. But the legions moved on foot and by cart. Chariots were for racing and parades.
+  when: The Roman Empire
+  title: Roman roads
+  story: Rome did build Britain's first long paved roads, and Roman wheels did wear grooves into stone. You can still see them in Pompeii, roughly as far apart as modern rails. They were made by carts and wagons hauling goods. The legions walked.
+  legend: The ruts were made by Roman war chariots.
 - scene: horses
   when: Rome
-  story: The chariots were made just wide enough for the back ends of two war horses.
-  verdict: partly
-  fact: The real constant is the horse. Anything sized to be pulled by one comes out about this wide, in Rome, in England and everywhere else. That's a coincidence, not a line of descent.
+  title: Two horses
+  story: Rome's army didn't fight from chariots; Rome raced them. Two-horse chariots ran the Circus Maximus in front of 150,000 people or more. Horses set the width, not Romans. Anything built to be pulled by a horse or two ends up about this wide, in Rome, in Northumberland, anywhere.
+  legend: The chariots were sized for the back ends of two war horses, and everything after copied them.
 - scene: booster
   when: Utah, the 1980s
-  story: The Space Shuttle's boosters were made by Thiokol in Utah and shipped by train to Florida, through a tunnel only slightly wider than the track.
-  verdict: partly
-  fact: They did go by rail, in segments. But tunnels are much wider than the track, and nobody has found a sign that one shaped the boosters.
+  title: The booster
+  story: Thiokol built the Shuttle's solid rocket boosters in Utah and sent them to Florida by train, in segments about 12 feet across. Going by rail is a big part of why they came in pieces. The joints between those pieces held the O-rings that failed on Challenger in 1986.
+  legend: A tunnel only a little wider than the track set the boosters' size.
 - scene: shuttle
   when: Florida, 1981
-  story: So a major design feature of the world's most advanced transportation system was set by the width of a horse's backside.
-  verdict: "false"
-  fact: >-
-    About one out of five, Snopes says. What does hold up is smaller: a cart sized for a horse
-    became a wagonway, the wagonway became a railway, and nobody changed it, because everything
-    after was built on top of it.
+  title: Liftoff
+  story: Columbia lifted off on April 12, 1981, on two boosters that had ridden the rails from Utah. A horse didn't size the Space Shuttle. But rails laid out for horse-drawn coal wagons carried its boosters, and shipping by rail shaped how they were built.

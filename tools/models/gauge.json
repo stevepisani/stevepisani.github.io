@@ -5,7 +5,7 @@
     "horse": {
       "prompt": "A bay draught horse standing still in profile, dark brown coat with black mane, tail and lower legs, a plain leather collar and harness, no rider, no cart, head forward, 1.6 m at the withers",
       "texture": "Real horse hair coat, glossy bay brown with black points, worn dark leather harness with brass buckles",
-      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 1.5708, "along": "x" }
+      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": -1.5708, "along": "y" }
     },
     "chariot": {
       "prompt": "An ancient Roman racing chariot (a biga) without horses, seen from the side: a small open car, waist-high, open at the back, with a curved front breastwork, no roof, no canopy, no seat; two large spoked wooden wheels on one axle; a long straight draught pole sticking 2 m forward from the front at axle height",

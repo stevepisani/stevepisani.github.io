@@ -80,10 +80,10 @@ description: "Steve Pisani is a data architect in Philadelphia and founder of Ta
 <template id="panel-gauge">
   <p class="kicker">4′ 8½″</p>
   <h2 id="panel-title">Rockets and Horses</h2>
-  <p>This booster segment came by train, on rails 4 feet 8½ inches apart. The story goes that the gauge comes from the width of two Roman war horses. Here's how each step of it holds up:</p>
+  <p>This booster segment came by train, on rails 4 feet 8½ inches apart. The internet says that gap goes back to two Roman war horses. The true story is stranger, and it runs back along this track:</p>
   <ol class="panel__gauge">
     {%- for s in site.data.gauge %}
-    <li class="is-{{ s.verdict }}"><span>{{ s.when }}</span> <b>{% case s.verdict %}{% when "true" %}True{% when "partly" %}Partly true{% else %}Not true{% endcase %}</b></li>
+    <li><span>{{ s.when }}</span> <b>{{ s.title }}</b></li>
     {%- endfor %}
   </ol>
   <p class="panel__links"><a class="btn" href="{% for p in site.posts %}{% if p.title == "Rockets and Horses" %}{{ p.url | relative_url }}{% endif %}{% endfor %}#walk">Walk the track</a></p>

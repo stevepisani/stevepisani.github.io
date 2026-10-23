@@ -68,16 +68,13 @@ export function romanCart(M) {
   return g;
 }
 
-/** A farm wagon with one horse between the shafts. */
+/** A farm wagon, its shafts waiting for a horse. */
 export function wagon(M) {
   const g = new THREE.Group(), c = slot('wagon', g);
   for (const [x, r] of [[-1, 0.45], [1, 0.6]]) for (const s of [-1, 1]) wheel(r, 0.1, M.wood, [x, r, s * (GAUGE / 2 + 0.05)], c);
   box(2.8, 0.5, 1.3, M.wood, [0, 1.05, 0], c);
   box(2.5, 0.7, 1.2, M.hay, [0.05, 1.6, 0], c);
   for (const s of [-1, 1]) box(2.2, 0.06, 0.06, M.wood, [-2.4, 0.9, s * 0.38], c);
-  const h = horse(M);
-  h.position.set(-3.2, 0, 0);
-  g.add(h);
   return g;
 }
 
@@ -88,8 +85,9 @@ export function chaldron(M) {
   for (const x of [-0.55, 0.55]) wheelset(0.3, M.iron, x, c, 0.1);
   c.children.forEach((c) => { c.position.y += lift; });
   mesh(new THREE.CylinderGeometry(1, 0.7, 1.1, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.wood, [0, 1.15 + lift, 0], c);
-  const h = horse(M);
-  h.position.set(-2.6, lift - 0.02, 0);
+  const h = horse(M); // ahead of the wagon toward +x, so its head is to the right as you see it
+  h.position.set(2.6, lift - 0.02, 0);
+  h.rotation.y = h.userData.turn = Math.PI;
   g.add(h);
   return g;
 }

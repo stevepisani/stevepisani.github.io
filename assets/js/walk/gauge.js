@@ -13,6 +13,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import SPEC from '../../../tools/models/gauge.json';
+import { alive } from './alive.js';
 import { GAUGE, horse, chariot, romanCart, wagon, chaldron, locomotive, boxcar, boosterCar, track, gaugeBar, tunnel, shuttle } from './sets.js';
 
 const root = document.getElementById('walk');
@@ -28,10 +29,10 @@ const MODELS = script?.dataset.models, IMAGES = script?.dataset.images;
 const SCENES = {
   rails: { x: 0, build: boxcar, eye: [10, 3.4, 11], at: [1, 1.6, 0], bar: [8.6, 0.2] },
   locomotive: { x: -24, build: locomotive, eye: [-4.5, 2.4, 6.5], at: [0.6, 1.2, 0], bar: [-2.2, 0.2] },
-  tram: { x: -42, build: chaldron, eye: [3.5, 2.2, 5.5], at: [-0.8, 1, 0], bar: [1.5, 0.18] },
+  tram: { x: -42, horse: true, build: chaldron, eye: [-1.6, 2.1, 7.4], at: [1.3, 1.0, 0], bar: [-1.5, 0.18] },
   wagon: { x: -60, build: wagon, eye: [4.5, 2.4, 6], at: [-0.6, 1, 0], bar: [2, 0.07] },
   ruts: { x: -78, build: romanCart, eye: [4.5, 2, 5.5], at: [0, 0.8, 0], bar: [2, 0.07] },
-  horses: { x: -96, build: chariot, eye: [3.6, 1.9, 2.4], at: [-2.6, 1.2, 0], bar: [-2.05, 1.05] }, // the measure across their back ends
+  horses: { x: -96, horse: true, build: chariot, eye: [3.6, 1.9, 2.4], at: [-2.6, 1.2, 0], bar: [-2.05, 1.05] }, // the measure across their back ends
   booster: { x: 34, build: boosterCar, eye: [-11, 3.6, 10], at: [2, 2.6, 0], bar: [-8.6, 0.2] },
   shuttle: { x: 140, build: shuttle, eye: [-74, 34, 92], at: [0, 29, 0] },
 };
@@ -112,6 +113,7 @@ function start() {
   const poses = order.map((s) => ({ eye: v(s.eye, s.x), at: v(s.at, s.x) }));
 
   let yaw = 0, progress = -1, visible = true, queued = false;
+  const lives = [], horseStops = order.flatMap((s, i) => (s.horse ? [i] : []));
   const eye = new THREE.Vector3(), at = new THREE.Vector3();
 
   function pose(p) {
@@ -156,6 +158,12 @@ function start() {
     if (progress >= 0 && p !== progress) yaw *= Math.exp(-Math.abs(p - progress) * 3); // scrolling on brings the view back round
     progress = p;
     pose(p);
+    // the horses breathe while one's in view (and the page draws on, frame after frame, only then)
+    if (lives.length && !reducedMotion && horseStops.some((i) => Math.abs(p - i) < 0.8)) {
+      const t = performance.now() / 1000;
+      for (const l of lives) l.update(t);
+      ask();
+    }
     renderer.render(scene, camera);
   }
   const ask = () => { if (!queued) { queued = true; requestAnimationFrame(draw); } };
@@ -174,8 +182,8 @@ function start() {
   new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) ask(); }).observe(root);
 
   // drag sideways to look round the stop (vertical swipes still scroll the page)
-  let dragX = null;
-  stage.addEventListener('pointerdown', (e) => { dragX = e.clientX; stage.setPointerCapture(e.pointerId); root.classList.add('is-dragged'); });
+  let dragX = null, down = null;
+  stage.addEventListener('pointerdown', (e) => { dragX = e.clientX; down = { x: e.clientX, y: e.clientY, t: e.timeStamp }; stage.setPointerCapture(e.pointerId); root.classList.add('is-dragged'); });
   stage.addEventListener('pointermove', (e) => {
     if (dragX === null) return;
     yaw = THREE.MathUtils.clamp(yaw - (e.clientX - dragX) * 0.006, -1.4, 1.4);
@@ -183,14 +191,24 @@ function start() {
     ask();
   });
   const end = () => { dragX = null; };
-  stage.addEventListener('pointerup', end);
+  // a tap (not a drag) on a horse: it tosses its head
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  stage.addEventListener('pointerup', (e) => {
+    end();
+    if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8 || e.timeStamp - down.t > 500) return;
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = lives.find((l) => ray.intersectObjects(l.meshes(), false).length);
+    if (hit) { hit.tap(performance.now() / 1000); ask(); }
+  });
   stage.addEventListener('pointercancel', end);
 
   resize();
   const loaded = new Set();
-  window.__walk = { scenes: order.length, progress: () => progress, renderer, loaded };
+  window.__walk = { scenes: order.length, progress: () => progress, renderer, loaded, lives };
   // the real things, once the stand-ins are drawn
-  if (MODELS) requestAnimationFrame(() => dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, ask }));
+  if (MODELS) requestAnimationFrame(() => dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, ask, lives }));
 }
 
 function materials() {
@@ -243,7 +261,7 @@ function scatter(scene, M) {
 
 // What tools/gauge-assets.mjs made (assets/models/gauge/manifest.json says what's there), put in
 // as each arrives; anything missing stays as it was.
-async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, ask }) {
+async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, ask, lives }) {
   let made;
   try { made = await (await fetch(MODELS + 'manifest.json')).json(); } catch (e) { return; }
 
@@ -319,7 +337,10 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
         o.castShadow = o.receiveShadow = true;
         if (o.material.map) o.material.map.anisotropy = 8;
       });
-      for (const stand of slots[name]) fill(stand, model, m.fit || {});
+      for (const stand of slots[name]) {
+        const copy = fill(stand, model, m.fit || {});
+        if (name === 'horse') lives.push(alive(copy));
+      }
       loaded.add(name);
       ask();
       ok();
@@ -347,6 +368,7 @@ function fill(stand, model, { rotateY = 0, along = 'x' }) {
   stand.parent.add(holder);
   holder.position.applyMatrix4(new THREE.Matrix4().copy(stand.parent.matrixWorld).invert());
   stand.visible = false;
+  return copy;
 }
 
 // The sun in an equirectangular HDR (its brightest texel) and its colour. Rows run top to bottom (the loader flips them: v = 1 is the top).
