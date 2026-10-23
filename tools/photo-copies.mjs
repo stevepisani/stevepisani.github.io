@@ -25,7 +25,14 @@ const api = async (method, path, body) => {
 // Storage takes the service key, fetched here and never printed
 const key = (await api('GET', '/api-keys?reveal=true')).find((k) => k.name === 'service_role')?.api_key;
 if (!key) throw new Error('No service_role key from the Management API.');
-const storage = (path, init = {}) => fetch(`${url[0]}/storage/v1/object/photos/${path.split('/').map(encodeURIComponent).join('/')}`, { ...init, headers: { Authorization: `Bearer ${key}`, apikey: key, ...init.headers } });
+// Storage limits how fast it's asked (HTTP 429): wait and ask again, 2 s, 4 s, 8 s, 16 s
+const storage = async (path, init = {}) => {
+  for (let wait = 2000; ; wait *= 2) {
+    const res = await fetch(`${url[0]}/storage/v1/object/photos/${path.split('/').map(encodeURIComponent).join('/')}`, { ...init, headers: { Authorization: `Bearer ${key}`, apikey: key, ...init.headers } });
+    if (res.status !== 429 || wait > 16000) return res;
+    await new Promise((r) => setTimeout(r, wait));
+  }
+};
 
 const paths = (await api('POST', '/database/query', { query: 'select distinct path from public.wardrobe_photos where deleted_at is null' })).map((r) => r.path);
 // the app's copy `px` on its long side (never larger than the file), WebP with its transparency
@@ -37,7 +44,7 @@ const appCopy = async (bytes, px) => {
   return { bytes: await img.encodeWEBP(Math.round(QUALITY * 100)), type: 'image/webp' };
 };
 const n = { made: 0, had: 0, small: 0, unreadable: 0 };
-for (const path of paths) {
+done: for (const path of paths) {
   const wanted = []; // [copy's path, how to make it]
   for (const purpose of Object.keys(PURPOSES).filter((p) => PURPOSES[p])) wanted.push([renditionPath(path, purpose), async (b) => { const m = await shrink(imaging, b, purpose); return m && { bytes: m.bytes, type: 'image/jpeg' }; }]);
   for (const px of Object.values(SIZES)) wanted.push([copyPath(path, px), (b) => appCopy(b, px)]);
@@ -51,6 +58,7 @@ for (const path of paths) {
     const made = await make(bytes);
     if (!made) { n.small++; continue; } // already small, or not a format it reads: the file itself goes
     const up = await storage(to, { method: 'POST', headers: { 'Content-Type': made.type, 'x-upsert': 'true' }, body: made.bytes });
+    if (up.status === 429) { console.log('Photo copies: storage still busy, the rest wait for the next hourly run.'); break done; }
     if (!up.ok) throw new Error(`Saving a copy: HTTP ${up.status}`);
     n.made++;
   }

@@ -6,7 +6,7 @@
 // the planet is driven through `window.__world` with `?test=1` and reduced motion.
 //
 //   npm run build && bundle exec jekyll build && npm test            (CI does this)
-//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|nogl]
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|holiday|nogl]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from 'playwright';
@@ -18,6 +18,9 @@ import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
 import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
+import { holidayOn } from '../assets/js/holidays.js';
+import * as planets from '../supabase/functions/planets/server.js';
+import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
 const args = process.argv.slice(2);
 const flag = (name) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : null; };
@@ -184,7 +187,11 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.focus('#chat-input');
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', 'What should I order?');
-  await page.click('#chat button[type="submit"]');
+  // (if Ask can't be pressed, say what the bar was doing: what hides the box is in main.js's frame loop)
+  await page.click('#chat button[type="submit"]').catch(async (e) => {
+    const s = await page.evaluate(() => { const w = window.__world, $ = (id) => document.getElementById(id); return { chat: !$('chat').hidden, state: w.state, flying: w.cameraFlying, making: w.making, ordering: w.ordering, board: w.board.on, panel: !$('panel').hidden, menu: !$('menu').hidden, typing: $('world').classList.contains('is-typing'), box: $('chat').getBoundingClientRect().toJSON() }; });
+    throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(s)}`);
+  });
   await until(page, () => document.getElementById('chat-ask').hidden);
   // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
@@ -289,6 +296,8 @@ async function planet(page, shot, { phone = false } = {}) {
   const firstSight = await page.evaluate(() => window.__world.scope.target);
   if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
   await shot('telescope');
+  // Earth's cities come from the spec's telescope pins: Steve's are Philadelphia (ringed) and six round the world
+  if (await page.evaluate(() => document.querySelectorAll('#earth-pins .earth-pin:not(.is-iss)').length !== 7 || document.querySelectorAll('#earth-pins .is-home').length !== 1)) throw new Error("the telescope's Earth doesn't pin Steve's cities, home ringed");
   if (await page.evaluate(() => window.__world.scope.count) > 1) {
     await page.click('#scope-next');
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
@@ -344,6 +353,12 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => document.getElementById('panel').hidden);
   await page.unroute(/ll\.thespacedevs\.com/);
   step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
+  await expectState(page, 'walk');
+  // the bowl of petunias behind where you land: walk up to it, look down, and it thinks its line
+  await page.evaluate(() => window.__world.goUse('petunias'));
+  await until(page, () => !document.getElementById('bubble').hidden && document.getElementById('bubble').textContent === 'Oh no, not again.', null, 120000);
+  if (await page.evaluate(() => window.__world.player.pitch > -0.3)) throw new Error("walking up to the petunias didn't look down at them");
+  step('the petunias: walked up, looked down, "Oh no, not again."');
   await expectState(page, 'walk');
   // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
   // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
@@ -1628,6 +1643,48 @@ async function placesTab(page, shot) {
   step('Today in Florence: Saved nearby, and "Add to this day" puts it on the plan with its place');
 }
 
+// A holiday: only on its day by the visitor's date, any day with ?holiday=; the planet dressed for it
+// (its decorations a bundle of their own) and the touch beside the name on the other pages
+async function holiday(page, shot) {
+  for (const [date, want] of [
+    [new Date(2026, 9, 31), 'halloween'], [new Date(2027, 9, 31, 23, 59), 'halloween'], [new Date(2026, 9, 30, 23, 59), null], [new Date(2026, 10, 1), null],
+    [new Date(2026, 10, 26), 'thanksgiving'], [new Date(2027, 10, 25), 'thanksgiving'], [new Date(2028, 10, 23), 'thanksgiving'], [new Date(2026, 10, 19), null], [new Date(2026, 10, 27), null],
+    [new Date(2026, 11, 24), 'christmas-eve'], [new Date(2026, 11, 25), 'christmas'], [new Date(2026, 11, 31, 23, 59), 'new-years-eve'], [new Date(2027, 0, 1), 'new-years-day'], [new Date(2027, 0, 2), null],
+  ]) {
+    if (holidayOn(date) !== want) throw new Error(`holidayOn(${date.toDateString()}) is ${holidayOn(date)}, not ${want}`);
+  }
+  step('each holiday falls on its day (Thanksgiving the fourth Thursday of November), by the local date');
+  await page.goto(base + '/about?holiday=halloween', { waitUntil: 'load' });
+  if (await page.evaluate(() => document.documentElement.dataset.holiday) !== 'halloween') throw new Error('?holiday=halloween: the page is not marked');
+  await page.goto(base + '/about?holiday=none', { waitUntil: 'load' });
+  if (await page.evaluate(() => document.documentElement.dataset.holiday)) throw new Error('?holiday=none: the page is still marked');
+  step('?holiday= marks the pages, and none clears it');
+  const loaded = [];
+  page.on('request', (r) => { if (r.url().includes('/holidays/')) loaded.push(r.url()); });
+  await page.goto(base + '/?test=1&holiday=none');
+  await until(page, () => window.__sceneReady, null, 240000);
+  if (loaded.length || await page.evaluate(() => window.__world.holiday)) throw new Error(`no holiday, yet ${loaded.join(', ') || 'decorations'} loaded`);
+  await page.goto(base + '/?test=1&holiday=halloween');
+  await until(page, () => window.__sceneReady, null, 240000);
+  const h = await page.evaluate(() => window.__world.holiday);
+  if (h?.id !== 'halloween' || h.count < 8) throw new Error(`Halloween's decorations: ${JSON.stringify(h)}`);
+  await shot('halloween');
+  step(`the planet on Halloween: ${h.count} jack-o'-lanterns, from its own bundle only that day`);
+  // every other holiday's bundle loads on this three.js and has its decorations
+  const others = await page.evaluate(async (ids) => Promise.all(ids.map(async (id) => typeof (await import(`/assets/js/dist/holidays/${id}.js`)).decorate)), ['thanksgiving', 'christmas-eve', 'christmas', 'new-years-eve', 'new-years-day']);
+  if (others.some((t) => t !== 'function')) throw new Error(`a holiday's bundle has no decorate(): ${others}`);
+  step('every holiday has its bundle');
+  // New Year's Eve: a preview's midnight is 20 seconds in, so the gable counts down to it
+  await page.goto(base + '/?test=1&holiday=new-years-eve');
+  await until(page, () => window.__sceneReady, null, 240000);
+  const year = String(new Date().getFullYear() + 1);
+  if (await page.evaluate(() => window.__world.holiday.shown) !== year) throw new Error(`New Year's Eve shows ${await page.evaluate(() => window.__world.holiday.shown)}, not ${year}`);
+  await until(page, () => /^([1-9]|10)$/.test(window.__world.holiday.shown), null, 60000);
+  await shot('new-years-eve');
+  await until(page, (y) => window.__world.holiday.shown === y, year, 60000); // past midnight
+  step(`New Year's Eve shows ${year}, counts down to midnight, and shows it again after`);
+}
+
 // Without WebGL the menu is the page, and its links are real
 async function noWebGL(page, shot) {
   await page.goto(base + '/');
@@ -1635,6 +1692,78 @@ async function noWebGL(page, shot) {
   if (await page.isHidden('#menu')) throw new Error('the menu is hidden without WebGL');
   await shot('fallback');
   step('the menu is the page');
+}
+
+// Someone else's planet, previewed: the page draws the spec in its address (the sign, the menu,
+// the chalkboard, the robot's line), says plainly when there's none, and never writes anywhere
+async function preview(page, shot) {
+  const packed = await packPlanet(planets.EXAMPLE);
+  await page.goto(`${base}/p/preview/?test=1#${packed}`);
+  await until(page, () => window.__sceneReady, null, 240000);
+  const got = await page.evaluate(() => ({ name: document.getElementById('topbar-name').textContent, links: [...document.querySelectorAll('.menu__list a')].map((a) => a.getAttribute('href')), sign: document.querySelector('.menu__bar').textContent, veil: document.querySelector('.veil__neon text').textContent, board: [...document.querySelectorAll('#board-list button')].map((b) => b.textContent), seat: window.__world.interactables.find((x) => x.id === 'seat').label }));
+  if (got.name !== 'Sam' || got.sign !== "Sam's" || got.veil !== "Sam's" || got.seat !== "Sam's" || got.links.join() !== 'https://example.com,mailto:sam@example.com' || got.board.join() !== 'Kind of Blue,Blue Train') throw new Error(`the preview didn't draw Sam's planet: ${JSON.stringify(got)}`);
+  await shot('preview');
+  await page.evaluate(() => window.__world.sitDown());
+  await expectState(page, 'seat');
+  await page.evaluate(() => { window.__world.board.open(); window.__world.board.pick(0); });
+  await until(page, () => !document.getElementById('board-card').hidden);
+  if ((await page.textContent('#board-meta')) !== 'Miles Davis · 1959' || await page.isVisible('#board-make') || await page.isVisible('#chat')) throw new Error('a record on the board: its details, no "Make me one", and no AI bartender in a preview');
+  step("Sam's planet from the address: the sign, top bar, menu, chalkboard (a record's details, nothing to make) and no bartender to ask");
+  const bad = await page.context().newPage();
+  await bad.goto(`${base}/p/preview/#not-a-planet`);
+  await until(bad, () => /can’t be drawn/.test(document.getElementById('veil-status').textContent), null, 30000);
+  await bad.close();
+  step('an address with no planet in it says so');
+}
+
+// The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
+// in a frame where 3D can run, and on a phone a plain card with a link to walk around it
+async function planetCard(page, shot) {
+  const ctx = { cardScript: async () => readFileSync(join(root, 'assets/js/dist/planet-card.js'), 'utf8') };
+  const html = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: planets.APP_URI } }, ctx)).result.contents[0].text;
+  const result = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_planet', arguments: { spec: planets.EXAMPLE } } }, ctx)).result;
+  // the preview page, at its real address, from this build
+  await page.route(`${new URL(PREVIEW_PAGE).origin}/**`, (route) => {
+    let f = join(root, decodeURIComponent(new URL(route.request().url()).pathname));
+    if (existsSync(f) && statSync(f).isDirectory()) f = join(f, 'index.html');
+    if (!existsSync(f)) return route.fulfill({ status: 404 });
+    route.fulfill({ contentType: TYPES[extname(f)] || 'application/octet-stream', headers: { 'access-control-allow-origin': '*' }, body: readFileSync(f) });
+  });
+  const host = (await esbuild.build({ stdin: { resolveDir: resolve('.'), loader: 'js', contents: `
+    import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge';
+    window.showCard = async (html, result, platform) => {
+      const frame = document.getElementById('card');
+      const hc = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US', platform };
+      const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {} }, { hostContext: hc });
+      window.opened = [];
+      bridge.onopenlink = async ({ url }) => { window.opened.push(url); return {}; };
+      bridge.onsizechange = ({ height }) => { if (height) frame.style.height = height + 'px'; };
+      bridge.oninitialized = () => { bridge.sendToolInput({ arguments: {} }); bridge.sendToolResult(result); };
+      await bridge.connect(new PostMessageTransport(frame.contentWindow, frame.contentWindow));
+      frame.srcdoc = html;
+    };` }, bundle: true, write: false, format: 'iife', logLevel: 'error' })).outputFiles[0].text;
+  await page.route(`${base}/__host`, (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#f4f4f2"><div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden"><iframe id="card" sandbox="allow-scripts" style="display:block;width:100%;height:120px;border:0"></iframe></div><script>${host}</script>` }));
+  const card = page.frameLocator('#card');
+  const show = async (platform) => { await page.goto(`${base}/__host`); await page.evaluate(([h, r, p]) => window.showCard(h, r, p), [html, result, platform]); };
+  // a phone's app: the plain card, and a way to walk round it in the browser
+  await show('mobile');
+  await card.getByRole('button', { name: 'Walk around it' }).click();
+  const text = flatText(await card.locator('#app').innerText());
+  if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
+  await shot('card-phone');
+  step('in a phone\'s app: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
+  // a computer: the planet itself, in the card
+  await show('desktop');
+  await card.locator('.pl-frame').waitFor();
+  let world = null;
+  for (let i = 0; i < 240 && !world; i++) { world = page.frames().find((f) => f.url().startsWith(PREVIEW_PAGE)); if (!world) await page.waitForTimeout(250); }
+  if (!world) throw new Error('the card never opened the preview page in its frame');
+  await world.waitForFunction(() => window.__sceneReady, null, { timeout: 240000 });
+  if ((await world.textContent('.menu__bar')) !== "Sam's" || (await card.locator('.pl-parts:empty').count()) !== 1) throw new Error("the card's frame should show Sam's planet, and no plain card beside it");
+  await page.waitForTimeout(1500);
+  await shot('card-planet');
+  step('on a computer: the planet itself, walkable, in the card');
 }
 
 const want = (k) => !only || only === k;
@@ -1647,6 +1776,9 @@ if (want('apps')) await session('home-screen app', { viewport: { width: 390, hei
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
+if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
+if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
+if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
 
 server.close();

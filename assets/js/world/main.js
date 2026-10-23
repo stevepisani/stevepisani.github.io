@@ -13,14 +13,14 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline, loadAO } from './render.js';
 import { Fire } from './fire.js';
 import { PALETTE, restyle, glow } from './materials.js';
-import { buildPlanet, surfacePoint, surfaceRadius, pondK, BAR_DIR, POND, RADIUS } from './planet.js';
+import { buildPlanet, surfacePoint, surfaceRadius, pondK, dirFrom, place, headingToward, BAR_DIR, POND, RADIUS } from './planet.js';
 import { buildSky, earthPoint } from './sky.js';
 import { buildBar } from './bar.js';
 import { buildPlaces, SPOTS, trailEdge, keepClear, nearLandmark } from './places.js';
 import { Player, bindInput, BODY } from './player.js';
 import { onPlanet } from './route.js';
 import { fontsReady, paintMenuCard } from './textures.js';
-import { lampLitTree, finishLamps, updateLamps } from './lamps.js';
+import { addLamp, lampLitTree, finishLamps, updateLamps } from './lamps.js';
 import { loadHeroes, fillSlots } from './hero.js';
 import { createRoaster, verdict } from './camp.js';
 import { createSound } from './sound.js';
@@ -36,11 +36,24 @@ import { createHoop, RIM_Z } from './hoop.js';
 import { createBatcher } from './batch.js';
 import { REAL_PLACES } from './realplaces.js';
 import { createTerminal, launchOnThisDay } from './terminal.js';
+import { holidayNow, holidayAsked } from '../holidays.js';
+import holidayLibs from 'holiday-libs';
+import { readSpec, planetParts, fillPage, tellCard } from './spec.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
 const canvas = $('world-canvas');
-const data = JSON.parse($('world-data').textContent);
+// This planet's spec (supabase/functions/_shared/planet.js says what's in one; Steve's is built
+// from _data/ by tools/planet.mjs) and the kit, what every planet shares (the moon's landing sites,
+// famous launches by date), both written into the page. On the preview page the spec is someone
+// else's, from the address (spec.js), and nothing here writes anywhere or asks the AI bartender.
+const PREVIEW = 'preview' in root.dataset;
+const { kit, ...pageData } = JSON.parse($('world-data').textContent);
+const { spec = null, errors = [] } = await readSpec(root, pageData);
+// what the places show (the sign, the chalkboard, the campfire, the robot), with defaults
+const parts = spec ? planetParts(spec) : null;
+if (PREVIEW && spec) { fillPage(spec, parts); tellCard('loading'); }
+const boardItems = parts ? parts.board.items : []; // what's chalked on the board behind the bar
 // The one Supabase project (url and public key from _config.yml, in the page head)
 const DB = { url: document.querySelector('meta[name="supabase-url"]').content, key: document.querySelector('meta[name="supabase-key"]').content };
 const TEST = new URLSearchParams(location.search).has('test');
@@ -67,6 +80,15 @@ function onSwipe(el, step) {
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = { high: !coarse && innerWidth > 900 && (navigator.deviceMemory || 8) >= 4 };
 const aoIn = quality.high ? loadAO() : null; // ambient occlusion, computers only, asked for at once
+// A holiday's decorations, on the day only (assets/js/holidays.js; ?holiday=<id> to see one any
+// day): dist/holidays/<id>.js, beside this bundle and from the same build, on its three.js
+const HOLIDAY = holidayNow();
+const holidayIn = HOLIDAY ? (() => {
+  globalThis.__holidayLibs = holidayLibs;
+  const url = new URL(`./holidays/${HOLIDAY}.js`, import.meta.url);
+  url.search = new URL(import.meta.url).search;
+  return import(/* by URL: never part of world.js */ url.href).catch((e) => { console.warn('no decorations', e); return null; });
+})() : null;
 
 let state = 'loading';
 const setState = (s) => { state = s; root.dataset.state = s; };
@@ -112,7 +134,7 @@ function openPanel(id, { push = true, from = null } = {}) {
   markCurrent(id);
   if (window.fillLaunch) panelBody.querySelectorAll('[data-launch]').forEach(window.fillLaunch);
   if (window.fillLaunches) panelBody.querySelectorAll('[data-launches]').forEach(window.fillLaunches);
-  panelBody.querySelectorAll('[data-launch-history]').forEach((el) => { const h = launchOnThisDay(data.launchHistory); el.textContent = h ? h.text : ''; });
+  panelBody.querySelectorAll('[data-launch-history]').forEach((el) => { const h = launchOnThisDay(kit.launchHistory); el.textContent = h ? h.text : ''; });
   if (id === 'drinks') decorateDrinks();
   panel.scrollTop = 0;
   if (push && location.hash !== '#' + id) { history.pushState({ panel: id }, '', '#' + id); pushed = true; }
@@ -147,7 +169,7 @@ function showMenu(mode) {
   menu.dataset.mode = mode;
   $('menu-title').textContent = mode === 'seat' ? "What'll it be?" : 'Menu';
   menuBtn.setAttribute('aria-expanded', 'true');
-  menu.querySelector('a').focus({ preventScroll: true });
+  (menu.querySelector('a[href]') || $('menu-close')).focus({ preventScroll: true });
 }
 
 function hideMenu() {
@@ -285,7 +307,13 @@ function webgl2() {
 }
 
 async function start() {
-  if (!webgl2()) return fallback('no WebGL2');
+  if (!spec) { // a preview whose address holds no planet, or one that doesn't pass: say why, plainly
+    $('veil-status').textContent = errors.length > 1 ? `This planet can’t be drawn: ${errors[0]} (and ${errors.length - 1} more).` : `This planet can’t be drawn: ${errors[0]}`;
+    root.dataset.state = 'error';
+    tellCard('failed', errors);
+    return;
+  }
+  if (!webgl2()) { tellCard('failed', ['no WebGL2']); return fallback('no WebGL2'); }
   // Launch screen: say what's happening, and let it paint between the heavy steps.
   const progress = $('veil-progress'), status = $('veil-status');
   let shown = 0;
@@ -340,14 +368,23 @@ async function start() {
   };
 
   await step(0.7, 'Stocking the bar…');
-  const bar = buildBar({ prop, quality, favorites: (data.drinks || []).map((d) => d.name), heroes, reducedMotion });
+  const bar = buildBar({ prop, quality, signName: parts.sign, board: { title: parts.board.title, names: boardItems.map((d) => d.name), verb: parts.board.recipes ? 'Read the recipes' : 'Read the board' }, heroes, reducedMotion });
   // the site's logo (the 180px touch icon) goes on the rocket
   const badge = document.querySelector('link[rel="apple-touch-icon"]')?.href || null;
   await step(0.82, 'Lighting the torches…');
-  const places = buildPlaces({ prop, quality, badge });
+  const places = buildPlaces({ prop, quality, badge, signName: parts.sign });
   places.machine.camera = camera; // the inside of the planet is drawn only when you're near enough to see in
   scene.add(sky.group, planet.group, bar.group, places.group);
   for (const l of bar.loose) scene.add(l.object); // the bar's fallen coconuts live in world space
+  // dressed for the holiday before the first frame (its lamps go in with the rest, just below)
+  const holidayColliders = [];
+  const decor = holidayIn && (await holidayIn)?.decorate({
+    scene, bar, dirFrom, place, headingToward, trailEdge, nearLandmark, addLamp, glow, PALETTE, reducedMotion,
+    preview: holidayAsked(), sfx: (...a) => sound.play(...a),
+    colliders: holidayColliders, // theirs, added to yours
+    // is a spot within `r` metres of anything solid (a lantern's post, a palm, a rock)?
+    solid: (dir, r) => [...bar.colliders, ...places.colliders].some((c) => !c.walkOnly && surfacePoint(dir).distanceTo(c.center) < r + c.radius),
+  });
   // the lanterns and torches without real lights light the ground through its shaders (lamps.js)
   finishLamps();
   lampLitTree(planet.group);
@@ -376,12 +413,12 @@ async function start() {
   const pointShadows = [];
   scene.traverse((o) => { if (o.isPointLight && o.castShadow) pointShadows.push([o, o.getWorldPosition(new THREE.Vector3())]); });
 
-  const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders] });
+  const player = new Player(camera, { colliders: [...bar.colliders, ...places.colliders, ...holidayColliders] });
   // Loose things (coconuts, glass floats) for the physics engine, which loads once the planet is up
   const physics = createPhysics({
     scene,
     loose: [...bar.loose, ...places.loose],
-    posts: [...bar.colliders, ...places.colliders],
+    posts: [...bar.colliders, ...places.colliders, ...holidayColliders],
     solids: bar.solids,
     on(kind, at, k) {
       sound.play(kind, at, k);
@@ -514,7 +551,7 @@ async function start() {
       return it && !used.has('drinks') && !board.on && !making && !held ? [{ key: 'drinks', at: glintPoint(it) }] : [];
     }
     if (state !== 'walk' || carry) return [];
-    const all = interactables.filter((x) => x.id !== 'seat' && x.id !== 'menu' && x.id !== 'drinks' && x.object).map((x) => ({ key: x.id, at: glintPoint(x) }));
+    const all = interactables.filter((x) => x.id !== 'seat' && x.id !== 'menu' && x.id !== 'drinks' && x.object && !x.quiet).map((x) => ({ key: x.id, at: glintPoint(x) }));
     if (physics.ready) for (const l of physics.items) if (!l.held) all.push({ key: l.label, at: l.object.position.clone().addScaledVector(l.object.position.clone().normalize(), (l.radius || 0.15) * 1.6) });
     const fresh = all.filter((x) => !used.has(x.key));
     return fresh.length ? fresh : all;
@@ -536,6 +573,7 @@ async function start() {
     if (it.id === 'launch') return lookThroughScope();
     if (it.id === 'door') return stepThrough(it);
     if (it.id === 'console') return lookAtConsole();
+    if (it.id === 'petunias') return player.face(it.point, () => { if (state === 'walk') say('Oh no, not again.', 4000); }, { down: true });
     // a landmark that's a panel: turn to it first, so it's there when the panel closes
     player.face(it.point, () => { if (state === 'walk' && panel.hidden) openPanel(it.id === 'console' ? 'launch' : it.id); });
   }
@@ -973,8 +1011,8 @@ async function start() {
     seatLook.yaw = seatLook.pitch = 0;
   }
   function startMaking(idx) {
-    const recipe = (data.drinks || [])[idx];
-    if (!recipe) return;
+    const recipe = boardItems[idx];
+    if (!recipe || !recipe.make) return;
     loadBarBottles(recipe.build);
     if (state === 'walk') return goUse({ ...interactables.find((x) => x.id === 'seat'), id: 'make', make: idx });
     if (state !== 'seat' || ordering) return;
@@ -1071,18 +1109,21 @@ async function start() {
     if (view.k === 0 || reducedMotion) { view.look.copy(view.aim); view.eyeNow.copy(view.eye); view.fovNow = view.fov; }
     seatLook.yaw = seatLook.pitch = 0;
     enterLevel('board', () => leaveBoard({ fromHistory: true }));
-    showHint(`${coarse ? 'Tap' : 'Click'} a drink to see how it's made.`, 'board-pick');
+    showHint(parts.board.recipes ? `${coarse ? 'Tap' : 'Click'} a drink to see how it's made.` : `${coarse ? 'Tap' : 'Click'} a name to read more.`, 'board-pick');
   }
   function showRecipe(i) {
-    const r = (data.drinks || [])[i];
+    const r = boardItems[i];
     if (!r || !board.on) return;
     clearHint('board-pick');
     if (board.pick !== i) { sound.play('chalk'); buzz(8); }
     board.pick = i;
     bar.board.mark(i);
     $('board-name').textContent = r.name;
-    $('board-meta').textContent = [r.origin, r.glass].filter(Boolean).join(' · ');
-    $('board-build').replaceChildren(...r.build.map((line) => Object.assign(document.createElement('li'), { textContent: line })));
+    // a drink: where it's from and its glass, then its recipe; anything else: its other details
+    const meta = Array.isArray(r.build) ? [r.origin, r.glass] : Object.entries(r).filter(([k, v]) => !['name', 'note', 'method'].includes(k) && (typeof v === 'string' || typeof v === 'number') && v !== r.name).map(([, v]) => v);
+    $('board-meta').textContent = meta.filter(Boolean).join(' · ');
+    $('board-build').replaceChildren(...(Array.isArray(r.build) ? r.build : []).map((line) => Object.assign(document.createElement('li'), { textContent: line })));
+    $('board-make').hidden = !r.make;
     $('board-method').textContent = r.method || '';
     $('board-note').textContent = r.note || '';
     boardCard.hidden = false;
@@ -1110,7 +1151,7 @@ async function start() {
   onSwipe(boardCard, stepRecipe);
   // the board's names as buttons too, unseen, for keyboards and screen readers (they're only paint on the board)
   const boardList = $('board-list');
-  boardList.replaceChildren(...(data.drinks || []).slice(0, bar.board.rows).map((r, i) => Object.assign(document.createElement('button'), { type: 'button', textContent: r.name, onclick: () => showRecipe(i) })));
+  boardList.replaceChildren(...boardItems.slice(0, bar.board.rows).map((r, i) => Object.assign(document.createElement('button'), { type: 'button', textContent: r.name, onclick: () => showRecipe(i) })));
   boardBackBtn.addEventListener('click', () => leaveBoard());
   skipMaking = () => { if (!making) return false; making.skip(); return true; };
   makeSkip.addEventListener('click', skipMaking);
@@ -1178,7 +1219,7 @@ async function start() {
   // under your finger mid-tap (as in any chat app)
   for (const el of [chat.querySelector('button'), chatAsk]) el.addEventListener('pointerdown', (e) => { if (document.activeElement === chatInput) e.preventDefault(); });
   // something to ask, until you've asked something
-  chatAsk.replaceChildren(...(data.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
+  chatAsk.replaceChildren(...(parts.robot.ask || []).map((q) => Object.assign(document.createElement('button'), { type: 'button', textContent: q,
     onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
   const talk = [];
   let talking = false, talked = false;
@@ -1209,7 +1250,7 @@ async function start() {
     talk.push({ role: 'user', content: q });
     let answer = '';
     // the suggested questions are the house's to answer (barback.js): instant, and no cost
-    if (talk.length === 1 && (data.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
+    if (talk.length === 1 && (parts.robot.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
     if (!answer) try {
       const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
@@ -1265,12 +1306,12 @@ async function start() {
       if (state !== 'seat') return;
       if (pickUp && panel.hidden) pickUpMenu();
       else if (then && panel.hidden) then();
-      say(data.bartender[0]);
+      say(parts.robot.lines[0]);
       let i = 1;
       clearInterval(chatter);
       // his lines, and one about tonight's moon (pointing you at the telescope)
       const m = window.moonTonight && window.moonTonight();
-      const lines = m ? [...data.bartender, `Tonight's moon: ${m.name.toLowerCase()}. Have a look through the telescope.`] : data.bartender;
+      const lines = m ? [...parts.robot.lines, `Tonight's moon: ${m.name.toLowerCase()}. Have a look through the telescope.`] : parts.robot.lines;
       if (!talked) chatter = setInterval(() => { if (state === 'seat' && panel.hidden && !making && !board.on) say(lines[i++ % lines.length]); }, 12000);
     });
   }
@@ -1396,7 +1437,7 @@ async function start() {
     ], finish);
   }
   // Eat what's on the stick (or blow it out first, if it's on fire), and hear how it went.
-  // Every marshmallow comes with something Steve thinks about by the fire.
+  // Every marshmallow comes with something the planet's owner thinks about by the fire.
   function eatIt() {
     if (state !== 'camp' || flight) return;
     if (roaster.state.burning) { roaster.blowOut(); say('Phew. Blown out.', 2500); return; }
@@ -1404,7 +1445,7 @@ async function start() {
     if (k === null) return;
     clearHint('roast');
     say(verdict(k), 3200);
-    const like = (data.likes || [])[eaten++ % Math.max(1, (data.likes || []).length)];
+    const like = parts.thoughts[eaten++ % Math.max(1, parts.thoughts.length)];
     clearTimeout(thought);
     if (like) thought = setTimeout(() => { if (state === 'camp') say('On my mind: ' + like, 5000); }, 3400);
   }
@@ -1535,7 +1576,7 @@ async function start() {
     if (bookSky.count && !bookSky.settled) showHint('Aligning…'); // while they gather (frame loop: then the stars' hint)
     else if (bookSky.count) starsHint();
   }
-  const starsHint = () => showHint(`Every star above you is a book Steve has read. ${coarse ? 'Tap' : 'Click'} a group to see its books.`, 'stars');
+  const starsHint = () => showHint(`Every star above you is a book ${parts.name} has read. ${coarse ? 'Tap' : 'Click'} a group to see its books.`, 'stars');
   // closing the list: the book comes down to your chest, and you're lying looking at the sky
   afterHammockPanel = () => {
     if (state !== 'hammock' || leaving || HM.book.parent !== camera) return;
@@ -1760,7 +1801,7 @@ async function start() {
   const scopeCard = $('scope-card'), scopeLeaveBtn = $('scope-leave'), eyepiece = $('eyepiece'), eyeDark = $('eyepiece-dark'), scopeMore = $('scope-more');
   const scopePrev = $('scope-prev'), scopeNext = $('scope-next'), scopeMag = $('eyepiece-mag');
   const scope = { eye: null, targets: [], i: 0, k: 0, want: 0, fov: BASE_FOV, cur: BASE_FOV, quat: new THREE.Quaternion(), leaving: false, site: -1, aim: null, marks: null, mag: '', nudge: { yaw: 0, pitch: 0 }, cardKey: '', cup: null, lean: null, dark: 0, open: false };
-  const SITES = data.moon || [];
+  const SITES = kit.moon || [];
   const liveLayer = $('eyepiece-live');
   const live = createEyepiece({ layer: liveLayer, db: DB, sites: SITES, sunDir: sky.sunDir, onSite: (i) => openSite(i) });
   const PHASES = ['New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous', 'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent'];
@@ -2081,7 +2122,7 @@ async function start() {
   const deskFly = (keys, then) => { desk.pose = keys[keys.length - 1]; flyPath(keys, then); };
   const term = createTerminal({
     el: termEl,
-    history: data.launchHistory || [],
+    history: kit.launchHistory || [],
     reduce: reducedMotion,
     sound: { play: (...a) => sound.play(...a) },
     onLeave: () => leaveConsole(),
@@ -2235,12 +2276,11 @@ async function start() {
   onSwipe($('term-screen'), (d) => term.step(d));
   // each frame at the eyepiece: swing to what it's pointed at, narrow (or widen) the field, and
   // lay the real moon or sun over the drawn one
-  // Earth in the eyepiece: a few cities pinned where they are on it, each with the time there now;
-  // a warm dot where it's day, a pale ring where it's night. The globe shows the rest.
-  const CITIES = [['Philadelphia', 39.95, -75.17, 'America/New_York', true], ['Honolulu', 21.31, -157.86, 'Pacific/Honolulu'], ['London', 51.51, -0.13, 'Europe/London'],
-    ['Tokyo', 35.68, 139.69, 'Asia/Tokyo'], ['Sydney', -33.87, 151.21, 'Australia/Sydney'], ['Cape Town', -33.92, 18.42, 'Africa/Johannesburg'], ['Rio', -22.91, -43.17, 'America/Sao_Paulo']];
+  // Earth in the eyepiece: the planet's cities (the spec's telescope pins, or a few round the world)
+  // pinned where they are on it, each with the time there now; a warm dot where it's day, a pale
+  // ring where it's night, home ringed. The globe shows the rest.
   const earthPins = $('earth-pins');
-  const pins = CITIES.map(([name, lat, lon, zone, home]) => {
+  const pins = parts.pins.map(({ city: name, lat, lon, zone, home }) => {
     const el = document.createElement('div');
     el.className = `earth-pin${home ? ' is-home' : ''}`;
     el.innerHTML = '<i></i><span></span>';
@@ -2317,7 +2357,7 @@ async function start() {
     earthPinsFrame(!!t && t.id === 'earth' && scope.site < 0, scope.leaving ? 0 : e * (1 - scope.dark), rect);
     // the eyepiece's power, engraved on its ring, in an eyepiece set's steps
     const power = BASE_FOV / camera.fov * 10, mag = `${[30, 60, 120, 240].reduce((a, b) => (Math.abs(Math.log(b / power)) < Math.abs(Math.log(a / power)) ? b : a))}×`;
-    if (mag !== scope.mag) { scope.mag = mag; scopeMag.textContent = `STEVE'S · ${mag}`; }
+    if (mag !== scope.mag) { scope.mag = mag; scopeMag.textContent = `${parts.engraving} · ${mag}`; }
     if (scope.leaving && scope.k === 0) { eyepiece.style.setProperty('--k', '0'); camera.fov = scope.cur = BASE_FOV; camera.near = NEAR; camera.updateProjectionMatrix(); standUpFromScope(); }
   }
 
@@ -2467,6 +2507,7 @@ async function start() {
   // Sent to the shared table. Tests (?test, automated browsers) don't write to it.
   async function sendBottle(message, signed) {
     if (TEST || navigator.webdriver) { window.__lastBottle = { message, signed }; return { ok: true }; }
+    if (PREVIEW) return { ok: false, preview: true }; // a preview's planet isn't anyone's yet: nowhere to wash up
     try {
       const res = await fetch(`${DB.url}/rest/v1/bottles`, {
         method: 'POST',
@@ -2489,7 +2530,7 @@ async function start() {
       const r = await sent;
       if (state !== 'note') return;
       if (r.ok) { noteStep = 'ready'; showHint('Now throw it. It will drift off into space.', 'bottle'); return; }
-      say(r.full ? 'The sky is full of bottles right now. Try again another day.' : "It wouldn't send just now. Try again in a moment.", 5000);
+      say(r.preview ? 'Bottles stay on the shore in a preview. Once this planet is real, they can be sent.' : r.full ? 'The sky is full of bottles right now. Try again another day.' : "It wouldn't send just now. Try again in a moment.", 5000);
       putNoteBack();
     });
   });
@@ -2504,7 +2545,7 @@ async function start() {
     ritual.throwIt();
     clearHint('bottle');
     noteStep = 'thrown';
-    say("It's drifting off among the stars. If Steve likes it, it will wash up here for others to find.", 6500);
+    say(`It's drifting off among the stars. If ${parts.name} likes it, it will wash up here for others to find.`, 6500);
     setTimeout(() => { if (uprightBottle && noteStep !== 'opening' && noteStep !== 'writing' && noteStep !== 'closing' && noteStep !== 'ready') uprightBottle.visible = true; }, 2500);
   }
   function leaveBottles() {
@@ -2844,8 +2885,8 @@ async function start() {
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden && !board.on);
     boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
-    chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
-    chatAsk.hidden = chat.hidden || talked || !(data.ask || []).length;
+    chat.hidden = PREVIEW || !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
+    chatAsk.hidden = chat.hidden || talked || !(parts.robot.ask || []).length;
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
@@ -2883,6 +2924,7 @@ async function start() {
     planet.update(t, camera);
     bar.update(t, dt);
     places.update(t);
+    if (decor) decor.update(t, realDt);
     // (the map must exist first: an unrendered shadow map is a sampler with no texture)
     for (const [l, p] of pointShadows) l.shadow.autoUpdate = !l.shadow.map || camera.position.distanceToSquared(p) < 28 * 28;
     pipeline.render(dt);
@@ -2913,15 +2955,19 @@ async function start() {
   setProgress(1);
   setState('walk');
   $('veil').classList.add('is-gone');
+  decor?.ready?.(); // the planet is on screen (a New Year's Eve preview counts down from here)
   setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 500);
+  tellCard('ready');
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
   window.__world = { get state() { return state; }, get menuHeld() { return held; }, get cardFlying() { return !!cardFlight; }, get cameraFlying() { return !!flight; }, get drinkUp() { return !!drink; }, get ordering() { return ordering; }, player, camera, renderer, pipeline, SPOTS, bar, interactables, sitDown, leaveBar: () => leaveBar(), pickUpMenu: () => pickUpMenu(), putDownMenu: () => putDownMenu(), pick, scene, surfaceRadius, sitAtFire: () => sitAtFire(), leaveFire: () => leaveFire(), eatIt: () => eatIt(), roaster, roast, lieInHammock: () => lieInHammock(), goToShore: () => goToShore(), leaveShore: () => leaveShore(), skipper, get stoneInHand() { return !!inHand; }, throwStone: (hold) => { startWind(); windUp = hold; releaseThrow(); }, getOutOfHammock: () => getOutOfHammock(), get lying() { return !!lying; }, make: (i) => startMaking(i), get making() { return !!making; }, board: { open: () => lookAtBoard(), pick: (i) => showRecipe(i), close: () => leaveBoard(), rowAt: boardRowAt, get on() { return board.on; }, get picked() { return board.pick; } }, get job() { return making; }, note: { go: () => goToBottles(), leave: () => leaveBottles(), ritual, get step() { return noteStep; }, write(text, signed = '') { noteText.value = text; noteSign.value = signed; noteForm.requestSubmit(); }, throwIt: () => throwBottle(), putBack: () => putNoteBack() }, get carrying() { return carry && carry.label; }, sky: bookSky, openStar: (i) => openStar(bookSky.books[i]), closeStar: () => closeStar(), zoom: (slug) => zoomTo(regionOf(slug)), zoomOut: () => zoomOut(), get zoomed() { return zoom.region && zoom.region.slug; }, get zoomK() { return zoom.k; }, stepShelf: (d) => stepShelf(d), stepBook: (d) => stepBook(d), get starCard() { return starOpen && starOpen.book.title; }, grab: (i) => grab(physics.items[i]), goGrab: (i) => goGrab(physics.items[i]), toss: (hold) => { windCarry(); carryWind = hold; throwCarried(); }, putDown: () => putDown(), hoop, batcher, earth: sky.earth, machine: places.machine, goUse: (id) => goUse(interactables.find((x) => x.id === id)), routeTo, door: { get view() { return door.view; }, get inside() { return door.inside; }, back: () => stepBack() }, console: { go: () => lookAtConsole(), leave: () => leaveConsole(), term, get open() { return desk.open; }, get burning() { return desk.burnT >= 0; }, get burnT() { return desk.burnT; }, liftoff: (lat, lon) => sky.liftoff(lat, lon), get armed() { return !!(LC && LC.con.armed); } }, glints, get faceK() { return view.job ? 0 : view.k; }, scope: { go: () => lookThroughScope(), leave: () => leaveScope(), step: (d) => stepScope(d), get k() { return scope.k; }, get target() { return state === 'scope' && scope.targets[scope.i] ? scope.targets[scope.i].name : null; }, get count() { return scope.targets.length; }, get targets() { return scope.targets.map((x) => x.id); }, get site() { return scope.site; }, openSite: (i) => openSite(i), get live() { return !!live.moon; } } };
+  window.__world.holiday = decor ? Object.assign(decor, { id: HOLIDAY }) : null;
   window.__sceneReady = true;
 
-  // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
-  fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
+  // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs);
+  // a preview's sky stays plain for now (a star-sky display of its own collection is to come)
+  if (!PREVIEW) fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
 
   // What can wait for the browser to be idle, so none of it lands on your first steps: the
   // physics engine (a megabyte of WebAssembly and its ground), then the bottles' shaders
@@ -2934,7 +2980,7 @@ async function start() {
   whenIdle(() => sky.earth.userData.sharpen(), 4000); // Earth at full size, for the telescope
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
-  fireflies = createFireflies(scene, DB);
+  if (!PREVIEW) fireflies = createFireflies(scene, DB);
   window.__world.fireflies = fireflies;
 
   // Sound: off until asked for (the speaker in the top bar), then everything where it is.

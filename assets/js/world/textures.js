@@ -57,11 +57,19 @@ export async function fontsReady() {
   await Promise.race([Promise.all(loads), new Promise((r) => setTimeout(r, 1500))]);
 }
 
+/** The neon's script size for a sign: 190px ("Steve's"), smaller for a longer one, so it fits the gable. */
+export function signSize(text) {
+  const g = canvas(1, 1)[1];
+  let size = 190;
+  for (; size > 70; size -= 6) { g.font = `${size}px ${FONT_SCRIPT}`; if (g.measureText(text).width < 900) break; }
+  return size;
+}
+
 /**
  * Neon in a 1950s brush script, drawn as tubes: a wide soft glow, the coloured tube,
  * and a thin hot core, the way bent glass neon actually looks.
  */
-export function neonSign() {
+export function neonSign(text) {
   const [c, g] = canvas(1024, 320);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -83,7 +91,7 @@ export function neonSign() {
     g.lineWidth = Math.max(2, width * 0.45);
     g.strokeText(text, 512, y);
   };
-  tube("Steve's", `190px ${FONT_SCRIPT}`, 135, '#ff4fa3', 10);
+  tube(text, `${signSize(text)}px ${FONT_SCRIPT}`, 135, '#ff4fa3', 10);
   return texture(c);
 }
 
@@ -114,8 +122,8 @@ export function signBox(text) {
   return texture(c);
 }
 
-/** Chalkboard drinks menu. Posts become cocktails; reading time is the price. */
-export function chalkboard(drinks) {
+/** The chalkboard behind the bar: a title, and the names of what's on it (the first six). */
+export function chalkboard(title, drinks) {
   // landscape, hung on the back wall behind the bar: "Favorite drinks" and their names
   const W = 800, H = 600;
   const [c, g] = canvas(W, H);
@@ -135,7 +143,7 @@ export function chalkboard(drinks) {
   g.textAlign = 'center';
   g.fillStyle = '#f7f3e8';
   g.font = `800 58px ${FONT_DISPLAY}`;
-  g.fillText('Favorite drinks', W / 2, 105);
+  g.fillText(title, W / 2, 105, W - 120);
   g.strokeStyle = 'rgba(247,243,232,.6)';
   g.lineWidth = 3;
   g.beginPath(); g.moveTo(W / 2 - 190, 128); g.quadraticCurveTo(W / 2, 140, W / 2 + 190, 128); g.stroke();
@@ -435,7 +443,7 @@ export function paintMenuCard(card, scale = 2) {
     if ('letterSpacing' in g) g.letterSpacing = '0px';
   };
 
-  // header: tiki, "Steve's" with its hard lava shadow, tiki
+  // header: tiki, the sign's name with its hard lava shadow, tiki
   for (const svg of sheet.querySelectorAll('.menu__tiki')) {
     const r = rel(svg.getBoundingClientRect());
     g.save();

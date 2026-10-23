@@ -35,7 +35,7 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent, { cast = true, recei
   return m;
 }
 
-export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion = false }) {
+export function buildBar({ prop, quality, signName = "Steve's", board: boardText = { title: 'Favorite drinks', names: [], verb: 'Read the recipes' }, heroes, reducedMotion = false }) {
   const bar = new THREE.Group();
   bar.name = 'bar';
   const animated = [];
@@ -150,7 +150,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     bar.add(strands);
   }
 
-  /* ---------- The sign in the gable: "Steve's" in neon script over a lit "World famous" box ---------- */
+  /* ---------- The sign in the gable: the planet's sign ("Steve's") in neon script over a lit "World famous" box ---------- */
   {
     const sign = new THREE.Group();
     sign.position.set(0, EAVE + 1.25, Z1 - 0.05);
@@ -159,7 +159,7 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     const tri = new THREE.Shape();
     tri.moveTo(-2.6, -1.05); tri.lineTo(2.6, -1.05); tri.lineTo(0, 1.75); tri.closePath();
     mesh(new THREE.ShapeGeometry(tri), surface(woodSet(0x2a180e), { roughness: 0.9, side: THREE.DoubleSide }), [0, 0, -0.02], sign);
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.03), new THREE.MeshBasicMaterial({ map: T.neonSign(), transparent: true, toneMapped: false, depthWrite: false }));
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(3.3, 1.03), new THREE.MeshBasicMaterial({ map: T.neonSign(signName), transparent: true, toneMapped: false, depthWrite: false }));
     face.material.userData.keep = true;
     face.material.color.setScalar(1.35); // just into HDR: the bright tube cores bloom, the letters stay crisp
     face.position.set(0, -0.15, 0.03);
@@ -267,10 +267,11 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
       mug.scale.setScalar(1.4);
       back.add(mug);
     }
-    // Favorite drinks, chalked on a board hung on the back wall where you see it from your
-    // stool, to the robot's left. Faintly self-lit, so the chalk reads in the dim bar.
+    // Favorite drinks (or whatever the planet's chalkboard shows), chalked on a board hung on the
+    // back wall where you see it from your stool, to the robot's left. Faintly self-lit, so the
+    // chalk reads in the dim bar.
     {
-      const map = T.chalkboard(favorites);
+      const map = T.chalkboard(boardText.title, boardText.names);
       boardGroup.position.set(-0.95, 2.19, -0.2); // above the mugs on the top shelf
       boardGroup.rotation.x = 0.06; // hangs a touch forward
       back.add(boardGroup);
@@ -331,7 +332,9 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
     net.position.z = 0.3;
     bar.add(net);
     bar.add(D.grassFringe({ x0: -2.3, x1: 2.3, y: EAVE - 0.08, z: 1.66, count: 240, length: 0.4 }));
-    bar.add(D.festoon([[-2.45, EAVE - 0.02, 1.74], [-0.82, EAVE - 0.02, 1.74], [0.82, EAVE - 0.02, 1.74], [2.45, EAVE - 0.02, 1.74]], { perSpan: 6, sag: 0.26 }));
+    const bulbs = D.festoon([[-2.45, EAVE - 0.02, 1.74], [-0.82, EAVE - 0.02, 1.74], [0.82, EAVE - 0.02, 1.74], [2.45, EAVE - 0.02, 1.74]], { perSpan: 6, sag: 0.26 });
+    bulbs.name = 'festoon'; // a holiday recolours them (world/holidays/)
+    bar.add(bulbs);
   }
 
   /* ---------- On the bar ---------- */
@@ -488,11 +491,11 @@ export function buildBar({ prop, quality, favorites = [], heroes, reducedMotion 
 
   const interactables = [
     // a tap sits you only on or close to your stool (`near`); anywhere else on the bar walks you up to it
-    { id: 'seat', label: "Steve's", verb: 'Sit at the bar', object: bar, point: toWorld(sx, DECK + 0.78, 1.42), approach: toWorld(0, 0, 2.35), radius: 2.6,
+    { id: 'seat', label: signName, verb: 'Sit at the bar', object: bar, point: toWorld(sx, DECK + 0.78, 1.42), approach: toWorld(0, 0, 2.35), radius: 2.6,
       near: (worldPoint) => { const p = bar.worldToLocal(worldPoint.clone()); return p.y < DECK + 1.3 && Math.hypot(p.x - sx, p.z - stools[1].position.z) < 0.55; } },
     // listed after the bar, so clicking the card itself picks it up (and walks you over if need be)
     { id: 'menu', label: 'Menu', verb: 'Pick up the menu', object: menuCard, point: toWorld(0.05, BAR_TOP + 0.1, 0.95), approach: toWorld(0, 0, 2.35), radius: 2.6 },
-    { id: 'drinks', label: 'Favorite drinks', verb: 'Read the recipes', object: boardGroup, point: toWorld(-0.95, DECK + 2.19, -1.65), approach: toWorld(0, 0, 2.35), radius: 2.6 },
+    { id: 'drinks', label: boardText.title, verb: boardText.verb, object: boardGroup, point: toWorld(-0.95, DECK + 2.19, -1.65), approach: toWorld(0, 0, 2.35), radius: 2.6 },
   ];
 
   // Serving: the robot shakes, then slides a fresh tiki mug across the counter to your seat.

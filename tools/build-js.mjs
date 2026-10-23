@@ -6,16 +6,22 @@
 //                   three.js and the post-processing included), one file, one request
 //   dist/rapier-*.js the physics engine, loaded once the planet is up (import() in physics.js)
 //   dist/ao.js      ambient occlusion (N8AO), for computers only, loaded by URL (render.js)
+//   dist/holidays/  a holiday's decorations for the planet, one file each, loaded by URL only on
+//                   the day (main.js, assets/js/holidays.js)
 //   dist/portal.js  the real place through the door: Spark, the splat renderer, with its own
 //                   three.js, loaded by URL when someone steps through (portal.js)
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
+//   dist/planet-card.js the Planets connector's card (assets/js/mcp-app/planets.js): a planet
+//                   previewed in a chat, by the same shell
 //   dist/apps/*.js  one per app page (every file in assets/js/apps/: SJPJr, the consent page),
 //                   with what they share (lib/: the kit, the Supabase client, the sections SJPJr
 //                   mounts) split into chunks of their own
 //
 // First it writes _data/library.json, Steve's books in one list (tools/library.mjs), which Jekyll
-// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes. And
+// then reads; in watch mode again whenever _data/audible.json or _data/books.yml changes. Then
+// _data/planet.json, Steve's planet as a planet spec (tools/planet.mjs), which the homepage writes
+// into the page for the world; again whenever _data/bar.yml or _data/drinks.yml changes. And
 // _data/hero_preload.json, the hero models the first frame needs (assets/models/hero/manifest.json,
 // all but the lazy ones), which the homepage preloads so they download alongside the script.
 //
@@ -26,6 +32,7 @@
 import * as esbuild from 'esbuild';
 import { rmSync, readFileSync, readdirSync, writeFileSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
+import { writePlanet } from './planet.mjs';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -48,52 +55,68 @@ const rapierWasm = {
   },
 };
 
-// N8AO (ambient occlusion, computers only) is its own bundle, dist/ao.js, but must use the
-// planet's three.js and postprocessing, not copies. So: read what it imports from them, have
-// world.js hand exactly those over (`import libs from 'ao-libs'` in render.js, set on
-// globalThis.__aoLibs) and build ao.js with those imports read back from there.
-const n8aoImports = (() => {
-  const src = readFileSync(root + 'node_modules/n8ao/dist/N8AO.js', 'utf8'), mods = {};
-  for (const [, names, mod] of src.matchAll(/import\s*\{([^}]*)\}\s*from\s*"([^"]+)"/g)) {
-    mods[mod] = [...new Set([...(mods[mod] || []), ...names.split(',').map((n) => n.trim().split(/\s+as\s+/)[0]).filter(Boolean)])];
+// Two bundles loaded by URL must use the planet's own three.js (and postprocessing), not copies:
+// N8AO (ambient occlusion, computers only, dist/ao.js) and a holiday's decorations
+// (dist/holidays/<id>.js). So: read what each imports from those libraries, have world.js hand
+// exactly that over (`import libs from '<name>'`, set on globalThis), and build the bundle with
+// those imports read back from there.
+function importsOf(files) {
+  const mods = {};
+  for (const f of files) {
+    for (const [, names, mod] of readFileSync(root + f, 'utf8').matchAll(/import\s*\{([^}]*)\}\s*from\s*["']([^"'.][^"']*)["']/g)) {
+      mods[mod] = [...new Set([...(mods[mod] || []), ...names.split(',').map((n) => n.trim().split(/\s+as\s+/)[0]).filter(Boolean)])];
+    }
   }
-  if (!mods.three) throw new Error('n8ao no longer imports three the way tools/build-js.mjs expects: update the ao-libs plugin');
   return mods;
-})();
-const aoLibs = {
-  name: 'ao-libs',
-  setup(b) {
+}
+function handOver(name, global, imports, inBundle) {
+  return {
     // in world.js: the object to hand over
-    b.onResolve({ filter: /^ao-libs$/ }, () => ({ path: 'ao-libs', namespace: 'ao-libs' }));
-    b.onLoad({ filter: /.*/, namespace: 'ao-libs' }, () => {
-      const mods = Object.entries(n8aoImports);
-      return {
-        resolveDir: root,
-        contents: mods.map(([mod, names], i) => `import { ${names.map((n) => `${n} as m${i}_${n}`).join(', ')} } from ${JSON.stringify(mod)};`).join('\n')
-          + `\nexport default { ${mods.map(([mod, names], i) => `${JSON.stringify(mod)}: { ${names.map((n) => `${n}: m${i}_${n}`).join(', ')} }`).join(', ')} };`,
-      };
-    });
-  },
-};
-const aoFromWorld = {
-  name: 'ao-from-world',
-  setup(b) {
-    // in ao.js: each of those imports read from what world.js handed over
-    b.onResolve({ filter: /.*/ }, ({ path, importer }) => (importer.includes('n8ao') && n8aoImports[path] ? { path, namespace: 'ao-from-world' } : undefined));
-    b.onLoad({ filter: /.*/, namespace: 'ao-from-world' }, ({ path }) => ({ contents: `export const { ${n8aoImports[path].join(', ')} } = globalThis.__aoLibs[${JSON.stringify(path)}];` }));
-  },
-};
+    give: {
+      name,
+      setup(b) {
+        b.onResolve({ filter: new RegExp(`^${name}$`) }, () => ({ path: name, namespace: name }));
+        b.onLoad({ filter: /.*/, namespace: name }, () => {
+          const mods = Object.entries(imports);
+          return {
+            resolveDir: root,
+            contents: mods.map(([mod, names], i) => `import { ${names.map((n) => `${n} as m${i}_${n}`).join(', ')} } from ${JSON.stringify(mod)};`).join('\n')
+              + `\nexport default { ${mods.map(([mod, names], i) => `${JSON.stringify(mod)}: { ${names.map((n) => `${n}: m${i}_${n}`).join(', ')} }`).join(', ')} };`,
+          };
+        });
+      },
+    },
+    // in the bundle: each of those imports read from what world.js handed over
+    take: {
+      name: name + '-from-world',
+      setup(b) {
+        b.onResolve({ filter: /.*/ }, ({ path, importer }) => (inBundle(importer) && imports[path] ? { path, namespace: name + '-from-world' } : undefined));
+        b.onLoad({ filter: /.*/, namespace: name + '-from-world' }, ({ path }) => ({ contents: `export const { ${imports[path].join(', ')} } = globalThis.${global}[${JSON.stringify(path)}];` }));
+      },
+    },
+  };
+}
+const n8aoImports = importsOf(['node_modules/n8ao/dist/N8AO.js']);
+if (!n8aoImports.three) throw new Error('n8ao no longer imports three the way tools/build-js.mjs expects: update importsOf');
+const ao = handOver('ao-libs', '__aoLibs', n8aoImports, (importer) => importer.includes('n8ao'));
+// one bundle per holiday, each file in assets/js/world/holidays/ (holidays.js says which day)
+const holidayFiles = readdirSync(root + 'assets/js/world/holidays').filter((f) => f.endsWith('.js')).map((f) => `assets/js/world/holidays/${f}`);
+const holidayLib = readdirSync(root + 'assets/js/world/holidays/lib').map((f) => `assets/js/world/holidays/lib/${f}`); // what they share
+const holidays = handOver('holiday-libs', '__holidayLibs', importsOf([...holidayFiles, ...holidayLib]), (importer) => /world[\\/]holidays[\\/]/.test(importer));
 
 writeLibrary(root);
+writePlanet(root);
 const heroes = JSON.parse(readFileSync(root + 'assets/models/hero/manifest.json', 'utf8'));
 writeFileSync(root + '_data/hero_preload.json', JSON.stringify(Object.values(heroes).filter((h) => !h.lazy).map((h) => h.file)) + '\n');
 rmSync(out, { recursive: true, force: true });
 const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
-  { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm, aoLibs], metafile: true },
+  { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm, ao.give, holidays.give], metafile: true },
   // ambient occlusion, for computers only (render.js loads it by URL), on world.js's three.js
-  { ...common, entryPoints: { ao: 'assets/js/world/ao.js' }, outdir: out, format: 'esm', plugins: [aoFromWorld], metafile: true },
+  { ...common, entryPoints: { ao: 'assets/js/world/ao.js' }, outdir: out, format: 'esm', plugins: [ao.take], metafile: true },
+  // a holiday's decorations (main.js loads the day's by URL), on world.js's three.js
+  { ...common, entryPoints: holidayFiles, outdir: out + '/holidays', format: 'esm', plugins: [holidays.take], metafile: true },
   // through the door (portal.js): Spark and a three.js of its own, loaded by URL only when someone
   // steps in, so it never touches the world's one request
   { ...common, entryPoints: { portal: 'assets/js/world/portal.js' }, outdir: out, format: 'esm', metafile: true },
@@ -101,11 +124,14 @@ const builds = [
   { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
   // the wardrobe's in-chat card for ChatGPT and Claude: one plain script, loaded by the MCP server's page
   { ...common, entryPoints: { 'mcp-app': 'assets/js/mcp-app/widget.js' }, outdir: out, format: 'iife', metafile: true },
+  // the Planets connector's card: the same shell, with only the planet's view (docs/planets.md)
+  { ...common, entryPoints: { 'planet-card': 'assets/js/mcp-app/planets.js' }, outdir: out, format: 'iife', metafile: true },
 ];
 
 if (watch) {
   for (const b of builds) await (await esbuild.context(b)).watch();
   for (const f of ['_data/audible.json', '_data/books.yml']) watchFile(root + f, () => { try { writeLibrary(root); } catch (e) { console.error(e.message); } });
+  for (const f of ['_data/bar.yml', '_data/drinks.yml']) watchFile(root + f, () => { try { writePlanet(root); } catch (e) { console.error(e.message); } });
   console.log('Watching assets/js for changes…');
 } else {
   const results = await Promise.all(builds.map((b) => esbuild.build(b)));

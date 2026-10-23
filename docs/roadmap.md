@@ -6,6 +6,30 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **Holiday decorations, the rest of them** (`docs/world.md`, `holidays/`): Halloween,
+   Thanksgiving, Christmas Eve, Christmas, New Year's Eve and New Year's Day are in. Steve picked
+   eight plus the eves; still to build: Valentine's Day (a pink neon heart), St. Patrick's Day
+   (green bulbs, a bowler), Easter (eggs to find; its date computed) and the Fourth of July
+   (fireworks over the lagoon, bunting), on `lib/dress.js`.
+0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
+   [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet,
+   designed by their own ChatGPT or Claude from what they love, on this planet's engine. A planet is
+   one JSON spec (`supabase/functions/_shared/planet.js`): what matters to them (collections), how
+   each is shown (displays), where it lives (places composed from parts in slots), and one look.
+   Every planet has a hub (sign and links), a telescope and a launch pad; the rest is invented per
+   person, never a toggle for Steve's own places. Phases: (1) the spec and the builder, Steve's
+   planet rebuilt on it and a friend's beside it; (2) a Planets MCP server of its own; (3) a
+   friends beta at `/p/name`, invites only; (4) only if friends use it, its own product at
+   mytinyplanet.ai, then mytinyplanet.com at about 20 users. Done: the spec, its checks
+   (`tools/planet-test.mjs`), Steve's planet read from one (`tools/planet.mjs`), and an early
+   phase 2: the in-chat preview (PRO-2312, `docs/planets.md`), the Planets connector at
+   `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
+   the chat. The telescope's cities now come from the spec too
+   (PRO-2288); what's left of Steve in the world is the bartender's offline answers
+   (`barback.js`), which a preview never shows (no chat). Next: the displays (PRO-2289), so a preview draws more than the sign, the
+   menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
+   plain card there, with a link to walk around it in the browser).
+
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
    Next: photos, links, screenshots and receipts dropped in the same way, processed now, overnight
@@ -59,6 +83,7 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **My Tiny Planet's second planet:** who gets the first planet that isn't Steve's, and what they're into (Linear PRO-2300).
 - **A Google Maps key for places:** only needed for places a Takeout gives no coordinates for
   (saved lists, like "Want to go"). In the Google Cloud console (console.cloud.google.com): make
   a project, turn on billing (Google asks for it even inside the free calls), then APIs & Services,
@@ -78,10 +103,23 @@ rather than leaving it in a chat.
   a real tiki bar, with the owner's okay) with Polycam or Scaniverse, exported as `.ply` or
   `.spz`. A new place is an entry in `realplaces.js`, a file in `assets/splats/` and a panorama
   (`tools/portal-view.mjs`); `docs/world.md` has the steps. Credit Polycam on what's shown.
+- **From the security audit (Oct 2026), in the Supabase dashboard:** upgrade Postgres (Project
+  Settings, Infrastructure: the advisor says 17.4.1.074 has security fixes waiting; a few minutes
+  of downtime, so not on launch day), and delete the leftover OAuth client "smoke check (delete
+  me)" (Authentication, OAuth Apps). Neither can be done as code.
 - **Archive `stevepisani/my_website`** (Settings → General → Archive); it only holds a README.
 - **Revoke the temporary Supabase token** from 30 Sep, if it hasn't expired.
 
 ## Parked on purpose
+
+- **A full Content-Security-Policy and frame headers.** GitHub Pages sends no headers of the
+  site's own, so the site has the part a `<meta>` can carry (`_includes/head.html`) and
+  `/apps/authorize` refuses to work in a frame. A full policy (scripts, connections) would need a
+  proxy in front (Cloudflare) and a careful list of every API the planet calls; worth it if the
+  apps ever hold more than Steve's own things.
+- **The SQL formatter in a Worker.** `/lab/sql-formatter` runs Pyodide and SQLFluff from PyPI on
+  the site's own origin, where a signed-in browser keeps the SJPJr session. Pinned versions keep
+  the risk small; moving it into a Web Worker (no `localStorage` there) would remove it.
 
 - **Apple Photos:** an iOS Shortcut ("Send to Wardrobe") that uploads picked photos to the inbox
   with a personal key; parked by Steve, Oct 2026.
@@ -93,6 +131,31 @@ rather than leaving it in a chat.
 ## Done lately
 
 - Oct 2026: the two data posts moved to Tabby Stack's blog (tabbystack.io/blog); their old addresses here redirect there (`moved/`, `_layouts/redirect.html`), and /about links to it. This blog is for everything else now.
+- Oct 2026: holidays on the planet, only on the day (the visitor's date; `?holiday=halloween` to
+  see it any day): Halloween first, jack-o'-lanterns along the walk and round the bar, bats round
+  the roof, orange and purple bulbs, a witch's hat on the bartender, and a pumpkin beside the name
+  on the other pages. Its code is its own 4 KB file, fetched only that day.
+- Oct 2026: more holidays on the planet: Thanksgiving (pumpkins, corn shocks, fallen leaves),
+  Christmas Eve and Christmas (lights along the roof, wreaths, presents, a Santa hat), and New Year's
+  Eve and Day (the year in the gable, a party hat, fireworks; on the eve a countdown to the
+  visitor's own midnight). Each is its own 4 to 5 KB file.
+- Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can design a little planet with
+  the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
+  the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
+  travels in the link, so nothing is stored. Their sign, name, menu, chalkboard, campfire and
+  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app, a plain card
+  with "Walk around it".
+- Oct 2026: a security audit before Hacker News (the advisors, every policy and grant on the live
+  project, every function, the client, the workflows, the whole git history: no secret has ever
+  been committed). Fixed: the fireflies' channel made private, presence only, so nobody can
+  broadcast to the planet and run up Realtime's bill; the bartender's per-visitor limit keyed on
+  the IP Cloudflare saw, not a header anyone can write, and capped at 1,000 replies a day; the
+  page count capped at 300 a minute so it can't fill the database; signed-out visitors' grants
+  taken back on every private table; sign-in codes good for 15 minutes, not hours; the server's
+  link reader checks every redirect, not just the first address; the consent page refuses to work
+  in a frame; a `<meta>` CSP (base-uri, object-src, form-action); the Supabase CLI action pinned
+  to a commit.
+- Oct 2026: a bowl of petunias on the planet (Hitchhiker's): smashed in a little crater by the landing pad, behind you as you land. It never glints; hover it, or walk up to it, and it thinks "Oh no, not again." Procedural, a few hundred triangles, nothing to download.
 - Oct 2026: the two 2025 posts rewritten in Steve's voice, with drawings: "Slow SQL Is Usually One of Four Things" and "Boring Data Pipelines Are the Good Kind" (same dates and addresses). The drawings are inline SVG on the theme's tokens (`.fig` in `site.css`), so they follow light, dark and terminal, and scroll sideways on a phone instead of shrinking.
 - Oct 2026: polish before sharing the site on Hacker News: the fireflies capped in code (`supabase/realtime.json`: 50 connected, 2 presence updates a second, at most 360,000 messages an hour; each visitor updates at most every 15 s), the bartender's prompt cached so the same $5 buys 4,000 replies a month instead of 1,000, the suggested questions answered in the page for nothing, and the house answering when a limit's reached instead of "That's all the talking I can do", a picture for shared links (the planet), real descriptions on every page, `@StevenPisani` as the author everywhere, a sitemap and `robots.txt`, text contrast to WCAG AA on the light theme (the orange a shade deeper), typos in the posts, and the Lab at `/lab/` (it shared a name with the `lab/` folder). Checked: row security (nothing readable signed out), the photos bucket private, `public_places` showing only what's marked for the site, the bartender capped.
 - Oct 2026: Places, a tab in SJPJr: a Google Takeout zip chosen in the app (starred, reviewed,
