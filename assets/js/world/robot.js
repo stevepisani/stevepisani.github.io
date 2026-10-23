@@ -524,6 +524,9 @@ export function tinRobot({ hero = null, reducedMotion = false } = {}) {
 
   return {
     group: root,
+    /** The head and its antenna (null with a hero model): a holiday's hat goes on it. */
+    head: rig.head || null,
+    antenna: rig.whip || null,
     /** Where it waits: `pos` in the parent frame, facing `heading` (radians about +y). */
     setHome(pos, heading) {
       home.pos.copy(pos); home.heading = heading;

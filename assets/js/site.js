@@ -1,6 +1,12 @@
-// stevenpisani.com — the only script on the site. No framework, no build step.
+// stevenpisani.com: the script on every page. No framework; bundled into dist/site.js (tools/build-js.mjs).
+import { holidayNow } from './holidays.js';
+
 (function () {
   var root = document.documentElement;
+
+  /* ---- Holidays: on the day, the page is marked for its touch beside the name (site.css) ---- */
+  var holiday = holidayNow();
+  if (holiday) root.dataset.holiday = holiday;
 
   /* ---- Theme: auto → light → dark → terminal → auto ---- */
   var THEMES = [null, 'light', 'dark', 'terminal'];

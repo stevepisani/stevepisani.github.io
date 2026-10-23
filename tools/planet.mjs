@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
-import { checkPlanet } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, WORLD_PINS } from '../supabase/functions/_shared/planet.js';
 
 export function buildPlanet(barYaml, drinksYaml) {
   const bar = parse(barYaml);
@@ -29,7 +29,7 @@ export function buildPlanet(barYaml, drinksYaml) {
       { id: 'hammock', kind: 'hammock', displays: [{ kind: 'star-sky', collection: 'books' }] },
     ],
     robot: { lines: bar.bartender, ask: bar.ask },
-    telescope: { engraving: "Steve's" },
+    telescope: { engraving: "Steve's", pins: [{ city: 'Philadelphia', lat: 39.95, lon: -75.17, zone: 'America/New_York', home: true }, ...WORLD_PINS] },
   };
 }
 
