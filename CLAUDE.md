@@ -132,6 +132,7 @@ How it's built, module by module: `docs/world.md`.
 
 - `_config.yml` sets each link once (`links:`, with YAML anchors that `social.links` reuses for jekyll-seo-tag).
 - CNAME holds the custom domain; don't remove it.
+- A new table gets row-level security and no grant to `anon` unless the planet needs it signed out; a new Realtime channel needs its own rules on `realtime.messages` (only private channels are allowed). `docs/backend.md`, "What a visitor can reach".
 - What a shared link shows: every page's `og:image` is `assets/images/share.jpg` (the planet's first frame, 1200×630, a default in `_config.yml`) unless its front matter sets `image`; give a new page a `description`. `robots.txt` keeps `/apps/` out of search and points at `sitemap.xml` (jekyll-sitemap; the private app's pages say `sitemap: false`).
 - Light-theme `--accent` and `--ink-3` are dark enough for text (4.5:1 on `--bg`, WCAG AA); keep new tokens there too.
 - Post permalinks use Jekyll's default (`/YYYY/MM/DD/Title.html`); don't change them, they're linked externally.
