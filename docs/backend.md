@@ -16,7 +16,7 @@ design: row-level security guards every table.
   (`create … if not exists`, `drop policy if exists` before `create policy`), so a re-run is safe.
   To change the schema, add a new migration; never edit one that has run.
 - `auth.json`: sign-in settings (site URL, allowed redirects, sign-ups off, the OAuth server for
-  ChatGPT and its consent page, the sign-in email's subject, a 6-digit code, and sessions that
+  ChatGPT and its consent page, the sign-in email's subject, a 6-digit code good for 15 minutes, and sessions that
   last: an hour's access token renewed by a refresh token that rotates, with no time limit and no
   inactivity limit, so a phone stays signed in until it signs out; `docs/apps.md`, "Staying
   signed in").
@@ -26,7 +26,10 @@ design: row-level security guards every table.
   so at most about 360,000 messages an hour (8.6 million a day, about $9 a day beyond Pro's
   included 5 million a month, only if it were full around the clock), and far fewer in practice (each visitor sends at most one
   update every 15 s). This is the site's cap: the organization's spend cap would also hold up the
-  other projects in it, so it stays off.
+  other projects in it, so it stays off. Only private channels are allowed (`private_only`), and
+  the `planet` channel's rules (`realtime.messages`, in `20261021000100_hardening.sql`) let anyone
+  in for presence and nothing else: a broadcast would go to everyone on the planet, each copy
+  billed, and with public channels anyone holding the public key could send thousands a second.
 - `templates/<name>.html`: Auth's emails, each the auth config's `mailer_templates_<name>_content`.
   `magic_link.html` is the sign-in email: the link and the code (`{{ .ConfirmationURL }}`,
   `{{ .Token }}`), the code being how the home-screen app signs in (`docs/apps.md`, "Signing in").
@@ -69,11 +72,23 @@ What's in the database:
 | `places_api_usage`, `places_api_take(n)` | the Places API's calls this month, capped at 1,000 | members take through the function; nobody reads the table |
 | `photos` bucket | every private app's pictures and files, a folder per app (recipe photos from before Oct 2026 are at the root) | members; `wardrobe/` and `inbox/` each person's own folder |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
-| `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts; members read rows; everyone reads daily totals |
+| `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts (at most 300 a minute across the site; past that they're quietly not counted); members read rows; everyone reads daily totals |
 | `bartender_usage`, `bartender_asks`, `bartender_take()`, `bartender_spent()` | the bartender's limits and token log | service role only |
 | Realtime channel `planet` | presence for the fireflies (no table) | anyone, anonymous |
 
 Approving a bottle is, for now, setting `approved = true` on its row (as a member).
+
+### What a visitor can reach
+
+Signed out, with the public key, someone can: insert a bottle (capped) and a page view (capped),
+read approved bottles, the daily page totals and `public_places`, call `is_member()` (false), and
+join the `planet` channel for presence. Nothing else: every other table has no grant to `anon` at
+all (not only no policy), so a mistake in a policy can't open one. A signed-in account that isn't
+in `members` sees nothing either (every policy asks `is_member()`), and sign-ups are off. The
+functions that answer a visitor (`bartender`, `sky`) cap what they cost; the ones that act for a
+member (`mcp`, `wardrobe-link`, `places-locate`) check the token and `is_member()` themselves, and
+the two that fetch addresses they're given (a shop's page, a chat's upload) refuse private
+addresses at every redirect. When adding a table, revoke it from `anon` unless the planet needs it.
 
 ## The wardrobe's functions
 
@@ -124,7 +139,9 @@ markdown markers dropped as they pass, so the first words show in well under a s
 brief (fetched once an isolate, refreshed hourly in the background) run side by side; token
 accounting runs after the reply has gone out (input logged as billed: a cache write 1.25 times, a
 read a tenth). Limits, in the database: 4,000 replies a month (about $5 with the prompt cached) and
-20 questions an hour per visitor, keyed by a daily-salted hash of the IP, never the IP. It
+20 questions an hour per visitor, keyed by a daily-salted hash of the IP (the one Cloudflare saw,
+`cf-connecting-ip`, since the first `x-forwarded-for` entry is whatever the caller wrote), never the
+IP, and 1,000 replies in any 24 hours, so a day can't spend the month. It
 declines to talk about clients and points people to email. When the model can't answer (no credit
 left on the Anthropic account, an outage, or a limit reached) it sends back nothing, and the page answers from the same
 facts on its own (`assets/js/world/barback.js`: who Steve is, a drink from the chalkboard, what he's
