@@ -10,6 +10,8 @@
 //                   the day (main.js, assets/js/holidays.js)
 //   dist/portal.js  the real place through the door: Spark, the splat renderer, with its own
 //                   three.js, loaded by URL when someone steps through (portal.js)
+//   dist/gauge.js   "Rockets and Horses" as a walk along one track (assets/js/walk/gauge.js), the
+//                   one post with a 3D scene, with its own three.js
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
 //   dist/planet-card.js the Planets connector's card (assets/js/mcp-app/planets.js): a planet
@@ -120,6 +122,8 @@ const builds = [
   // through the door (portal.js): Spark and a three.js of its own, loaded by URL only when someone
   // steps in, so it never touches the world's one request
   { ...common, entryPoints: { portal: 'assets/js/world/portal.js' }, outdir: out, format: 'esm', metafile: true },
+  // the walk in "Rockets and Horses" (_includes/gauge-walk.html loads it)
+  { ...common, entryPoints: { gauge: 'assets/js/walk/gauge.js' }, outdir: out, format: 'esm', metafile: true },
   // a new app needs nothing but its file (watch: restart to pick it up)
   { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
   // the wardrobe's in-chat card for ChatGPT and Claude: one plain script, loaded by the MCP server's page

@@ -1,7 +1,7 @@
 // Everything on the asteroid that isn't the bar: your rocket, the lantern-lit path,
 // the telescope, the campfire and moai on the far side, and scattered lava rock and palms.
 import * as THREE from 'three';
-import { PALETTE, pbr, surface, lavaSet, woodSet, bambooSet, glow } from './materials.js';
+import { PALETTE, pbr, surface, lavaSet, woodSet, bambooSet, glow, chrome } from './materials.js';
 import { buildTrails, sampleTrail, trailEdgeFn, offset } from './paths.js';
 import { saturnLander } from './rocket.js';
 import { buildCampfire } from './camp.js';
@@ -10,6 +10,7 @@ import { palm, lavaRock, tikiTorch, radioDish, petunias, outriggerCanoe, hammock
 import { REAL_PLACES } from './realplaces.js';
 import { stonePile } from './stones.js';
 import { shrub } from './decor.js';
+import { track, boosterCar } from '../walk/sets.js';
 import { addLamp } from './lamps.js';
 import { place, dirFrom, headingToward, surfacePoint, surfaceRadius, BAR_DIR, RADIUS, POND, pondDir, shoreAt, CUT } from './planet.js';
 import { buildMachine } from './machine.js';
@@ -20,6 +21,7 @@ export const SPOTS = {
   spawn: dirFrom(0.62, Math.PI / 2), // ~12 m out, straight in front of the bar (it faces longitude π/2)
   rocket: dirFrom(0.72, 1.3),
   petunias: dirFrom(0.74, 1.78), // behind you as you land, on the other side from the landing pad
+  gauge: dirFrom(0.79, 1.02),    // the booster's flatcar, on its track up to the landing pad
   telescope: dirFrom(0.5, 2.85),
   campfire: dirFrom(2.55, -1.6),     // around the back
   dish: dirFrom(1.1, -0.2),
@@ -58,8 +60,8 @@ for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 /** Metres from a direction to the nearest trail's edge (negative on a trail). */
 export const trailEdge = trailEdgeFn(TRAILS);
 // Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
-// the dish, the boat, the telescope and the petunias (they're placed before any of these exist).
-const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4], [SPOTS.petunias, 0.6]].map(([d, r]) => [d.clone().normalize(), r]);
+// the dish, the boat, the telescope, the petunias and the flatcar (they're placed before any of these exist).
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4], [SPOTS.petunias, 0.6], [SPOTS.gauge, 3.2]].map(([d, r]) => [d.clone().normalize(), r]);
 /** True within `margin` metres of a landmark's footprint. */
 export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
 /** True where nothing should grow: on a trail or under a landmark. */
@@ -454,6 +456,31 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
   {
     const pot = ground(petunias(), SPOTS.petunias, { heading: headingToward(SPOTS.petunias, SPOTS.spawn) }, 0.8);
     interactables.push({ id: 'petunias', label: 'A bowl of petunias', verb: 'Oh no, not again.', object: pot, point: pot.position.clone(), approach: surfacePoint(SPOTS.petunias.clone().lerp(SPOTS.spawn, 0.33).normalize()), radius: 1.6, quiet: true });
+  }
+
+  // A booster segment come by rail, on a flatcar at the end of a short track up to the pad: the
+  // rails 4 ft 8½ in apart, like every standard track (the stand-ins from "Rockets and Horses",
+  // assets/js/walk/sets.js, at 0.4 scale, like the rest of the planet's toys). Its panel tells the
+  // story of that gauge and links to the post's walk along one track.
+  {
+    const M = {
+      iron: pbr({ color: PALETTE.rocketBlack, roughness: 0.55, metalness: 0.5 }), steel: chrome({ roughness: 0.35 }),
+      white: pbr({ color: PALETTE.rocketWhite, roughness: 0.6 }), wood: pbr({ color: PALETTE.wood, roughness: 0.9 }),
+      sleeper: pbr({ color: PALETTE.stain, roughness: 0.95 }), ballast: pbr({ color: PALETTE.stone, roughness: 1 }),
+    };
+    const rail = new THREE.Group();
+    rail.add(track(M, -9, 9), boosterCar(M));
+    rail.children[1].position.x = 0.5;
+    rail.rotation.y = -Math.PI / 2; // along the holder's +z, toward the pad
+    rail.scale.setScalar(0.4);
+    const car = put(new THREE.Group().add(rail), SPOTS.gauge, { heading: headingToward(SPOTS.gauge, SPOTS.rocket), sink: footDrop(SPOTS.gauge, 1.6) }, 3.2);
+    car.traverse((m) => { if (m.isMesh) m.castShadow = m.receiveShadow = true; });
+    car.updateMatrixWorld(true);
+    const at = (x, z) => car.localToWorld(new THREE.Vector3(x, 0, z));
+    for (const z of [-2.4, 0, 2.4]) colliders.push({ center: at(0, z), radius: 0.8 }); // along the car, 7 m long
+    const side = car.worldToLocal(surfacePoint(SPOTS.spawn)).x > 0 ? 1 : -1; // you come up on the side toward where you land
+    lantern(at(side * 1.5, -2.8).normalize(), { height: 1.4 }); // so it's seen at night
+    interactables.push({ id: 'gauge', label: 'A booster on a flatcar', verb: 'Why the rails are 4′ 8½″ apart', object: car, point: car.position.clone().addScaledVector(car.position.clone().normalize(), 0.9), approach: surfacePoint(at(side * 3.4, 0.4).normalize()), radius: 2.6 });
   }
 
   // An outrigger canoe, pulled up out of the lagoon, for reasons nobody can explain: stern on

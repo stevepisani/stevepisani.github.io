@@ -1,0 +1,26 @@
+{%- comment -%}
+  The walk along one track (_data/gauge.yml): each stop is a card; scrolling moves a camera along
+  the rails from stop to stop (assets/js/walk/gauge.js), and a drag looks around. Without the
+  script or WebGL it's the cards, one after another, which say everything the scene shows.
+{%- endcomment -%}
+<section class="walk" id="walk" aria-label="The story, one stop at a time">
+  <div class="walk__stage" aria-hidden="true">
+    <canvas class="walk__canvas"></canvas>
+    <p class="walk__gauge"><span>4′ 8½″</span> the whole way</p>
+    <p class="walk__drag">Drag to look around</p>
+  </div>
+  <ol class="walk__stops">
+    {%- for s in site.data.gauge %}
+    <li class="walk__stop" data-scene="{{ s.scene }}">
+      <div class="walk__card">
+        <p class="walk__when">{{ s.when }}</p>
+        <p class="walk__story">{{ s.story }}</p>
+        {%- if s.legend %}
+        <p class="walk__legend"><b>The legend:</b> {{ s.legend }}</p>
+        {%- endif %}
+      </div>
+    </li>
+    {%- endfor %}
+  </ol>
+</section>
+<script type="module" src="{{ '/assets/js/dist/gauge.js' | relative_url }}?v={{ site.time | date: '%s' }}" data-models="{{ '/assets/models/gauge/' | relative_url }}" data-images="{{ '/assets/images/gauge/' | relative_url }}"></script>

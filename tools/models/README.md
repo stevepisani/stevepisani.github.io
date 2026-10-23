@@ -85,3 +85,10 @@ All eight come to 1.98 MB (the parrot and pineapple mugs were added in a second 
 one wheel, however the prompt put it, so no robot file is registered and the code-built one
 in `assets/js/world/robot.js` tends the bar. Run cost: 580 credits (19 generations at 30,
 two remeshes at 5).
+
+# Rockets and Horses (`assets/models/gauge/`, `assets/images/gauge/`)
+
+The models are Meshy text-to-3D on the same paid plan, made by `tools/gauge-assets.mjs` from
+`gauge.json`; `assets/models/gauge/manifest.json` records each one's Meshy tasks. The sky and the
+ground textures are from [Poly Haven](https://polyhaven.com) (CC0, no credit needed): the ids
+used are in the same manifest (`_sky`, `_textures`).
