@@ -64,7 +64,7 @@ export function romanCart(M) {
   for (const s of [-1, 1]) wheel(0.62, 0.12, M.wood, [0, 0.62, s * (GAUGE / 2 + 0.06)], c);
   box(2.1, 0.32, 1.35, M.wood, [0.1, 0.92, 0], c);
   for (const s of [-1, 1]) box(1.9, 0.06, 0.06, M.wood, [-1.9, 0.86, s * 0.55], c);
-  cyl(0.28, 0.32, 1.6, M.rock, [0.6, 0.8, 2.3], g);
+  cyl(0.28, 0.32, 1.6, M.stone, [0.9, 0.8, -2.3], g);
   return g;
 }
 

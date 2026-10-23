@@ -5,10 +5,10 @@
     "horse": {
       "prompt": "A bay draught horse standing still in profile, dark brown coat with black mane, tail and lower legs, a plain leather collar and harness, no rider, no cart, head forward, 1.6 m at the withers",
       "texture": "Real horse hair coat, glossy bay brown with black points, worn dark leather harness with brass buckles",
-      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 1.5708, "along": "x" }
     },
     "chariot": {
-      "prompt": "An ancient Roman two-wheeled racing chariot without horses: a small open wooden car with a curved front screen, two spoked wooden wheels with iron tyres on one axle, a long pole sticking forward",
+      "prompt": "An ancient Roman racing chariot (a biga) without horses, seen from the side: a small open car, waist-high, open at the back, with a curved front breastwork, no roof, no canopy, no seat; two large spoked wooden wheels on one axle; a long straight draught pole sticking 2 m forward from the front at axle height",
       "texture": "Oiled oak wood, worn ochre and red paint on the front screen, dark iron tyres and fittings",
       "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
     },
@@ -48,7 +48,7 @@
       "polycount": 60000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
     },
     "tree": {
-      "prompt": "A single mature English oak tree in full summer leaf, broad rounded crown, thick gnarled trunk",
+      "prompt": "A single mature English oak tree in full summer leaf, like a photogrammetry scan: broad rounded crown of dense small leaves in natural dark green, thick gnarled trunk with rough bark, realistic proportions, about 15 m tall",
       "texture": "Rough grey-brown oak bark, dense green leaves in natural light",
       "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
     }
