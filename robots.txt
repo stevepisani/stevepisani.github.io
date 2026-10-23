@@ -4,4 +4,5 @@ sitemap: false
 ---
 User-agent: *
 Disallow: /apps/
+Disallow: /p/preview/
 Sitemap: {{ "/sitemap.xml" | absolute_url }}

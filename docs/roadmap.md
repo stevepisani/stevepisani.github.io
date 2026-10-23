@@ -16,8 +16,13 @@ rather than leaving it in a chat.
    planet rebuilt on it and a friend's beside it; (2) a Planets MCP server of its own; (3) a
    friends beta at `/p/name`, invites only; (4) only if friends use it, its own product at
    mytinyplanet.ai, then mytinyplanet.com at about 20 users. Done: the spec, its checks
-   (`tools/planet-test.mjs`), and Steve's planet read from one (`tools/planet.mjs`). Next: Steve's
-   name out of the world code (PRO-2288), then the displays (PRO-2289).
+   (`tools/planet-test.mjs`), Steve's planet read from one (`tools/planet.mjs`), and an early
+   phase 2: the in-chat preview (PRO-2312, `docs/planets.md`), the Planets connector at
+   `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
+   the chat. Next: the rest of Steve's name out of the world code (PRO-2288: copy strings, the
+   telescope's cities), then the displays (PRO-2289), so a preview draws more than the sign, the
+   menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
+   plain card there, with a link to walk around it in the browser).
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
@@ -106,6 +111,12 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can design a little planet with
+  the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
+  the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
+  travels in the link, so nothing is stored. Their sign, name, menu, chalkboard, campfire and
+  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app, a plain card
+  with "Walk around it".
 - Oct 2026: a bowl of petunias on the planet (Hitchhiker's): smashed in a little crater by the landing pad, behind you as you land. It never glints; hover it, or walk up to it, and it thinks "Oh no, not again." Procedural, a few hundred triangles, nothing to download.
 - Oct 2026: the two 2025 posts rewritten in Steve's voice, with drawings: "Slow SQL Is Usually One of Four Things" and "Boring Data Pipelines Are the Good Kind" (same dates and addresses). The drawings are inline SVG on the theme's tokens (`.fig` in `site.css`), so they follow light, dark and terminal, and scroll sideways on a phone instead of shrinking.
 - Oct 2026: polish before sharing the site on Hacker News: the fireflies capped in code (`supabase/realtime.json`: 50 connected, 2 presence updates a second, at most 360,000 messages an hour; each visitor updates at most every 15 s), the bartender's prompt cached so the same $5 buys 4,000 replies a month instead of 1,000, the suggested questions answered in the page for nothing, and the house answering when a limit's reached instead of "That's all the talking I can do", a picture for shared links (the planet), real descriptions on every page, `@StevenPisani` as the author everywhere, a sitemap and `robots.txt`, text contrast to WCAG AA on the light theme (the orange a shade deeper), typos in the posts, and the Lab at `/lab/` (it shared a name with the `lab/` folder). Checked: row security (nothing readable signed out), the photos bucket private, `public_places` showing only what's marked for the site, the bartender capped.

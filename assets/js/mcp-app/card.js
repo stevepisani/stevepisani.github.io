@@ -17,7 +17,7 @@ export const app = document.getElementById('app');
 let nextId = 1;
 const waiting = new Map();
 const post = (msg) => window.parent.postMessage({ jsonrpc: '2.0', ...msg }, '*');
-const request = (method, params) => new Promise((resolve, reject) => {
+export const request = (method, params) => new Promise((resolve, reject) => {
   const id = nextId++;
   waiting.set(id, { resolve, reject });
   post({ id, method, params });

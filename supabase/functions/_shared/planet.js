@@ -211,3 +211,71 @@ export function checkPlanet(spec) {
 
   return errors;
 }
+
+// ---------- What the world draws ----------
+// an item in a collection as one line: text as it is; an object by its name or title, or its first text
+const line = (x) => {
+  if (x === null || x === undefined) return '';
+  if (typeof x !== 'object') return String(x);
+  if (Array.isArray(x)) return x.map(line).filter(Boolean).join(', ');
+  return x.name || x.title || x.label || Object.values(x).find((v) => typeof v === 'string') || '';
+};
+
+/**
+ * What the world's places show, from a spec that passed checkPlanet (read by the world, and by the
+ * chat's card where 3D can't run): the sign's name, the chalkboard (the collection a tiki bar's
+ * chalkboard display points at), the campfire's thoughts (a campfire's collection) and the
+ * robot's lines. Anything the spec leaves out gets a plain default.
+ */
+export function planetParts(spec) {
+  const places = spec.places || [], collections = spec.collections || {};
+  const shown = (kind, display) => {
+    for (const p of places.filter((x) => x.kind === kind)) {
+      const id = display ? ((p.displays || []).find((d) => d.kind === display) || {}).collection : p.collection;
+      if (collections[id]) return collections[id];
+    }
+    return null;
+  };
+  const board = shown('tiki-bar', 'chalkboard'), fire = shown('campfire');
+  const items = ((board && board.items) || []).map((x) => (x && typeof x === 'object' && !Array.isArray(x) ? { ...x, name: line(x) } : { name: line(x) })).filter((x) => x.name);
+  const robot = spec.robot || {};
+  return {
+    name: spec.who.name,
+    sign: spec.who.sign || spec.who.name,
+    engraving: ((spec.telescope && spec.telescope.engraving) || spec.who.sign || spec.who.name).toUpperCase(),
+    // a drink has a recipe (build) and the robot can make it (make); anything else is a name and its details
+    board: { title: (board && board.title) || 'Tonight', items, recipes: items.some((x) => Array.isArray(x.build)) },
+    thoughts: ((fire && fire.items) || []).map(line).filter(Boolean),
+    robot: { lines: robot.lines && robot.lines.length ? robot.lines : ['Welcome in. Have a look around.'], ask: robot.ask || [] },
+  };
+}
+
+// ---------- A planet in an address ----------
+// A preview is kept nowhere: the spec travels in the address of the preview page, after the #
+// (never sent to a server), squeezed (deflate) and written in base64url. A 64 KB spec is a few
+// KB this way. The Planets connector packs it (preview_planet); the world unpacks it and checks
+// it again before drawing anything.
+export const PREVIEW_PAGE = 'https://stevenpisani.com/p/preview/';
+
+const squeeze = async (bytes, stream) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+
+/** The spec as the text after the # of the preview page. */
+export async function packPlanet(spec) {
+  const bytes = await squeeze(new TextEncoder().encode(JSON.stringify(spec)), new CompressionStream('deflate-raw'));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** The spec back from packPlanet's text, or null if it isn't one (checkPlanet says whether it's a good one). */
+export async function unpackPlanet(text) {
+  try {
+    if (!text || text.length > LIMITS.bytes * 2) return null;
+    const bin = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
+    const bytes = await squeeze(Uint8Array.from(bin, (c) => c.charCodeAt(0)), new DecompressionStream('deflate-raw'));
+    if (bytes.length > LIMITS.bytes * 2) return null;
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (e) {
+    return null;
+  }
+}

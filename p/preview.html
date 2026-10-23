@@ -1,0 +1,14 @@
+---
+layout: world
+title: A tiny planet
+description: "Someone's tiny planet, drawn from a planet spec: a preview, kept nowhere."
+permalink: /p/preview/
+sitemap: false
+---
+{%- comment -%}
+  A planet someone's own ChatGPT or Claude is designing, drawn from the spec in the address
+  (#<packed spec>, supabase/functions/_shared/planet.js packPlanet): the Planets connector's
+  preview_planet makes the link, and its card in the chat shows this page (docs/planets.md).
+  Nothing is stored: the address is the planet. No panels of Steve's: the menu is the spec's links.
+{%- endcomment -%}
+{% include world.html preview=true %}
