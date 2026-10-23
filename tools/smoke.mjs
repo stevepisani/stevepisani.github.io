@@ -18,7 +18,7 @@ import { buildLibrary } from './library.mjs';
 import * as esbuild from 'esbuild';
 import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
-import { holidayOn } from '../assets/js/holidays.js';
+import { holidayOn, HOLIDAYS } from '../assets/js/holidays.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
@@ -1670,11 +1670,13 @@ async function holiday(page, shot) {
   for (const [date, want] of [
     [new Date(2026, 9, 31), 'halloween'], [new Date(2027, 9, 31, 23, 59), 'halloween'], [new Date(2026, 9, 30, 23, 59), null], [new Date(2026, 10, 1), null],
     [new Date(2026, 10, 26), 'thanksgiving'], [new Date(2027, 10, 25), 'thanksgiving'], [new Date(2028, 10, 23), 'thanksgiving'], [new Date(2026, 10, 19), null], [new Date(2026, 10, 27), null],
+    [new Date(2027, 1, 14), 'valentines-day'], [new Date(2027, 2, 17), 'st-patricks-day'], [new Date(2027, 6, 4), 'fourth-of-july'],
+    [new Date(2026, 3, 5), 'easter'], [new Date(2027, 2, 28), 'easter'], [new Date(2028, 3, 16), 'easter'], [new Date(2027, 3, 4), null],
     [new Date(2026, 11, 24), 'christmas-eve'], [new Date(2026, 11, 25), 'christmas'], [new Date(2026, 11, 31, 23, 59), 'new-years-eve'], [new Date(2027, 0, 1), 'new-years-day'], [new Date(2027, 0, 2), null],
   ]) {
     if (holidayOn(date) !== want) throw new Error(`holidayOn(${date.toDateString()}) is ${holidayOn(date)}, not ${want}`);
   }
-  step('each holiday falls on its day (Thanksgiving the fourth Thursday of November), by the local date');
+  step('each holiday falls on its day (Thanksgiving the fourth Thursday of November, Easter computed), by the local date');
   await page.goto(base + '/about?holiday=halloween', { waitUntil: 'load' });
   if (await page.evaluate(() => document.documentElement.dataset.holiday) !== 'halloween') throw new Error('?holiday=halloween: the page is not marked');
   await page.goto(base + '/about?holiday=none', { waitUntil: 'load' });
@@ -1692,7 +1694,7 @@ async function holiday(page, shot) {
   await shot('halloween');
   step(`the planet on Halloween: ${h.count} jack-o'-lanterns, from its own bundle only that day`);
   // every other holiday's bundle loads on this three.js and has its decorations
-  const others = await page.evaluate(async (ids) => Promise.all(ids.map(async (id) => typeof (await import(`/assets/js/dist/holidays/${id}.js`)).decorate)), ['thanksgiving', 'christmas-eve', 'christmas', 'new-years-eve', 'new-years-day']);
+  const others = await page.evaluate(async (ids) => Promise.all(ids.map(async (id) => typeof (await import(`/assets/js/dist/holidays/${id}.js`)).decorate)), Object.keys(HOLIDAYS).filter((id) => id !== 'halloween'));
   if (others.some((t) => t !== 'function')) throw new Error(`a holiday's bundle has no decorate(): ${others}`);
   step('every holiday has its bundle');
   // New Year's Eve: a preview's midnight is 20 seconds in, so the gable counts down to it

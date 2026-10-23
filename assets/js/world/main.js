@@ -380,7 +380,7 @@ async function start() {
   const holidayColliders = [];
   const decor = holidayIn && (await holidayIn)?.decorate({
     scene, bar, dirFrom, place, headingToward, trailEdge, nearLandmark, addLamp, glow, PALETTE, reducedMotion,
-    preview: holidayAsked(), sfx: (...a) => sound.play(...a),
+    preview: holidayAsked(), sfx: (...a) => sound.play(...a), surfacePoint, pond: POND.center,
     colliders: holidayColliders, // theirs, added to yours
     // is a spot within `r` metres of anything solid (a lantern's post, a palm, a rock)?
     solid: (dir, r) => [...bar.colliders, ...places.colliders].some((c) => !c.walkOnly && surfacePoint(dir).distanceTo(c.center) < r + c.radius),

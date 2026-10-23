@@ -1,6 +1,6 @@
 // What the holidays share (assets/js/world/holidays/): placing things round the bar and along the
-// walk, the festoon bulbs in the day's colours, a hat for the bartender, a canvas texture, and
-// fireworks. Each holiday's bundle takes in only what it uses.
+// walk, things strewn beside it, the festoon bulbs in the day's colours, a hat for the bartender,
+// a canvas texture, and fireworks. Each holiday's bundle takes in only what it uses.
 import {
   Group, Mesh, InstancedMesh, Object3D, Vector3, Color, CanvasTexture, SRGBColorSpace,
   CylinderGeometry, SphereGeometry, MeshStandardMaterial, DoubleSide, BufferGeometry, BufferAttribute,
@@ -44,6 +44,28 @@ export function placer({ bar, place, dirFrom, headingToward, trailEdge, nearLand
       return null;
     },
   };
+}
+
+/** A fixed sequence of numbers in [0, 1), so what's scattered falls the same way for everyone. */
+export const random = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+
+/**
+ * World matrices for up to `n` small things strewn round the walk from where you land to the bar:
+ * `polar` from the bar, `spread` either side (radians round it), kept where `keep(edge, rnd)` says
+ * (edge: metres from the trail, less than 0 on it), clear of anything solid.
+ */
+export function scatter({ place, dirFrom, trailEdge, solid }, n, rnd, { polar = [0.2, 0.66], spread = 0.6, keep, size = [0.8, 1.5], tilt = 0.4, lift = 0.015 } = {}) {
+  const out = [], o = new Object3D();
+  for (let tries = 0; out.length < n && tries < n * 20; tries++) {
+    const dir = dirFrom(polar[0] + rnd() * (polar[1] - polar[0]), Math.PI / 2 + (rnd() - 0.5) * spread);
+    if (!keep(trailEdge(dir), rnd) || solid(dir, 0.05)) continue;
+    o.scale.setScalar(size[0] + rnd() * (size[1] - size[0]));
+    place(o, dir, { heading: rnd() * Math.PI * 2, lift });
+    o.rotateX((rnd() - 0.5) * tilt);
+    o.updateMatrix();
+    out.push(o.matrix.clone());
+  }
+  return out;
 }
 
 /** A pumpkin a metre across, sitting on its base, and its stem (to share its instance matrices). */
