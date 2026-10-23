@@ -101,7 +101,8 @@ if (!n8aoImports.three) throw new Error('n8ao no longer imports three the way to
 const ao = handOver('ao-libs', '__aoLibs', n8aoImports, (importer) => importer.includes('n8ao'));
 // one bundle per holiday, each file in assets/js/world/holidays/ (holidays.js says which day)
 const holidayFiles = readdirSync(root + 'assets/js/world/holidays').filter((f) => f.endsWith('.js')).map((f) => `assets/js/world/holidays/${f}`);
-const holidays = handOver('holiday-libs', '__holidayLibs', importsOf(holidayFiles), (importer) => /world[\\/]holidays[\\/]/.test(importer));
+const holidayLib = readdirSync(root + 'assets/js/world/holidays/lib').map((f) => `assets/js/world/holidays/lib/${f}`); // what they share
+const holidays = handOver('holiday-libs', '__holidayLibs', importsOf([...holidayFiles, ...holidayLib]), (importer) => /world[\\/]holidays[\\/]/.test(importer));
 
 writeLibrary(root);
 writePlanet(root);
