@@ -187,7 +187,11 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.focus('#chat-input');
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', 'What should I order?');
-  await page.click('#chat button[type="submit"]');
+  // (if Ask can't be pressed, say what the bar was doing: what hides the box is in main.js's frame loop)
+  await page.click('#chat button[type="submit"]').catch(async (e) => {
+    const s = await page.evaluate(() => { const w = window.__world, $ = (id) => document.getElementById(id); return { chat: !$('chat').hidden, state: w.state, flying: w.cameraFlying, making: w.making, ordering: w.ordering, board: w.board.on, panel: !$('panel').hidden, menu: !$('menu').hidden, typing: $('world').classList.contains('is-typing'), box: $('chat').getBoundingClientRect().toJSON() }; });
+    throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(s)}`);
+  });
   await until(page, () => document.getElementById('chat-ask').hidden);
   // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
