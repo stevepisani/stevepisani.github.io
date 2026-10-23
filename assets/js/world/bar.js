@@ -332,7 +332,9 @@ export function buildBar({ prop, quality, signName = "Steve's", board: boardText
     net.position.z = 0.3;
     bar.add(net);
     bar.add(D.grassFringe({ x0: -2.3, x1: 2.3, y: EAVE - 0.08, z: 1.66, count: 240, length: 0.4 }));
-    bar.add(D.festoon([[-2.45, EAVE - 0.02, 1.74], [-0.82, EAVE - 0.02, 1.74], [0.82, EAVE - 0.02, 1.74], [2.45, EAVE - 0.02, 1.74]], { perSpan: 6, sag: 0.26 }));
+    const bulbs = D.festoon([[-2.45, EAVE - 0.02, 1.74], [-0.82, EAVE - 0.02, 1.74], [0.82, EAVE - 0.02, 1.74], [2.45, EAVE - 0.02, 1.74]], { perSpan: 6, sag: 0.26 });
+    bulbs.name = 'festoon'; // a holiday recolours them (world/holidays/)
+    bar.add(bulbs);
   }
 
   /* ---------- On the bar ---------- */
