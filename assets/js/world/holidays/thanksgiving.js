@@ -3,13 +3,10 @@
 // counter, fallen leaves either side of the walk, the bulbs in autumn colours, and a pilgrim's
 // hat on the bartender. Its own bundle, loaded only on the day, like Halloween's.
 import { Group, Mesh, Color, Object3D, MeshStandardMaterial, CylinderGeometry, SphereGeometry, ConeGeometry, ShapeGeometry, Shape, DoubleSide } from 'three';
-import { placer, pumpkin, instanced, bulbs, hat, felt } from './lib/dress.js';
-
-// a fixed sequence, so the leaves fall the same way for everyone
-const random = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+import { placer, pumpkin, instanced, bulbs, hat, felt, random, scatter } from './lib/dress.js';
 
 export function decorate(kit) {
-  const { scene, bar, place, dirFrom, trailEdge, solid, colliders, glow, PALETTE } = kit;
+  const { scene, colliders, glow, PALETTE } = kit;
   const root = new Group();
   root.name = 'thanksgiving';
   scene.add(root);
@@ -80,18 +77,8 @@ export function decorate(kit) {
   leaf.quadraticCurveTo(-0.02, 0.03, -0.045, 0.02);
   leaf.quadraticCurveTo(-0.05, -0.02, 0, -0.05);
   const leafGeo = new ShapeGeometry(leaf).rotateX(-Math.PI / 2);
-  const leaves = [], colours = [0xb5431c, 0xd9771f, 0xe6b02e, 0x8f2a17, 0xc9601a];
-  const l = new Object3D();
-  for (let tries = 0; leaves.length < 160 && tries < 3000; tries++) {
-    const dir = dirFrom(0.2 + rnd() * 0.46, Math.PI / 2 + (rnd() - 0.5) * 0.6);
-    const edge = trailEdge(dir);
-    if (edge < 0.05 || edge > 1.4 * rnd() + 0.2 || solid(dir, 0.05)) continue; // thickest by the walk
-    l.scale.setScalar(0.8 + rnd() * 0.7);
-    place(l, dir, { heading: rnd() * Math.PI * 2, lift: 0.015 });
-    l.rotateX((rnd() - 0.5) * 0.4);
-    l.updateMatrix();
-    leaves.push(l.matrix.clone());
-  }
+  const colours = [0xb5431c, 0xd9771f, 0xe6b02e, 0x8f2a17, 0xc9601a];
+  const leaves = scatter(kit, 160, rnd, { polar: [0.2, 0.66], keep: (edge, r) => edge > 0.05 && edge < 1.4 * r() + 0.2 }); // thickest by the walk
   const fallen = instanced(leafGeo, new MeshStandardMaterial({ roughness: 0.8, side: DoubleSide }), leaves, { shadow: false });
   leaves.forEach((_, i) => fallen.setColorAt(i, new Color(colours[i % colours.length])));
   fallen.receiveShadow = true;
