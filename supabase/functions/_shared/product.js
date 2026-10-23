@@ -18,9 +18,21 @@ export function publicUrl(raw) {
   return u;
 }
 
-/** Fetches `url`, reading at most `max` bytes of it (as `.bytes`). */
+/** Fetches `url`, reading at most `max` bytes of it (as `.bytes`). Redirects are followed by hand,
+ * at most five, each checked like the first, so a public address can't send this to a private one. */
 export async function fetchLimited(url, accept, max) {
-  const res = await fetch(url, { headers: { "user-agent": UA, accept, "accept-language": "en-US,en;q=0.8" }, redirect: "follow", signal: AbortSignal.timeout(TIMEOUT) });
+  const signal = AbortSignal.timeout(TIMEOUT);
+  let res, where = publicUrl(String(url));
+  for (let hop = 0; ; hop++) {
+    if (!where) throw new Error("Not a public web address.");
+    res = await fetch(where, { headers: { "user-agent": UA, accept, "accept-language": "en-US,en;q=0.8" }, redirect: "manual", signal });
+    const next = res.status >= 300 && res.status < 400 && res.headers.get("location");
+    if (!next) break;
+    if (hop === 5) throw new Error("Too many redirects.");
+    await res.body?.cancel();
+    where = publicUrl(new URL(next, where).href);
+  }
+  Object.defineProperty(res, "url", { value: where.href }); // where it ended up (a manual fetch reports the first)
   const reader = res.body?.getReader();
   const parts = [];
   let n = 0;

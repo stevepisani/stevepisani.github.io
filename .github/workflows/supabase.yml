@@ -55,7 +55,8 @@ jobs:
       - name: Apply migrations and auth settings
         if: steps.token.outputs.ok
         run: node tools/supabase.mjs
-      - uses: supabase/setup-cli@v1
+      # pinned to a commit: this job holds the Supabase access token
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         if: steps.token.outputs.ok
         with:
           version: 2.118.0
@@ -85,7 +86,7 @@ jobs:
         if: steps.token.outputs.ok
         run: |
           v=$(node -p "require('./package.json').devDependencies.imagescript")
-          npm install --prefix "$RUNNER_TEMP/img" --no-save --no-audit --no-fund "imagescript@$v" >/dev/null
+          npm install --prefix "$RUNNER_TEMP/img" --no-save --no-audit --no-fund --ignore-scripts "imagescript@$v" >/dev/null
           IMAGESCRIPT="$RUNNER_TEMP/img/node_modules/imagescript" node tools/photo-copies.mjs
 
   logs:
@@ -125,5 +126,5 @@ jobs:
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then echo "No SUPABASE_ACCESS_TOKEN: skipped."; exit 0; fi
           v=$(node -p "require('./package.json').devDependencies.imagescript")
-          npm install --prefix "$RUNNER_TEMP/img" --no-save --no-audit --no-fund "imagescript@$v" >/dev/null
+          npm install --prefix "$RUNNER_TEMP/img" --no-save --no-audit --no-fund --ignore-scripts "imagescript@$v" >/dev/null
           IMAGESCRIPT="$RUNNER_TEMP/img/node_modules/imagescript" node tools/photo-copies.mjs

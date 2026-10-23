@@ -505,4 +505,17 @@ let refused = false;
 try { await insert('wardrobe_items', { name: 'x', category: 'tops', variant_id: steveVariant }); } catch (e) { refused = e.code === '42501'; }
 ok(refused, 'and can\'t point an item at Steve\'s variant');
 
-console.log(`wardrobe: ${passed} checks against the real schema: the Uniqlo migration, ingesting (new, new colour, second piece, no brand, photos with roles, duplicates and retries, dry run), sources, flat and whole reads, scoped changes, retiring, trips, who's signed in (me()), and each person's own`);
+// ---------- What a visitor can't run up (20261021000100_hardening.sql) ----------
+{
+  await db.exec(`reset role; set request.jwt.claims = ''`);
+  await db.exec(`insert into public.pageviews (path, at) select '/', now() from generate_series(1, 299)`);
+  await db.exec(`insert into public.pageviews (path) values ('/a'), ('/b')`);
+  ok((await q(`select count(*)::int as n from public.pageviews`))[0].n === 300, 'the page count stops at 300 a minute, quietly');
+  await db.exec(`insert into public.bartender_asks (visitor, at) select 'v' || n, now() - interval '2 hours' from generate_series(1, 999) n`);
+  const take = async (v) => (await q(`select public.bartender_take($1, 4000) as ok`, [v]))[0].ok;
+  ok(await take('someone') === true && await take('someone else') === false, 'the bartender stops at 1,000 replies in a day, whoever asks');
+  await db.exec(`delete from public.bartender_asks; delete from public.bartender_usage; delete from public.pageviews; set role authenticated`);
+  await as(STEVE, 'steve@example.com');
+}
+
+console.log(`wardrobe: ${passed} checks against the real schema: the Uniqlo migration, ingesting (new, new colour, second piece, no brand, photos with roles, duplicates and retries, dry run), sources, flat and whole reads, scoped changes, retiring, trips, who's signed in (me()), each person's own, and the caps on what a visitor can run up`);

@@ -1,4 +1,6 @@
 <meta charset="utf-8">
+{%- comment -%} What a page can never do, whatever is injected into it: change where its links point, load plugins, or send a form to another site (GitHub Pages sends no headers of the site's own, so this is the policy there can be) {%- endcomment %}
+<meta http-equiv="Content-Security-Policy" content="base-uri 'self'; object-src 'none'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1{% if page.layout == 'app' %}, viewport-fit=cover{% endif %}{% if page.layout == 'world' %}, maximum-scale=1, user-scalable=no{% endif %}">
 {% seo %}
 {% feed_meta %}
