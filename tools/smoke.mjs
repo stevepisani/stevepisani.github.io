@@ -1777,6 +1777,8 @@ async function planetCard(page, shot) {
   await card.getByRole('button', { name: 'Walk around it' }).click();
   const text = flatText(await card.locator('#app').innerText());
   if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  // the card asks the host to open it over postMessage, so the request lands a moment after the click
+  await until(page, () => window.opened.length, null, 10000).catch(() => {});
   if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
   await shot('card-phone');
   step('in a phone\'s app: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
