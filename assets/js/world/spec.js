@@ -5,7 +5,6 @@
 // (top bar, menu, the launch screen's sign) is filled in from it, as Jekyll does for Steve's.
 import { checkPlanet, unpackPlanet } from '../../../supabase/functions/_shared/planet.js';
 export { planetParts, planetHas } from '../../../supabase/functions/_shared/planet.js'; // what the places show, and what's on the planet
-import { signSize } from './textures.js';
 
 const KEPT = 'planet-preview'; // the last good preview in this tab, for a reload after the # has moved on
 
@@ -51,10 +50,7 @@ export function fillPage(spec, parts) {
   document.querySelector('.menu__list').replaceChildren(...links.map((l) => { const li = document.createElement('li'); li.append(link(l, true)); return li; }));
   document.querySelector('.menu__bar').textContent = parts.sign;
   $('eyepiece-mag').textContent = parts.engraving;
-  // the launch screen's sign, at the size the neon will be (world.css draws "Steve's" at 61.16 for
-  // the neon's 190px), and none where there's no bar to hang it over
-  document.querySelector('.veil__neon').style.display = bar ? '' : 'none';
-  for (const t of document.querySelectorAll('.veil__neon text')) { t.textContent = parts.sign; t.style.fontSize = `${(61.16 * signSize(parts.sign)) / 190}px`; }
+  // (the launch screen paints Steve's sign only on his own planet: a preview's has none)
 }
 
 /** Tells the chat's card (assets/js/mcp-app/views/planet.js), if this page is in one, how it went. */

@@ -1748,8 +1748,8 @@ async function preview(page, shot) {
   const packed = await packPlanet(planets.EXAMPLE);
   await page.goto(`${base}/p/preview/?test=1#${packed}`);
   await until(page, () => window.__sceneReady, null, 240000);
-  const got = await page.evaluate(() => ({ name: document.getElementById('topbar-name').textContent, links: [...document.querySelectorAll('.menu__list a')].map((a) => a.getAttribute('href')), sign: document.querySelector('.menu__bar').textContent, veil: document.querySelector('.veil__neon text').textContent, board: [...document.querySelectorAll('#board-list button')].map((b) => b.textContent), seat: window.__world.interactables.find((x) => x.id === 'seat').label }));
-  if (got.name !== 'Sam' || got.sign !== "Sam's" || got.veil !== "Sam's" || got.seat !== "Sam's" || got.links.join() !== 'https://example.com,mailto:sam@example.com' || got.board.join() !== 'Kind of Blue,Blue Train') throw new Error(`the preview didn't draw Sam's planet: ${JSON.stringify(got)}`);
+  const got = await page.evaluate(() => ({ name: document.getElementById('topbar-name').textContent, links: [...document.querySelectorAll('.menu__list a')].map((a) => a.getAttribute('href')), sign: document.querySelector('.menu__bar').textContent, veil: !!document.querySelector('.veil__sign'), status: document.getElementById('veil-status').textContent, board: [...document.querySelectorAll('#board-list button')].map((b) => b.textContent), seat: window.__world.interactables.find((x) => x.id === 'seat').label }));
+  if (got.name !== 'Sam' || got.sign !== "Sam's" || got.veil || got.seat !== "Sam's" || got.links.join() !== 'https://example.com,mailto:sam@example.com' || got.board.join() !== 'Kind of Blue,Blue Train') throw new Error(`the preview didn't draw Sam's planet: ${JSON.stringify(got)}`);
   await shot('preview');
   await page.evaluate(() => window.__world.sitDown());
   await expectState(page, 'seat');
@@ -1772,10 +1772,10 @@ async function preview(page, shot) {
 async function previewBare(page, shot) {
   await page.goto(`${base}/p/preview/?test=1#${await packPlanet({ version: 1, slug: 'jo', who: { name: 'Jo' } })}`);
   await until(page, () => window.__sceneReady, null, 240000);
-  const bare = await page.evaluate(() => ({ ...window.__world.here, neon: getComputedStyle(document.querySelector('.veil__neon')).display }));
-  if (bare.things.length || bare.bar || bare.neon !== 'none') throw new Error(`a planet with nothing listed should be bare: ${JSON.stringify(bare)}`);
+  const bare = await page.evaluate(() => window.__world.here);
+  if (bare.things.length || bare.bar) throw new Error(`a planet with nothing listed should be bare: ${JSON.stringify(bare)}`);
   await shot('bare');
-  step('a planet that lists nothing is just the planet: nothing to use, no bar, no sign while it loads');
+  step('a planet that lists nothing is just the planet: nothing to use, no bar');
 }
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
