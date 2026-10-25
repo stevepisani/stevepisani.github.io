@@ -22,6 +22,7 @@
       textures.js neonSign()/signBox(), and set in 3D by world.css at the pose the camera sees it
       from where you land, so the real one appears exactly on top of it.
     {%- endcomment -%}
+    {%- unless include.preview %}
     <div class="veil__sign" aria-hidden="true">
       <svg viewBox="-270 -180 540 330">
         <defs>
@@ -47,9 +48,10 @@
         </g>
       </svg>
     </div>
+    {%- endunless %}
     <div class="veil__load">
       <span class="veil__bar" aria-hidden="true"><span id="veil-progress"></span></span>
-      <p class="veil__status" id="veil-status" role="status">Opening the bar…</p>
+      <p class="veil__status" id="veil-status" role="status">{% if include.preview %}Loading the planet…{% else %}Opening the bar…{% endif %}</p>
       {% unless include.preview %}<p class="veil__slow">Taking a while? The sections up top already work, or <a href="{{ '/classic' | relative_url }}">see the site without 3D</a>.</p>{% endunless %}
     </div>
   </div>
