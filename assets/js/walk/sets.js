@@ -96,10 +96,10 @@ export function romanCart(M) {
   return g;
 }
 
-/** A farm wagon, its shafts waiting for a horse. */
-export function wagon(M) {
+/** A farm wagon, its shafts waiting for a horse, its wheels `gauge` apart (in the ruts it's in). */
+export function wagon(M, gauge = GAUGE) {
   const g = new THREE.Group(), c = slot('wagon', g);
-  for (const [x, r] of [[-1, 0.45], [1, 0.6]]) for (const s of [-1, 1]) wheel(r, 0.1, M.wood, [x, r, s * (GAUGE / 2 + 0.05)], c);
+  for (const [x, r] of [[-1, 0.45], [1, 0.6]]) for (const s of [-1, 1]) wheel(r, 0.1, M.wood, [x, r, s * (gauge / 2 + 0.05)], c);
   box(2.8, 0.5, 1.3, M.wood, [0, 1.05, 0], c);
   box(2.5, 0.7, 1.2, M.hay, [0.05, 1.6, 0], c);
   for (const s of [-1, 1]) box(2.2, 0.06, 0.06, M.wood, [-2.4, 0.9, s * 0.38], c);
@@ -189,11 +189,11 @@ export function track(M, x0, x1, kind = 'iron') {
   return g;
 }
 
-/** The measure: a brass bar across the gauge with a tick at each end, `y` above the ground. */
-export function gaugeBar(M, y = 0.2) {
+/** The measure: a brass bar `width` long across the way with a tick at each end, `y` above the ground. */
+export function gaugeBar(M, y = 0.2, width = GAUGE) {
   const g = new THREE.Group();
-  box(0.05, 0.05, GAUGE, M.brass, [0, y, 0], g);
-  for (const s of [-1, 1]) box(0.05, 0.3, 0.05, M.brass, [0, y + 0.1, s * GAUGE / 2], g);
+  box(0.08, 0.08, width, M.brass, [0, y, 0], g);
+  for (const s of [-1, 1]) box(0.08, 0.45, 0.08, M.brass, [0, y + 0.12, s * width / 2], g);
   return g;
 }
 

@@ -6,41 +6,56 @@
 #   title    a few words for the stop (the planet's panel lists them)
 #   story    what happened, as best it's known (Snopes, "Railroad Gauge and Roman Chariots";
 #            the Rogers Commission report for the boosters)
-#   legend   optional: what the internet version says instead
+#   legend   optional: what the internet version says, shown first; the story answers it
+#   measure  what the brass measure across the way says at this stop (the scene's corner)
+#   gauge    the width it measures, in inches (the rails, or the ruts the wheels run in;
+#            several: more ruts side by side, the cart in the first). 56.5 if left out.
 - scene: rails
   when: United States, today
   title: Standard gauge
-  story: Almost every mile of American track is 4 feet 8½ inches between the rails. It wasn't settled without a fight. In 1863 Lincoln picked 5 feet for the transcontinental railroad, and Congress overruled him. In 1886 the South gave in too. Over two days, crews shifted one rail on more than 11,000 miles of track.
-  legend: English expatriates built America's railroads. Really, early lines bought English locomotives, like the John Bull, and laid track to fit them.
+  measure: 4′ 8½″
+  legend: English expatriates built America's railroads, so they used England's gauge.
+  story: Close. Early lines bought English engines, like the John Bull, and laid track to fit them. Plenty of others didn't, and it took a fight to settle. Congress overruled Lincoln's 5 feet in 1863. In 1886 the South moved one rail on 11,000 miles of track in two days, to 4 feet 9 inches, near enough to share cars.
 - scene: locomotive
   when: England, 1825–1846
   title: Stephenson's gauge
-  story: George Stephenson built his railways to the gauge of the coal wagonways he grew up around, 4 feet 8 inches, then added half an inch of play. In 1829 his Rocket won the trials to run on one of them. Brunel tried 7 feet on the Great Western, and lost. In 1846 Parliament made Stephenson's gauge the rule for new lines.
+  measure: 4′ 8″, then ½″ more
+  story: George Stephenson laid his railways to the gauge of the coal wagonways he grew up around, 4 feet 8 inches, then added half an inch of play. In 1829 the Rocket, built by his son Robert, won the trials to run on one of them. Brunel tried 7 feet on the Great Western, and lost. In 1846 Parliament made Stephenson's gauge the rule for new lines.
 - scene: tram
   when: Northumberland, the 1700s
   title: Wagonways
-  story: Before steam, horses hauled coal from the pits down to the river in wagons on wooden rails. The wagons were built like farm carts, as wide as one horse could pull, and every colliery chose its own spacing.
+  measure: 4′ 8″ at Killingworth
+  gauge: 56
+  story: Before steam, horses hauled coal from the pits down to the river in wagons on wooden rails. Each wagon was built for one horse to pull, and each colliery chose its own spacing. Killingworth, where Stephenson worked, used 4 feet 8 inches.
 - scene: wagon
   when: England, the Middle Ages
   title: Ruts
-  story: Wheels cut ruts into dirt roads, and a cart that didn't match them had a rough ride. But no rut was standard. Carts were as wide as their horse and their builder made them, and the width changed from one county to the next.
+  measure: No standard
+  gauge: 46 64
   legend: Any other spacing would snap an axle in the old Roman ruts.
+  story: Wheels did cut ruts into dirt roads, and a cart that didn't fit them had a rough ride. But no rut was standard. A cart was as wide as its horse and its builder made it, and the width changed from county to county.
 - scene: ruts
   when: The Roman Empire
-  title: Roman roads
-  story: Rome did build Britain's first long paved roads, and Roman wheels did wear grooves into stone. You can still see them in Pompeii, roughly as far apart as modern rails. They were made by carts and wagons hauling goods. The legions walked.
+  title: Roman ruts
+  measure: About as wide
+  gauge: 57
   legend: The ruts were made by Roman war chariots.
+  story: Roman wheels did wear grooves into stone. You can still see them in Pompeii's streets, roughly as far apart as modern rails. Carts and wagons hauling goods cut them, not chariots. The legions walked, and most of the roads Rome built in Britain were gravel.
 - scene: horses
   when: Rome
-  title: Two horses
-  story: Rome's army didn't fight from chariots; Rome raced them. Two-horse chariots ran the Circus Maximus in front of 150,000 people or more. Horses set the width, not Romans. Anything built to be pulled by a horse or two ends up about this wide, in Rome, in Northumberland, anywhere.
+  title: Chariots
+  measure: Two horses wide
+  gauge: 57
   legend: The chariots were sized for the back ends of two war horses, and everything after copied them.
+  story: Rome's army didn't fight from chariots; Rome raced them, in front of 150,000 people or more at the Circus Maximus. The big races ran four horses, the junior ones two. Horses set the width, not Romans. Anything built for a horse or two to pull ends up about this wide, in Rome, in Northumberland, anywhere.
 - scene: booster
   when: Utah, the 1980s
   title: The booster
-  story: Thiokol built the Shuttle's solid rocket boosters in Utah and sent them to Florida by train, in segments about 12 feet across. Going by rail is a big part of why they came in pieces. The joints between those pieces held the O-rings that failed on Challenger in 1986.
+  measure: 4′ 8½″
   legend: A tunnel only a little wider than the track set the boosters' size.
+  story: Forward 2,000 years. Thiokol built the Shuttle's solid rocket boosters in Utah and sent them to Florida by train, in segments about 12 feet across. Rail is a big part of why they came in pieces. The joints between those pieces held the O-rings that failed on Challenger in 1986.
 - scene: shuttle
-  when: Florida, 1981
+  when: Florida, 1981–2011
   title: Liftoff
-  story: Columbia lifted off on April 12, 1981, on two boosters that had ridden the rails from Utah. A horse didn't size the Space Shuttle. But rails laid out for horse-drawn coal wagons carried its boosters, and shipping by rail shaped how they were built.
+  measure: 4′ 8½″
+  story: The Shuttle flew 135 times. Every flight rode on boosters that had come from Utah by rail, in pieces made to fit the trip, on rails first laid out for horse-drawn coal wagons.

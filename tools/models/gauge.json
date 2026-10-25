@@ -1,5 +1,5 @@
 {
-  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb; the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
+  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb (textures at `textureSize`, 1024 but for the horse, which is seen closest, so a phone holds them all; `simplify`: keep that share of the triangles, for the tree, drawn 45 times); the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
   "style": "Photorealistic, real-world materials and weathering, physically based textures, natural daylight colours, no text or logos, game-ready, a single object on its own with no ground or base",
   "models": {
     "horse": {
@@ -10,47 +10,47 @@
     "chariot": {
       "image": "tools/models/chariot.png",
       "texture": "Photorealistic ancient Roman racing chariot: oiled oak floor, rail, pole and spokes, the curved wall painted deep red with worn ochre trim and scuffs, dark hammered iron tyres and fittings, dust from the track",
-      "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+      "polycount": 25000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "x" }
     },
     "roman-cart": {
       "prompt": "A heavy ancient Roman two-wheeled supply cart without an animal: solid plank wheels with iron tyres, a box bed of rough planks, two shafts forward",
       "texture": "Weathered rough-sawn oak, dark iron tyres and nails, dust and mud on the wheels",
-      "polycount": 20000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "wheels" }
+      "polycount": 20000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "wagon": {
       "prompt": "A medieval English four-wheeled farm wagon loaded with loose hay, wooden spoked wheels, shafts forward, no animal",
       "texture": "Weathered grey-brown oak, dried golden hay, iron tyres, mud",
-      "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "wheels" }
+      "polycount": 25000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "chaldron": {
       "prompt": "An 18th century English coal chaldron wagon for a wooden wagonway: a tapering wooden hopper body on a frame with four small iron flanged wheels, heaped with coal, no horse",
       "texture": "Coal-blackened oak planks, rusty cast iron wheels, lumps of coal",
-      "polycount": 20000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "wheels" }
+      "polycount": 20000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "locomotive": {
       "prompt": "Stephenson's Rocket steam locomotive of 1829 with its tender: yellow boiler, tall black chimney at the front, two large front driving wheels and two small rear wheels, angled cylinders, a wooden tender carrying a water barrel",
       "texture": "Glossy yellow painted iron, black iron chimney, polished brass, white-painted wheel spokes, soot, oak tender and barrel",
-      "polycount": 40000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "wheels" }
+      "polycount": 40000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "boxcar": {
       "prompt": "A modern North American freight railroad boxcar, long and boxy with a sliding side door, ribbed steel sides, two four-wheel trucks with steel wheels",
       "texture": "Faded boxcar-red painted steel, rust streaks, road grime, dark steel trucks and wheels, no lettering",
-      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "wheels" }
+      "polycount": 30000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "booster-car": {
       "prompt": "A long heavy-duty railroad flatcar carrying one segment of a Space Shuttle solid rocket booster lying on its side in steel cradles: a white steel cylinder 3.7 m across and 8 m long, two four-wheel trucks with steel wheels",
       "texture": "White painted steel cylinder with grey joint rings, dark weathered steel flatcar deck and cradles, rust, grime",
-      "polycount": 40000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
+      "polycount": 40000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "x" }
     },
     "shuttle": {
       "prompt": "The Space Shuttle launch stack: the white orbiter with black heat-shield tiles on its belly and nose, mounted on the side of the large orange external fuel tank, with two white solid rocket boosters on either side of the tank, standing upright, no launch tower, no flames",
       "texture": "White orbiter with black thermal tiles, rust-orange spray-foam insulation on the external tank, white boosters with grey rings",
-      "polycount": 60000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
+      "polycount": 60000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "y" }
     },
     "tree": {
       "prompt": "A single mature English oak tree in full summer leaf, like a photogrammetry scan: broad rounded crown of dense small leaves in natural dark green, thick gnarled trunk with rough bark, realistic proportions, about 15 m tall",
       "texture": "Rough grey-brown oak bark, dense green leaves in natural light",
-      "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "y" }
+      "polycount": 30000, "textureSize": 1024, "simplify": 0.2, "fit": { "rotateY": 0, "along": "y" }
     }
   },
   "sky": ["kloofendal_48d_partly_cloudy", "kiara_1_dawn", "rolling_hills", "meadow_2"],

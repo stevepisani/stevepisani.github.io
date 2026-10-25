@@ -116,10 +116,26 @@ async function retexture(name, m, rec) {
 async function shrink(name, m, rec, done) {
   const out = MODELS + name + '.glb', raw = TMP + name + '.glb';
   writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));
+  if (m.simplify) await simplify(raw, m.simplify);
   execFileSync('npx', ['-y', GLTF_CLI, 'optimize', raw, out, '--compress', 'meshopt', '--texture-compress', 'webp', '--texture-size', String(m.textureSize), '--simplify', 'false'], { stdio: 'inherit' });
   Object.assign(rec, { file: name + '.glb', bytes: statSync(out).size, made: new Date().toISOString().slice(0, 10) });
   save();
   console.log(`${name}: ${(rec.bytes / 1024).toFixed(0)} KB`);
+}
+
+// fewer triangles: the normals go first so the faces weld across them, then come back smooth
+async function simplify(file, ratio) {
+  const { NodeIO } = await import('@gltf-transform/core');
+  const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions');
+  const fns = await import('@gltf-transform/functions');
+  const { MeshoptDecoder, MeshoptSimplifier } = await import('meshoptimizer');
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+  const doc = await io.read(file);
+  await doc.transform(fns.dequantize());
+  for (const mesh of doc.getRoot().listMeshes()) for (const p of mesh.listPrimitives()) p.setAttribute('NORMAL', null);
+  await doc.transform(fns.weld(), fns.simplify({ simplifier: MeshoptSimplifier, ratio, error: 0.02 }), fns.normals({ overwrite: true }));
+  await io.write(file, doc);
 }
 
 // ---- Poly Haven (CC0) ---------------------------------------------------------------------------
