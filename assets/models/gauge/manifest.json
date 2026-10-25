@@ -1,12 +1,14 @@
 {
-  "_sky": "kloofendal_48d_partly_cloudy",
   "_textures": {
     "dirt": "dirt_floor",
     "stone": "cobblestone_floor_08",
-    "rock": "rock_wall_08",
     "wood": "weathered_brown_planks",
     "ballast": "gravel_floor_02",
-    "grass": "aerial_grass_rock"
+    "grass": "aerial_grass_rock",
+    "thatch": "thatch_roof_angled",
+    "plaster": "white_plaster_02",
+    "masonry": "large_sandstone_blocks",
+    "rock": "rock_face"
   },
   "horse": {
     "refine": "01a1687f-8ee6-742a-9d70-f5f847ea4642",
@@ -22,10 +24,11 @@
     "made": "2026-10-25"
   },
   "roman-cart": {
-    "refine": "01a1687f-90d2-7599-aeae-e2a5d7ed1b8d",
+    "image": "01a174bc-1bc9-734a-923a-47373561af11",
+    "retexture": "01a174bd-63cb-71a9-8728-af3de64ac89b",
     "file": "roman-cart.glb",
-    "bytes": 536788,
-    "made": "2026-10-23"
+    "bytes": 281120,
+    "made": "2026-10-25"
   },
   "wagon": {
     "refine": "01a16880-32bb-73f7-9f19-a038cfdcc983",
@@ -34,16 +37,18 @@
     "made": "2026-10-23"
   },
   "chaldron": {
-    "refine": "01a1687f-b6b9-7157-9b61-9a4639eae1d1",
+    "image": "01a174bc-1bc7-76ac-b744-3a98dde193f2",
+    "retexture": "01a174bd-dca5-7538-b47c-7b148d16a3fc",
     "file": "chaldron.glb",
-    "bytes": 690044,
-    "made": "2026-10-23"
+    "bytes": 340320,
+    "made": "2026-10-25"
   },
   "locomotive": {
-    "refine": "01a1687f-8ed9-7587-b5d7-ff8d7f0a56ac",
+    "image": "01a174bc-1bcf-7738-b767-c6d0cf3a9117",
+    "retexture": "01a174bd-b47d-7558-87cb-68b3346b865e",
     "file": "locomotive.glb",
-    "bytes": 1158124,
-    "made": "2026-10-23"
+    "bytes": 593268,
+    "made": "2026-10-25"
   },
   "boxcar": {
     "refine": "01a1687f-b6b5-70f4-adf8-5388ad4af0b0",
@@ -52,10 +57,11 @@
     "made": "2026-10-23"
   },
   "booster-car": {
-    "refine": "01a1687f-8eb7-7640-a537-7fa85457310f",
+    "image": "01a174bc-1bca-71ae-be9d-f7b51ffbdb22",
+    "retexture": "01a174bd-63fe-77dd-9e70-7d4771f22cd3",
     "file": "booster-car.glb",
-    "bytes": 828020,
-    "made": "2026-10-23"
+    "bytes": 509508,
+    "made": "2026-10-25"
   },
   "shuttle": {
     "refine": "01a1687f-8f08-73e0-b57e-3636244d30aa",
@@ -63,11 +69,6 @@
     "bytes": 892264,
     "made": "2026-10-23"
   },
-  "tree": {
-    "preview": "01a168a8-8ee4-735a-9dd0-249e0eee297a",
-    "refine": "01a168ab-b76e-7588-af05-ca5805b054e8",
-    "file": "tree.glb",
-    "bytes": 645528,
-    "made": "2026-10-23"
-  }
+  "_sky": "kloofendal_48d_partly_cloudy_puresky",
+  "_dusk": "qwantani_dusk_2_puresky"
 }

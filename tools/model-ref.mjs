@@ -20,16 +20,21 @@ const js = (await build({
       import * as sets from './assets/js/walk/sets.js';
       const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, side: THREE.DoubleSide, ...o });
       // plain, believable colours: oak, red-painted wood, dark iron, bronze
-      const M = { wood: std(0x8a5f3a), paint: std(0x9c2a1c), iron: std(0x3a3a3c, { metalness: 0.5, roughness: 0.5 }), brass: std(0xb0853a, { metalness: 0.7, roughness: 0.4 }), horse: std(0x6b3f22), mane: std(0x2a1a10) };
+      // (the paint: the chariot's red, the Rocket's yellow)
+      const paint = ${JSON.stringify(name)} === 'locomotive' ? 0xe0b02a : 0x9c2a1c;
+      const M = { wood: std(0x8a5f3a), paint: std(paint), iron: std(0x3a3a3c, { metalness: 0.5, roughness: 0.5 }), brass: std(0xb0853a, { metalness: 0.7, roughness: 0.4 }), horse: std(0x6b3f22), mane: std(0x2a1a10), white: std(0xf2f0ea), stone: std(0xb9ad97), hay: std(0xd9b46a), boxcar: std(0x7a3524), steel: std(0x9a9ea3, { metalness: 0.5, roughness: 0.4 }), coal: std(0x1c1b1a) };
       let thing;
       sets[${JSON.stringify(fn)}](M).traverse((o) => { if (o.userData.slot === ${JSON.stringify(name)}) thing = o; });
-      thing.parent.remove(thing);
+      thing.parent?.remove(thing); // the Rocket and the flatcar are slots themselves
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0xffffff);
       scene.add(thing, new THREE.HemisphereLight(0xffffff, 0x8a8070, 1.6));
       const sun = new THREE.DirectionalLight(0xffffff, 2.2);
       sun.position.set(-3, 5, 4);
       scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xffffff, 0.9); // from the camera's side, so no face is black
+      fill.position.set(4, 2, 3);
+      scene.add(fill);
       const box = new THREE.Box3().setFromObject(thing), mid = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()).length();
       const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
       camera.position.copy(mid).add(new THREE.Vector3(0.75, 0.5, 0.9).normalize().multiplyScalar(size * 2.2));

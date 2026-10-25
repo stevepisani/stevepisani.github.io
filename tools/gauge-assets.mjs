@@ -2,7 +2,7 @@
 //   - each model by Meshy text-to-3D (a preview, then a refine with PBR textures), or image-to-3D
 //     from its `image` (a stand-in drawn by tools/model-ref.mjs), then retextured from `texture`, shrunk with
 //     gltf-transform (meshopt, WebP textures) into assets/models/gauge/<name>.glb
-//   - the sky (an HDR to light by, and a JPEG to see) and the ground textures from Poly Haven
+//   - the skies (day, and dusk for the dark theme: each an HDR to light by and a JPEG to see) and the textures from Poly Haven
 //     (CC0) into assets/images/gauge/
 // and writes assets/models/gauge/manifest.json (what was made, from which Meshy tasks, how big)
 // and report.json (what went wrong, if anything, with the Poly Haven ids that would fit).
@@ -143,8 +143,8 @@ const files = async (id) => { const r = await fetch(`https://api.polyhaven.com/f
 async function first(kind, ids) {
   for (const id of ids) { const f = await files(id); if (f) return [id, f]; }
   // none of them: say which would do, for gauge.json
-  const all = await (await get(`https://api.polyhaven.com/assets?t=${kind === 'sky' ? 'hdris' : 'textures'}`)).json();
-  const word = { sky: 'sky', grass: 'grass', stone: 'cobble', dirt: 'mud', ballast: 'gravel', rock: 'rock', wood: 'plank' }[kind] || kind;
+  const all = await (await get(`https://api.polyhaven.com/assets?t=${kind === 'sky' || kind === 'dusk' ? 'hdris' : 'textures'}`)).json();
+  const word = { sky: 'puresky', dusk: 'puresky', masonry: 'block', plaster: 'plaster', thatch: 'thatch', grass: 'grass', stone: 'cobble', dirt: 'mud', ballast: 'gravel', rock: 'rock', wood: 'plank' }[kind] || kind;
   report.polyhaven[kind] = Object.keys(all).filter((k) => k.includes(word)).slice(0, 20);
   throw new Error(`Poly Haven: none of ${ids.join(', ')} exists for ${kind}`);
 }
@@ -157,12 +157,13 @@ async function jpeg(url, path, max) {
 }
 const pick = (map, size, fmt) => map?.[size]?.[fmt]?.url;
 
-async function sky() {
-  if (existsSync(IMAGES + 'sky.hdr') && existsSync(IMAGES + 'sky.jpg')) return;
-  const [id, f] = await first('sky', spec.sky);
-  writeFileSync(IMAGES + 'sky.hdr', Buffer.from(await (await get(pick(f.hdri, '1k', 'hdr'))).arrayBuffer()));
-  await jpeg(f.tonemapped.url, IMAGES + 'sky.jpg', 4096);
-  manifest._sky = id;
+// a sky: `sky` the day, `dusk` the dark theme's
+async function sky(name) {
+  if (existsSync(IMAGES + name + '.hdr') && existsSync(IMAGES + name + '.jpg')) return;
+  const [id, f] = await first(name, spec[name]);
+  writeFileSync(IMAGES + name + '.hdr', Buffer.from(await (await get(pick(f.hdri, '1k', 'hdr'))).arrayBuffer()));
+  await jpeg(f.tonemapped.url, IMAGES + name + '.jpg', 4096);
+  manifest['_' + name] = id;
 }
 async function texture(kind, ids) {
   if (existsSync(IMAGES + `${kind}-diff.jpg`)) return;
@@ -175,7 +176,7 @@ async function texture(kind, ids) {
   (manifest._textures ||= {})[kind] = id;
 }
 
-const jobs = [sky(), ...Object.entries(spec.textures).map(([k, ids]) => texture(k, ids))];
+const jobs = [sky('sky'), sky('dusk'), ...Object.entries(spec.textures).map(([k, ids]) => texture(k, ids))];
 if (process.env.MESHY_API_KEY) jobs.push(...Object.entries(spec.models).map(([n, m]) => model(n, m)));
 else report.errors.push('MESHY_API_KEY is not set: add it as a repo secret (Settings, Secrets and variables, Actions)');
 for (const r of await Promise.allSettled(jobs)) if (r.status === 'rejected') report.errors.push(String(r.reason?.message || r.reason));

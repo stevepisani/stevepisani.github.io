@@ -33,6 +33,16 @@ const slot = (name, parent) => {
 };
 // a wheel turning on an axle across the track (along z)
 const wheel = (r, w, mat, at, parent) => mesh(new THREE.CylinderGeometry(r, r, w, 20).rotateX(Math.PI / 2), mat, at, parent);
+// a spoked wheel facing along z: an iron tyre, `n` spokes and a hub (a picture for Meshy needs them)
+function spoked(r, n, mat, at, parent, tyre = mat) {
+  const w = new THREE.Group();
+  mesh(new THREE.TorusGeometry(r - 0.03, 0.04, 8, 32), tyre, [0, 0, 0], w);
+  for (let i = 0; i < n / 2; i++) box(0.04, r * 2 - 0.08, 0.04, mat, [0, 0, 0], w).rotation.z = (i * 2 * Math.PI) / n;
+  cyl(r * 0.18, r * 0.18, 0.16, mat, [0, 0, 0], w).rotation.x = Math.PI / 2;
+  w.position.set(...at);
+  parent.add(w);
+  return w;
+}
 // a pair of wheels on one axle, their flanges just inside the gauge
 function wheelset(r, mat, x, parent, w = 0.12) {
   for (const s of [-1, 1]) wheel(r, w, mat, [x, r, s * (GAUGE / 2 + w / 2)], parent);
@@ -86,12 +96,24 @@ export function chariot(M) {
   return g;
 }
 
-/** A Roman cart, two heavy wheels in the ruts, and a milestone by the road. */
+/**
+ * A Roman goods cart (a plaustrum): two solid wheels of planks with a bar across each, iron
+ * tyres, a low-sided bed and shafts forward; and a milestone by the road.
+ */
 export function romanCart(M) {
   const g = new THREE.Group(), c = slot('roman-cart', g);
-  for (const s of [-1, 1]) wheel(0.62, 0.12, M.wood, [0, 0.62, s * (GAUGE / 2 + 0.06)], c);
-  box(2.1, 0.32, 1.35, M.wood, [0.1, 0.92, 0], c);
-  for (const s of [-1, 1]) box(1.9, 0.06, 0.06, M.wood, [-1.9, 0.86, s * 0.55], c);
+  for (const s of [-1, 1]) {
+    const z = s * (GAUGE / 2 + 0.06);
+    wheel(0.62, 0.12, M.wood, [0, 0.62, z], c);
+    mesh(new THREE.TorusGeometry(0.6, 0.035, 8, 32), M.iron, [0, 0.62, z], c);
+    box(1.1, 0.12, 0.05, M.wood, [0, 0.62, z + s * 0.07], c); // the bar across the planks
+    box(0.05, 1.1, 0.05, M.wood, [0, 0.62, z + s * 0.07], c).rotation.z = 0.25;
+  }
+  mesh(new THREE.CylinderGeometry(0.05, 0.05, GAUGE + 0.4, 8).rotateX(Math.PI / 2), M.wood, [0, 0.62, 0], c);
+  box(2.1, 0.08, 1.35, M.wood, [0.1, 0.8, 0], c);
+  for (const s of [-1, 1]) box(2.1, 0.32, 0.06, M.wood, [0.1, 1.0, s * 0.65], c);
+  for (const x of [-0.95, 1.15]) box(0.06, 0.32, 1.35, M.wood, [x, 1.0, 0], c);
+  for (const s of [-1, 1]) box(1.9, 0.06, 0.06, M.wood, [-1.9, 0.82, s * 0.55], c);
   cyl(0.28, 0.32, 1.6, M.stone, [0.9, 0.8, -2.3], g);
   return g;
 }
@@ -110,9 +132,15 @@ export function wagon(M, gauge = GAUGE) {
 export function chaldron(M) {
   const g = new THREE.Group(), c = slot('chaldron', g);
   const lift = 0.14; // the wooden rails' top
-  for (const x of [-0.55, 0.55]) wheelset(0.3, M.iron, x, c, 0.1);
+  for (const x of [-0.55, 0.55]) for (const s of [-1, 1]) spoked(0.3, 6, M.iron, [x, 0.3, s * (GAUGE / 2 + 0.05)], c);
+  for (const x of [-0.55, 0.55]) mesh(new THREE.CylinderGeometry(0.04, 0.04, GAUGE + 0.2, 8).rotateX(Math.PI / 2), M.iron, [x, 0.3, 0], c);
+  for (const s of [-1, 1]) box(1.7, 0.14, 0.12, M.wood, [0, 0.62, s * 0.62], c); // the frame
   c.children.forEach((c) => { c.position.y += lift; });
-  mesh(new THREE.CylinderGeometry(1, 0.7, 1.1, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.wood, [0, 1.15 + lift, 0], c);
+  // the hopper: wide at the top, narrowing to its bottom door, of planks
+  mesh(new THREE.CylinderGeometry(1, 0.62, 1.1, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.wood, [0, 1.25 + lift, 0], c);
+  for (let i = 0; i < 4; i++) mesh(new THREE.CylinderGeometry(0.98 - i * 0.09, 0.98 - i * 0.09, 0.03, 4, 1, true).rotateY(Math.PI / 4).scale(1.13, 1, 0.98), M.iron, [0, 1.75 - i * 0.27 + lift, 0], c);
+  mesh(new THREE.ConeGeometry(0.95, 0.35, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.coal, [0, 1.97 + lift, 0], c); // heaped with coal
+  strap([-0.9, 0.35 + lift, 0.78], [0.9, 1.3 + lift, 0.78], 0.03, M.wood, c); // the brake lever
   const h = horse(M); // ahead of the wagon toward +x, so its head is to the right as you see it
   h.position.set(2.9, lift - 0.02, 0);
   h.rotation.y = h.userData.turn = Math.PI;
@@ -123,17 +151,32 @@ export function chaldron(M) {
   return g;
 }
 
-/** Stephenson's Rocket (1829), give or take: yellow, a tall chimney, big front wheels, a tender. */
+/**
+ * Stephenson's Rocket (1829), facing -x: no cab, a yellow boiler, a tall chimney at the front, one
+ * pair of big spoked driving wheels under the chimney, small wheels under the firebox at the back,
+ * and a cylinder each side slanting down from the back to a crank on the big wheels. Then its
+ * tender, a water barrel on a wooden frame.
+ */
 export function locomotive(M) {
   const g = slot('locomotive');
   const top = 0.15; // the iron rails' top
-  wheelset(0.72, M.paint, -0.55, g);
-  wheelset(0.4, M.paint, 0.9, g);
-  g.children.forEach((c) => { c.position.y += top; });
-  mesh(new THREE.CylinderGeometry(0.5, 0.5, 2.3, 20).rotateZ(Math.PI / 2), M.paint, [0.1, 1.45 + top, 0], g).rotation.z = 0.08;
-  cyl(0.15, 0.17, 2.4, M.iron, [-1.05, 2.55 + top, 0], g);
-  box(0.7, 1.1, 1.1, M.iron, [1.35, 1.45 + top, 0], g);
-  for (const s of [-1, 1]) cyl(0.09, 0.09, 1.3, M.iron, [0.6, 1.25 + top, s * 0.62], g).rotation.z = 0.7;
+  const big = 0.72, small = 0.4;
+  for (const s of [-1, 1]) {
+    const z = s * (GAUGE / 2 + 0.06);
+    spoked(big, 12, M.paint, [-0.55, big + top, z], g, M.iron);
+    spoked(small, 8, M.paint, [0.9, small + top, z], g, M.iron);
+    // the cylinder, slanting down toward the front, and its rod to the crank
+    const c = cyl(0.11, 0.11, 0.9, M.iron, [0.75, 1.45 + top, s * 0.66], g);
+    c.rotation.z = 0.95;
+    strap([0.4, 1.2 + top, s * 0.72], [-0.55 + 0.3, big + top, s * 0.72], 0.03, M.iron, g);
+  }
+  for (const [x, r] of [[-0.55, big], [0.9, small]]) mesh(new THREE.CylinderGeometry(0.05, 0.05, GAUGE + 0.2, 8).rotateX(Math.PI / 2), M.iron, [x, r + top, 0], g);
+  for (const s of [-1, 1]) box(2.6, 0.1, 0.08, M.wood, [0.2, 0.95 + top, s * 0.5], g); // the frame
+  mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.9, 24).rotateZ(Math.PI / 2), M.paint, [-0.05, 1.5 + top, 0], g).rotation.z = 0.06;
+  for (const x of [-0.85, 0.75]) mesh(new THREE.TorusGeometry(0.49, 0.025, 6, 24).rotateY(Math.PI / 2), M.iron, [x, 1.5 + top, 0], g);
+  cyl(0.15, 0.17, 2.4, M.iron, [-1.0, 2.6 + top, 0], g);
+  mesh(new THREE.CylinderGeometry(0.24, 0.17, 0.25, 16), M.iron, [-1.0, 3.85 + top, 0], g); // its crown
+  box(0.6, 1.1, 1.0, M.brass, [1.2, 1.4 + top, 0], g); // the copper firebox at the back
   // the tender, a barrel of water on a wooden frame
   const t = new THREE.Group();
   wheelset(0.4, M.iron, -0.6, t);
@@ -168,7 +211,7 @@ export function boosterCar(M) {
   for (const x of [-3, 3]) box(0.8, 0.6, 3.1, M.iron, [x, 1.75 + top, 0], g); // cradles
   const r = 1.85, y = 1.5 + top + r;
   mesh(new THREE.CylinderGeometry(r, r, 8.2, 32).rotateZ(Math.PI / 2), M.white, [0, y, 0], g);
-  for (const x of [-4.1, 4.1]) mesh(new THREE.CylinderGeometry(r + 0.05, r + 0.05, 0.25, 32).rotateZ(Math.PI / 2), M.iron, [x, y, 0], g);
+  for (const x of [-4.1, 4.1]) mesh(new THREE.CylinderGeometry(r + 0.05, r + 0.05, 0.25, 32).rotateZ(Math.PI / 2), M.steel, [x, y, 0], g); // the joints
   return g;
 }
 
@@ -197,39 +240,10 @@ export function gaugeBar(M, y = 0.2, width = GAUGE) {
   return g;
 }
 
-/**
- * A tunnel into a mountain, its mouth toward -x at x = 0: a stone portal about 5 m wide (a little
- * more than the load), black inside, and the mountain behind it, a lumpy dome of rock.
- */
-export function tunnel(M) {
-  const g = new THREE.Group();
-  const face = new THREE.Shape([[-6.5, -1], [6.5, -1], [5, 9.5], [-5, 9.5]].map(([x, y]) => new THREE.Vector2(x, y)));
-  const hole = new THREE.Path();
-  hole.moveTo(-2.6, -1); hole.lineTo(2.6, -1); hole.lineTo(2.6, 5.2);
-  hole.absarc(0, 5.2, 2.6, 0, Math.PI, false);
-  hole.lineTo(-2.6, -1);
-  face.holes.push(hole);
-  const portal = mesh(new THREE.ExtrudeGeometry(face, { depth: 6, bevelEnabled: false }), M.portal, [0, 0, 0], g);
-  portal.rotation.y = Math.PI / 2; // the extrusion along +x
-  box(30, 8, 5.4, M.dark, [16, 3.5, 0], g); // the dark inside
-  // the mountain: a dome pushed in and out by a few waves, so no two sides look alike
-  const geo = new THREE.IcosahedronGeometry(1, 5), p = geo.attributes.position, v = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    v.fromBufferAttribute(p, i);
-    const n = 1 + 0.09 * Math.sin(v.x * 7 + 1) * Math.cos(v.z * 6) + 0.05 * Math.sin(v.y * 11 + v.x * 5) + 0.03 * Math.sin(v.z * 19 + v.y * 13);
-    v.multiplyScalar(n);
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-  geo.computeVertexNormals();
-  const hill = mesh(geo, M.rock, [23, -9, 0], g);
-  hill.scale.set(25, 26, 36);
-  return g;
-}
-
 /** The Shuttle on the pad, just lifting off: the tank, both boosters lit, the orbiter on the -x side. */
 export function shuttle(M) {
   const g = new THREE.Group();
-  box(40, 7, 30, M.iron, [0, 3.5, 0], g); // the mobile launch platform
+  box(40, 7, 30, M.tower || M.iron, [0, 3.5, 0], g); // the mobile launch platform, grey steel
   const up = 13; // lifting off
   const st = slot('shuttle', g); // the stack; the flames stay as they are
   cyl(4.2, 4.2, 47, M.tank, [0, up + 23.5, 0], st, 32);
