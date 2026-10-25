@@ -275,7 +275,7 @@ function materials() {
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
   return {
     ...eraMaterials(std),
-    ground: groundMaterial(0x7d8050), track: std(0xb59a72, { roughness: 1 }),
+    ground: groundMaterial(0x7d8050), track: std(0x8f7552, { roughness: 1 }),
     horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a),
     iron: std(0x34373c, { roughness: 0.6, metalness: 0.4 }), steel: std(0xa7adb3, { roughness: 0.35, metalness: 0.8 }),
     paint: std(0xd8b23a, { side: THREE.DoubleSide }), boxcar: std(0x7a3524), white: std(0xece8df, { roughness: 0.6 }),
@@ -387,7 +387,7 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
   // the settings' blocks have their UVs in metres (eras.js): a photograph once a unit, tinted
   if (t.stone) for (const [mat, tint] of [[M.basalt, 0x6e6c6a], ...(t.masonry ? [] : [[M.kerb, 0xb4ad9f], [M.drystone, 0xc9bfae], [M.marble, 0xf2ece0]])]) dress(mat, 'stone', 1, 1, tint);
   if (t.rock) dress(M.redrock, 'rock', 1, 1, [1.6, 0.95, 0.66]);
-  if (t.dirt) dress(M.coal, 'dirt', 1, 1, [0.22, 0.21, 0.2]);
+  if (t.dirt) dress(M.coal, 'dirt', 1, 1, [0.06, 0.058, 0.055]);
   if (t.wood) { dress(M.sleeper, 'wood', 1, 0.15, 0x8a7a68); dress(M.wood, 'wood', 1, 1); dress(M.oak, 'wood', 1, 1, 0x9a8670); dress(M.pole, 'wood', 1, 1, 0x8a7560); }
   if (t.masonry) for (const [mat, tint] of [[M.marble, 0xf4eee2], [M.kerb, 0xb4ad9f], [M.drystone, 0xc2b8a6]]) dress(mat, 'masonry', 1, 1, tint);
   if (t.plaster) for (const [mat, tint] of [[M.plaster, 0xe8d8b8], [M.plasterRed, 0xa04432], [M.plasterOchre, 0xd6a860], [M.whitewash, 0xf2eee4], [M.concrete, 0xc8c4bc]]) dress(mat, 'plaster', 1, 1, tint);
