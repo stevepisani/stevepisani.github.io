@@ -208,9 +208,15 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', 'What should I order?');
   // (if Ask can't be pressed, say what the bar was doing: what hides the box is in main.js's frame loop)
+  // and why Playwright wouldn't press it (its call log: covered, moving, disabled), and what's on top of it)
   await page.click('#chat button[type="submit"]').catch(async (e) => {
-    const s = await page.evaluate(() => { const w = window.__world, $ = (id) => document.getElementById(id); return { chat: !$('chat').hidden, state: w.state, flying: w.cameraFlying, making: w.making, ordering: w.ordering, board: w.board.on, panel: !$('panel').hidden, menu: !$('menu').hidden, typing: $('world').classList.contains('is-typing'), box: $('chat').getBoundingClientRect().toJSON() }; });
-    throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(s)}`);
+    const s = await page.evaluate(() => {
+      const w = window.__world, $ = (id) => document.getElementById(id), b = document.querySelector('#chat button[type="submit"]').getBoundingClientRect();
+      const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+      return { chat: !$('chat').hidden, state: w.state, flying: w.cameraFlying, making: w.making, ordering: w.ordering, board: w.board.on, panel: !$('panel').hidden, menu: !$('menu').hidden, typing: $('world').classList.contains('is-typing'), box: $('chat').getBoundingClientRect().toJSON(), ask: b.toJSON(), onTop: top && `${top.tagName}#${top.id}.${top.className}` };
+    });
+    const why = e.message.split('\n').filter((l) => /intercepts|not stable|not visible|not enabled|outside|detached|scroll/.test(l)).slice(-3).join(' / ');
+    throw new Error(`${e.message.split('\n')[0]} ${why} ${JSON.stringify(s)}`);
   });
   await until(page, () => document.getElementById('chat-ask').hidden);
   // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
@@ -1785,6 +1791,8 @@ async function planetCard(page, shot) {
   await card.getByRole('button', { name: 'Walk around it' }).click();
   const text = flatText(await card.locator('#app').innerText());
   if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  // (the card asks the host to open it, a message away: wait for it to arrive)
+  await until(page, () => window.opened.length > 0, null, 10000).catch(() => {});
   if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
   await shot('card-phone');
   step('in a phone\'s app: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
