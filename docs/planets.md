@@ -31,13 +31,14 @@ how what's built works.
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
     model fixes it and tries again), packs it into a preview link, and shows the card.
 - **The card** (`assets/js/mcp-app/planets.js`, built to `dist/planet-card.js`): SJPJr's card
-  shell (`card.js`) with one view, `views/planet.js`. On a computer it shows the preview page in
-  a frame, so the planet itself is in the chat, with Full screen and Open in browser. The page
-  tells the card how it's going (`tellCard` in `spec.js`: loading, ready, failed); a frame that
-  says nothing for 12 s was blocked by the app, and the card falls back. In a phone's app (the
-  host says `platform: mobile`, or the pointer is coarse), or with no WebGL2, it's a plain card:
-  the sign, the robot's first line, the menu, the chalkboard and the campfire, and "Walk around
-  it", which opens the preview page in the browser. The card's page allows the site as a frame
+  shell (`card.js`) with one view, `views/planet.js`. On a computer and in a phone's app alike it
+  shows the preview page in a frame, so the planet itself is in the chat, walkable by tap or
+  click, with Full screen and Open in browser (Steve, Oct 2026: the phone and the computer should
+  be the same). The page tells the card how it's going (`tellCard` in `spec.js`: loading, ready,
+  failed); a frame that says nothing for 12 s was blocked by the app, and the card falls back. If
+  the frame fails or is blocked, or there's no WebGL2, it's a plain card: the sign, the robot's
+  first line, the menu, the chalkboard and the campfire, and "Walk around it", which opens the
+  preview page in the browser. The card's page allows the site as a frame
   (`frameDomains` for MCP Apps, `frame_domains` in ChatGPT's `openai/widgetCSP`).
 
 ## What a preview draws today

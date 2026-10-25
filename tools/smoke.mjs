@@ -1780,7 +1780,7 @@ async function previewBare(page, shot) {
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
 // in a frame where 3D can run, and on a phone a plain card with a link to walk around it
-async function planetCard(page, shot) {
+async function planetCard(page, shot, { phone = false } = {}) {
   const ctx = { cardScript: async () => readFileSync(join(root, 'assets/js/dist/planet-card.js'), 'utf8') };
   const html = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: planets.APP_URI } }, ctx)).result.contents[0].text;
   const result = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_planet', arguments: { spec: planets.EXAMPLE } } }, ctx)).result;
@@ -1807,18 +1807,8 @@ async function planetCard(page, shot) {
   await page.route(`${base}/__host`, (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#f4f4f2"><div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden"><iframe id="card" sandbox="allow-scripts" style="display:block;width:100%;height:120px;border:0"></iframe></div><script>${host}</script>` }));
   const card = page.frameLocator('#card');
   const show = async (platform) => { await page.goto(`${base}/__host`); await page.evaluate(([h, r, p]) => window.showCard(h, r, p), [html, result, platform]); };
-  // a phone's app: the plain card, and a way to walk round it in the browser
-  await show('mobile');
-  await card.getByRole('button', { name: 'Walk around it' }).click();
-  const text = flatText(await card.locator('#app').innerText());
-  if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
-  // (the card asks the host to open it, a message away: wait for it to arrive)
-  await until(page, () => window.opened.length > 0, null, 10000).catch(() => {});
-  if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
-  await shot('card-phone');
-  step('in a phone\'s app: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
-  // a computer: the planet itself, in the card
-  await show('desktop');
+  // the planet itself, in the card: on a computer and in a phone's app alike
+  await show(phone ? 'mobile' : 'desktop');
   await card.locator('.pl-frame').waitFor();
   let world = null;
   for (let i = 0; i < 240 && !world; i++) { world = page.frames().find((f) => f.url().startsWith(PREVIEW_PAGE)); if (!world) await page.waitForTimeout(250); }
@@ -1826,8 +1816,27 @@ async function planetCard(page, shot) {
   await world.waitForFunction(() => window.__sceneReady, null, { timeout: 240000 });
   if ((await world.textContent('.menu__bar')) !== "Sam's" || (await card.locator('.pl-parts:empty').count()) !== 1) throw new Error("the card's frame should show Sam's planet, and no plain card beside it");
   await page.waitForTimeout(1500);
-  await shot('card-planet');
+  await shot(phone ? 'card-planet-phone' : 'card-planet');
+  if (phone) {
+    // walk on it with a tap, the way a thumb does in the chat
+    const box = await card.locator('.pl-frame').boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * 0.7);
+    await world.waitForFunction(() => window.__world.player.moving, null, { timeout: 30000 });
+    step("in a phone's app: the planet itself, walkable, in the card, as on a computer");
+    return;
+  }
   step('on a computer: the planet itself, walkable, in the card');
+  // where 3D can't run (here, no WebGL2), the plain card, and a way to walk round it in the browser
+  await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return kind === 'webgl2' ? null : get.call(this, kind, ...rest); }; });
+  await show('desktop');
+  await card.getByRole('button', { name: 'Walk around it' }).click();
+  const text = flatText(await card.locator('#app').innerText());
+  if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  // (the card asks the host to open it, a message away: wait for it to arrive)
+  await until(page, () => window.opened.length > 0, null, 10000).catch(() => {});
+  if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
+  await shot('card-plain');
+  step('with no WebGL2: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
 }
 
 const want = (k) => !only || only === k;
@@ -1844,6 +1853,7 @@ if (want('holiday')) await session('holiday', { viewport: { width: 1280, height:
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets bare', { viewport: { width: 1280, height: 800 } }, previewBare);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
+if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
 
 server.close();
