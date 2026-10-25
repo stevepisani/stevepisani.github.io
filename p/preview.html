@@ -11,4 +11,10 @@ sitemap: false
   preview_planet makes the link, and its card in the chat shows this page (docs/planets.md).
   Nothing is stored: the address is the planet. No panels of Steve's: the menu is the spec's links.
 {%- endcomment -%}
+{%- comment -%}
+  Tell the chat's card the page is here before the world's script has even downloaded: the card
+  falls back to a plain card only when a frame says nothing at all (blocked), never because the
+  bundle is slow to arrive.
+{%- endcomment -%}
+<script>if (window.parent !== window) window.parent.postMessage({ planet: 'loading' }, '*');</script>
 {% include world.html preview=true %}

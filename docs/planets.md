@@ -57,9 +57,12 @@ home city in the top bar, the links as the menu, a tiki bar's chalkboard display
 tapping one shows its other fields, and "Make me one" only for a drink with a recipe), a
 campfire's collection (a thought with each marshmallow), the robot's lines, and the cities on the
 telescope's Earth (`telescope.pins`, with a few round the world when there are none). A link to a
-site path means something only on Steve's site, so in a preview it's shown but goes nowhere. The
-launch screen paints the neon sign only for a planet with a bar, and the chat's plain card shows
-the robot and the chalkboard only then too.
+site path means something only on Steve's site, so in a preview it's shown but goes nowhere. A
+preview's launch screen has none of Steve's sign: a plain "Loading the planet…" (Steve, Oct 2026:
+his neon makes no sense on anyone else's; something of their own comes next). The page tells the
+card it's there from an inline script before the world's bundle arrives, so a slow download never
+looks like a blocked frame. The chat's plain card shows the robot and the chalkboard only for a
+planet with a bar.
 
 Each place is still built the way Steve's planet builds it, in the same spot; the hammock's book
 sky stays empty in a preview. A preview never writes: no AI bartender (the chat box is hidden), no
