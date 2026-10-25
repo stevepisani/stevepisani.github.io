@@ -8,7 +8,7 @@
       "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": -1.5708, "along": "y" }
     },
     "chariot": {
-      "prompt": "An ancient Roman two-wheeled racing chariot, a museum reconstruction: a narrow open platform just big enough for one man standing, edged by a low U-shaped bronze and wicker railing waist-high at the front and sides and completely open at the rear. Two big six-spoked wheels on a single axle at the back edge of the platform. One long thin pole from under the platform forward. Nothing on top: no seat, no bench, no roof, no cover, no box",
+      "prompt": "An ancient Roman racing chariot (a biga) without horses, seen from the side: a small open car, waist-high, open at the back, with a curved front breastwork, no roof, no canopy, no seat; two large spoked wooden wheels on one axle; a long straight draught pole sticking 2 m forward from the front at axle height",
       "texture": "Oiled oak wood, worn ochre and red paint on the front screen, dark iron tyres and fittings",
       "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
     },
