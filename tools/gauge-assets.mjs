@@ -1,6 +1,6 @@
 // Makes what's missing for the walk in "Rockets and Horses" (tools/models/gauge.json says what):
 //   - each model by Meshy text-to-3D (a preview, then a refine with PBR textures), or image-to-3D
-//     from its `image` (a stand-in drawn by tools/model-ref.mjs, the materials from `texture`), shrunk with
+//     from its `image` (a stand-in drawn by tools/model-ref.mjs), then retextured from `texture`, shrunk with
 //     gltf-transform (meshopt, WebP textures) into assets/models/gauge/<name>.glb
 //   - the sky (an HDR to light by, and a JPEG to see) and the ground textures from Poly Haven
 //     (CC0) into assets/images/gauge/
@@ -71,7 +71,7 @@ async function model(name, m) {
   if (existsSync(out) && !redo.has(name)) return;
   const rec = redo.has(name) ? {} : manifest[name] || {};
   manifest[name] = rec;
-  if (m.image) return shrink(name, m, rec, await fromImage(name, m, rec));
+  if (m.image) return shrink(name, m, rec, await retexture(name, m, rec, await fromImage(name, m, rec)));
   const prompt = `${m.prompt}. ${spec.style}`.slice(0, 600);
   if (!rec.refine && !redo.has(name)) {
     const t = await madeBefore(prompt);
@@ -100,6 +100,17 @@ async function fromImage(name, m, rec) {
     save();
   }
   return finished(rec.image, `${name} from its picture`, FROM_IMAGE);
+}
+
+// the picture is flat colour, so its model is too: paint it again from the texture words
+const RETEXTURE = 'https://api.meshy.ai/openapi/v1/retexture';
+async function retexture(name, m, rec) {
+  if (!rec.retexture) {
+    const r = await get(RETEXTURE, { method: 'POST', headers: auth, body: JSON.stringify({ input_task_id: rec.image, text_style_prompt: m.texture.slice(0, 800), enable_pbr: true, ai_model: 'latest' }) });
+    rec.retexture = (await r.json()).result;
+    save();
+  }
+  return finished(rec.retexture, `${name} retexture`, RETEXTURE);
 }
 
 async function shrink(name, m, rec, done) {
