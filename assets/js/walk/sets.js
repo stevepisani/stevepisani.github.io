@@ -17,6 +17,13 @@ const mesh = (geo, mat, [x, y, z] = [0, 0, 0], parent) => {
 };
 const box = (w, h, d, mat, at, parent) => mesh(new THREE.BoxGeometry(w, h, d), mat, at, parent);
 const cyl = (rt, rb, h, mat, at, parent, seg = 16) => mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat, at, parent);
+// a round bar from a to b (a pole, a trace): the harness that joins a horse to what it pulls
+function strap(a, b, r, mat, parent) {
+  const from = new THREE.Vector3(...a), to = new THREE.Vector3(...b);
+  const m = mesh(new THREE.CylinderGeometry(r, r, from.distanceTo(to), 8), mat, from.clone().lerp(to, 0.5).toArray(), parent);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
+  return m;
+}
 // A part a model can replace (gauge.js fills each slot with its Meshy model, fitted to the stand-in's size).
 const slot = (name, parent) => {
   const g = new THREE.Group();
@@ -46,7 +53,8 @@ export function horse(M) {
   return g;
 }
 
-/** The chariot of the story and its two horses, side by side ahead of it (toward -x). */
+/** The chariot of the story and its two horses, side by side ahead of it (toward -x), hitched: its
+ * pole runs forward between them to a yoke across their withers. */
 export function chariot(M) {
   const g = new THREE.Group(), c = slot('chariot', g);
   for (const s of [-1, 1]) wheel(0.45, 0.08, M.wood, [0, 0.45, s * (GAUGE / 2 + 0.04)], c);
@@ -54,7 +62,10 @@ export function chariot(M) {
   box(0.9, 0.08, 1.2, M.wood, [0.05, 0.55, 0], c);
   mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.7, 20, 1, true, Math.PI, Math.PI), M.paint, [0.05, 0.92, 0], c); // the front, open at the back (M.paint is two-sided)
   box(2.3, 0.07, 0.07, M.wood, [-1.5, 0.85, 0], c); // the pole
-  for (const s of [-1, 1]) { const h = horse(M); h.position.set(-3.1, 0, s * 0.42); g.add(h); }
+  for (const s of [-1, 1]) { const h = horse(M); h.position.set(-3.1, 0, s * 0.5); g.add(h); }
+  // the pole on, rising to the yoke, and the yoke across both horses' withers
+  strap([-2.4, 0.85, 0], [-3.6, 1.66, 0], 0.045, M.wood, g);
+  strap([-3.6, 1.7, -0.78], [-3.6, 1.7, 0.78], 0.05, M.wood, g);
   return g;
 }
 
@@ -89,6 +100,9 @@ export function chaldron(M) {
   h.position.set(2.9, lift - 0.02, 0);
   h.rotation.y = h.userData.turn = Math.PI;
   g.add(h);
+  // hitched: a bar across the wagon's front, and a trace from each end to the horse's collar
+  strap([1.85, 0.75 + lift, -0.45], [1.85, 0.75 + lift, 0.45], 0.035, M.wood, g);
+  for (const s of [-1, 1]) strap([1.85, 0.75 + lift, s * 0.42], [3.45, 1.32 + lift, s * 0.3], 0.02, M.iron, g);
   return g;
 }
 
