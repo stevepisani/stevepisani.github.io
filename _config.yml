@@ -20,6 +20,7 @@ links:
   twitter: &twitter https://twitter.com/StevenPisani
   tabbystack: https://tabbystack.io
   tabbystack_blog: https://tabbystack.io/blog
+  planets: https://mcp.stevenpisani.com/planets  # the Planets connector (My Tiny Planet): /planets says how to add it
 social:  # for jekyll-seo-tag
   name: Steve Pisani
   links: [*linkedin, *github, *twitter]

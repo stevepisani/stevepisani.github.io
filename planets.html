@@ -1,0 +1,57 @@
+---
+layout: page
+title: My Tiny Planet
+permalink: /planets/
+description: "Tell your ChatGPT or Claude what you love, and it builds you a little walkable planet, right in the chat."
+kicker: My Tiny Planet
+heading: Make a tiny planet of your own
+lede: "Tell your ChatGPT or Claude what you love, and it builds you a little planet like the one on my homepage, right in the chat. It's an early test, so tell me what breaks."
+sitemap: false
+---
+{%- comment -%}
+  How a friend adds the Planets connector (docs/planets.md) and asks for a planet. The address is
+  links.planets in _config.yml; the steps follow each app's settings as of Oct 2026, so check them
+  when either app moves things.
+{%- endcomment -%}
+{%- assign prompt = "Use My Tiny Planet to make me a planet. Ask me a few questions first: my name, what to call the sign, what I love, a few links, and the cities that matter to me." -%}
+
+<h2>1. Copy this address</h2>
+<div class="copy"><span class="copy__text" id="planets-url">{{ site.links.planets }}</span><button class="btn" type="button" data-copy="planets-url">Copy</button></div>
+
+<h2>2. Add it to your AI</h2>
+<h3>Claude (the free plan works)</h3>
+<ol>
+  <li>On <a href="https://claude.ai">claude.ai</a> or the desktop app, open <strong>Customize</strong>, then <strong>Connectors</strong>.</li>
+  <li>Choose <strong>+ Add</strong>, then <strong>Add custom connector</strong>.</li>
+  <li>Name it <strong>My Tiny Planet</strong>, paste the address, and choose <strong>Continue</strong>.</li>
+  <li>Pick <strong>No sign in</strong>, then <strong>Add</strong>.</li>
+</ol>
+<p>The free plan allows one custom connector. Once it's added, it works in Claude's phone app too.</p>
+
+<h3>ChatGPT (Plus or Pro, on the web)</h3>
+<ol>
+  <li>Open <strong>Settings</strong>, then <strong>Apps &amp; Connectors</strong>, then <strong>Advanced settings</strong>, and turn on <strong>Developer mode</strong>.</li>
+  <li>Back in <strong>Apps &amp; Connectors</strong>, choose <strong>Create</strong>.</li>
+  <li>Name it <strong>My Tiny Planet</strong>, paste the address, set authentication to <strong>None</strong>, accept the warning, and choose <strong>Create</strong>.</li>
+</ol>
+
+<h2>3. Ask for a planet</h2>
+<p>Start a new chat, turn on My Tiny Planet from the <strong>+</strong> by the message box, and send this:</p>
+<div class="copy"><span class="copy__text copy__text--words" id="planets-prompt">{{ prompt }}</span><button class="btn" type="button" data-copy="planets-prompt">Copy</button></div>
+<p>It asks a few questions, then shows your planet in the chat. Walk over to the bar, sit down, read the chalkboard, toast a marshmallow at the campfire. Ask for any change and it shows you the new one.</p>
+
+<h2>Good to know</h2>
+<ul>
+  <li>Nothing is saved anywhere. The link it gives you is the planet: keep it to come back, or send it to someone.</li>
+  <li>Anyone with the link can see it, so leave out your address, your phone number and anything private.</li>
+  <li>On a phone, the chat shows a plain card. <strong>Walk around it</strong> opens the planet in your browser.</li>
+  <li>Bits of my planet are still in there, like the hammock and the rocket. Yours takes them over as I build more.</li>
+</ul>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById(b.dataset.copy).textContent.trim()).then(() => {
+      b.textContent = 'Copied'; setTimeout(() => (b.textContent = 'Copy'), 1500);
+    });
+  }));
+</script>
