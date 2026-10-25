@@ -93,12 +93,20 @@ const expectState = async (page, s, timeout) => { await until(page, (s) => windo
 async function pages(page) {
   const all = (function walk(d) { return readdirSync(d).flatMap((f) => { const p = join(d, f); return statSync(p).isDirectory() ? walk(p) : [p]; }); })(root)
     .filter((f) => f.endsWith('.html') && !relative(root, f).startsWith('recipe_tracker/') /* it only redirects */ && relative(root, f) !== 'index.html');
-  for (const f of all) {
+  // a post that moved elsewhere (moved/, layout: redirect) leaves for another site at once, which
+  // this test refuses, and that error page can cut into loading the next one: read those instead
+  const away = /<meta http-equiv="refresh" content="0; url=(https:\/\/[^"]+)">/;
+  const moved = all.filter((f) => away.test(readFileSync(f, 'utf8')));
+  for (const f of moved) {
+    const html = readFileSync(f, 'utf8'), to = html.match(away)[1];
+    if (!html.includes(`<link rel="canonical" href="${to}">`) || !html.includes('noindex')) throw new Error(`${relative(root, f)}: a moved post should point its canonical link at ${to} and say noindex`);
+  }
+  for (const f of all.filter((f) => !moved.includes(f))) {
     const path = '/' + relative(root, f);
     await page.goto(base + path, { waitUntil: 'load' });
     await page.waitForTimeout(150);
   }
-  step(`${all.length} pages load`);
+  step(`${all.length - moved.length} pages load, and ${moved.length} moved posts point where they went`);
   // the bookshelf: one list, by shelf in the library's order, nothing about how a book was read
   const lib = JSON.parse(readFileSync(join(root, 'library.json'), 'utf8'));
   await page.goto(base + '/bookshelf', { waitUntil: 'load' });
