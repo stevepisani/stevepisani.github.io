@@ -8,7 +8,7 @@ import { checkPlanet, packPlanet, planetParts, PREVIEW_PAGE, THEMES, PLACES, DIS
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
-export const SERVER = { name: 'planets', title: 'My Tiny Planet', version: '0.1.0', description: 'Design a little planet of your own, from what you love, and walk around it right in the chat.', websiteUrl: SITE };
+export const SERVER = { name: 'planets', title: 'My Tiny Planet', version: '0.1.0', description: 'Design a little planet of your own, from what you love, and walk around it right in the chat.', websiteUrl: `${SITE}/planets/` };
 
 const INSTRUCTIONS = [
   'My Tiny Planet: design a little walkable planet for the person you are talking with, from what they love, and show it here.',
