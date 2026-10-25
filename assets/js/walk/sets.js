@@ -17,6 +17,13 @@ const mesh = (geo, mat, [x, y, z] = [0, 0, 0], parent) => {
 };
 const box = (w, h, d, mat, at, parent) => mesh(new THREE.BoxGeometry(w, h, d), mat, at, parent);
 const cyl = (rt, rb, h, mat, at, parent, seg = 16) => mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat, at, parent);
+// a round bar from a to b (a pole, a trace): the harness that joins a horse to what it pulls
+function strap(a, b, r, mat, parent) {
+  const from = new THREE.Vector3(...a), to = new THREE.Vector3(...b);
+  const m = mesh(new THREE.CylinderGeometry(r, r, from.distanceTo(to), 8), mat, from.clone().lerp(to, 0.5).toArray(), parent);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), to.sub(from).normalize());
+  return m;
+}
 // A part a model can replace (gauge.js fills each slot with its Meshy model, fitted to the stand-in's size).
 const slot = (name, parent) => {
   const g = new THREE.Group();
@@ -46,15 +53,36 @@ export function horse(M) {
   return g;
 }
 
-/** The chariot of the story and its two horses, side by side ahead of it (toward -x). */
+/**
+ * The chariot of the story, a two-horse racing chariot (a biga) as reconstructions show it: a small
+ * D-shaped floor the driver stands on, a curved wall round its front and sides, open at the back,
+ * two six-spoked wheels on an axle under its back edge, and a pole forward. Its two horses stand
+ * side by side ahead of it (toward -x), hitched: the pole runs on between them to a yoke across
+ * their withers. tools/model-ref.mjs draws this slot for Meshy to build the model from.
+ */
 export function chariot(M) {
   const g = new THREE.Group(), c = slot('chariot', g);
-  for (const s of [-1, 1]) wheel(0.45, 0.08, M.wood, [0, 0.45, s * (GAUGE / 2 + 0.04)], c);
-  mesh(new THREE.CylinderGeometry(0.04, 0.04, GAUGE + 0.2, 8).rotateX(Math.PI / 2), M.iron, [0, 0.45, 0], c);
-  box(0.9, 0.08, 1.2, M.wood, [0.05, 0.55, 0], c);
-  mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.7, 20, 1, true, Math.PI, Math.PI), M.paint, [0.05, 0.92, 0], c); // the front, open at the back (M.paint is two-sided)
-  box(2.3, 0.07, 0.07, M.wood, [-1.5, 0.85, 0], c); // the pole
-  for (const s of [-1, 1]) { const h = horse(M); h.position.set(-3.1, 0, s * 0.42); g.add(h); }
+  const ax = 0.15, r = 0.45, floor = 0.55, front = 0.5; // the axle, the wheels, the floor, its front's curve
+  for (const s of [-1, 1]) {
+    const z = s * (GAUGE / 2 + 0.04), w = new THREE.Group();
+    mesh(new THREE.TorusGeometry(r - 0.03, 0.035, 8, 32), M.iron, [0, 0, 0], w);
+    for (let i = 0; i < 3; i++) box(0.035, r * 2 - 0.08, 0.035, M.wood, [0, 0, 0], w).rotation.z = (i * Math.PI) / 3;
+    cyl(0.07, 0.07, 0.16, M.wood, [0, 0, 0], w).rotation.x = Math.PI / 2;
+    w.position.set(ax, r, z);
+    c.add(w);
+  }
+  mesh(new THREE.CylinderGeometry(0.035, 0.035, GAUGE + 0.2, 8).rotateX(Math.PI / 2), M.iron, [ax, r, 0], c);
+  const d = new THREE.Shape().moveTo(0.3, -front).lineTo(0.3, front).lineTo(-0.05, front).absarc(-0.05, 0, front, Math.PI / 2, (3 * Math.PI) / 2, false).lineTo(0.3, -front);
+  mesh(new THREE.ExtrudeGeometry(d, { depth: 0.05, bevelEnabled: false }).rotateX(Math.PI / 2), M.wood, [0, floor + 0.05, 0], c);
+  // the wall, waist high, round the front and partway back along each side, with a rail round its top
+  const wrap = Math.PI + 1.2;
+  mesh(new THREE.CylinderGeometry(front, front, 0.6, 40, 1, true, Math.PI - 0.6, wrap), M.paint, [-0.05, floor + 0.35, 0], c);
+  mesh(new THREE.TorusGeometry(front, 0.03, 8, 40, wrap).rotateX(Math.PI / 2).rotateY(-Math.PI / 2 - 0.6), M.wood, [-0.05, floor + 0.65, 0], c);
+  strap([-0.45, floor - 0.05, 0], [-2.65, 0.85, 0], 0.04, M.wood, c); // the pole
+  for (const s of [-1, 1]) { const h = horse(M); h.position.set(-3.1, 0, s * 0.5); g.add(h); }
+  // the pole on, rising to the yoke, and the yoke across both horses' withers
+  strap([-2.4, 0.83, 0], [-3.6, 1.66, 0], 0.045, M.wood, g);
+  strap([-3.6, 1.7, -0.78], [-3.6, 1.7, 0.78], 0.05, M.wood, g);
   return g;
 }
 
@@ -86,9 +114,12 @@ export function chaldron(M) {
   c.children.forEach((c) => { c.position.y += lift; });
   mesh(new THREE.CylinderGeometry(1, 0.7, 1.1, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.wood, [0, 1.15 + lift, 0], c);
   const h = horse(M); // ahead of the wagon toward +x, so its head is to the right as you see it
-  h.position.set(2.6, lift - 0.02, 0);
+  h.position.set(2.9, lift - 0.02, 0);
   h.rotation.y = h.userData.turn = Math.PI;
   g.add(h);
+  // hitched: a bar across the wagon's front, and a trace from each end to the horse's collar
+  strap([1.85, 0.75 + lift, -0.45], [1.85, 0.75 + lift, 0.45], 0.035, M.wood, g);
+  for (const s of [-1, 1]) strap([1.85, 0.75 + lift, s * 0.42], [3.45, 1.32 + lift, s * 0.3], 0.02, M.iron, g);
   return g;
 }
 
