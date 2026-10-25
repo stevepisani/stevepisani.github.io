@@ -23,7 +23,9 @@ how what's built works.
 - **The connector**, `supabase/functions/planets` (MCP over Streamable HTTP, stateless, like
   SJPJr's), at `https://mcp.stevenpisani.com/planets` (the proxy in `proxy/` sends `/planets`
   there and everything else to SJPJr). Open to anyone, no sign-in: it reads nothing and stores
-  nothing. Two tools, both read-only:
+  nothing. Its instructions, `get_kit` and the starter message on `/planets/` assume only the
+  planet itself: no sign, bar or anything else is asked for, and a spec needs only `version`,
+  `slug` and `who.name` (Steve, Oct 2026: don't be prescriptive). Two tools, both read-only:
   - `get_kit`: what a spec can hold, what the world draws from it today, the limits, and an
     example (Sam's, which `tools/planet-test.mjs` checks passes);
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
@@ -54,11 +56,17 @@ it, as one view of `/p/preview/` (the spec is after the `#`, so it never reaches
 
 ## Trying it
 
-- ChatGPT (on the web, Developer mode on, as for SJPJr in `docs/apps.md`): Plugins → + → name
-  "My Tiny Planet", URL `https://mcp.stevenpisani.com/planets`
-  (`https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/planets` works too), authentication
-  none. Claude: Settings → Connectors → Add custom connector → "My Tiny Planet", the same URL.
-  Then, in a new chat: "Use My Tiny Planet to make me a planet: I love jazz records and camping."
+- **For a friend:** send them `stevenpisani.com/planets/` (`planets.html`, not in the sitemap): the
+  address with a Copy button, the steps for Claude and for ChatGPT, and the first message to send.
+  The address is `links.planets` in `_config.yml`, and the connector's `websiteUrl` points there.
+  Claude is the easy one (the free plan allows one custom connector, no sign-in, and it works in
+  the phone app once added); ChatGPT needs Plus or Pro and Developer mode, on the web.
+- Claude (Oct 2026): Customize → Connectors → + Add → Add custom connector → "My Tiny Planet",
+  URL `https://mcp.stevenpisani.com/planets`, No sign in → Add. ChatGPT: Settings → Apps &
+  Connectors → Advanced settings → Developer mode on; then Apps & Connectors → Create → the same
+  name and URL, authentication None. (`https://dkaiavlnmtetqigxnkwb.supabase.co/functions/v1/planets`
+  works too.) Then, in a new chat with it turned on: "Use My Tiny Planet to make me a planet: I
+  love jazz records and camping." If either app moves its settings, fix `planets.html` too.
 - After changing the tools or the card, refresh the connector the way `docs/apps.md` says for
   SJPJr (both apps keep the old card until then).
 - Locally: `node tools/smoke.mjs --only planets --shots <dir>` drives the preview page and the
