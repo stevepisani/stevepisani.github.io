@@ -5,7 +5,10 @@
     "rock": "rock_wall_08",
     "wood": "weathered_brown_planks",
     "ballast": "gravel_floor_02",
-    "grass": "aerial_grass_rock"
+    "grass": "aerial_grass_rock",
+    "thatch": "thatch_roof_angled",
+    "plaster": "white_plaster_02",
+    "masonry": "large_sandstone_blocks"
   },
   "horse": {
     "refine": "01a1687f-8ee6-742a-9d70-f5f847ea4642",
@@ -65,5 +68,7 @@
     "file": "shuttle.glb",
     "bytes": 892264,
     "made": "2026-10-23"
-  }
+  },
+  "_sky": "kloofendal_48d_partly_cloudy_puresky",
+  "_dusk": "qwantani_dusk_2_puresky"
 }
