@@ -23,7 +23,9 @@ how what's built works.
 - **The connector**, `supabase/functions/planets` (MCP over Streamable HTTP, stateless, like
   SJPJr's), at `https://mcp.stevenpisani.com/planets` (the proxy in `proxy/` sends `/planets`
   there and everything else to SJPJr). Open to anyone, no sign-in: it reads nothing and stores
-  nothing. Two tools, both read-only:
+  nothing. Its instructions, `get_kit` and the starter message on `/planets/` assume only the
+  planet itself: no sign, bar or anything else is asked for, and a spec needs only `version`,
+  `slug` and `who.name` (Steve, Oct 2026: don't be prescriptive). Two tools, both read-only:
   - `get_kit`: what a spec can hold, what the world draws from it today, the limits, and an
     example (Sam's, which `tools/planet-test.mjs` checks passes);
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the

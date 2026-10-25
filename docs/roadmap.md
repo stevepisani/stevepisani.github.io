@@ -21,7 +21,7 @@ rather than leaving it in a chat.
    `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
    the chat. The telescope's cities now come from the spec too
    (PRO-2288); what's left of Steve in the world is the bartender's offline answers
-   (`barback.js`), which a preview never shows (no chat). A page for friends, `/planets/`, says how to add the connector to Claude or ChatGPT and what to ask; Steve tries it on his own ChatGPT first and compares what it writes with his spec, then sends it to a friend. Next: the displays (PRO-2289), so a preview draws more than the sign, the
+   (`barback.js`), which a preview never shows (no chat). A page for friends, `/planets/`, says how to add the connector to Claude or ChatGPT and what to ask; Only the planet itself is a given: the connector never asks for a sign or a bar. Steve tries it on his own ChatGPT first and compares what it writes with his spec, then sends it to a friend. Next: the displays (PRO-2289), so a preview draws more than the sign, the
    menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
    plain card there, with a link to walk around it in the browser).
 

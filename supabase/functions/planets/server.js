@@ -13,7 +13,8 @@ export const SERVER = { name: 'planets', title: 'My Tiny Planet', version: '0.1.
 const INSTRUCTIONS = [
   'My Tiny Planet: design a little walkable planet for the person you are talking with, from what they love, and show it here.',
   'Call get_kit first: it says what a planet can hold and what is drawn today.',
-  'Ask a few short questions (their name, what to call the place on the sign, what they love, a few links), write the spec, then preview_planet.',
+  'Ask a few open questions about them and what they love, then design the planet around their answers. Only the planet itself is a given: put on it what fits them, and nothing because the kit has a slot for it.',
+  'Write the spec, then preview_planet.',
   'Change it and preview again whenever they ask. Nothing is stored: the preview link is the planet, so give them the link to keep.',
   'A planet is public: never put a home address, phone number or anything private in it.',
 ].join(' ');
@@ -61,9 +62,9 @@ export const EXAMPLE = {
 };
 
 const KIT = {
-  what: 'A planet is one JSON spec. A small walkable planet at night: a tiki bar with a neon sign, a robot behind the bar, a chalkboard, a campfire, a telescope and a rocket. The person lands, walks over, sits at the bar and picks from the menu.',
+  what: 'A planet is one JSON spec, for a small walkable planet. Only the planet is a given; everything on it comes from what the person loves, and a spec needs no more than version, slug and who.name. For now every planet is drawn on the engine of Steve Pisani\'s own planet, so its places (a tiki bar with a robot and a chalkboard, a campfire, a hammock, a telescope, a rocket) are there whatever the spec says, and the spec\'s collections fill them. More kinds of places come as the kit grows.',
   drawn_today: [
-    'who.sign: the neon sign over the bar, the menu card, the telescope (12 characters at most; their name with an apostrophe-s reads best)',
+    'who.sign (optional, defaults to who.name): the neon sign over the bar, the menu card, the telescope (12 characters at most; their name with an apostrophe-s reads best)',
     'who.name: the top bar, and lines that name them',
     'look.home: the top bar ("A tiny planet in Austin"); a city, never an address',
     'links: the menu and the top bar (label, a one-line note, an https:// or mailto: link)',
