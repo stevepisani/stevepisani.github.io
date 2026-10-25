@@ -1,7 +1,7 @@
 // The planet's view in the Planets connector's card (card.js is the shell):
 //   planet   preview_planet: the planet itself, the homepage's world in a frame (/p/preview/#…),
-//            or, where 3D can't run here (a phone's app, a host that won't show the frame), its
-//            parts as a plain card. Either way a link opens it in the browser, full size.
+//            on a computer and in a phone's app alike, or, where 3D can't run (no WebGL2, a host
+//            that won't show the frame, a page that fails), its parts as a plain card. Either way a link opens it in the browser, full size.
 // The preview page tells this card how it's going (assets/js/world/spec.js tellCard): loading,
 // ready, or failed; a frame that says nothing at all was blocked, and the plain card takes over.
 import { app, button, css, el, full, goFull, host, request, views } from '../card.js';
@@ -37,11 +37,11 @@ views.planet = (data) => {
   titles.append(el('h2', 'pl-sign', p.sign), el('p', 'w-sub', p.home ? `${p.name}'s tiny planet, in ${p.home}` : `${p.name}'s tiny planet`));
   head.append(titles);
   const stage = el('div', 'pl-stage'), parts = el('div', 'pl-parts');
-  // 3D where it can run: not in a phone's app (a heavy page in a small webview), and only with WebGL2
-  const phone = host.platform === 'mobile' || matchMedia('(pointer: coarse)').matches;
+  // 3D wherever WebGL2 runs, phones included (Steve: the phone and the computer should be the same);
+  // if the frame then fails or says nothing, the plain card takes over
   let gl = false;
   try { gl = !!document.createElement('canvas').getContext('webgl2'); } catch (e) { /* none */ }
-  const actions = el('div', 'w-actions'), threeD = !phone && gl;
+  const actions = el('div', 'w-actions'), threeD = gl;
   // in 3D here, it opens bigger in the browser; on the plain card, it's the only way to walk round it
   const walk = button('w-btn w-btn--primary', threeD ? 'Open in browser' : 'Walk around it', () => open(data.url));
   const showPlain = () => { stage.replaceWith(head); plain(p, parts); walk.textContent = 'Walk around it'; };

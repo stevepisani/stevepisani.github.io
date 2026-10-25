@@ -22,8 +22,8 @@ rather than leaving it in a chat.
    the chat. The telescope's cities now come from the spec too
    (PRO-2288); what's left of Steve in the world is the bartender's offline answers
    (`barback.js`), which a preview never shows (no chat). A page for friends, `/planets/`, says how to add the connector to Claude or ChatGPT and what to ask; Only the planet itself is a given: the connector never asks for a sign or a bar, and a preview draws only the places its spec lists (none of Steve's own things). Steve tries it on his own ChatGPT first and compares what it writes with his spec, then sends it to a friend. Next: the displays (PRO-2289), so a preview draws more than the sign, the
-   menu, the chalkboard, the campfire and the robot; and checking the card on a phone (it shows a
-   plain card there, with a link to walk around it in the browser).
+   menu, the chalkboard, the campfire and the robot; and checking the card in ChatGPT's phone app (it now shows the
+   walkable planet there too, the same as on a computer; untested on a real phone).
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
@@ -142,8 +142,8 @@ rather than leaving it in a chat.
   the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
   the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
   travels in the link, so nothing is stored. Their sign, name, menu, chalkboard, campfire and
-  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app, a plain card
-  with "Walk around it".
+  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app it's the same
+  walkable planet (a plain card with "Walk around it" only if 3D can't run).
 - Oct 2026: a security audit before Hacker News (the advisors, every policy and grant on the live
   project, every function, the client, the workflows, the whole git history: no secret has ever
   been committed). Fixed: the fireflies' channel made private, presence only, so nobody can
