@@ -1,5 +1,6 @@
 // Makes what's missing for the walk in "Rockets and Horses" (tools/models/gauge.json says what):
-//   - each model by Meshy text-to-3D (a preview, then a refine with PBR textures), shrunk with
+//   - each model by Meshy text-to-3D (a preview, then a refine with PBR textures), or image-to-3D
+//     from its `image` (a stand-in drawn by tools/model-ref.mjs, the materials from `texture`), shrunk with
 //     gltf-transform (meshopt, WebP textures) into assets/models/gauge/<name>.glb
 //   - the sky (an HDR to light by, and a JPEG to see) and the ground textures from Poly Haven
 //     (CC0) into assets/images/gauge/
@@ -45,9 +46,9 @@ async function task(body) {
   const r = await get(MESHY, { method: 'POST', headers: auth, body: JSON.stringify(body) });
   return (await r.json()).result;
 }
-async function finished(id, label) {
+async function finished(id, label, api = MESHY) {
   for (let t = 0; t < 180; t++) { // up to 30 minutes
-    const j = await (await get(`${MESHY}/${id}`, { headers: auth })).json();
+    const j = await (await get(`${api}/${id}`, { headers: auth })).json();
     if (j.status === 'SUCCEEDED') return j;
     if (j.status === 'FAILED' || j.status === 'CANCELED') throw new Error(`${label}: Meshy ${j.status}: ${j.task_error?.message || ''}`);
     await sleep(10000);
@@ -70,6 +71,7 @@ async function model(name, m) {
   if (existsSync(out) && !redo.has(name)) return;
   const rec = redo.has(name) ? {} : manifest[name] || {};
   manifest[name] = rec;
+  if (m.image) return shrink(name, m, rec, await fromImage(name, m, rec));
   const prompt = `${m.prompt}. ${spec.style}`.slice(0, 600);
   if (!rec.refine && !redo.has(name)) {
     const t = await madeBefore(prompt);
@@ -85,8 +87,23 @@ async function model(name, m) {
     rec.refine = await task({ mode: 'refine', preview_task_id: rec.preview, enable_pbr: true, texture_prompt: m.texture.slice(0, 600) });
     save();
   }
-  const done = await finished(rec.refine, `${name} refine`);
-  const raw = TMP + name + '.glb';
+  return shrink(name, m, rec, await finished(rec.refine, `${name} refine`));
+}
+
+// image-to-3D: one task, from the picture as a data URI
+const FROM_IMAGE = 'https://api.meshy.ai/openapi/v1/image-to-3d';
+async function fromImage(name, m, rec) {
+  if (!rec.image) {
+    const image_url = 'data:image/png;base64,' + readFileSync(root + m.image).toString('base64');
+    const r = await get(FROM_IMAGE, { method: 'POST', headers: auth, body: JSON.stringify({ image_url, ai_model: 'latest', topology: 'triangle', target_polycount: m.polycount, should_remesh: true, should_texture: true, enable_pbr: true, texture_prompt: m.texture.slice(0, 800) }) });
+    rec.image = (await r.json()).result;
+    save();
+  }
+  return finished(rec.image, `${name} from its picture`, FROM_IMAGE);
+}
+
+async function shrink(name, m, rec, done) {
+  const out = MODELS + name + '.glb', raw = TMP + name + '.glb';
   writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));
   execFileSync('npx', ['-y', GLTF_CLI, 'optimize', raw, out, '--compress', 'meshopt', '--texture-compress', 'webp', '--texture-size', String(m.textureSize), '--simplify', 'false'], { stdio: 'inherit' });
   Object.assign(rec, { file: name + '.glb', bytes: statSync(out).size, made: new Date().toISOString().slice(0, 10) });

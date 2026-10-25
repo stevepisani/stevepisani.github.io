@@ -1,5 +1,5 @@
 {
-  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures, then shrunk with gltf-transform) into assets/models/gauge/<name>.glb; the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
+  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb; the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
   "style": "Photorealistic, real-world materials and weathering, physically based textures, natural daylight colours, no text or logos, game-ready, a single object on its own with no ground or base",
   "models": {
     "horse": {
@@ -8,8 +8,8 @@
       "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": -1.5708, "along": "y" }
     },
     "chariot": {
-      "prompt": "An ancient Roman racing chariot (a biga) without horses, seen from the side: a small open car, waist-high, open at the back, with a curved front breastwork, no roof, no canopy, no seat; two large spoked wooden wheels on one axle; a long straight draught pole sticking 2 m forward from the front at axle height",
-      "texture": "Oiled oak wood, worn ochre and red paint on the front screen, dark iron tyres and fittings",
+      "image": "tools/models/chariot.png",
+      "texture": "Photorealistic ancient Roman racing chariot: oiled oak floor, rail, pole and spokes, the curved wall painted deep red with worn ochre trim and scuffs, dark hammered iron tyres and fittings, dust from the track",
       "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
     },
     "roman-cart": {
