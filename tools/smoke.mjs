@@ -1750,11 +1750,25 @@ async function preview(page, shot) {
   await until(page, () => !document.getElementById('board-card').hidden);
   if ((await page.textContent('#board-meta')) !== 'Miles Davis · 1959' || await page.isVisible('#board-make') || await page.isVisible('#chat')) throw new Error('a record on the board: its details, no "Make me one", and no AI bartender in a preview');
   step("Sam's planet from the address: the sign, top bar, menu, chalkboard (a record's details, nothing to make) and no bartender to ask");
+  // only what Sam's spec puts on it: the bar, the campfire and the telescope, none of Steve's own things
+  const here = await page.evaluate(() => window.__world.here);
+  if (here.things.sort().join() !== 'campfire,drinks,launch,menu,seat') throw new Error(`Sam's planet should have only what its spec lists: ${here.things}`);
+  step('only what its spec lists: the bar, the campfire and the telescope, none of Steve\'s things');
   const bad = await page.context().newPage();
   await bad.goto(`${base}/p/preview/#not-a-planet`);
   await until(bad, () => /can’t be drawn/.test(document.getElementById('veil-status').textContent), null, 30000);
   await bad.close();
   step('an address with no planet in it says so');
+}
+
+// a planet that lists nothing has nothing on it but the planet: no bar, no sign on the launch screen
+async function previewBare(page, shot) {
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet({ version: 1, slug: 'jo', who: { name: 'Jo' } })}`);
+  await until(page, () => window.__sceneReady, null, 240000);
+  const bare = await page.evaluate(() => ({ ...window.__world.here, neon: getComputedStyle(document.querySelector('.veil__neon')).display }));
+  if (bare.things.length || bare.bar || bare.neon !== 'none') throw new Error(`a planet with nothing listed should be bare: ${JSON.stringify(bare)}`);
+  await shot('bare');
+  step('a planet that lists nothing is just the planet: nothing to use, no bar, no sign while it loads');
 }
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
@@ -1821,6 +1835,7 @@ if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, 
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
+if (want('planets')) await session('planets bare', { viewport: { width: 1280, height: 800 } }, previewBare);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
 

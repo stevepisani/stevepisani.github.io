@@ -4,7 +4,7 @@
 // Planets connector: unpacked and checked here before anything draws, then the page's own text
 // (top bar, menu, the launch screen's sign) is filled in from it, as Jekyll does for Steve's.
 import { checkPlanet, unpackPlanet } from '../../../supabase/functions/_shared/planet.js';
-export { planetParts } from '../../../supabase/functions/_shared/planet.js'; // what the places show
+export { planetParts, planetHas } from '../../../supabase/functions/_shared/planet.js'; // what the places show, and what's on the planet
 import { signSize } from './textures.js';
 
 const KEPT = 'planet-preview'; // the last good preview in this tab, for a reload after the # has moved on
@@ -42,7 +42,8 @@ const link = (l, menu) => {
 export function fillPage(spec, parts) {
   const $ = (id) => document.getElementById(id);
   document.title = `${parts.sign}: a tiny planet`;
-  $('world-canvas').setAttribute('aria-label', `${parts.sign}: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu.`);
+  const bar = parts.has.includes('tiki-bar');
+  $('world-canvas').setAttribute('aria-label', `${parts.sign}: ${bar ? 'a tiki bar on ' : ''}a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu.`);
   $('topbar-name').textContent = spec.who.name;
   $('topbar-line').textContent = spec.look && spec.look.home ? `A tiny planet in ${spec.look.home}` : 'A tiny planet';
   const links = spec.links || [];
@@ -50,7 +51,9 @@ export function fillPage(spec, parts) {
   document.querySelector('.menu__list').replaceChildren(...links.map((l) => { const li = document.createElement('li'); li.append(link(l, true)); return li; }));
   document.querySelector('.menu__bar').textContent = parts.sign;
   $('eyepiece-mag').textContent = parts.engraving;
-  // the launch screen's sign, at the size the neon will be (world.css draws "Steve's" at 61.16 for the neon's 190px)
+  // the launch screen's sign, at the size the neon will be (world.css draws "Steve's" at 61.16 for
+  // the neon's 190px), and none where there's no bar to hang it over
+  document.querySelector('.veil__neon').style.display = bar ? '' : 'none';
   for (const t of document.querySelectorAll('.veil__neon text')) { t.textContent = parts.sign; t.style.fontSize = `${(61.16 * signSize(parts.sign)) / 190}px`; }
 }
 

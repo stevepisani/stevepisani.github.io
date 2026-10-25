@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, planetParts, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -96,6 +96,8 @@ ok(parts.pins[0].city === 'Philadelphia' && parts.pins[0].home && parts.pins.len
 ok(samParts.pins.map((p) => p.city).join() === 'Austin,New Orleans' && leastParts.pins.length === 6 && !leastParts.pins.some((p) => p.home), "their own cities, or a few round the world and no one's home");
 ok(planetParts({ ...least, collections: { r: { title: 'R', items: [{ title: 'Dune', by: 'Herbert' }, { by: 'Anon' }, 3] } }, places: [{ id: 'b', kind: 'tiki-bar', displays: [{ kind: 'chalkboard', collection: 'r' }] }] }).board.items.map((x) => x.name).join() === 'Dune,Anon,3', 'an item is named by its name, title or first text');
 
+ok([...planetHas(steve)].sort().join() === 'campfire,hammock,telescope,tiki-bar' && [...planetHas(sam)].sort().join() === 'launch-pad,telescope,tiki-bar' && planetHas(least).size === 0 && planetHas({ ...least, launchPad: {} }).has('launch-pad'), "what's on a planet: its places by kind, a telescope and a launch pad if it has them, and nothing on the least one");
+
 // ---------- a planet in an address ----------
 const packed = await packPlanet(steve);
 ok(JSON.stringify(await unpackPlanet(packed)) === JSON.stringify(steve), "Steve's planet packs into an address and back");
@@ -120,6 +122,8 @@ ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1]))
 ok(shown.structuredContent.planet.sign === "Sam's" && shown.structuredContent.planet.board.names.join() === 'Opener,Ballad,Closer' && shown.structuredContent.planet.links.length === 2, 'the plain card has what it needs', shown.structuredContent.planet);
 const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
 ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
+const bare = (await call('tools/call', { name: 'preview_planet', arguments: { spec: least } })).result.structuredContent.planet;
+ok(bare.robot === null && bare.board.names.length === 0 && bare.thoughts.length === 0, 'a planet with nothing on it: no robot or chalkboard on its plain card', bare);
 ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
 ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');
 

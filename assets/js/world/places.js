@@ -57,15 +57,35 @@ export const TRAILS = [
   { id: 'campfire2', points: [CUT.ends[1], CUT.to, dirFrom(2.2, -1.4), dirFrom(2.43, -1.58)], width: 0.95, flags: 'steps', seed: 7, meander: 0.5, lanterns: 6, openStart: true },
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
-/** Metres from a direction to the nearest trail's edge (negative on a trail). */
-export const trailEdge = trailEdgeFn(TRAILS);
+
+// What's on a planet. Steve's has everything. Someone else's (the preview page) has only what its
+// spec puts there (planet.js planetHas): the places it lists by kind (tiki-bar, campfire,
+// hammock), a telescope and a launch pad if it has them, and none of Steve's own things ('steve':
+// the door, the radio dish, the petunias, the flatcar, the canoe, the stones, the bottles). The
+// planet itself (its ground, lagoon, cutaway and scatter) is always there.
+export const EVERYTHING = () => true;
+// which trails each kind of place needs: the walk from where you land, and the trails off it
+const TRAIL_FOR = {
+  bar: ['tiki-bar', 'telescope', 'campfire', 'hammock'], rocket: ['launch-pad'], telescope: ['telescope'], door: ['steve'],
+  dish: ['steve', 'campfire', 'hammock'], lagoon: ['hammock'], campfire: ['campfire'], campfire2: ['campfire'],
+};
 // Footprints the planet's grass and pebbles keep out of: the cutaway, the landing pad, the camp,
 // the dish, the boat, the telescope, the petunias and the flatcar (they're placed before any of these exist).
-const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7], [SPOTS.campfire, 2.2], [SPOTS.dish, 1.3], [SPOTS.boat, 1.2], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0], [SPOTS.bottles, 0.7], [SPOTS.telescope, 0.7], [SPOTS.door, 1.4], [SPOTS.petunias, 0.6], [SPOTS.gauge, 3.2]].map(([d, r]) => [d.clone().normalize(), r]);
-/** True within `margin` metres of a landmark's footprint. */
-export const nearLandmark = (dir, margin = 0) => FOOTPRINTS.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
-/** True where nothing should grow: on a trail or under a landmark. */
-export const keepClear = (dir, margin = 0) => trailEdge(dir) < margin || nearLandmark(dir, margin);
+const FOOTPRINTS = [[CUT.up, Math.hypot(...CUT.half) + 0.8], [SPOTS.rocket, 2.7, 'launch-pad'], [SPOTS.campfire, 2.2, 'campfire'], [SPOTS.dish, 1.3, 'steve'], [SPOTS.boat, 1.2, 'steve'], [POND.center, POND.shore + 0.3], [SPOTS.hammock, 2.0, 'hammock'], [SPOTS.bottles, 0.7, 'steve'], [SPOTS.telescope, 0.7, 'telescope'], [SPOTS.door, 1.4, 'steve'], [SPOTS.petunias, 0.6, 'steve'], [SPOTS.gauge, 3.2, 'steve']].map(([d, r, kind]) => [d.clone().normalize(), r, kind]);
+/**
+ * The trails and footprints of a planet with what `has` says is there: `trailEdge` (metres from a
+ * direction to the nearest trail's edge, negative on one), `nearLandmark` (within `margin` metres
+ * of a landmark's footprint) and `keepClear` (where nothing should grow: on a trail or under a landmark).
+ */
+export function layout(has = EVERYTHING) {
+  const trails = TRAILS.filter((t) => TRAIL_FOR[t.id].some(has));
+  const feet = FOOTPRINTS.filter(([, , kind]) => !kind || has(kind));
+  const trailEdge = trailEdgeFn(trails);
+  const nearLandmark = (dir, margin = 0) => feet.some(([d, r]) => d.angleTo(dir) * RADIUS < r + margin);
+  return { has, trails, trailEdge, nearLandmark, keepClear: (dir, margin = 0) => trailEdge(dir) < margin || nearLandmark(dir, margin) };
+}
+// Steve's planet's (the walk along one track, "Rockets and Horses", and the holidays use them)
+export const { trailEdge, nearLandmark, keepClear } = layout();
 
 // How far the ground falls away (along `dir`'s up) within `r` metres of it: sink something by
 // this and no edge of its footprint hangs in the air.
@@ -93,12 +113,29 @@ function mesh(geo, material, [x, y, z] = [0, 0, 0], parent) {
   return m;
 }
 
-export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" }) {
-  const group = new THREE.Group();
-  const animated = [];
-  const colliders = [];
-  const interactables = [];
-  const loose = []; // things physics.js moves: { object, radius, buoyancy (floats if > 1) }
+export function buildPlaces({ prop, quality, badge = null, signName = "Steve's", plan = layout() }) {
+  const { has, trails: trailsHere } = plan;
+  let group = new THREE.Group();
+  let animated = [];
+  let colliders = [];
+  let interactables = [];
+  let loose = []; // things physics.js moves: { object, radius, buoyancy (floats if > 1) }
+  let lit = true; // lamps light the ground (off while building what isn't here)
+  const lampAt = (...a) => lit && addLamp(...a);
+  // A place of a kind this planet doesn't have is still built (main.js holds on to its parts), but
+  // off to the side: in no scene, nothing to bump into, no light on the ground, and its
+  // interactables marked `off`, so nobody can reach them.
+  const section = (kind, build) => {
+    if (has(kind)) return build();
+    const kept = { group, animated, colliders, interactables, loose };
+    group = new THREE.Group(); animated = []; colliders = []; interactables = []; loose = []; lit = false;
+    try { build(); } finally {
+      const off = interactables;
+      ({ group, animated, colliders, interactables, loose } = kept);
+      lit = true;
+      interactables.push(...off.map((it) => ({ ...it, off: true })));
+    }
+  };
   const occupied = [[CUT.up.clone(), Math.hypot(...CUT.half) + 0.5]]; // directions + radii kept clear of scatter (the cutaway's from the start)
 
   const put = (obj, dir, opts = {}, clear = 1.5) => {
@@ -144,7 +181,7 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     put(g, dir, { heading: (dir.x * 13.7 + dir.z * 7.1) % 6.28 }, 0.3);
     colliders.push({ center: g.position.clone(), radius: 0.08, height: height });
     // no real light: it lights the ground through the shaders instead (lamps.js)
-    if (!light) { g.updateMatrixWorld(true); addLamp(g.localToWorld(new THREE.Vector3(0.25, height - 0.23, 0)), pool); }
+    if (!light) { g.updateMatrixWorld(true); lampAt(g.localToWorld(new THREE.Vector3(0.25, height - 0.23, 0)), pool); }
     return g;
   };
   // Something loose lying on the ground, for physics.js to take over: until it loads, it just lies there.
@@ -182,7 +219,7 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
   // standing on its legs on a landing pad (scenery: the menu links to the classic site). At night it
   // has to be findable: floodlights wash up the hull, the pad's edge lights blink in turn, and a
   // beacon on the escape tower's nose blinks like an aircraft's.
-  {
+  section('launch-pad', () => {
     const pad = new THREE.Group();
     const PAD_TOP = 0.2;
     // an octagonal lava-rock slab, deep enough that its edge stays buried where the planet curves away
@@ -297,16 +334,18 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
       rocketMid: pad.localToWorld(new THREE.Vector3(0, PAD_TOP + top * 0.42, 0)),
       rocketBase: pad.localToWorld(new THREE.Vector3(0, PAD_TOP, 0)),
     };
-  }
+  });
 
   // The trails: a flagstone walk from where you land to the bar, and gravel trails from it to
   // everything else, with lanterns along the long ones. Paths lead somewhere; nobody needs to
   // be told to follow one.
   {
-    const trails = buildTrails(TRAILS, { quality });
+    const trails = buildTrails(trailsHere, { quality });
     group.add(trails.group);
     for (const dir of trails.lanterns) lantern(dir, { height: 1.1 });
-    // a pair of tiki torches marks the walk a few steps in, so they don't loom at your feet
+  }
+  // a pair of tiki torches marks the walk to the bar a few steps in, so they don't loom at your feet
+  section('tiki-bar', () => {
     const walk = TRAILS[0].sampled;
     const mark = walk.samples.find((x) => Math.acos(x.up.dot(BAR_DIR)) < 0.43);
     for (const side of [-1, 1]) {
@@ -315,23 +354,24 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
       colliders.push({ center: torch.position.clone(), radius: 0.12, height: 1.8 });
       // its real light (desktop) barely reaches the ground; the pool at its foot does
       torch.updateMatrixWorld(true);
-      addLamp(torch.localToWorld(new THREE.Vector3(0, 1.75, 0)), quality.high ? 9 : 14);
+      lampAt(torch.localToWorld(new THREE.Vector3(0, 1.75, 0)), quality.high ? 9 : 14);
       animated.push((t) => torch.userData.update(t));
     }
-  }
+  });
 
   // A tiki signpost in the corner of the fork, its arrows along the real trails: wayfinding at a
   // glance, from where you land (nobody needs to be told what's out there).
-  {
+  (() => {
     const bar = BAR_DIR.clone();
     const tangent = (from, to) => to.clone().normalize().sub(from.clone().multiplyScalar(to.clone().normalize().dot(from))).normalize();
     const f = FORK.clone().normalize();
     const toBar = tangent(f, bar), toScope = tangent(f, TRAILS[2].points[1]);
     const at = f.clone().multiplyScalar(RADIUS).addScaledVector(toBar.clone().add(toScope).normalize(), 1.6).normalize();
     const dests = [
-      [signName, bar], ['Telescope', TRAILS[2].points[1]], ['Radio dish', TRAILS[3].points[1]],
-      ['Lagoon', TRAILS[3].points[1]], ['Campfire', TRAILS[3].points[1]], ['Rocket', TRAILS[0].points[0]],
-    ];
+      ['tiki-bar', signName, bar], ['telescope', 'Telescope', TRAILS[2].points[1]], ['steve', 'Radio dish', TRAILS[3].points[1]],
+      ['hammock', has('steve') ? 'Lagoon' : 'Hammock', TRAILS[3].points[1]], ['campfire', 'Campfire', TRAILS[3].points[1]], ['launch-pad', 'Rocket', TRAILS[0].points[0]],
+    ].filter(([kind]) => has(kind)).map(([, ...d]) => d);
+    if (dests.length < 2) return; // one way to go needs no sign
     const sign = new THREE.Group();
     put(sign, at, { heading: 0 }, 0.4);
     const inv = sign.quaternion.clone().invert();
@@ -341,11 +381,11 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     });
     sign.add(signpost(boards));
     colliders.push({ center: sign.position.clone(), radius: 0.3 });
-  }
+  })();
 
   // Telescope: a brass refractor on a wooden surveyor's tripod, slowly tracking the sky
   // (aimed at the next launch).
-  {
+  section('telescope', () => {
     const scope = brassTelescope();
     put(scope, SPOTS.telescope, { heading: 2.0, sink: footDrop(SPOTS.telescope, 0.58) + 0.01 }, 1.5);
     // left alone it sweeps the sky slowly; at the eyepiece, main.js turns it (held) to what you look at
@@ -365,13 +405,13 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     }
     colliders.push({ center: scope.position.clone(), radius: 0.6 });
     interactables.push({ id: 'launch', label: 'Telescope', verb: 'Look through it', object: scope, point: scope.position.clone(), approach: surfacePoint(dirFrom(0.54, 2.73)), radius: 2.2, mount });
-  }
+  });
 
   // A door, standing on its own past the telescope, open onto a real place in daylight
   // (realplaces.js): step through it and you're there (portal.js, main.js). It faces back up its
   // trail, so you walk up to it from the dark and look through it out over the meadow.
   let door = null;
-  {
+  section('steve', () => {
     const P = REAL_PLACES.sala;
     door = doorway({ sky: P.sky, plaque: [P.name, P.where, `Scan: ${P.credit.by} · ${P.credit.license}`] });
     put(door.group, SPOTS.door, { heading: headingToward(SPOTS.door, dirFrom(0.8, 2.38)), sink: footDrop(SPOTS.door, 0.85) }, 1.6);
@@ -389,11 +429,11 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
       tex.anisotropy = 4;
       door.setView(tex);
     }), 3000);
-  }
+  });
 
   // The campfire on the far side (camp.js), Outer Wilds style: you sit on the log facing the way
   // the trail comes in, and roast marshmallows.
-  {
+  section('campfire', () => {
     const cf = buildCampfire({ quality });
     const camp = cf.group;
     put(camp, SPOTS.campfire, { heading: 0.8 }, 3);
@@ -421,10 +461,10 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
       id: 'campfire', label: 'Campfire', verb: 'Sit and roast a marshmallow', object: camp, point: camp.position.clone(),
       approach: surfacePoint(toWorld(local.approach).normalize()), radius: 2.8, seat, hotSpot: toWorld(cf.hotSpot),
     });
-  }
+  });
 
   // A retro radio telescope, pointed at the sky.
-  {
+  section('steve', () => {
     // facing the trail as you walk up, tipped back toward the sky
     const dish = ground(radioDish(), SPOTS.dish, { heading: headingToward(SPOTS.dish, dirFrom(0.97, -0.24)) }, 2);
     colliders.push({ center: dish.position.clone(), radius: 0.8 });
@@ -449,20 +489,20 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     lantern(beside(SPOTS.dish, 1.6, 0.5), { height: 1.2 });
     // a ground station: this is where you send Steve a signal
     interactables.push({ id: 'contact', label: 'Radio dish', verb: 'Get in touch', object: dish, point: dish.position.clone(), approach: surfacePoint(dirFrom(1.01, -0.23)), radius: 2.4 });
-  }
+  });
 
   // A bowl of petunias that has just fallen out of the sky, behind where you land. Not announced
   // and it never glints: hover it, or walk up to it, and it thinks what it always thinks.
-  {
+  section('steve', () => {
     const pot = ground(petunias(), SPOTS.petunias, { heading: headingToward(SPOTS.petunias, SPOTS.spawn) }, 0.8);
     interactables.push({ id: 'petunias', label: 'A bowl of petunias', verb: 'Oh no, not again.', object: pot, point: pot.position.clone(), approach: surfacePoint(SPOTS.petunias.clone().lerp(SPOTS.spawn, 0.33).normalize()), radius: 1.6, quiet: true });
-  }
+  });
 
   // A booster segment come by rail, on a flatcar at the end of a short track up to the pad: the
   // rails 4 ft 8½ in apart, like every standard track (the stand-ins from "Rockets and Horses",
   // assets/js/walk/sets.js, at 0.4 scale, like the rest of the planet's toys). Its panel tells the
   // story of that gauge and links to the post's walk along one track.
-  {
+  section('steve', () => {
     const M = {
       iron: pbr({ color: PALETTE.rocketBlack, roughness: 0.55, metalness: 0.5 }), steel: chrome({ roughness: 0.35 }),
       white: pbr({ color: PALETTE.rocketWhite, roughness: 0.6 }), wood: pbr({ color: PALETTE.wood, roughness: 0.9 }),
@@ -481,12 +521,12 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     const side = car.worldToLocal(surfacePoint(SPOTS.spawn)).x > 0 ? 1 : -1; // you come up on the side toward where you land
     lantern(at(side * 1.5, -2.8).normalize(), { height: 1.4 }); // so it's seen at night
     interactables.push({ id: 'gauge', label: 'A booster on a flatcar', verb: 'Why the rails are 4′ 8½″ apart', object: car, point: car.position.clone().addScaledVector(car.position.clone().normalize(), 0.9), approach: surfacePoint(at(side * 3.4, 0.4).normalize()), radius: 2.6 });
-  }
+  });
 
   // An outrigger canoe, pulled up out of the lagoon, for reasons nobody can explain: stern on
   // the sand, bow in the shallows, pointing at the water. The lagoon itself (planet.js) is a
   // collider, so you walk up to the waterline and stop.
-  {
+  section('steve', () => {
     const phi = POND.boatAzimuth;
     // (not ground(): that would sink a 3 m hull by the fall of the ground over its whole length)
     const hull = outriggerCanoe();
@@ -496,11 +536,11 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     put(boat, SPOTS.boat, { heading: headingToward(SPOTS.boat, POND.center), sink: 0.1 }, 2.2);
     lantern(pondDir(shoreAt(LAGOON.lanternPhi) + 1.0, LAGOON.lanternPhi), { height: 1.3 });
     colliders.push({ center: boat.position.clone(), radius: 1.4 });
-    colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35, walkOnly: true }); // stop at the waterline (it wanders ±15%)
-  }
+  });
+  colliders.push({ center: surfacePoint(POND.center), radius: POND.shore - 0.35, walkOnly: true }); // stop at the waterline (it wanders ±15%)
 
   // A hammock between two palms by the lagoon, a book left open in it: the reading list.
-  {
+  section('hammock', () => {
     const phi = LAGOON.hammockPhi, r = shoreAt(phi) + 2.1;
     const along = 1.75 / r; // half the span, as an angle round the lagoon
     const ends = [phi - along, phi + along].map((p) => pondDir(r + 0.1, p));
@@ -539,11 +579,11 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     colliders.push({ center: surfacePoint(SPOTS.hammock), radius: 0.7 });
     // you climb in, lie back and read (main.js lieInHammock); `hammock` is how (props.js)
     interactables.push({ id: 'hammock', label: 'Hammock', verb: 'Lie down and read', object: hm, extra: [books], point: surfacePoint(SPOTS.hammock), approach: surfacePoint(pondDir(r + 1.4, phi)), radius: 2.4, hammock: hm.userData.hammock });
-  }
+  });
 
   // Flat stones at the waterline where the lagoon trail comes down: crouch and skip one
   // (main.js goToShore; stones.js). You crouch just back from the water, facing across it.
-  {
+  section('steve', () => {
     const phi = LAGOON.trailPhi, shore = shoreAt(phi);
     const pile = stonePile();
     put(pile, pondDir(shore + 0.3, phi), { heading: 0.4 }, 0.5);
@@ -552,12 +592,12 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     const up = crouch.clone().normalize();
     interactables.push({ id: 'stones', label: 'Flat stones', verb: 'Skip a stone', object: pile, point: surfacePoint(pondDir(shore + 0.3, phi)), approach: surfacePoint(pondDir(shore + 1.4, phi)), radius: 2.2,
       shore: { eye: crouch.clone().addScaledVector(up, 0.85), stand: crouch.clone().addScaledVector(up, 1.62), look: far.clone().multiplyScalar(RADIUS + POND.level + 0.25) } });
-  }
+  });
 
   // Messages in bottles, washed up at the waterline: crouch behind them and write one, then
   // throw it into space (main.js goToBottles; note.js). You face across the water and up a
   // little, so there's sky to throw it into.
-  {
+  section('steve', () => {
     const phi = LAGOON.bottlesPhi, shore = shoreAt(phi);
     // two glass floats washed up along from them, loose in their nets (they float)
     [[0.9, PALETTE.aqua], [-1.3, PALETTE.amber]].forEach(([m, color]) => {
@@ -574,7 +614,7 @@ export function buildPlaces({ prop, quality, badge = null, signName = "Steve's" 
     const far = pondDir(shoreAt(phi + Math.PI) * 0.6, phi + Math.PI);
     interactables.push({ id: 'bottles', label: 'Messages in bottles', verb: 'Write one', object: pile, point: surfacePoint(SPOTS.bottles), approach: surfacePoint(pondDir(shore + 1.5, phi)), radius: 2.2,
       note: { eye: crouch.clone().addScaledVector(up, 0.85), stand: crouch.clone().addScaledVector(up, 1.62), look: far.clone().multiplyScalar(RADIUS + POND.level + 3), upright: pile.userData.upright } });
-  }
+  });
 
   // Scatter: lava rock, palms and dark greenery.
   {
