@@ -16,7 +16,8 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import SPEC from '../../../tools/models/gauge.json';
 import { alive } from './alive.js';
-import { GAUGE, horse, chariot, romanCart, wagon, chaldron, locomotive, boxcar, boosterCar, track, gaugeBar, tunnel, shuttle } from './sets.js';
+import { GAUGE, horse, chariot, romanCart, wagon, chaldron, locomotive, boxcar, boosterCar, track, gaugeBar, shuttle } from './sets.js';
+import { eras, eraMaterials, groundMaterial } from './eras.js';
 
 const root = document.getElementById('walk');
 const stage = root?.querySelector('.walk__stage');
@@ -30,7 +31,7 @@ const MODELS = script?.dataset.models, IMAGES = script?.dataset.images;
 // (all relative to the scene's x). `bar`: where the brass measure lies across the gauge.
 const SCENES = {
   rails: { x: 0, build: boxcar, eye: [10, 3.4, 11], at: [1, 1.6, 0], bar: [8.6, 0.2] },
-  locomotive: { x: -24, build: locomotive, eye: [-9, 3, 11], at: [-0.5, 1.8, 0], bar: [-6.5, 0.2] },
+  locomotive: { x: -24, build: locomotive, eye: [-6.5, 2.4, 7.5], at: [0.2, 1.5, 0], bar: [-4.5, 0.2] },
   tram: { x: -42, horse: true, build: chaldron, eye: [-1.6, 2.1, 7.4], at: [1.3, 1.0, 0], bar: [-1.5, 0.18] },
   wagon: { x: -60, build: wagon, eye: [4.5, 2.4, 6], at: [-0.6, 1, 0], bar: [2, 0.07] },
   ruts: { x: -78, build: romanCart, eye: [4.5, 2, 5.5], at: [0, 0.8, 0], bar: [2, 0.07] },
@@ -38,7 +39,7 @@ const SCENES = {
   booster: { x: 34, build: boosterCar, eye: [-11, 3.6, 10], at: [2, 2.6, 0], bar: [-8.6, 0.2] },
   shuttle: { x: 140, build: shuttle, eye: [-74, 34, 92], at: [0, 29, 0] },
 };
-const TUNNEL_X = 44; // the booster's flatcar stands at its mouth
+const TUNNEL_X = 49; // the booster's flatcar stands short of its mouth
 
 if (root && canvas) start();
 
@@ -80,7 +81,7 @@ function start() {
 
   const M = materials();
   // the ground, and the way across it, era by era
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.PI / 2), M.grass);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000).rotateX(-Math.PI / 2), M.ground);
   ground.position.set(0, -0.02, 0);
   scene.add(ground);
   const strip = (x0, x1, mat, w = 3.2) => {
@@ -88,23 +89,25 @@ function start() {
     m.position.set((x0 + x1) / 2, 0, 0);
     scene.add(m);
   };
-  strip(-125, -69, M.stone);
-  strip(-69, -51, M.dirt, 3);
-  strip(-51, -33, M.dirt, 2.4);
-  // the ruts: Rome's in stone, then the Middle Ages', several widths side by side
-  for (const [x0, x1, name] of [[-125, -69, 'ruts'], [-69, -51, 'wagon']]) {
+  const X = Object.fromEntries(Object.entries(SCENES).map(([k, s]) => [k, s.x]));
+  X.tunnel = TUNNEL_X;
+  // the way: the Circus's raked sand (Pompeii's paving is its setting's), the lane, the wagonway
+  strip(-128, X.ruts - 10, M.arena, 5);
+  strip(X.wagon - 9, X.wagon + 9, M.dirt, 3);
+  strip(X.tram - 9, X.tram + 9, M.dirt, 2.4);
+  // the ruts: wheel tracks in the sand, grooves worn in Pompeii's stone, then the Middle Ages', several widths side by side
+  for (const [x0, x1, name, mat] of [[-128, X.ruts - 10, 'horses', M.track], [X.ruts - 10, X.ruts + 9, 'ruts', M.rut], [X.wagon - 9, X.wagon + 9, 'wagon', M.rut]]) {
     for (const w of across(name)) for (const s of [-1, 1]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.02, 0.16), M.rut);
-      r.position.set((x0 + x1) / 2, 0.025, s * (w / 2 + 0.08));
+      const r = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.02, 0.16), mat);
+      r.position.set((x0 + x1) / 2, 0.035, s * (w / 2 + 0.08));
       scene.add(r);
     }
   }
-  scene.add(track(M, -51, -33, 'wood'));
-  scene.add(track(M, -33, 118, 'iron'));
-  const t = tunnel(M);
-  t.position.x = TUNNEL_X;
-  scene.add(t);
-  scatter(scene, M);
+  scene.add(track(M, X.tram - 9, X.tram + 9, 'wood'));
+  scene.add(track(M, X.tram + 9, TUNNEL_X + 2, 'iron'));
+  // each era's setting, shown only near its stop (draw)
+  const settings = eras(M, X), shown = order.map((s) => settings[Object.keys(SCENES).find((k) => SCENES[k] === s)]);
+  for (const g of Object.values(settings)) scene.add(g);
 
   for (const [i, s] of order.entries()) {
     const w = widths[i][0], thing = s.build(M, w);
@@ -123,6 +126,9 @@ function start() {
   const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1200);
   const v = (a, x) => new THREE.Vector3(a[0] + x, a[1], a[2]);
   const poses = order.map((s) => ({ eye: v(s.eye, s.x), at: v(s.at, s.x) }));
+  // where each stop's card leaves room: the view is shifted so its subject sits in the middle of
+  // that room, right of the card on a wide screen, above it on a tall one (resize)
+  let room = order.map(() => [0, 0]);
 
   let yaw = 0, progress = -1, visible = true, queued = false;
   const lives = [], horseStops = order.flatMap((s, i) => (s.horse ? [i] : []));
@@ -149,6 +155,8 @@ function start() {
     if (camera.aspect < 1) eye.sub(at).multiplyScalar(Math.min(1.7, 0.85 / camera.aspect)).add(at);
     camera.position.copy(eye);
     camera.lookAt(at);
+    const [ox, oy] = [0, 1].map((k) => THREE.MathUtils.lerp(room[i][k], room[j][k], f));
+    if (ox || oy) camera.setViewOffset(stage.clientWidth, stage.clientHeight, -ox, oy, stage.clientWidth, stage.clientHeight);
     // the shadow's box round what you're looking at, as wide as the view needs
     const r = THREE.MathUtils.clamp(eye.distanceTo(at) * 1.2, 12, 90), c = sun.shadow.camera;
     c.left = c.bottom = -r; c.right = c.top = r; c.near = 1; c.far = r * 6;
@@ -191,6 +199,8 @@ function start() {
       for (const l of lives) l.update(now / 1000);
       more = true;
     }
+    // a setting is there from when the camera sets off toward its stop until it's nearly at the next
+    shown.forEach((g, i) => { if (g) g.visible = Math.abs(p - i) < 0.8; });
     pose(p);
     renderer.render(scene, camera);
     drawn = now;
@@ -209,6 +219,12 @@ function start() {
     camera.aspect = w / h;
     // a narrow screen: a little wider (and pose() stands further back)
     camera.fov = w < h ? 58 : 50;
+    room = stops.map((s) => {
+      const card = s.querySelector('.walk__card'), r = card.getBoundingClientRect();
+      // wide: half the card's right edge, so the subject centres in what's beside it; tall: up by half the card
+      return w >= h ? [Math.min(r.right / 2, w * 0.2), 0] : [0, Math.min((card.offsetHeight + 52) / 2, h * 0.24)];
+    });
+    camera.clearViewOffset();
     camera.updateProjectionMatrix();
     ask();
   }
@@ -257,12 +273,14 @@ function start() {
 function materials() {
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
   return {
-    horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a), coal: std(0x1c1b1a, { roughness: 0.9 }),
+    ...eraMaterials(std),
+    ground: groundMaterial(0x7d8050), arena: std(0xd8c39a, { roughness: 1 }), track: std(0xb59a72, { roughness: 1 }),
+    horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a),
     iron: std(0x34373c, { roughness: 0.6, metalness: 0.4 }), steel: std(0xa7adb3, { roughness: 0.35, metalness: 0.8 }),
     paint: std(0xd8b23a, { side: THREE.DoubleSide }), boxcar: std(0x7a3524), white: std(0xece8df, { roughness: 0.6 }),
-    tank: std(0xc4692b, { roughness: 0.7 }), rock: std(0x8b7b68, { roughness: 1 }), stone: std(0xb9ad97, { roughness: 1 }),
-    dirt: std(0x8a6a48, { roughness: 1 }), rut: std(0x352a20, { roughness: 1 }), grass: std(0x5d6436, { roughness: 1 }),
-    ballast: std(0x77736c, { roughness: 1 }), sleeper: std(0x4b3626), portal: std(0x9a8f80, { roughness: 1 }), dark: new THREE.MeshBasicMaterial({ color: 0x050505 }),
+    tank: std(0xc4692b, { roughness: 0.7 }), stone: std(0xb9ad97, { roughness: 1 }),
+    dirt: std(0x8a6a48, { roughness: 1 }), rut: std(0x352a20, { roughness: 1 }),
+    ballast: std(0x77736c, { roughness: 1 }), sleeper: std(0x4b3626), dark: new THREE.MeshBasicMaterial({ color: 0x050505 }),
     brass: std(0xe0b04a, { emissive: 0xffb43a, emissiveIntensity: 0.9, metalness: 0.6, roughness: 0.3 }),
     flame: new THREE.MeshBasicMaterial({ color: 0xffb35a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }),
   };
@@ -283,24 +301,8 @@ function skyTexture() {
   return t;
 }
 
-// trees either side of the way, the same every time: stand-ins for the tree model (a slot each)
-function scatter(scene, M) {
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const trunk = new THREE.CylinderGeometry(0.15, 0.22, 2, 6), crown = new THREE.ConeGeometry(1.4, 3.6, 7);
-  const leaves = new THREE.MeshStandardMaterial({ color: 0x3f5a2c, roughness: 1 });
-  for (let i = 0; i < 45; i++) {
-    const x = -130 + rnd() * 250, side = rnd() < 0.5 ? -1 : 1, z = side * (7 + rnd() * 45), k = 1.6 + rnd() * 1.4;
-    if ((x > TUNNEL_X - 4 && x < TUNNEL_X + 52 && Math.abs(z) < 40) || (x > 112 && Math.abs(z) < 22)) { i--; continue; } // the mountain, the pad
-    const t = new THREE.Group();
-    t.userData.slot = 'tree';
-    t.userData.turn = rnd() * Math.PI * 2;
-    t.add(new THREE.Mesh(trunk, M.wood).translateY(1), new THREE.Mesh(crown, leaves).translateY(3.6));
-    t.scale.setScalar(k);
-    t.position.set(x, 0, z);
-    scene.add(t);
-  }
-}
+// The site's dark theme (or the terminal one, or none chosen on a dark system): the scene at dusk.
+const dark = () => { const t = document.documentElement.dataset.theme; return t ? t !== 'light' : matchMedia('(prefers-color-scheme: dark)').matches; };
 
 // What tools/gauge-assets.mjs made (assets/models/gauge/manifest.json says what's there), put in
 // as each arrives; anything missing stays as it was.
@@ -308,39 +310,51 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
   let made;
   try { made = await (await fetch(MODELS + 'manifest.json')).json(); } catch (e) { return; }
 
-  // the sky: an HDR to be lit by (and to find the sun in), a photograph to see
+  // the sky: an HDR to be lit by (and to find the sun in), a photograph to see. Two of them: the
+  // day, and dusk for the dark theme, each fetched the first time it's wanted and kept
+  const skies = {};
+  const sky = (name) => (skies[name] ||= Promise.all([
+    new Promise((ok) => new HDRLoader().setDataType(THREE.FloatType).load(IMAGES + name + '.hdr', ok, undefined, () => ok(null))),
+    new Promise((ok) => new THREE.TextureLoader().load(IMAGES + name + '.jpg', ok, undefined, () => ok(null))),
+  ]).then(([hdr, photo]) => {
+    if (!hdr || !photo) return null;
+    hdr.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer), env = pmrem.fromEquirectangular(hdr).texture;
+    pmrem.dispose();
+    const lit = readSky(hdr.image);
+    hdr.dispose();
+    photo.mapping = THREE.EquirectangularReflectionMapping;
+    photo.colorSpace = THREE.SRGBColorSpace;
+    // the haze the ground fades into: the photograph's own colour just above its horizon
+    const c = document.createElement('canvas');
+    c.width = 64; c.height = 32;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(photo.image, 0, 0, 64, 32);
+    const px = g.getImageData(0, 15, 64, 1).data, sum = [0, 0, 0];
+    for (let i = 0; i < px.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += px[i + k];
+    const haze = new THREE.Color().setRGB(sum[0] / 64 / 255, sum[1] / 64 / 255, sum[2] / 64 / 255, THREE.SRGBColorSpace);
+    return { env, photo, haze, ...lit };
+  }));
+  const light = async () => {
+    const dusk = dark() && made._dusk, s = await sky(dusk ? 'dusk' : 'sky');
+    if (!s || (dark() && made._dusk) !== dusk) return; // none, or the theme changed again meanwhile
+    scene.environment = s.env;
+    scene.background = s.photo;
+    sunDir.copy(s.sun);
+    sun.color.copy(s.color);
+    sun.intensity = dusk ? 2.2 : 3.2;
+    hemi.intensity = 0.15;
+    renderer.toneMappingExposure = dusk ? 0.8 : 0.9;
+    scene.fog.color.copy(s.haze);
+    scene.fog.near = 120;
+    scene.fog.far = 700;
+    loaded.add(dusk ? 'dusk' : 'sky');
+    ask();
+  };
   if (made._sky) {
-    new HDRLoader().setDataType(THREE.FloatType).load(IMAGES + 'sky.hdr', (hdr) => {
-      hdr.mapping = THREE.EquirectangularReflectionMapping;
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      scene.environment = pmrem.fromEquirectangular(hdr).texture;
-      pmrem.dispose();
-      const { sun: d, color } = readSky(hdr.image);
-      sunDir.copy(d);
-      sun.color.copy(color);
-      sun.intensity = 3.2;
-      hemi.intensity = 0.15;
-      hdr.dispose();
-      loaded.add('sky');
-      ask();
-    });
-    new THREE.TextureLoader().load(IMAGES + 'sky.jpg', (t) => {
-      t.mapping = THREE.EquirectangularReflectionMapping;
-      t.colorSpace = THREE.SRGBColorSpace;
-      scene.background = t;
-      // the haze the ground fades into: the photograph's own colour just under its horizon
-      const c = document.createElement('canvas');
-      c.width = 64; c.height = 32;
-      const g = c.getContext('2d', { willReadFrequently: true });
-      g.drawImage(t.image, 0, 0, 64, 32);
-      const px = g.getImageData(0, 16, 64, 1).data, sum = [0, 0, 0];
-      for (let i = 0; i < px.length; i += 4) for (let k = 0; k < 3; k++) sum[k] += px[i + k];
-      scene.fog.color.setRGB(sum[0] / 64 / 255, sum[1] / 64 / 255, sum[2] / 64 / 255, THREE.SRGBColorSpace);
-      scene.fog.near = 120;
-      scene.fog.far = 700;
-      loaded.add('background');
-      ask();
-    });
+    light();
+    new MutationObserver(light).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', light);
   }
 
   // the ground: each material its own copy of its photographs, tiled to its size (metres a tile)
@@ -355,19 +369,28 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
     mat.map.colorSpace = THREE.SRGBColorSpace;
     if (normal) mat.normalMap = fit(normal);
     if (rough) mat.roughnessMap = fit(rough);
-    mat.color.set(tint);
+    if (Array.isArray(tint)) mat.color.setRGB(...tint); else mat.color.set(tint); // [r, g, b]: brighter than the photograph
     mat.roughness = 1;
     mat.needsUpdate = true;
     loaded.add(kind);
     ask();
   };
   const t = made._textures || {};
-  if (t.grass) dress(M.grass, 'grass', 750, 750, 0xa4a890);
-  if (t.stone) dress(M.stone, 'stone', 19, 1);
-  if (t.dirt) dress(M.dirt, 'dirt', 6, 1);
+  if (t.grass) dress(M.ground, 'grass', 750, 750, 0xa4a890);
+  if (t.dirt) {
+    dress(M.dirt, 'dirt', 6, 1);
+    dress(M.arena, 'dirt', 13, 1.6, 0xf4e2bc);
+    dress(M.sand, 'dirt', 1, 1, 0xf4e2bc);
+    photos('dirt')[0].then((map) => { if (map) { const u = M.ground.userData.uniforms; u.uEarth.value = map.clone(); u.uEarth.value.wrapS = u.uEarth.value.wrapT = THREE.RepeatWrapping; u.uEarth.value.colorSpace = THREE.SRGBColorSpace; u.uHasEarth.value = 1; ask(); } });
+  }
   if (t.ballast) dress(M.ballast, 'ballast', 56, 1.5);
-  if (t.rock) { dress(M.rock, 'rock', 8, 8, 0xb0a898); dress(M.portal, 'rock', 1 / 4, 1 / 4); }
-  if (t.wood) { dress(M.sleeper, 'wood', 1, 0.15, 0x8a7a68); dress(M.wood, 'wood', 1, 1); }
+  // the settings' blocks have their UVs in metres (eras.js): a photograph once a unit, tinted
+  if (t.stone) for (const [mat, tint] of [[M.basalt, 0x6e6c6a], ...(t.masonry ? [] : [[M.kerb, 0xb4ad9f], [M.drystone, 0xc9bfae], [M.marble, 0xf2ece0]])]) dress(mat, 'stone', 1, 1, tint);
+  if (t.rock) dress(M.redrock, 'rock', 1, 1, [1.9, 1.05, 0.68]);
+  if (t.wood) { dress(M.sleeper, 'wood', 1, 0.15, 0x8a7a68); dress(M.wood, 'wood', 1, 1); dress(M.oak, 'wood', 1, 1, 0x9a8670); dress(M.pole, 'wood', 1, 1, 0x8a7560); }
+  if (t.masonry) for (const [mat, tint] of [[M.marble, 0xf4eee2], [M.kerb, 0xb4ad9f], [M.drystone, 0xc2b8a6]]) dress(mat, 'masonry', 1, 1, tint);
+  if (t.plaster) for (const [mat, tint] of [[M.plaster, 0xe8d8b8], [M.plasterRed, 0xa04432], [M.plasterOchre, 0xd6a860], [M.whitewash, 0xf2eee4], [M.concrete, 0xc8c4bc]]) dress(mat, 'plaster', 1, 1, tint);
+  if (t.thatch) dress(M.thatch, 'thatch', 1, 1, 0xd8c090);
 
   // the models, each in every stand-in's place that's its slot
   const gltf = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -382,7 +405,6 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
       });
       const copies = slots[name].map((stand) => fill(stand, model, m.fit || {}));
       if (name === 'horse') lives.push(...copies.map(alive));
-      if (name === 'tree') instanced(scene, copies);
       loaded.add(name);
       ask();
       ok();
@@ -416,21 +438,6 @@ function fill(stand, model, { rotateY = 0, along = 'x' }) {
   holder.position.applyMatrix4(new THREE.Matrix4().copy(stand.parent.matrixWorld).invert());
   stand.visible = false;
   return copy;
-}
-
-// The same model many times over (the trees): one InstancedMesh per part, each copy where fill()
-// put it, so the GPU draws them all at once instead of one by one.
-function instanced(scene, copies) {
-  const parts = (c) => { const l = []; c.updateWorldMatrix(true, true); c.traverse((o) => o.isMesh && l.push(o)); return l; };
-  const all = copies.map(parts);
-  all[0].forEach((part, k) => {
-    const im = new THREE.InstancedMesh(part.geometry, part.material, copies.length);
-    all.forEach((l, i) => im.setMatrixAt(i, l[k].matrixWorld));
-    im.castShadow = im.receiveShadow = true;
-    im.computeBoundingSphere();
-    scene.add(im);
-  });
-  for (const c of copies) c.parent.removeFromParent(); // the holders fill() made
 }
 
 // how far across (z, from and to) the points of `o` below `y` reach: where its wheels touch

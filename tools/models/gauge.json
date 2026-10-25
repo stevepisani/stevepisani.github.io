@@ -1,5 +1,5 @@
 {
-  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb (textures at `textureSize`, 1024 but for the horse, which is seen closest, so a phone holds them all; `simplify`: keep that share of the triangles, for the tree, drawn 45 times); the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
+  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb (textures at `textureSize`, 1024 but for the horse, which is seen closest, so a phone holds them all; `simplify`: keep that share of the triangles, for a model drawn many times); the sky (`sky`, a day with nothing but sky, and `dusk`, for the dark theme) and the textures for the ground and the eras' buildings from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
   "style": "Photorealistic, real-world materials and weathering, physically based textures, natural daylight colours, no text or logos, game-ready, a single object on its own with no ground or base",
   "models": {
     "horse": {
@@ -46,14 +46,10 @@
       "prompt": "The Space Shuttle launch stack: the white orbiter with black heat-shield tiles on its belly and nose, mounted on the side of the large orange external fuel tank, with two white solid rocket boosters on either side of the tank, standing upright, no launch tower, no flames",
       "texture": "White orbiter with black thermal tiles, rust-orange spray-foam insulation on the external tank, white boosters with grey rings",
       "polycount": 60000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "y" }
-    },
-    "tree": {
-      "prompt": "A single mature English oak tree in full summer leaf, like a photogrammetry scan: broad rounded crown of dense small leaves in natural dark green, thick gnarled trunk with rough bark, realistic proportions, about 15 m tall",
-      "texture": "Rough grey-brown oak bark, dense green leaves in natural light",
-      "polycount": 30000, "textureSize": 1024, "simplify": 0.2, "fit": { "rotateY": 0, "along": "y" }
     }
   },
-  "sky": ["kloofendal_48d_partly_cloudy", "kiara_1_dawn", "rolling_hills", "meadow_2"],
+  "sky": ["kloofendal_48d_partly_cloudy_puresky", "kloofendal_43d_clear_puresky", "kloofendal_28d_misty_puresky", "kloofendal_48d_partly_cloudy"],
+  "dusk": ["qwantani_dusk_2_puresky", "belfast_sunset_puresky", "kloppenheim_06_puresky", "kiara_1_dawn"],
   "sharp": ["grass", "stone", "ballast"],
   "textures": {
     "grass": ["aerial_grass_rock", "forrest_ground_01", "brown_mud_leaves_01", "rocky_terrain_02"],
@@ -61,6 +57,9 @@
     "dirt": ["dirt_floor", "brown_mud_02", "dry_ground_01", "mud_forest"],
     "ballast": ["gravel_floor_02", "gravel_floor", "gravel_road", "aerial_rocks_02"],
     "rock": ["rock_wall_08", "rock_face", "rock_wall_02", "aerial_rocks_04"],
-    "wood": ["weathered_brown_planks", "wood_planks_dirt", "old_planks_02", "brown_planks_03"]
+    "wood": ["weathered_brown_planks", "wood_planks_dirt", "old_planks_02", "brown_planks_03"],
+    "masonry": ["large_sandstone_blocks", "medieval_blocks_02", "stone_brick_wall_001", "castle_brick_01"],
+    "plaster": ["white_plaster_02", "painted_plaster_wall", "beige_wall_001", "plastered_wall_02"],
+    "thatch": ["thatch_roof_angled", "thatched_roof", "dry_hay", "hay_straw"]
   }
 }

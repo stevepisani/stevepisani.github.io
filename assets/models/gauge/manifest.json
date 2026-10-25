@@ -1,5 +1,4 @@
 {
-  "_sky": "kloofendal_48d_partly_cloudy",
   "_textures": {
     "dirt": "dirt_floor",
     "stone": "cobblestone_floor_08",
@@ -65,13 +64,6 @@
     "refine": "01a1687f-8f08-73e0-b57e-3636244d30aa",
     "file": "shuttle.glb",
     "bytes": 892264,
-    "made": "2026-10-23"
-  },
-  "tree": {
-    "preview": "01a168a8-8ee4-735a-9dd0-249e0eee297a",
-    "refine": "01a168ab-b76e-7588-af05-ca5805b054e8",
-    "file": "tree.glb",
-    "bytes": 645528,
     "made": "2026-10-23"
   }
 }
