@@ -15,7 +15,11 @@
     "made": "2026-10-23"
   },
   "chariot": {
-    "image": "01a1746c-0ce4-740b-81f2-60c98bf61093"
+    "image": "01a1746c-0ce4-740b-81f2-60c98bf61093",
+    "retexture": "01a1746f-ce53-754b-a6f0-31ae8bc40a2d",
+    "file": "chariot.glb",
+    "bytes": 1201328,
+    "made": "2026-10-25"
   },
   "roman-cart": {
     "refine": "01a1687f-90d2-7599-aeae-e2a5d7ed1b8d",
