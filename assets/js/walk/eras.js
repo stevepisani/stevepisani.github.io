@@ -154,7 +154,7 @@ function pompeii(M, g, x0, x1) {
   const w = (GAUGE + 0.03) / 2; // the ruts, either side of the middle
   for (const [z, d] of [[0, 0.9], [-(w + 0.62), 0.62], [w + 0.62, 0.62]]) block(0.95, 0.36, d, M.basalt, [x1 - 5.5, 0, z], g, 1);
   // the house fronts across the street, plastered, a dark doorway or shop front in each
-  const fronts = [[7, 5.2, M.plaster], [5, 6.4, M.plasterRed], [8, 4.8, M.plaster], [6, 5.8, M.plasterOchre]];
+  const fronts = [[7, 3.6, M.plaster], [5, 4.6, M.plasterRed], [8, 3.4, M.plaster], [6, 4.2, M.plasterOchre]];
   let x = x0 - 2;
   for (let i = 0; x < x1 + 4; i++) {
     const [fw, fh, mat] = fronts[i % fronts.length];
@@ -174,7 +174,7 @@ function lane(M, g, x0, x1) {
     block(b - a, 0.18, 0.45, M.drystone, [(a + b) / 2, 1.1, -3.6], g, 0.6); // the coping
   }
   // the cottage: whitewashed walls under a steep thatch
-  const cx = x0 + 6, cz = -15;
+  const cx = x0 + 3, cz = -24;
   block(8, 3, 5, M.whitewash, [cx, 0, cz], g);
   const roof = new THREE.Shape([[-3.6, 0], [3.6, 0], [0, 4.2]].map(([a, b]) => new THREE.Vector2(a, b)));
   mesh(metres(new THREE.ExtrudeGeometry(roof, { depth: 9, bevelEnabled: false }), 1.5), M.thatch, [cx - 4.5, 3, cz], g).rotation.y = Math.PI / 2;
@@ -205,7 +205,7 @@ function pit(M, g, x0, x1) {
   // the rope down from the wheel into the shaft
   mesh(new THREE.CylinderGeometry(0.03, 0.03, 10.6, 6), M.iron, [hx + 1.5, 5.6, hz], g);
   // the spoil heap: a long, low ridge of black waste
-  mesh(lumpy(9, 0.08, 4, [13, 9, 8]), M.coal, [x1 - 2, -2, -24], g);
+  mesh(metres(lumpy(9, 0.08, 4, [13, 9, 8]), 2), M.coal, [x1 - 2, -2, -24], g);
   // and coal spilled by the rails
   const rnd = random(23), lumps = [];
   for (let i = 0; i < 40; i++) lumps.push([x0 + rnd() * (x1 - x0), 0.03, (rnd() < 0.5 ? -1 : 1) * (1.3 + rnd() * 1.4), 0.12 + rnd() * 0.12, 0.08, 0.12 + rnd() * 0.1, rnd() * 3]);

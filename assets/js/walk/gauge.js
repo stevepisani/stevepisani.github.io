@@ -91,8 +91,7 @@ function start() {
   };
   const X = Object.fromEntries(Object.entries(SCENES).map(([k, s]) => [k, s.x]));
   X.tunnel = TUNNEL_X;
-  // the way: the Circus's raked sand (Pompeii's paving is its setting's), the lane, the wagonway
-  strip(-128, X.ruts - 10, M.arena, 5);
+  // the way: the lane and the wagonway (the Circus is all sand; Pompeii's paving is its setting's)
   strip(X.wagon - 9, X.wagon + 9, M.dirt, 3);
   strip(X.tram - 9, X.tram + 9, M.dirt, 2.4);
   // the ruts: wheel tracks in the sand, grooves worn in Pompeii's stone, then the Middle Ages', several widths side by side
@@ -151,8 +150,10 @@ function start() {
       d.applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
       eye.copy(at).add(d);
     }
-    // a tall, narrow screen sees less across: stand further back
+    // a tall, narrow screen sees less across: stand further back; a wide one with the card beside
+    // the subject has less room too, a little
     if (camera.aspect < 1) eye.sub(at).multiplyScalar(Math.min(1.7, 0.85 / camera.aspect)).add(at);
+    else eye.sub(at).multiplyScalar(1 + room[i][0] / stage.clientWidth).add(at);
     camera.position.copy(eye);
     camera.lookAt(at);
     const [ox, oy] = [0, 1].map((k) => THREE.MathUtils.lerp(room[i][k], room[j][k], f));
@@ -274,7 +275,7 @@ function materials() {
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
   return {
     ...eraMaterials(std),
-    ground: groundMaterial(0x7d8050), arena: std(0xd8c39a, { roughness: 1 }), track: std(0xb59a72, { roughness: 1 }),
+    ground: groundMaterial(0x7d8050), track: std(0xb59a72, { roughness: 1 }),
     horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a),
     iron: std(0x34373c, { roughness: 0.6, metalness: 0.4 }), steel: std(0xa7adb3, { roughness: 0.35, metalness: 0.8 }),
     paint: std(0xd8b23a, { side: THREE.DoubleSide }), boxcar: std(0x7a3524), white: std(0xece8df, { roughness: 0.6 }),
@@ -379,14 +380,14 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
   if (t.grass) dress(M.ground, 'grass', 750, 750, 0xa4a890);
   if (t.dirt) {
     dress(M.dirt, 'dirt', 6, 1);
-    dress(M.arena, 'dirt', 13, 1.6, 0xf4e2bc);
     dress(M.sand, 'dirt', 1, 1, 0xf4e2bc);
     photos('dirt')[0].then((map) => { if (map) { const u = M.ground.userData.uniforms; u.uEarth.value = map.clone(); u.uEarth.value.wrapS = u.uEarth.value.wrapT = THREE.RepeatWrapping; u.uEarth.value.colorSpace = THREE.SRGBColorSpace; u.uHasEarth.value = 1; ask(); } });
   }
   if (t.ballast) dress(M.ballast, 'ballast', 56, 1.5);
   // the settings' blocks have their UVs in metres (eras.js): a photograph once a unit, tinted
   if (t.stone) for (const [mat, tint] of [[M.basalt, 0x6e6c6a], ...(t.masonry ? [] : [[M.kerb, 0xb4ad9f], [M.drystone, 0xc9bfae], [M.marble, 0xf2ece0]])]) dress(mat, 'stone', 1, 1, tint);
-  if (t.rock) dress(M.redrock, 'rock', 1, 1, [1.9, 1.05, 0.68]);
+  if (t.rock) dress(M.redrock, 'rock', 1, 1, [1.6, 0.95, 0.66]);
+  if (t.dirt) dress(M.coal, 'dirt', 1, 1, [0.22, 0.21, 0.2]);
   if (t.wood) { dress(M.sleeper, 'wood', 1, 0.15, 0x8a7a68); dress(M.wood, 'wood', 1, 1); dress(M.oak, 'wood', 1, 1, 0x9a8670); dress(M.pole, 'wood', 1, 1, 0x8a7560); }
   if (t.masonry) for (const [mat, tint] of [[M.marble, 0xf4eee2], [M.kerb, 0xb4ad9f], [M.drystone, 0xc2b8a6]]) dress(mat, 'masonry', 1, 1, tint);
   if (t.plaster) for (const [mat, tint] of [[M.plaster, 0xe8d8b8], [M.plasterRed, 0xa04432], [M.plasterOchre, 0xd6a860], [M.whitewash, 0xf2eee4], [M.concrete, 0xc8c4bc]]) dress(mat, 'plaster', 1, 1, tint);
