@@ -207,17 +207,17 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.focus('#chat-input');
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', 'What should I order?');
-  // (if Ask can't be pressed, say what the bar was doing: what hides the box is in main.js's frame loop)
-  // and why Playwright wouldn't press it (its call log: covered, moving, disabled), and what's on top of it)
-  await page.click('#chat button[type="submit"]').catch(async (e) => {
-    const s = await page.evaluate(() => {
-      const w = window.__world, $ = (id) => document.getElementById(id), b = document.querySelector('#chat button[type="submit"]').getBoundingClientRect();
-      const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-      return { chat: !$('chat').hidden, state: w.state, flying: w.cameraFlying, making: w.making, ordering: w.ordering, board: w.board.on, panel: !$('panel').hidden, menu: !$('menu').hidden, typing: $('world').classList.contains('is-typing'), box: $('chat').getBoundingClientRect().toJSON(), ask: b.toJSON(), onTop: top && `${top.tagName}#${top.id}.${top.className}` };
-    });
-    const why = e.message.split('\n').filter((l) => /intercepts|not stable|not visible|not enabled|outside|detached|scroll/.test(l)).slice(-3).join(' / ');
-    throw new Error(`${e.message.split('\n')[0]} ${why} ${JSON.stringify(s)}`);
+  // Ask must be there to press: shown, enabled, and the thing under its middle (what a tap hits).
+  // Then press it at that point. Playwright's own wait for the button to be "stable" never ends now
+  // and then under software WebGL with nothing over it and nothing moving (main's runs, Oct 25), so
+  // the test checks what a tap needs itself and clicks without that wait.
+  const ask = await page.evaluate(() => {
+    const w = window.__world, $ = (id) => document.getElementById(id), btn = document.querySelector('#chat button[type="submit"]'), b = btn.getBoundingClientRect();
+    const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return { ok: !$('chat').hidden && !btn.disabled && b.width >= 44 && b.height >= 44 && !!top && btn.contains(top), state: w.state, flying: w.cameraFlying, making: w.making, panel: !$('panel').hidden, menu: !$('menu').hidden, ask: b.toJSON(), onTop: top && `${top.tagName}#${top.id}.${top.className}` };
   });
+  if (!ask.ok) throw new Error(`Ask can't be pressed: ${JSON.stringify(ask)}`);
+  await page.click('#chat button[type="submit"]', { force: true });
   await until(page, () => document.getElementById('chat-ask').hidden);
   // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
