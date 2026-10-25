@@ -8,7 +8,7 @@
       "polycount": 30000, "textureSize": 2048, "fit": { "rotateY": -1.5708, "along": "y" }
     },
     "chariot": {
-      "prompt": "A Roman racing chariot from the Circus Maximus, like in Ben-Hur, empty: a tiny light two-wheeled cart the driver stands in. A small D-shaped standing floor with a waist-high curved front wall wrapping round the sides, fully open at the back. No seat, no roof, no hood, no canopy, no box, no doors. Two large spoked wheels on one axle under the middle of the floor. A single straight pole runs forward from the floor at axle height, ending in a crossbar yoke"",
+      "prompt": "A Roman racing chariot from the Circus Maximus, like in Ben-Hur, empty: a tiny light two-wheeled cart the driver stands in. A small D-shaped standing floor with a waist-high curved front wall wrapping round the sides, fully open at the back. No seat, no roof, no hood, no canopy, no box, no doors. Two large spoked wheels on one axle under the middle of the floor. A single straight pole runs forward from the floor at axle height, ending in a crossbar yoke",
       "texture": "Oiled oak wood, worn ochre and red paint on the front screen, dark iron tyres and fittings",
       "polycount": 25000, "textureSize": 2048, "fit": { "rotateY": 0, "along": "x" }
     },
