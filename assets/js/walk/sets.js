@@ -86,7 +86,7 @@ export function chaldron(M) {
   c.children.forEach((c) => { c.position.y += lift; });
   mesh(new THREE.CylinderGeometry(1, 0.7, 1.1, 4, 1).rotateY(Math.PI / 4).scale(1.1, 1, 0.95), M.wood, [0, 1.15 + lift, 0], c);
   const h = horse(M); // ahead of the wagon toward +x, so its head is to the right as you see it
-  h.position.set(2.6, lift - 0.02, 0);
+  h.position.set(2.9, lift - 0.02, 0);
   h.rotation.y = h.userData.turn = Math.PI;
   g.add(h);
   return g;
