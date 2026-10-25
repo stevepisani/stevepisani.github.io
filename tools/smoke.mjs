@@ -86,6 +86,23 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
 }
 
 const until = (page, fn, arg, timeout = 120000) => page.waitForFunction(fn, arg, { timeout });
+// Press a button on the planet the way a tap does: once it's shown, enabled and the thing under its
+// middle, click that point. Playwright's own wait for it to be "stable" never ends now and then under
+// software WebGL, with nothing over the button and nothing moving (Ask and "Leave the bar", main's
+// runs on Oct 25), so this checks what a tap needs itself and clicks without that wait.
+async function press(page, selector) {
+  await until(page, (sel) => {
+    const el = document.querySelector(sel);
+    if (!el || el.disabled || !el.getClientRects().length || getComputedStyle(el).visibility === 'hidden') return false;
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const b = el.getBoundingClientRect(), top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return !!top && el.contains(top);
+  }, selector, 30000).catch((e) => page.evaluate((sel) => {
+    const el = document.querySelector(sel), b = el && el.getBoundingClientRect(), top = b && document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+    return { found: !!el, disabled: el && el.disabled, box: b && b.toJSON(), onTop: top && `${top.tagName}#${top.id}.${top.className}` };
+  }, selector).then((s) => { throw new Error(`${selector} can't be pressed: ${JSON.stringify(s)} (${e.message.split('\n')[0]})`); }));
+  await page.click(selector, { force: true });
+}
 const flatText = (x) => x.replace(/\s+/g, ' ').trim(); // no-break spaces and line breaks as plain spaces
 const expectState = async (page, s, timeout) => { await until(page, (s) => window.__world.state === s && !window.__world.cameraFlying, s, timeout); };
 
@@ -138,8 +155,8 @@ async function planet(page, shot, { phone = false } = {}) {
   await shot('arrive');
 
   // a section from the top bar opens as a panel, and closes
-  if (phone) { await page.click('#menu-btn'); await page.click('#menu a[data-order="about"]'); }
-  else await page.click('#topbar a[data-order="about"]');
+  if (phone) { await press(page, '#menu-btn'); await press(page, '#menu a[data-order="about"]'); }
+  else await press(page, '#topbar a[data-order="about"]');
   await until(page, () => !document.getElementById('panel').hidden);
   await shot('panel');
   await page.keyboard.press('Escape');
@@ -167,12 +184,12 @@ async function planet(page, shot, { phone = false } = {}) {
   // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
   await tap(await onScreen('menu'));
   await until(page, () => window.__world.menuHeld && !document.getElementById('menu').hidden);
-  await page.click('#menu a[data-order="lab"]');
+  await press(page, '#menu a[data-order="lab"]');
   await until(page, () => !document.getElementById('panel').hidden, null, 60000);
   await shot('ordered');
-  await page.click('#panel-close');
+  await press(page, '#panel-close');
   await until(page, () => document.getElementById('panel').hidden && !document.getElementById('menu').hidden, null, 60000);
-  await page.click('#menu-close');
+  await press(page, '#menu-close');
   await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
   step('menu: picked up, ordered, served, put down');
 
@@ -191,7 +208,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => document.getElementById('board-card').hidden && window.__world.board.on);
   await tap(name);
   await until(page, () => !document.getElementById('board-card').hidden);
-  await page.click('#board-make');
+  await press(page, '#board-make');
   await until(page, () => window.__world.making && !window.__world.board.on && document.querySelectorAll('#making-build li').length > 0);
   await page.keyboard.press('Escape');
   await until(page, () => !window.__world.making, null, 60000);
@@ -207,17 +224,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.focus('#chat-input');
   await until(page, () => window.__world.faceK > 0.99, null, 30000);
   await page.fill('#chat-input', 'What should I order?');
-  // Ask must be there to press: shown, enabled, and the thing under its middle (what a tap hits).
-  // Then press it at that point. Playwright's own wait for the button to be "stable" never ends now
-  // and then under software WebGL with nothing over it and nothing moving (main's runs, Oct 25), so
-  // the test checks what a tap needs itself and clicks without that wait.
-  const ask = await page.evaluate(() => {
-    const w = window.__world, $ = (id) => document.getElementById(id), btn = document.querySelector('#chat button[type="submit"]'), b = btn.getBoundingClientRect();
-    const top = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
-    return { ok: !$('chat').hidden && !btn.disabled && b.width >= 44 && b.height >= 44 && !!top && btn.contains(top), state: w.state, flying: w.cameraFlying, making: w.making, panel: !$('panel').hidden, menu: !$('menu').hidden, ask: b.toJSON(), onTop: top && `${top.tagName}#${top.id}.${top.className}` };
-  });
-  if (!ask.ok) throw new Error(`Ask can't be pressed: ${JSON.stringify(ask)}`);
-  await page.click('#chat button[type="submit"]', { force: true });
+  await press(page, '#chat button[type="submit"]');
   await until(page, () => document.getElementById('chat-ask').hidden);
   // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
   await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
@@ -227,7 +234,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
   step(`asked the bartender: the question showed, and offline the house answered ("${await page.textContent('#chat-log li:last-child')}")`);
 
-  await page.click('#seat-leave');
+  await press(page, '#seat-leave');
   await expectState(page, 'walk', 120000);
   step('left the bar');
 
@@ -254,7 +261,7 @@ async function planet(page, shot, { phone = false } = {}) {
   });
   await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
   await expectState(page, 'seat', 600000);
-  await page.click('#seat-leave');
+  await press(page, '#seat-leave');
   await expectState(page, 'walk', 120000);
   step('from behind the bar: walked round to the front and sat down');
 
@@ -279,7 +286,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.stars > 0, null, 60000);
   if (!(await page.isHidden('#panel'))) throw new Error('lying back opened the reading list: the stars come first');
   await until(page, () => window.__world.sky.settled, null, 60000);
-  await page.click('#hammock-read');
+  await press(page, '#hammock-read');
   await until(page, () => !document.getElementById('panel').hidden, null, 60000);
   await page.keyboard.press('Escape');
   await until(page, () => document.getElementById('panel').hidden);
@@ -299,7 +306,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => !document.getElementById('star-card').hidden, null, 60000);
   if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
   const first = await page.textContent('#star-title');
-  await page.click('#star-next');
+  await press(page, '#star-next');
   if ((await page.textContent('#star-title')) === first) throw new Error("the card's › didn't step to the next book");
   if (/paper|listen|audible/i.test(await page.textContent('#star-card'))) throw new Error('a card still says how the book was read');
   await shot('star');
@@ -325,7 +332,7 @@ async function planet(page, shot, { phone = false } = {}) {
   // Earth's cities come from the spec's telescope pins: Steve's are Philadelphia (ringed) and six round the world
   if (await page.evaluate(() => document.querySelectorAll('#earth-pins .earth-pin:not(.is-iss)').length !== 7 || document.querySelectorAll('#earth-pins .is-home').length !== 1)) throw new Error("the telescope's Earth doesn't pin Steve's cities, home ringed");
   if (await page.evaluate(() => window.__world.scope.count) > 1) {
-    await page.click('#scope-next');
+    await press(page, '#scope-next');
     await until(page, (f) => window.__world.scope.target !== f, firstSight);
   }
   if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
@@ -359,14 +366,14 @@ async function planet(page, shot, { phone = false } = {}) {
     if (r[0] < 44 || r[1] < 44 || !r[2] || !r[3]) throw new Error(`#${id} isn't a whole 44 px tap target on screen (${r.join(', ')})`);
   }
   await shot('launch-control');
-  await page.click('#term-next');
+  await press(page, '#term-next');
   await until(page, () => window.__world.console.term.index === 1);
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#term-remind')]);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), press(page, '#term-remind')]);
   if (!/\.ics$/.test(download.suggestedFilename())) throw new Error(`"Remind me" saved ${download.suggestedFilename()}, not a calendar file`);
-  await page.click('#term-prev');
-  await page.click('#term-test');
+  await press(page, '#term-prev');
+  await press(page, '#term-test');
   await until(page, () => window.__world.console.armed && /Fire/.test(document.getElementById('term-test').textContent));
-  await page.click('#term-test');
+  await press(page, '#term-test');
   await until(page, () => window.__world.console.burning, null, 60000);
   await until(page, () => window.__world.console.open && !window.__world.console.burning && /Engines off/.test(document.getElementById('term-out').textContent), null, 240000);
   if (await page.evaluate(() => window.__world.console.armed)) throw new Error("the engine test's guard stayed up");
@@ -375,7 +382,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await page.evaluate(() => document.querySelector('#menu a[data-order="launch"]').click());
   await until(page, (n) => document.querySelectorAll('#panel-body .launch-row').length === n, fixture.results.length);
   if (!(await page.textContent('#panel-body [data-launch-history]')).trim()) throw new Error('the launch panel has no line from launch history');
-  await page.click('#panel-close');
+  await press(page, '#panel-close');
   await until(page, () => document.getElementById('panel').hidden);
   await page.unroute(/ll\.thespacedevs\.com/);
   step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
@@ -440,7 +447,7 @@ async function planet(page, shot, { phone = false } = {}) {
   await until(page, () => window.__world.note.step === 'writing');
   await page.fill('#note-text', 'Smoke test: hello from the little planet.');
   await shot('note');
-  await page.click('.note__roll');
+  await press(page, '.note__roll');
   await until(page, () => window.__world.note.step === 'ready');
   if (!(await page.evaluate(() => window.__lastBottle && window.__lastBottle.message))) throw new Error('the bottle was not sent');
   await page.evaluate(() => window.__world.note.throwIt());
