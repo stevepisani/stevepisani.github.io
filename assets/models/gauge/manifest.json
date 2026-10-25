@@ -7,7 +7,8 @@
     "grass": "aerial_grass_rock",
     "thatch": "thatch_roof_angled",
     "plaster": "white_plaster_02",
-    "masonry": "large_sandstone_blocks"
+    "masonry": "large_sandstone_blocks",
+    "rock": "rock_face"
   },
   "horse": {
     "refine": "01a1687f-8ee6-742a-9d70-f5f847ea4642",
