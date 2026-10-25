@@ -28,7 +28,7 @@ const MODELS = script?.dataset.models, IMAGES = script?.dataset.images;
 // (all relative to the scene's x). `bar`: where the brass measure lies across the gauge.
 const SCENES = {
   rails: { x: 0, build: boxcar, eye: [10, 3.4, 11], at: [1, 1.6, 0], bar: [8.6, 0.2] },
-  locomotive: { x: -24, build: locomotive, eye: [-4.5, 2.4, 6.5], at: [0.6, 1.2, 0], bar: [-2.2, 0.2] },
+  locomotive: { x: -24, build: locomotive, eye: [-9, 3, 11], at: [-0.5, 1.8, 0], bar: [-6.5, 0.2] },
   tram: { x: -42, horse: true, build: chaldron, eye: [-1.6, 2.1, 7.4], at: [1.3, 1.0, 0], bar: [-1.5, 0.18] },
   wagon: { x: -60, build: wagon, eye: [4.5, 2.4, 6], at: [-0.6, 1, 0], bar: [2, 0.07] },
   ruts: { x: -78, build: romanCart, eye: [4.5, 2, 5.5], at: [0, 0.8, 0], bar: [2, 0.07] },
@@ -44,7 +44,7 @@ function start() {
   // no WebGL: the cards are the whole story (asked of a spare canvas, so three.js logs no error)
   if (!document.createElement('canvas').getContext('webgl2')) return;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.5 : 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, coarse ? 1.5 : 2)); // and less, if frames come slowly (draw)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.9;
   renderer.shadowMap.enabled = true;
@@ -132,6 +132,8 @@ function start() {
       d.applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
       eye.copy(at).add(d);
     }
+    // a tall, narrow screen sees less across: stand further back
+    if (camera.aspect < 1) eye.sub(at).multiplyScalar(Math.min(1.7, 0.85 / camera.aspect)).add(at);
     camera.position.copy(eye);
     camera.lookAt(at);
     // the shadow's box round what you're looking at, as wide as the view needs
@@ -151,20 +153,32 @@ function start() {
     return c.length - 1;
   }
 
-  function draw() {
+  let last = 0, slow = 0;
+  function draw(now) {
     queued = false;
     if (!visible) return;
-    const p = measure();
+    // the camera eases after the scroll instead of jumping with each scroll event (a phone's come
+    // in bursts), and settles a moment after it stops; with reduced motion it keeps up exactly
+    const gap = (now - last) / 1000, dt = gap < 0.1 ? gap : 1 / 60, want = measure(); // after a pause, one frame's worth
+    let p = progress < 0 || reducedMotion ? want : progress + (want - progress) * (1 - Math.exp(-dt * 9));
+    if (Math.abs(want - p) < 0.002) p = want;
     if (progress >= 0 && p !== progress) yaw *= Math.exp(-Math.abs(p - progress) * 3); // scrolling on brings the view back round
     progress = p;
     pose(p);
-    // the horses breathe while one's in view (and the page draws on, frame after frame, only then)
+    let more = p !== want;
+    // the horses breathe while one's in view
     if (lives.length && !reducedMotion && horseStops.some((i) => Math.abs(p - i) < 0.8)) {
-      const t = performance.now() / 1000;
-      for (const l of lives) l.update(t);
-      ask();
+      for (const l of lives) l.update(now / 1000);
+      more = true;
     }
     renderer.render(scene, camera);
+    // frame after frame (only while it moves): if they come slowly, draw fewer pixels
+    if (gap > 0 && gap < 0.1) {
+      slow = slow * 0.9 + (gap > 0.03 ? 0.1 : 0);
+      if (slow > 0.6 && renderer.getPixelRatio() > 1) { renderer.setPixelRatio(Math.max(1, renderer.getPixelRatio() - 0.25)); resize(); slow = 0; }
+    }
+    last = now;
+    if (more) ask();
   }
   const ask = () => { if (!queued) { queued = true; requestAnimationFrame(draw); } };
 
@@ -172,8 +186,8 @@ function start() {
     const w = stage.clientWidth, h = stage.clientHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // a narrow screen sees as much across as a wide one
-    camera.fov = w < h ? 64 : 50;
+    // a narrow screen: a little wider (and pose() stands further back)
+    camera.fov = w < h ? 58 : 50;
     camera.updateProjectionMatrix();
     ask();
   }
@@ -348,9 +362,12 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
   })));
 }
 
-// Put a copy of `model` where `stand` (a stand-in) is: turned, scaled to its size along `along`,
-// centred on it and standing where it stands; the stand-in is hidden.
+// Put a copy of `model` where `stand` (a stand-in) is: turned, scaled, centred on it and standing
+// where it stands; the stand-in is hidden. Scaled so its size along `along` (x, the track; y, up)
+// matches the stand-in's, or, with along "wheels", so its wheels sit on the rails (or in the ruts):
+// what it stands on, its lowest few centimetres, as wide as the gauge and the wheels' treads.
 const box = new THREE.Box3(), size = new THREE.Vector3(), mid = new THREE.Vector3();
+const TREADS = GAUGE + 0.26;
 function fill(stand, model, { rotateY = 0, along = 'x' }) {
   stand.updateWorldMatrix(true, true);
   box.setFromObject(stand);
@@ -360,15 +377,32 @@ function fill(stand, model, { rotateY = 0, along = 'x' }) {
   copy.rotation.y = rotateY + (stand.userData.turn || 0);
   holder.updateMatrixWorld(true);
   box.setFromObject(holder).getSize(size);
-  const k = want[along] / size[along];
-  holder.scale.setScalar(k);
+  const feet = along === 'wheels' && footprint(holder, box.min.y + size.y * 0.03);
+  holder.scale.setScalar(feet ? TREADS / (feet[1] - feet[0]) : want[along] / size[along]);
   holder.updateMatrixWorld(true);
   box.setFromObject(holder).getCenter(mid);
+  // on the track's centre line: the wheels' middle, not the middle of everything (a cylinder on one side)
+  if (feet) mid.z = ((feet[0] + feet[1]) / 2) * holder.scale.x;
   holder.position.set(at.x - mid.x, floor - box.min.y, at.z - mid.z);
   stand.parent.add(holder);
   holder.position.applyMatrix4(new THREE.Matrix4().copy(stand.parent.matrixWorld).invert());
   stand.visible = false;
   return copy;
+}
+
+// how far across (z, from and to) the points of `o` below `y` reach: where its wheels touch
+function footprint(o, y) {
+  const p = new THREE.Vector3();
+  let lo = Infinity, hi = -Infinity;
+  o.traverse((m) => {
+    if (!m.isMesh) return;
+    const a = m.geometry.attributes.position;
+    for (let i = 0; i < a.count; i++) {
+      p.fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld);
+      if (p.y < y) { lo = Math.min(lo, p.z); hi = Math.max(hi, p.z); }
+    }
+  });
+  return hi > lo ? [lo, hi] : null;
 }
 
 // The sun in an equirectangular HDR (its brightest texel) and its colour. Rows run top to bottom (the loader flips them: v = 1 is the top).
