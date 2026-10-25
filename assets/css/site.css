@@ -263,16 +263,16 @@ body:has(.walk) { overflow-x: clip; }
 .prose .walk__stop { margin: 0; }
 .walk__card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px 18px; }
 .walk__when { margin: 0 0 6px; font: .78rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: var(--ink-3); }
+.prose .walk__title, .walk__title { margin: 0 0 8px; font: 650 1.3rem/1.2 var(--font-display); }
 .walk__story { margin: 0; font: 500 1.08rem/1.45 var(--font-display); }
-.walk__legend { margin: 10px 0 0; padding-left: 12px; border-left: 3px solid var(--line); color: var(--ink-2); font-size: .9rem; }
+.walk__legend { margin: 0 0 10px; padding-left: 12px; border-left: 3px solid var(--line); color: var(--ink-2); font-size: .9rem; }
 .walk__legend b { font-weight: 500; }
 .walk.is-live .walk__stage { display: block; position: sticky; top: 0; height: 100vh; height: 100svh; touch-action: pan-y; cursor: grab; user-select: none; }
 .walk.is-live.is-dragged .walk__stage { cursor: auto; }
 .walk__canvas { display: block; width: 100%; height: 100%; }
-.walk__gauge { position: absolute; bottom: 16px; right: 16px; margin: 0; padding: 6px 12px; border-radius: 999px; background: rgb(20 16 10 / .62); color: #f6e3b8; font: .8rem var(--font-mono); }
-.walk__gauge span { color: #ffc95a; font-weight: 700; }
+.walk__gauge { position: absolute; bottom: 16px; right: 16px; margin: 0; padding: 6px 12px; border-radius: 999px; background: rgb(20 16 10 / .62); color: #ffc95a; font: 700 .8rem var(--font-mono); }
 .walk__drag { position: absolute; left: 16px; bottom: 16px; margin: 0; padding: 6px 12px; border-radius: 999px; background: rgb(20 16 10 / .62); color: #f6e3b8; font: .8rem var(--font-body); transition: opacity .4s; }
-.walk.is-dragged .walk__drag { opacity: 0; }
+.walk.is-dragged .walk__drag, .walk.knows-drag .walk__drag { opacity: 0; }
 .walk.is-live .walk__stops { position: relative; margin-top: -100vh; margin-top: -100svh; max-width: none; padding: 0 5vw 40svh; gap: 0; pointer-events: none; }
 .walk.is-live .walk__stop { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; }
 /* over the scene the card is solid in every theme (dark's --card lets the picture through), so the words stay sharp */
@@ -283,7 +283,8 @@ body:has(.walk) { overflow-x: clip; }
   .walk.is-live .walk__card { max-width: none; padding: 12px 14px; }
   .walk.is-live .walk__when { margin-bottom: 4px; font-size: .74rem; }
   .walk.is-live .walk__story { font-size: .98rem; line-height: 1.4; }
-  .walk.is-live .walk__legend { margin-top: 8px; font-size: .84rem; line-height: 1.4; }
+  .walk.is-live .walk__title { margin: 0 0 4px; font-size: 1.08rem; }
+  .walk.is-live .walk__legend { margin-bottom: 8px; font-size: .84rem; line-height: 1.4; }
   .walk__gauge, .walk__drag { bottom: 12px; }
 }
 .prose .fig figcaption { margin-top: 10px; font-size: .9rem; color: var(--ink-2); }
