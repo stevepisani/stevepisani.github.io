@@ -1,5 +1,5 @@
 {
-  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb (textures at `textureSize`, 1024 but for the horse, which is seen closest, so a phone holds them all; `simplify`: keep that share of the triangles, for the tree, drawn 45 times); the sky and the ground textures from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
+  "about": "The models, sky and ground for the walk in \"Rockets and Horses\" (assets/js/walk/). tools/gauge-assets.mjs makes what's missing: each model by Meshy text-to-3D (preview, then a refine with PBR textures), or image-to-3D from `image` where words got the shape wrong (a stand-in drawn by tools/model-ref.mjs), then shrunk with gltf-transform into assets/models/gauge/<name>.glb (textures at `textureSize`, 1024 but for the horse, which is seen closest, so a phone holds them all; `simplify`: keep that share of the triangles, for a model drawn many times); the sky (`sky`, a day with nothing but sky, and `dusk`, for the dark theme) and the textures for the ground and the eras' buildings from Poly Haven (CC0; the first id in each list that exists) into assets/images/gauge/. Run by .github/workflows/models.yml, which has the MESHY_API_KEY secret, whenever this file changes on a branch. `fit` says how gauge.js puts a model in its stand-in's place: turned by rotateY (radians) first, then scaled so its size along `along` (x, the track; y, up) matches the stand-in's, or with `wheels`, so its wheels sit on the rails (or in the ruts).",
   "style": "Photorealistic, real-world materials and weathering, physically based textures, natural daylight colours, no text or logos, game-ready, a single object on its own with no ground or base",
   "models": {
     "horse": {
@@ -13,8 +13,8 @@
       "polycount": 25000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "x" }
     },
     "roman-cart": {
-      "prompt": "A heavy ancient Roman two-wheeled supply cart without an animal: solid plank wheels with iron tyres, a box bed of rough planks, two shafts forward",
-      "texture": "Weathered rough-sawn oak, dark iron tyres and nails, dust and mud on the wheels",
+      "image": "tools/models/roman-cart.png",
+      "texture": "Photorealistic ancient Roman goods cart (plaustrum): two solid wheels of thick rough oak planks held by a cross bar, dark iron tyres and nails, a low box bed of weathered rough-sawn oak, worn shafts, dust and dried mud on the wheels",
       "polycount": 20000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "wagon": {
@@ -23,13 +23,13 @@
       "polycount": 25000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "chaldron": {
-      "prompt": "An 18th century English coal chaldron wagon for a wooden wagonway: a tapering wooden hopper body on a frame with four small iron flanged wheels, heaped with coal, no horse",
-      "texture": "Coal-blackened oak planks, rusty cast iron wheels, lumps of coal",
+      "image": "tools/models/chaldron.png",
+      "texture": "Photorealistic 18th century English coal chaldron wagon: a tapering hopper of coal-blackened oak planks bound with dark iron bands, heaped with lumps of shiny black coal, a heavy oak frame, small rusty cast-iron flanged wheels, a long oak brake lever, coal dust everywhere",
       "polycount": 20000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "locomotive": {
-      "prompt": "Stephenson's Rocket steam locomotive of 1829 with its tender: yellow boiler, tall black chimney at the front, two large front driving wheels and two small rear wheels, angled cylinders, a wooden tender carrying a water barrel",
-      "texture": "Glossy yellow painted iron, black iron chimney, polished brass, white-painted wheel spokes, soot, oak tender and barrel",
+      "image": "tools/models/locomotive.png",
+      "texture": "Photorealistic replica of Stephenson's Rocket of 1829: a glossy yellow-painted iron boiler with black iron bands, a tall black iron chimney, a polished copper firebox at the back, big wooden spoked driving wheels painted yellow with dark iron tyres, black iron cylinders and rods, soot; the tender behind of oiled oak carrying a dark oak water barrel with iron hoops, black iron wheels",
       "polycount": 40000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "boxcar": {
@@ -38,29 +38,28 @@
       "polycount": 30000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "wheels" }
     },
     "booster-car": {
-      "prompt": "A long heavy-duty railroad flatcar carrying one segment of a Space Shuttle solid rocket booster lying on its side in steel cradles: a white steel cylinder 3.7 m across and 8 m long, two four-wheel trucks with steel wheels",
-      "texture": "White painted steel cylinder with grey joint rings, dark weathered steel flatcar deck and cradles, rust, grime",
+      "image": "tools/models/booster-car.png",
+      "texture": "Photorealistic: one Space Shuttle solid rocket booster segment, a plain matte white painted steel cylinder with grey steel joint rings at each end and no fins or nose, lying in dark steel cradles on a long dark weathered steel railroad flatcar with rust, grime and black steel wheels",
       "polycount": 40000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "x" }
     },
     "shuttle": {
       "prompt": "The Space Shuttle launch stack: the white orbiter with black heat-shield tiles on its belly and nose, mounted on the side of the large orange external fuel tank, with two white solid rocket boosters on either side of the tank, standing upright, no launch tower, no flames",
       "texture": "White orbiter with black thermal tiles, rust-orange spray-foam insulation on the external tank, white boosters with grey rings",
       "polycount": 60000, "textureSize": 1024, "fit": { "rotateY": 0, "along": "y" }
-    },
-    "tree": {
-      "prompt": "A single mature English oak tree in full summer leaf, like a photogrammetry scan: broad rounded crown of dense small leaves in natural dark green, thick gnarled trunk with rough bark, realistic proportions, about 15 m tall",
-      "texture": "Rough grey-brown oak bark, dense green leaves in natural light",
-      "polycount": 30000, "textureSize": 1024, "simplify": 0.2, "fit": { "rotateY": 0, "along": "y" }
     }
   },
-  "sky": ["kloofendal_48d_partly_cloudy", "kiara_1_dawn", "rolling_hills", "meadow_2"],
+  "sky": ["kloofendal_48d_partly_cloudy_puresky", "kloofendal_43d_clear_puresky", "kloofendal_28d_misty_puresky", "kloofendal_48d_partly_cloudy"],
+  "dusk": ["qwantani_dusk_2_puresky", "belfast_sunset_puresky", "kloppenheim_06_puresky", "kiara_1_dawn"],
   "sharp": ["grass", "stone", "ballast"],
   "textures": {
     "grass": ["aerial_grass_rock", "forrest_ground_01", "brown_mud_leaves_01", "rocky_terrain_02"],
     "stone": ["cobblestone_floor_08", "cobblestone_floor_04", "cobblestone_floor_01", "medieval_blocks_02"],
     "dirt": ["dirt_floor", "brown_mud_02", "dry_ground_01", "mud_forest"],
     "ballast": ["gravel_floor_02", "gravel_floor", "gravel_road", "aerial_rocks_02"],
-    "rock": ["rock_wall_08", "rock_face", "rock_wall_02", "aerial_rocks_04"],
-    "wood": ["weathered_brown_planks", "wood_planks_dirt", "old_planks_02", "brown_planks_03"]
+    "rock": ["rock_face", "rocks_ground_06", "aerial_rocks_04", "rock_wall_08"],
+    "wood": ["weathered_brown_planks", "wood_planks_dirt", "old_planks_02", "brown_planks_03"],
+    "masonry": ["large_sandstone_blocks", "medieval_blocks_02", "stone_brick_wall_001", "castle_brick_01"],
+    "plaster": ["white_plaster_02", "painted_plaster_wall", "beige_wall_001", "plastered_wall_02"],
+    "thatch": ["thatch_roof_angled", "thatched_roof", "dry_hay", "hay_straw"]
   }
 }
