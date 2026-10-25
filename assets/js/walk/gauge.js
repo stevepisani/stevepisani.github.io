@@ -257,7 +257,7 @@ function start() {
 function materials() {
   const std = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...o });
   return {
-    horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a),
+    horse: std(0x6b3f22), mane: std(0x2a1a10), wood: std(0x8a5a33), hay: std(0xd9b46a), coal: std(0x1c1b1a, { roughness: 0.9 }),
     iron: std(0x34373c, { roughness: 0.6, metalness: 0.4 }), steel: std(0xa7adb3, { roughness: 0.35, metalness: 0.8 }),
     paint: std(0xd8b23a, { side: THREE.DoubleSide }), boxcar: std(0x7a3524), white: std(0xece8df, { roughness: 0.6 }),
     tank: std(0xc4692b, { roughness: 0.7 }), rock: std(0x8b7b68, { roughness: 1 }), stone: std(0xb9ad97, { roughness: 1 }),
