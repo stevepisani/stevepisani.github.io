@@ -82,7 +82,7 @@ deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the 
   - `timeline.yml`: career timeline on /about
   - `lab.yml`: experiments on /lab (first three also appear on the homepage)
   - `drinks.yml`: Steve's favorite drinks and recipes (name, origin, glass, build, method, note, and `make`: how the robot makes it: glass, ice, colour, foam, garnish, and the steps after the pours; the header explains each field): the chalkboard behind the bar, the "Favorite drinks" panel (each recipe gets a "Make me one" button), and /drinks
-  - `gauge.yml`: the stops of the walk in "Rockets and Horses" (where and when, a title, the true story, and optionally the internet legend it replaces): the post's walk (`_includes/gauge-walk.html`) and the flatcar's panel on the planet
+  - `gauge.yml`: the stops of the walk in "Rockets and Horses" (where and when, a title, optionally the internet legend, then the true story that answers it, and what the brass measure reads there and how wide the way is: the ruts before Stephenson disagree): the post's walk (`_includes/gauge-walk.html`) and the flatcar's panel on the planet
   - `moon.yml`: the Apollo landing sites the telescope marks on the real moon (name, when, where, one line)
   - `launch_history.yml`: famous launches by date (name, one line): the launch console shows the one nearest today's date
   - `profile.yml`: who Steve is (headline, what he does, focus, skills, tech stack): /about's skills, and `/profile.json` (`profile.json` at the root), a feed of that plus the latest posts and live lab items that the GitHub profile README is rebuilt from

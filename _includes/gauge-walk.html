@@ -1,23 +1,25 @@
 {%- comment -%}
   The walk along one track (_data/gauge.yml): each stop is a card; scrolling moves a camera along
-  the rails from stop to stop (assets/js/walk/gauge.js), and a drag looks around. Without the
+  the rails from stop to stop (assets/js/walk/gauge.js), and a drag looks around. Each card gives
+  the legend first, where there is one, then what happened. Without the
   script or WebGL it's the cards, one after another, which say everything the scene shows.
 {%- endcomment -%}
 <section class="walk" id="walk" aria-label="The story, one stop at a time">
   <div class="walk__stage" aria-hidden="true">
     <canvas class="walk__canvas"></canvas>
-    <p class="walk__gauge"><span>4′ 8½″</span> the whole way</p>
+    <p class="walk__gauge">{{ site.data.gauge[0].measure }}</p>
     <p class="walk__drag">Drag to look around</p>
   </div>
   <ol class="walk__stops">
     {%- for s in site.data.gauge %}
-    <li class="walk__stop" data-scene="{{ s.scene }}">
+    <li class="walk__stop" data-scene="{{ s.scene }}" data-measure="{{ s.measure }}" data-gauge="{{ s.gauge | default: 56.5 }}">
       <div class="walk__card">
         <p class="walk__when">{{ s.when }}</p>
-        <p class="walk__story">{{ s.story }}</p>
+        <h3 class="walk__title">{{ s.title }}</h3>
         {%- if s.legend %}
         <p class="walk__legend"><b>The legend:</b> {{ s.legend }}</p>
         {%- endif %}
+        <p class="walk__story">{{ s.story }}</p>
       </div>
     </li>
     {%- endfor %}

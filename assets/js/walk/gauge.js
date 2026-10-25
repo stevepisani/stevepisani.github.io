@@ -3,7 +3,9 @@
 // Rome at the far -x end, today's rails at 0, the tunnel and the pad at +x. Scrolling the cards
 // moves the camera from one stop to the next (the first five walk back in time, then it rises and
 // flies over all of it to the booster and the Shuttle), and a sideways drag looks around the stop.
-// The camera moves only with the scroll or a drag; with reduced motion the same, minus the arc.
+// The camera moves only with the scroll or a drag; with reduced motion the same, but the long way
+// is a cut. Each stop says what its brass measure reads (`measure` in gauge.yml, in the corner),
+// and how wide the way is there (`gauge`, inches): the ruts before Stephenson don't agree.
 // Without WebGL the page stays the cards. It draws at once with stand-ins built in code (sets.js)
 // and a plain sky, then puts in what tools/gauge-assets.mjs made, as each arrives: the Meshy
 // models in their stand-ins' places (assets/models/gauge/), a real sky to see and be lit by, the
@@ -48,13 +50,19 @@ function start() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 0.9;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  root.classList.add('is-live');
 
   const stops = [...root.querySelectorAll('.walk__stop')];
   const order = stops.map((s) => SCENES[s.dataset.scene]).filter(Boolean);
   if (order.length !== stops.length) throw new Error('gauge.js: a stop in _data/gauge.yml names a scene it has no set for');
+  // each stop's widths across the way, in metres: the first is where its wheels run
+  const widths = stops.map((s) => (s.dataset.gauge || '56.5').split(' ').map((n) => n * 0.0254));
+  const across = (name) => widths[order.indexOf(SCENES[name])] || [GAUGE];
+  root.classList.add('is-live');
+  // lost the GPU (a phone under pressure): the cards alone, until it's back
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); root.classList.remove('is-live'); });
+  canvas.addEventListener('webglcontextrestored', () => { root.classList.add('is-live'); ask(); });
 
   const scene = new THREE.Scene();
   const sky = skyTexture();
@@ -83,10 +91,13 @@ function start() {
   strip(-125, -69, M.stone);
   strip(-69, -51, M.dirt, 3);
   strip(-51, -33, M.dirt, 2.4);
-  for (const s of [-1, 1]) { // the ruts, with the gauge between them
-    const r = new THREE.Mesh(new THREE.BoxGeometry(125 - 51, 0.02, 0.16), M.rut);
-    r.position.set((-125 - 51) / 2, 0.025, s * (GAUGE / 2 + 0.08));
-    scene.add(r);
+  // the ruts: Rome's in stone, then the Middle Ages', several widths side by side
+  for (const [x0, x1, name] of [[-125, -69, 'ruts'], [-69, -51, 'wagon']]) {
+    for (const w of across(name)) for (const s of [-1, 1]) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.02, 0.16), M.rut);
+      r.position.set((x0 + x1) / 2, 0.025, s * (w / 2 + 0.08));
+      scene.add(r);
+    }
   }
   scene.add(track(M, -51, -33, 'wood'));
   scene.add(track(M, -33, 118, 'iron'));
@@ -95,12 +106,13 @@ function start() {
   scene.add(t);
   scatter(scene, M);
 
-  for (const s of order) {
-    const thing = s.build(M);
+  for (const [i, s] of order.entries()) {
+    const w = widths[i][0], thing = s.build(M, w);
     thing.position.x = s.x;
+    thing.traverse((o) => { if (o.userData.slot) o.userData.gauge = w; }); // fill() puts the wheels this far apart
     scene.add(thing);
     if (s.bar) {
-      const b = gaugeBar(M, s.bar[1]);
+      const b = gaugeBar(M, s.bar[1], w);
       b.position.x = s.x + s.bar[0];
       scene.add(b);
     }
@@ -121,10 +133,11 @@ function start() {
     // hold still while a card is near the middle, then move on: smoothstep over the gap's middle
     let f = THREE.MathUtils.clamp((p - i - 0.2) / 0.6, 0, 1);
     f = f * f * (3 - 2 * f);
+    const far = Math.abs(poses[j].eye.x - poses[i].eye.x);
+    if (far > 60 && reducedMotion) f = f < 0.5 ? 0 : 1; // the long way, with reduced motion: a cut
     eye.lerpVectors(poses[i].eye, poses[j].eye, f);
     at.lerpVectors(poses[i].at, poses[j].at, f);
     // a long way (Rome to Utah): rise and fly over it all
-    const far = Math.abs(poses[j].eye.x - poses[i].eye.x);
     if (far > 60 && !reducedMotion) eye.y += Math.sin(f * Math.PI) * far * 0.22;
     // a drag turns the view round the stop
     if (yaw) {
@@ -153,31 +166,39 @@ function start() {
     return c.length - 1;
   }
 
-  let last = 0, slow = 0;
+  const pill = root.querySelector('.walk__gauge');
+  let last = 0, slow = 0, drawn = 0, said = 0;
   function draw(now) {
     queued = false;
     if (!visible) return;
     // the camera eases after the scroll instead of jumping with each scroll event (a phone's come
-    // in bursts), and settles a moment after it stops; with reduced motion it keeps up exactly
-    const gap = (now - last) / 1000, dt = gap < 0.1 ? gap : 1 / 60, want = measure(); // after a pause, one frame's worth
+    // in bursts), and settles a moment after it stops; with reduced motion it keeps up exactly.
+    // By the clock, so a slow phone keeps up too; after a pause (nothing drawn), one frame's worth.
+    const gap = (now - last) / 1000, dt = gap < 0.25 ? gap : 1 / 60, want = measure();
     let p = progress < 0 || reducedMotion ? want : progress + (want - progress) * (1 - Math.exp(-dt * 9));
     if (Math.abs(want - p) < 0.002) p = want;
     if (progress >= 0 && p !== progress) yaw *= Math.exp(-Math.abs(p - progress) * 3); // scrolling on brings the view back round
     progress = p;
-    pose(p);
+    // what the measure reads: the nearest stop's
+    const near = Math.round(p);
+    if (pill && near !== said) { said = near; pill.textContent = stops[near].dataset.measure || ''; }
     let more = p !== want;
-    // the horses breathe while one's in view
-    if (lives.length && !reducedMotion && horseStops.some((i) => Math.abs(p - i) < 0.8)) {
+    // the horses breathe while one's in view: 30 frames a second is plenty for that alone
+    const breathing = lives.length && !reducedMotion && horseStops.some((i) => Math.abs(p - i) < 0.8);
+    last = now;
+    if (breathing) {
+      if (!more && now - drawn < 30) { ask(); return; }
       for (const l of lives) l.update(now / 1000);
       more = true;
     }
+    pose(p);
     renderer.render(scene, camera);
+    drawn = now;
     // frame after frame (only while it moves): if they come slowly, draw fewer pixels
     if (gap > 0 && gap < 0.1) {
       slow = slow * 0.9 + (gap > 0.03 ? 0.1 : 0);
       if (slow > 0.6 && renderer.getPixelRatio() > 1) { renderer.setPixelRatio(Math.max(1, renderer.getPixelRatio() - 0.25)); resize(); slow = 0; }
     }
-    last = now;
     if (more) ask();
   }
   const ask = () => { if (!queued) { queued = true; requestAnimationFrame(draw); } };
@@ -197,7 +218,15 @@ function start() {
 
   // drag sideways to look round the stop (vertical swipes still scroll the page)
   let dragX = null, down = null;
-  stage.addEventListener('pointerdown', (e) => { dragX = e.clientX; down = { x: e.clientX, y: e.clientY, t: e.timeStamp }; stage.setPointerCapture(e.pointerId); root.classList.add('is-dragged'); });
+  // the hint goes once you've dragged, here or on an earlier visit
+  const knows = () => { try { return localStorage.getItem('walk-dragged'); } catch { return null; } };
+  if (knows()) root.classList.add('knows-drag');
+  stage.addEventListener('pointerdown', (e) => {
+    dragX = e.clientX; down = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+    stage.setPointerCapture(e.pointerId);
+    root.classList.add('is-dragged');
+    try { localStorage.setItem('walk-dragged', '1'); } catch { /* private window: the hint comes back next time */ }
+  });
   stage.addEventListener('pointermove', (e) => {
     if (dragX === null) return;
     yaw = THREE.MathUtils.clamp(yaw - (e.clientX - dragX) * 0.006, -1.4, 1.4);
@@ -220,7 +249,7 @@ function start() {
 
   resize();
   const loaded = new Set();
-  window.__walk = { scenes: order.length, progress: () => progress, renderer, loaded, lives };
+  window.__walk = { scenes: order.length, progress: () => progress, loaded }; // for tools/smoke.mjs
   // the real things, once the stand-ins are drawn
   if (MODELS) requestAnimationFrame(() => dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, ask, lives }));
 }
@@ -260,7 +289,7 @@ function scatter(scene, M) {
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const trunk = new THREE.CylinderGeometry(0.15, 0.22, 2, 6), crown = new THREE.ConeGeometry(1.4, 3.6, 7);
   const leaves = new THREE.MeshStandardMaterial({ color: 0x3f5a2c, roughness: 1 });
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < 45; i++) {
     const x = -130 + rnd() * 250, side = rnd() < 0.5 ? -1 : 1, z = side * (7 + rnd() * 45), k = 1.6 + rnd() * 1.4;
     if ((x > TUNNEL_X - 4 && x < TUNNEL_X + 52 && Math.abs(z) < 40) || (x > 112 && Math.abs(z) < 22)) { i--; continue; } // the mountain, the pad
     const t = new THREE.Group();
@@ -351,10 +380,9 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
         o.castShadow = o.receiveShadow = true;
         if (o.material.map) o.material.map.anisotropy = 8;
       });
-      for (const stand of slots[name]) {
-        const copy = fill(stand, model, m.fit || {});
-        if (name === 'horse') lives.push(alive(copy));
-      }
+      const copies = slots[name].map((stand) => fill(stand, model, m.fit || {}));
+      if (name === 'horse') lives.push(...copies.map(alive));
+      if (name === 'tree') instanced(scene, copies);
       loaded.add(name);
       ask();
       ok();
@@ -367,8 +395,8 @@ async function dressUp({ scene, M, renderer, hemi, sun, sunDir, ground, loaded, 
 // matches the stand-in's, or, with along "wheels", so its wheels sit on the rails (or in the ruts):
 // what it stands on, its lowest few centimetres, as wide as the gauge and the wheels' treads.
 const box = new THREE.Box3(), size = new THREE.Vector3(), mid = new THREE.Vector3();
-const TREADS = GAUGE + 0.26;
 function fill(stand, model, { rotateY = 0, along = 'x' }) {
+  const treads = (stand.userData.gauge || GAUGE) + 0.26;
   stand.updateWorldMatrix(true, true);
   box.setFromObject(stand);
   const want = box.getSize(new THREE.Vector3()), at = box.getCenter(new THREE.Vector3()), floor = box.min.y;
@@ -378,7 +406,7 @@ function fill(stand, model, { rotateY = 0, along = 'x' }) {
   holder.updateMatrixWorld(true);
   box.setFromObject(holder).getSize(size);
   const feet = along === 'wheels' && footprint(holder, box.min.y + size.y * 0.03);
-  holder.scale.setScalar(feet ? TREADS / (feet[1] - feet[0]) : want[along] / size[along]);
+  holder.scale.setScalar(feet ? treads / (feet[1] - feet[0]) : want[along] / size[along]);
   holder.updateMatrixWorld(true);
   box.setFromObject(holder).getCenter(mid);
   // on the track's centre line: the wheels' middle, not the middle of everything (a cylinder on one side)
@@ -388,6 +416,21 @@ function fill(stand, model, { rotateY = 0, along = 'x' }) {
   holder.position.applyMatrix4(new THREE.Matrix4().copy(stand.parent.matrixWorld).invert());
   stand.visible = false;
   return copy;
+}
+
+// The same model many times over (the trees): one InstancedMesh per part, each copy where fill()
+// put it, so the GPU draws them all at once instead of one by one.
+function instanced(scene, copies) {
+  const parts = (c) => { const l = []; c.updateWorldMatrix(true, true); c.traverse((o) => o.isMesh && l.push(o)); return l; };
+  const all = copies.map(parts);
+  all[0].forEach((part, k) => {
+    const im = new THREE.InstancedMesh(part.geometry, part.material, copies.length);
+    all.forEach((l, i) => im.setMatrixAt(i, l[k].matrixWorld));
+    im.castShadow = im.receiveShadow = true;
+    im.computeBoundingSphere();
+    scene.add(im);
+  });
+  for (const c of copies) c.parent.removeFromParent(); // the holders fill() made
 }
 
 // how far across (z, from and to) the points of `o` below `y` reach: where its wheels touch
