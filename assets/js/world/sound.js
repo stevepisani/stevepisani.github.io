@@ -45,6 +45,7 @@ export function createSound({ scene, camera, spots }) {
 
   // A source at a place: its input (a GainNode) feeds a PositionalAudio there.
   function place(name, pos, { ref = 3, max = 60, rolloff = 1.3, gain = 1 } = {}) {
+    if ((spots.off || []).includes(name)) gain = 0; // not on this planet
     const a = new THREE.PositionalAudio(listener);
     a.setRefDistance(ref); a.setMaxDistance(max); a.setRolloffFactor(rolloff); a.setDistanceModel('inverse');
     a.position.copy(pos);

@@ -62,18 +62,19 @@ export const EXAMPLE = {
 };
 
 const KIT = {
-  what: 'A planet is one JSON spec, for a small walkable planet. Only the planet is a given; everything on it comes from what the person loves, and a spec needs no more than version, slug and who.name. For now every planet is drawn on the engine of Steve Pisani\'s own planet, so its places (a tiki bar with a robot and a chalkboard, a campfire, a hammock, a telescope, a rocket) are there whatever the spec says, and the spec\'s collections fill them. More kinds of places come as the kit grows.',
+  what: 'A planet is one JSON spec, for a small walkable planet at night. Only the planet is a given: its ground, a lagoon, palms and rocks. Everything on it comes from what the person loves, and a spec needs no more than version, slug and who.name. A place is drawn only if the spec lists it (places, by kind), and the telescope and the launch pad only if the spec has them.',
   drawn_today: [
-    'who.sign (optional, defaults to who.name): the neon sign over the bar, the menu card, the telescope (12 characters at most; their name with an apostrophe-s reads best)',
+    'places: what is built on the planet, each only if listed: a tiki-bar (a bar with a bartender robot, a chalkboard and a menu card), a campfire (sit on the log and roast marshmallows), a hammock (lie back under the stars). The telescope is there if telescope is set, the rocket and its launch console if launchPad is.',
+    'who.sign (optional, defaults to who.name): the neon sign over a tiki-bar, its menu card, the telescope (12 characters at most)',
     'who.name: the top bar, and lines that name them',
     'look.home: the top bar ("A tiny planet in Austin"); a city, never an address',
     'links: the menu and the top bar (label, a one-line note, an https:// or mailto: link)',
     'a tiki-bar place\'s chalkboard display: up to six names chalked behind the bar; tapping one shows its details (an object\'s other fields)',
     'a campfire place\'s collection: one thought each time they eat a toasted marshmallow',
-    'robot.lines: what the bartender robot says while they sit',
+    'robot.lines: what a tiki-bar\'s robot says while they sit',
     'telescope.pins: cities on the Earth in the telescope, each with its time now; home: true rings it (without pins, a few round the world)',
   ],
-  kept_for_later: 'Everything else in a valid spec (star-sky displays, the hammock, the telescope\'s sights, the launch pad) is checked and kept, and drawn as the planet grows. The rest of the planet is Steve Pisani\'s for now: it is his planet\'s engine.',
+  kept_for_later: 'Everything else in a valid spec (star-sky displays, the telescope\'s sights, the launch pad\'s countdowns) is checked and kept, and drawn as the planet grows. Each place is built the way Steve Pisani\'s own planet builds it for now: more kinds of places, and ways to dress them, come as the kit grows.',
   shape: {
     version: 1,
     slug: 'a-z, 0-9 and -, 2 to 32 characters: the planet\'s name in its address',
@@ -117,7 +118,8 @@ async function call(name, args) {
   if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and preview again:\n${errors.slice(0, 30).join('\n')}`);
   const url = `${PREVIEW_PAGE}#${await packPlanet(spec)}`;
   const p = planetParts(spec);
-  const planet = { name: p.name, sign: p.sign, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), board: { title: p.board.title, names: p.board.items.slice(0, 6).map((x) => x.name) }, thoughts: p.thoughts.slice(0, 6), robot: p.robot.lines[0] };
+  const bar = p.has.includes('tiki-bar'); // the robot and the chalkboard are the bar's
+  const planet = { name: p.name, sign: p.sign, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), board: { title: p.board.title, names: bar ? p.board.items.slice(0, 6).map((x) => x.name) : [] }, thoughts: p.thoughts.slice(0, 6), robot: bar ? p.robot.lines[0] : null };
   return {
     text: `${p.sign} is ready. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
     data: { view: 'planet', url, planet },

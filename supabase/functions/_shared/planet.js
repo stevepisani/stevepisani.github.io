@@ -232,6 +232,19 @@ export function checkPlanet(spec) {
 }
 
 // ---------- What the world draws ----------
+/**
+ * What's on a planet besides the planet itself, from a spec that passed checkPlanet: the kinds of
+ * the places it lists, and 'telescope' and 'launch-pad' when it has them. Nothing else is drawn
+ * on someone else's planet (assets/js/world/places.js layout); Steve's has everything, his own
+ * things too.
+ */
+export function planetHas(spec) {
+  const kinds = new Set((spec.places || []).map((p) => p.kind));
+  if (spec.telescope) kinds.add('telescope');
+  if (spec.launchPad) kinds.add('launch-pad');
+  return kinds;
+}
+
 // an item in a collection as one line: text as it is; an object by its name or title, or its first text
 const line = (x) => {
   if (x === null || x === undefined) return '';
@@ -267,6 +280,7 @@ export function planetParts(spec) {
     thoughts: ((fire && fire.items) || []).map(line).filter(Boolean),
     robot: { lines: robot.lines && robot.lines.length ? robot.lines : ['Welcome in. Have a look around.'], ask: robot.ask || [] },
     pins: (spec.telescope && spec.telescope.pins && spec.telescope.pins.length ? spec.telescope.pins : WORLD_PINS),
+    has: [...planetHas(spec)],
   };
 }
 

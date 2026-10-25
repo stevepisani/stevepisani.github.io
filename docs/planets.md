@@ -42,17 +42,28 @@ how what's built works.
 
 ## What a preview draws today
 
-The sign (neon, the menu card, the signpost, the telescope's ring), the name and home city in
-the top bar, the links as the menu, a tiki bar's chalkboard display (up to six names; tapping one
-shows its other fields, and "Make me one" only for a drink with a recipe), a campfire's
-collection (a thought with each marshmallow), the robot's lines, and the cities on the
-telescope's Earth (`telescope.pins`, with a few round the world when there are none). A link to a site path means
-something only on Steve's site, so in a preview it's shown but goes nowhere.
+Only what its spec puts on the planet (`planetHas` in `planet.js`; `layout` and `section` in
+`assets/js/world/places.js`): the places it lists by kind (a tiki bar, a campfire, a hammock), the
+telescope if it has `telescope`, and the rocket and its launch console if it has `launchPad`, each
+with the trail to it. None of Steve's own things (the door, the radio dish, the petunias, the
+flatcar, the canoe, the stones, the bottles) and no holiday decorations. A spec with no places is
+just the planet: its ground, the lagoon, palms and rocks, the cutaway, the sky. What isn't there is
+still built (the world holds on to its parts) but kept out of the scene, with nothing to bump into,
+no light on the ground and nothing to pick; its sound is silent.
 
-The rest of the planet is still Steve's (the hammock's book sky stays empty in a preview; the
-launch pad, the places themselves): each display and place that reads its spec is PRO-2289 on. A preview never writes:
-no AI bartender (the chat box is hidden), no bottles sent, no fireflies; the page count does count
-it, as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a server).
+From the spec: the sign (neon, the menu card, the signpost, the telescope's ring), the name and
+home city in the top bar, the links as the menu, a tiki bar's chalkboard display (up to six names;
+tapping one shows its other fields, and "Make me one" only for a drink with a recipe), a
+campfire's collection (a thought with each marshmallow), the robot's lines, and the cities on the
+telescope's Earth (`telescope.pins`, with a few round the world when there are none). A link to a
+site path means something only on Steve's site, so in a preview it's shown but goes nowhere. The
+launch screen paints the neon sign only for a planet with a bar, and the chat's plain card shows
+the robot and the chalkboard only then too.
+
+Each place is still built the way Steve's planet builds it, in the same spot; the hammock's book
+sky stays empty in a preview. A preview never writes: no AI bartender (the chat box is hidden), no
+bottles sent, no fireflies; the page count does count it, as one view of `/p/preview/` (the spec is
+after the `#`, so it never reaches a server).
 
 ## Trying it
 
