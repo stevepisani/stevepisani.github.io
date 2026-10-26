@@ -160,9 +160,12 @@ for (const spec of PEOPLE) {
       ok(moved, 'a tap on the ground walks there');
       // each of their things: turn to it, tap it, and its card says what it is
       for (const t of spec.things || []) {
+        await page.keyboard.press('Escape');
         await page.evaluate((id) => { const p = window.__planet; p.player.stop(); p.player.look(-p.player.yawToward(p.spec.things.find((x) => x.id === id).center), 0); }, t.id);
         await page.waitForTimeout(400);
-        const at = await page.evaluate((id) => window.__planet.screenOf(id), t.id);
+        // something small and close can be under the view: look down at it
+        let at = await page.evaluate((id) => window.__planet.screenOf(id), t.id);
+        if (!at) { await page.evaluate(() => window.__planet.player.look(0, 0.5)); await page.waitForTimeout(400); at = await page.evaluate((id) => window.__planet.screenOf(id), t.id); }
         if (at) await page.mouse.click(at.x, at.y);
         const card = await page.waitForFunction(() => !document.getElementById('thing').hidden && document.getElementById('thing-name').textContent, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => null);
         ok(card === t.name, `tap ${t.name}: its card`, { at, card });
