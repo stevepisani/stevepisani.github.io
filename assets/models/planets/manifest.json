@@ -8,19 +8,19 @@
     "made": "2026-10-26"
   },
   "sam/porch": {
-    "model": "The front porch of a small Texas house at night: a wooden deck, white posts and railing, a tin roof, a warm porch lamp, a red electric guitar leaning on a small black amplifier, a rocking chair",
-    "preview": "01a17a42-f07f-770a-a429-8ae489b37892",
-    "refine": "01a17a44-51f8-7217-8bc5-1e6d9c13ef6e",
+    "model": "A small wooden front porch, built like a little open hut: a raised plank deck, four white posts holding up a corrugated tin roof, a white railing along the front, a porch lamp under the roof, and on the deck a red electric guitar leaning against a small black amplifier",
+    "preview": "01a17a4e-c33f-7320-a138-4812b4f0deba",
+    "refine": "01a17a50-58a0-70dd-b381-f4911ef8e615",
     "file": "sam/porch.glb",
-    "bytes": 556496,
+    "bytes": 800660,
     "made": "2026-10-26"
   },
   "test-dev/wall": {
-    "model": "A tall, sharp sandstone rock spire like the Naked Edge in Eldorado Canyon, Colorado: red and orange layered rock with lichen, a knife-edge arete, a climbing rope running up its face",
-    "preview": "01a17a42-f091-750e-87ed-115f367e86e9",
-    "refine": "01a17a44-51ed-73a8-8135-288c3d1f1aa3",
+    "model": "A massive red sandstone cliff buttress like the Naked Edge in Eldorado Canyon, Colorado: broad and blocky at its base, rising in stacked layered slabs of red and orange rock with green lichen to a sharp knife-edge arete at the top, a blue climbing rope hanging down its face",
+    "preview": "01a17a4e-c3e9-71cc-9ae2-5bda3e2c0040",
+    "refine": "01a17a50-095d-71d3-81bc-3641f1bd8f95",
     "file": "test-dev/wall.glb",
-    "bytes": 474768,
+    "bytes": 506864,
     "made": "2026-10-26"
   },
   "test-dev/van": {
