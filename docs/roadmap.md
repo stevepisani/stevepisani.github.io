@@ -21,7 +21,12 @@ rather than leaving it in a chat.
    capped table, and an hourly issue tells Steve. Tested live end to end from a cloud session (Oct 26:
    `tools/planet-live.mjs`, three made-up planets previewed, walked and sent as tests). Their AI now builds it in the chat (Steve chose
    this Oct 26, aiming to wow): `look.ground`, `look.sky` and `things` made of simple shapes,
-   each tied to what they love; tap one to walk up and see it. Next: try it in Claude and ChatGPT
+   each tied to what they love; tap one to walk up and see it. Better models (Steve, Oct 26:
+   "a much better job with the modeling"; [the research](https://claude.ai/artifact/4yDa6BYwqp7gJv7dWRHGGH)):
+   step 1, the look, is done (shadows, bloom, reflections, ambient occlusion on computers, ground
+   patches); then richer shapes, a craft guide with Inês and Dev rebuilt, renders sent back to
+   their AI to look and fix, and for sent planets real hero models from Meshy (Steve approved
+   up to $5 a planet for the first ones; the monthly cap is his call). Next: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 

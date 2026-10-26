@@ -49,8 +49,9 @@ function words(text, color, finish) {
   const map = new THREE.CanvasTexture(c);
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 4;
+  // glowing words are brighter than white, so they bloom like neon (world/render.js)
   const m = finish === 'glow'
-    ? new THREE.MeshBasicMaterial({ map, transparent: true, side: THREE.DoubleSide, depthWrite: false, toneMapped: false })
+    ? new THREE.MeshBasicMaterial({ map, color: new THREE.Color(2.4, 2.4, 2.4), transparent: true, side: THREE.DoubleSide, depthWrite: false })
     : new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.8 });
   return { material: m, aspect: c.width / c.height };
 }
@@ -95,6 +96,9 @@ export function buildThings(things = [], surface) {
       } else {
         mesh = new THREE.Mesh(geometry(p.shape), material(p.color, p.finish));
         mesh.scale.set(w, h, d);
+        // solid parts cast shadows; light passes through glass, and what glows lights itself
+        mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
+        mesh.receiveShadow = true;
       }
       const [x, y, z] = p.at || [0, h / 2, 0];
       mesh.position.set(x, y, z);
