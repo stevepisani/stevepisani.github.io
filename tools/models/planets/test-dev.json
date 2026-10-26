@@ -22,7 +22,7 @@
       "note": "Eldorado Canyon, 2019.",
       "collection": "climbs",
       "at": {"bearing":-12,"distance":8},
-      "model": "A tall, sharp sandstone rock spire like the Naked Edge in Eldorado Canyon, Colorado: red and orange layered rock with lichen, a knife-edge arete, a climbing rope running up its face",
+      "model": "A massive red sandstone cliff buttress like the Naked Edge in Eldorado Canyon, Colorado: broad and blocky at its base, rising in stacked layered slabs of red and orange rock with green lichen to a sharp knife-edge arete at the top, a blue climbing rope hanging down its face",
       "parts": [
         {"shape":"extrude","size":[3.2,7,1.6],"at":[0,3.5,0],"color":"#a4553a","outline":[[0.05,0],[0.95,0],[0.9,0.25],[1,0.45],[0.82,0.7],[0.75,0.88],[0.6,1],[0.42,0.93],[0.3,0.78],[0.12,0.6],[0.18,0.35],[0,0.15]]},
         {"shape":"extrude","size":[2.4,5,1.2],"at":[1.6,2.5,-0.6],"turn":[0,20,0],"color":"#8e4a33","outline":[[0,0],[1,0],[0.85,0.5],[0.7,0.85],[0.45,1],[0.2,0.7]]},

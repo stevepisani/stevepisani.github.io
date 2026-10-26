@@ -183,7 +183,9 @@ export function buildThings(things = [], surface) {
       const s = Math.min(bs.y / ms.y, Math.max(bs.x, bs.z) / Math.max(ms.x, ms.z));
       model.scale.setScalar(s);
       const mid = box.getCenter(new THREE.Vector3()), mm = m.getCenter(new THREE.Vector3());
-      model.position.set(mid.x - mm.x * s, box.min.y - m.min.y * s, mid.z - mm.z * s);
+      // a little into the ground: the planet curves away under anything long (a sag of L²/8R)
+      const sag = (Math.max(ms.x, ms.z) * s) ** 2 / (8 * RADIUS) + 0.02;
+      model.position.set(mid.x - mm.x * s, box.min.y - m.min.y * s - sag, mid.z - mm.z * s);
       model.traverse((o) => {
         if (!o.isMesh) return;
         o.castShadow = o.receiveShadow = true;

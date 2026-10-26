@@ -72,7 +72,7 @@ export const EXAMPLE = {
     },
     {
       id: 'porch', name: 'The porch', note: 'Where the evenings go.', collection: 'porch', at: { bearing: 30, distance: 10 }, turn: -10,
-      model: 'The front porch of a small Texas house at night: a wooden deck, white posts and railing, a tin roof, a warm porch lamp, a red electric guitar leaning on a small black amplifier, a rocking chair',
+      model: 'A small wooden front porch, built like a little open hut: a raised plank deck, four white posts holding up a corrugated tin roof, a white railing along the front, a porch lamp under the roof, and on the deck a red electric guitar leaning against a small black amplifier',
       light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] },
       parts: [
         { shape: 'box', size: [4, 0.3, 3], color: '#8a6a4a' },
