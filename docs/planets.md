@@ -104,6 +104,24 @@ are wanted.
   card (in the MCP Apps SDK's own host) and saves screenshots; `node tools/planet-test.mjs` checks
   the spec, the packing and the connector's answers.
 
+## Testing the live connector
+
+`node tools/planet-live.mjs [--shots <dir>]` does what ChatGPT or Claude would, against the
+deployed connector at `mcp.stevenpisani.com/planets`, with three made-up people (a baker in
+Lisbon, a climber in Denver, and someone with only a name): it says hello, lists the tools, opens
+the kit and the card's page, sends back a spec with a mistake, previews each planet, opens its
+preview page in headless Chromium and checks it draws, says whose it is and walks where you tap,
+then sends each one. Their slugs start with `test-`, and a planet whose slug does is saved as a
+test (`status = 'test'`, `20261026000200_planet_request_tests.sql`): it has its own 20 a day and
+never takes a real planet's place, Steve is never told, and the hourly job deletes it a day
+later. Check what was saved in Supabase (`select slug, status, note from planet_requests where
+status = 'test'`). `--no-send` stops before sending; `--site _site --url <a local connector>`
+tries the script itself offline.
+
+A cloud session needs its environment to allow `mcp.stevenpisani.com` and `stevenpisani.com`
+(Allowed domains, in the project's cloud environment settings); without them the first call
+fails to connect.
+
 ## Building a friend's planet
 
 The first ten are built by hand (Steve, Oct 2026). From a request: read it in Supabase, set its

@@ -2,7 +2,7 @@
 // public.planet_requests become one GitHub issue assigned to him, then they're marked told. The
 // issue says only how many and their ids, never what's in them: the repo and its Actions log are
 // public. He (or Claude, through Supabase) reads the rest in the table. Run hourly by the Supabase
-// workflow; prints counts only.
+// workflow; prints counts only. Test planets are never told, and go a day later.
 //
 //   SUPABASE_ACCESS_TOKEN=... GITHUB_TOKEN=... GITHUB_REPOSITORY=owner/repo node tools/planet-requests.mjs
 import { readFileSync } from 'node:fs';
@@ -20,6 +20,10 @@ const query = async (sql) => {
   if (!res.ok) throw new Error(`database query: HTTP ${res.status}`);
   return res.json();
 };
+
+// test planets (slug test-…, sent by Claude to try the live connector) go a day after they came
+const tests = await query("delete from public.planet_requests where status = 'test' and at < now() - interval '1 day' returning id");
+if (tests.length) console.log(`Deleted ${tests.length} test planet(s).`);
 
 const ids = (await query("select id from public.planet_requests where status = 'new' order by id")).map((r) => Number(r.id));
 if (!ids.length) { console.log('No new planet requests.'); process.exit(0); }

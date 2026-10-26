@@ -139,6 +139,7 @@ async function call(name, args, ctx) {
     const id = await ctx.send({ spec, note, contact });
     if (!id) return { text: "Steve has as many planets waiting to be built as he can take right now, so this one wasn't sent. Keep the preview link; try again in a day or two.", data: { sent: false } };
     const page = planetPage(spec.slug);
+    if (spec.slug.startsWith('test-')) return { text: `Saved as a test (its slug starts with test-): Steve isn't told, it's never built, and it's deleted after a day.`, data: { sent: true, test: true, page } };
     return {
       text: `Sent. Steve builds each planet by hand, so it isn't there yet; when it's built it will be at ${page}. Until then the preview link is the planet as it stands.`,
       data: { sent: true, page },
