@@ -11,7 +11,7 @@
 // headless Chromium, then stitched. Run `npm run build` first (and Jekyll for --back). Software
 // WebGL is slow: minutes. Run it again only when the splat, where you come in or the door moves;
 // the WebPs are committed.
-import { chromium } from 'playwright';
+import { chromium } from './chromium.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, statSync, writeFileSync } from 'node:fs';
 import { join, extname } from 'node:path';

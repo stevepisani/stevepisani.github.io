@@ -5,7 +5,7 @@
 //
 //   node tools/model-ref.mjs chariot     → tools/models/chariot.png
 import { build } from 'esbuild';
-import { chromium } from 'playwright';
+import { chromium } from './chromium.mjs';
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
