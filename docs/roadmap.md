@@ -16,10 +16,10 @@ rather than leaving it in a chat.
    the Planets connector at `mcp.stevenpisani.com/planets` with its card in the chat (walkable on
    a computer and in a phone's app), `/planets/` (how a friend adds it), and a friend's planet as
    its own small world (`assets/js/planets/`, `docs/planets.md`): bare until built, its own
-   ground under the stars, with a launch screen you can already look round. Next, in order: the
-   intake (the connector asks open questions and saves the answers to a private, capped table,
-   and Steve hears about it; Steve chose this, Oct 25), then each friend's planet built by hand at
-   `/p/<name>/` on the same small world. Untested on a real phone and in ChatGPT's phone app.
+   ground under the stars, with a launch screen you can already look round, and the intake
+   (Steve chose it, Oct 25): `send_planet` saves a planet its person is happy with to a private,
+   capped table, and an hourly issue tells Steve. Next: each friend's planet built by hand at
+   `/p/<slug>/` on the same small world (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.

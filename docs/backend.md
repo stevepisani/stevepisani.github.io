@@ -73,6 +73,7 @@ What's in the database:
 | `photos` bucket | every private app's pictures and files, a folder per app (recipe photos from before Oct 2026 are at the root) | members; `wardrobe/` and `inbox/` each person's own folder |
 | `bottles` | messages in bottles thrown on the planet | anyone inserts unapproved (at most 200 waiting); everyone reads approved ones; members approve |
 | `pageviews`, `pageviews_daily(since)` | the cookieless page count: path, referring host, phone/tablet/desktop | anyone inserts (at most 300 a minute across the site; past that they're quietly not counted); members read rows; everyone reads daily totals |
+| `planet_requests`, `planet_request_add()` | planets sent to be built by the Planets connector's `send_planet`: the spec, a note, how to reach them (`docs/planets.md`) | the connector adds (service role, at most 20 a day and 50 waiting); members read and update; the hourly workflow tells Steve |
 | `bartender_usage`, `bartender_asks`, `bartender_take()`, `bartender_spent()` | the bartender's limits and token log | service role only |
 | Realtime channel `planet` | presence for the fireflies (no table) | anyone, anonymous |
 
