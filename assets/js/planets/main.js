@@ -180,13 +180,45 @@ async function start(spec) {
       root.dataset.state = 'walk';
       tellCard('ready');
       window.__planet.ready = true;
+      // in a chat's card, a few views of it go back to the AI that made it, to look at and fix
+      if (window.parent !== window && (spec.things || []).length) setTimeout(() => tellCard('look', looks()), 1500);
     }
   });
+  // A few views of the planet as drawn: from above where you land, then up to three of their
+  // things, each from the side it faces, framed to fit. Each is drawn and read in one go, between
+  // two frames, so the walk never shows them; small JPEGs, for a model to look at.
+  function looks() {
+    const shots = [], keep = { pos: camera.position.clone(), q: camera.quaternion.clone(), up: camera.up.clone() };
+    const small = document.createElement('canvas'), ctx = small.getContext('2d');
+    small.width = 512; small.height = Math.round(512 * innerHeight / innerWidth);
+    const shoot = (from, at, up) => {
+      camera.position.copy(from); camera.up.copy(up); camera.lookAt(at);
+      space.position.copy(camera.position);
+      sun.target.position.copy(at); sun.position.copy(at).addScaledVector(SUN, 40);
+      pipeline.render(0);
+      ctx.drawImage(canvas, 0, 0, small.width, small.height);
+      shots.push(small.toDataURL('image/jpeg', 0.75).split(',')[1]);
+    };
+    const top = ground.surface(UP);
+    shoot(new THREE.Vector3(0, top + 7, 7), new THREE.Vector3(0, top, -5), UP);
+    const named = ['from above where you land, looking ahead'];
+    for (const t of (spec.things || []).slice(0, 3)) {
+      const n = t.center.clone().normalize(), box = new THREE.Box3().setFromObject(t.root);
+      const mid = box.getCenter(new THREE.Vector3()), r = box.getBoundingSphere(new THREE.Sphere()).radius;
+      // the side it faces: toward where you land, along the ground
+      const face = UP.clone().addScaledVector(n, -n.dot(UP)).normalize();
+      shoot(mid.clone().addScaledVector(face, r * 1.6 + 1).addScaledVector(n, r * 0.6), mid, n);
+      named.push(t.name);
+    }
+    camera.position.copy(keep.pos); camera.quaternion.copy(keep.q); camera.up.copy(keep.up);
+    space.position.copy(camera.position);
+    return { text: `${spec.who.name}'s planet as drawn: ${named.map((x, i) => `${i + 1}. ${x}`).join('; ')}.`, images: shots };
+  }
   // for tests: where on the screen one of their things is (its middle), or null if it's behind you
   const screenOf = (id) => {
     const t = (spec.things || []).find((x) => x.id === id);
     const p = t && new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(camera);
     return p && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1 ? { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight } : null;
   };
-  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf };
+  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks };
 }
