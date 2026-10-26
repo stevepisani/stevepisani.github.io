@@ -59,6 +59,22 @@ caught(made, (s) => { s.things[0].at.distance = 0; }, /^things\[0\]\.at\.distanc
 caught(made, (s) => { s.things[0].collection = 'nope'; }, /^things\[0\]\.collection: no collection "nope"/, 'a thing tied to a collection that isn\'t there');
 caught(made, (s) => { s.things[0].parts = []; }, /^things\[0\]\.parts: should have at least one part/, 'a thing with nothing to it');
 caught(made, (s) => { s.things = Array.from({ length: 9 }, (_, i) => ({ ...s.things[0], id: `t${i}` })); }, /^things: more than 8 with a light/, 'more lights than a planet allows');
+// richer shapes: a lathe's profile, an extrude's outline, a tube's path, a rounded box, repeats and mirrors
+const shaped = structuredClone(made);
+shaped.things[0].parts.push(
+  { shape: 'lathe', size: [0.4, 0.6, 0.4], profile: [[0, 0], [0.8, 0.1], [1, 0.5], [0.5, 1]], color: '#ffffff', finish: 'gloss' },
+  { shape: 'extrude', size: [0.6, 1.2, 0.08], outline: [[0.5, 0], [1, 0.6], [0.5, 1], [0, 0.6]], color: '#d4433a' },
+  { shape: 'tube', size: [0.8, 0.5, 0.2], path: [[-0.5, 0, 0], [0, 0.5, 0], [0.5, 0, 0]], thick: 0.04, finish: 'metal' },
+  { shape: 'box', size: [0.12, 0.05, 0.4], round: 0.3, at: [-0.7, 0.55, 0.3], repeat: { count: 12, at: [0.125, 0, 0] } },
+  { shape: 'sphere', size: [0.6, 0.1, 0.3], at: [0.5, 1, 0], mirror: true },
+);
+ok(checkPlanet(shaped).length === 0, 'lathe, extrude, tube, a rounded box, a repeat and a mirror pass', checkPlanet(shaped));
+caught(shaped, (s) => { delete s.things[0].parts[3].profile; }, /^things\[0\]\.parts\[3\]\.profile: missing/, 'a lathe with no profile');
+caught(shaped, (s) => { s.things[0].parts[4].outline = [[0, 0], [1, 1]]; }, /^things\[0\]\.parts\[4\]\.outline: should be 3 to 32 points/, 'an outline of two points');
+caught(shaped, (s) => { s.things[0].parts[5].path = [[0, 0, 2], [0, 0, 0]]; }, /^things\[0\]\.parts\[5\]\.path: should be 2 to 16 points/, 'a tube path outside its size');
+caught(shaped, (s) => { s.things[0].parts[0].profile = [[0, 0], [1, 1]]; }, /^things\[0\]\.parts\[0\]\.profile: only a lathe part has profile/, 'a profile on a box');
+caught(shaped, (s) => { s.things[0].parts[6].repeat.count = 100; }, /^things\[0\]\.parts\[6\]\.repeat\.count: should be a whole number from 2 to 24/, 'too many copies');
+caught(shaped, (s) => { s.things = Array.from({ length: 2 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(10).fill({ shape: 'box', size: [1, 1, 1], repeat: { count: 24 } }) })); }, /^things: more than 400 parts in all/, 'repeats count toward the planet\'s parts');
 caught(made, (s) => { s.things = Array.from({ length: 11 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(40).fill(s.things[0].parts[0]) })); }, /^things: more than 400 parts in all/, 'more parts than a planet allows');
 caught(made, (s) => { s.look.ground.color = 'brown'; }, /^look\.ground\.color: should be a colour/, 'a colour that isn\'t #rrggbb');
 for (const slug of ['', 'a', 'Sam', '-sam', 'sam-', 'sam steve', 'x'.repeat(33), 7]) caught(least, (s) => { s.slug = slug; }, /^slug:/, `a bad slug: ${JSON.stringify(slug)}`);
