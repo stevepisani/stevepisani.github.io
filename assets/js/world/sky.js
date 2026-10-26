@@ -51,17 +51,18 @@ function turnEarth(earth, sunDir, at) {
  * the camera by whoever owns it). Every planet's sky starts here; Steve's adds Earth, the moon and
  * the sun (buildSky), a friend's planet adds what's theirs (assets/js/planets/).
  */
-export function buildSpace({ quality, uniforms = { time: { value: 0 } } }) {
+// `tint`: a colour the nebula takes on (someone else's planet's own sky); none leaves it as it is
+export function buildSpace({ quality, uniforms = { time: { value: 0 } }, tint }) {
   const group = new THREE.Group();
   // Nebula dome: fbm noise in three hues over near-black. Rendered first, never writes depth.
   const nebula = new THREE.Mesh(
     new THREE.SphereGeometry(800, 48, 24),
     new THREE.ShaderMaterial({
-      uniforms,
+      uniforms: { ...uniforms, tint: { value: tint ? new THREE.Color(tint).multiplyScalar(1.8 / Math.max(0.05, ...new THREE.Color(tint).toArray())) : new THREE.Color(1, 1, 1) } },
       side: THREE.BackSide,
       depthWrite: false,
       vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,
-      fragmentShader: `varying vec3 vDir; uniform float time;
+      fragmentShader: `varying vec3 vDir; uniform float time; uniform vec3 tint;
         float hash(vec3 p){ p = fract(p*0.3183099+.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
         float noise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f*f*(3.-2.*f);
           return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x), mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
@@ -76,7 +77,7 @@ export function buildSpace({ quality, uniforms = { time: { value: 0 } } }) {
           col += vec3(0.28, 0.08, 0.42) * pow(n1, 3.2) * 0.9 * (0.3 + band);
           col += vec3(0.03, 0.22, 0.32) * pow(n2, 4.0) * 1.1 * band;
           col += vec3(0.5, 0.18, 0.26) * pow(n1*n2, 3.2) * 0.8;
-          gl_FragColor = vec4(col, 1.0);
+          gl_FragColor = vec4(col * tint, 1.0);
         }`,
     })
   );

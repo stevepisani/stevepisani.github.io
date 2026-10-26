@@ -30,7 +30,14 @@
         <p class="veil__try">Drag to look around while it lands.</p>
       </div>
     </div>
-    <p class="hint" id="hint" aria-hidden="true">Click anywhere to walk. Drag to look around.</p>
+    <p class="hint" id="hint" aria-hidden="true"><span>Click anywhere to walk. Drag to look around.</span><span>Click anything to walk up to it. Drag to look around.</span></p>
+    <aside class="thing" id="thing" aria-live="polite" hidden>
+      <button class="thing__close" id="thing-close" type="button" aria-label="Close">×</button>
+      <h2 id="thing-name"></h2>
+      <p id="thing-note"></p>
+      <h3 id="thing-title"></h3>
+      <ul id="thing-items"></ul>
+    </aside>
   </div>
   <script type="application/json" id="planet-data">{% if page.planet %}{"spec": {{ page.planet | jsonify }}}{% else %}{}{% endif %}</script>
   <script>

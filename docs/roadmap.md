@@ -19,8 +19,11 @@ rather than leaving it in a chat.
    ground under the stars, with a launch screen you can already look round, and the intake
    (Steve chose it, Oct 25): `send_planet` saves a planet its person is happy with to a private,
    capped table, and an hourly issue tells Steve. Tested live end to end from a cloud session (Oct 26:
-   `tools/planet-live.mjs`, three made-up planets previewed, walked and sent as tests). Next: each friend's planet built by hand at
-   `/p/<slug>/` on the same small world (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
+   `tools/planet-live.mjs`, three made-up planets previewed, walked and sent as tests). Their AI now builds it in the chat (Steve chose
+   this Oct 26, aiming to wow): `look.ground`, `look.sky` and `things` made of simple shapes,
+   each tied to what they love; tap one to walk up and see it. Next: try it in Claude and ChatGPT
+   and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
+   (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.

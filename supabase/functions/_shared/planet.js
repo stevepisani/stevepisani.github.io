@@ -8,7 +8,13 @@
 //     slug: 'steve',                       the planet's name in its address: a-z, 0-9 and -
 //     who: { name, sign },                 sign: the neon over the hub, 12 characters at most
 //     links: [{ id, label, note, href }],  the hub's menu; href https://, mailto: or a site path
-//     look: { theme, home },               theme from THEMES; home: a city, never an address
+//     look: { theme, home, ground, sky },  theme from THEMES; home: a city, never an address;
+//                                          ground: { color, hills 0..1 }; sky: { color, light }
+//     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid,
+//                parts: [{ shape, size, at, turn, color, finish, spin, text }], light }],
+//                                          what stands on someone else's planet, composed by
+//                                          their own AI from simple shapes (SHAPES, FINISHES),
+//                                          in metres, placed from where you land
 //     collections: { <id>: { title, items: [...] } | { title, src } },
 //                                          what matters to them: plain lists (items: text, or
 //                                          small objects), or a site path that serves the list
@@ -29,6 +35,10 @@ export const THEMES = ['tiki-night'];
 export const PLACES = ['tiki-bar', 'campfire', 'hammock'];
 export const DISPLAYS = ['chalkboard', 'star-sky'];
 export const SIGHTS = ['moon', 'sun', 'earth'];
+// what a thing on someone else's planet is made of: simple shapes, each a size in metres, a colour
+// and a finish; `text` is a flat panel with their own words on it
+export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text'];
+export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
 
 export const LIMITS = {
   bytes: 64 * 1024, // the whole spec, as JSON
@@ -43,6 +53,11 @@ export const LIMITS = {
   lines: 30, // the robot's lines, and what to ask it
   pins: 8,
   countdowns: 3,
+  things: 24,
+  parts: 40, // in one thing
+  allParts: 400, // in all of them
+  lights: 8, // things that cast light
+  size: 12, // metres: the most any part, or a thing's reach from its foot, measures
 };
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;
@@ -82,6 +97,12 @@ export function checkPlanet(spec) {
     if (v.length > max) fail(at, `more than ${max}`);
     return v;
   };
+  const color = (at, v) => v === undefined || (typeof v === 'string' && COLOR.test(v)) || fail(at, 'should be a colour like #1a2b3c');
+  const between = (at, v, lo, hi) => v === undefined || (typeof v === 'number' && v >= lo && v <= hi) || fail(at, `should be a number from ${lo} to ${hi}`);
+  const triple = (at, v, lo, hi) => {
+    if (v === undefined) return;
+    if (!Array.isArray(v) || v.length !== 3 || !v.every((n) => typeof n === 'number' && n >= lo && n <= hi)) fail(at, `should be [x, y, z], each from ${lo} to ${hi}`);
+  };
   const id = (at, v) => (typeof v === 'string' && ID.test(v) ? true : (fail(at, 'should be a short id: a-z, 0-9 and -'), false));
   const href = (at, v) => {
     text(at, v, LIMITS.text, true);
@@ -101,7 +122,7 @@ export function checkPlanet(spec) {
   };
 
   if (!isObj(spec)) return ['spec: should be an object'];
-  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'places', 'robot', 'telescope', 'launchPad']);
+  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad']);
   if (JSON.stringify(spec).length > LIMITS.bytes) fail('spec', `larger than ${LIMITS.bytes / 1024} KB`);
   if (spec.version !== 1) fail('version', 'should be 1');
   if (typeof spec.slug !== 'string' || !SLUG.test(spec.slug)) fail('slug', 'should be 2 to 32 of a-z, 0-9 and -, not starting or ending with -');
@@ -128,9 +149,18 @@ export function checkPlanet(spec) {
   if (spec.look !== undefined) {
     if (!isObj(spec.look)) fail('look', 'should be an object');
     else {
-      only('look', spec.look, ['theme', 'home']);
+      only('look', spec.look, ['theme', 'home', 'ground', 'sky']);
       if (spec.look.theme !== undefined && !THEMES.includes(spec.look.theme)) fail('look.theme', `should be one of ${THEMES.join(', ')}`);
       text('look.home', spec.look.home, LIMITS.name);
+      const g = spec.look.ground, sky = spec.look.sky;
+      if (g !== undefined) {
+        if (!isObj(g)) fail('look.ground', 'should be an object');
+        else { only('look.ground', g, ['color', 'hills']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1); }
+      }
+      if (sky !== undefined) {
+        if (!isObj(sky)) fail('look.sky', 'should be an object');
+        else { only('look.sky', sky, ['color', 'light']); color('look.sky.color', sky.color); color('look.sky.light', sky.light); }
+      }
     }
   }
 
@@ -150,6 +180,60 @@ export function checkPlanet(spec) {
     }
   }
   const known = (at, c) => c === undefined || (isObj(collections) && collections[c]) || fail(at, `no collection "${c}"`);
+
+  const thingIds = new Set();
+  let parts = 0, lights = 0;
+  list('things', spec.things, LIMITS.things).forEach((t, i) => {
+    const at = `things[${i}]`;
+    if (!isObj(t)) return fail(at, 'should be an object');
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'turn', 'scale', 'solid', 'parts', 'light']);
+    if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
+    thingIds.add(t.id);
+    text(`${at}.name`, t.name, LIMITS.name, true);
+    text(`${at}.note`, t.note, LIMITS.text);
+    known(`${at}.collection`, t.collection);
+    if (!isObj(t.at)) fail(`${at}.at`, 'missing: { bearing, distance }');
+    else {
+      only(`${at}.at`, t.at, ['bearing', 'distance']);
+      if (t.at.bearing === undefined) fail(`${at}.at.bearing`, 'missing');
+      between(`${at}.at.bearing`, t.at.bearing, -180, 180);
+      if (t.at.distance === undefined) fail(`${at}.at.distance`, 'missing');
+      between(`${at}.at.distance`, t.at.distance, 2, 60);
+    }
+    between(`${at}.turn`, t.turn, -180, 180);
+    between(`${at}.scale`, t.scale, 0.25, 4);
+    if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
+    const ps = list(`${at}.parts`, t.parts, LIMITS.parts);
+    if (!ps.length) fail(`${at}.parts`, 'should have at least one part');
+    parts += ps.length;
+    ps.forEach((p, j) => {
+      const pat = `${at}.parts[${j}]`;
+      if (!isObj(p)) return fail(pat, 'should be an object');
+      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text']);
+      if (!SHAPES.includes(p.shape)) fail(`${pat}.shape`, `should be one of ${SHAPES.join(', ')}`);
+      if (p.size === undefined) fail(`${pat}.size`, 'missing: [width, height, depth] in metres');
+      triple(`${pat}.size`, p.size, 0.01, LIMITS.size);
+      triple(`${pat}.at`, p.at, -LIMITS.size, LIMITS.size);
+      triple(`${pat}.turn`, p.turn, -360, 360);
+      color(`${pat}.color`, p.color);
+      if (p.finish !== undefined && !FINISHES.includes(p.finish)) fail(`${pat}.finish`, `should be one of ${FINISHES.join(', ')}`);
+      between(`${pat}.spin`, p.spin, -360, 360);
+      if (p.shape === 'text') text(`${pat}.text`, p.text, LIMITS.name * 2, true);
+      else if (p.text !== undefined) fail(`${pat}.text`, 'only a text part has text');
+    });
+    if (t.light !== undefined) {
+      lights++;
+      if (!isObj(t.light)) fail(`${at}.light`, 'should be an object');
+      else {
+        only(`${at}.light`, t.light, ['color', 'strength', 'at']);
+        color(`${at}.light.color`, t.light.color);
+        between(`${at}.light.strength`, t.light.strength, 0, 1);
+        triple(`${at}.light.at`, t.light.at, -LIMITS.size, LIMITS.size);
+      }
+    }
+  });
+  if (parts > LIMITS.allParts) fail('things', `more than ${LIMITS.allParts} parts in all`);
+  if (lights > LIMITS.lights) fail('things', `more than ${LIMITS.lights} with a light`);
 
   const placeIds = new Set();
   list('places', spec.places, LIMITS.places).forEach((p, i) => {

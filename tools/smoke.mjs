@@ -1771,6 +1771,20 @@ async function preview(page, shot) {
   await page.waitForTimeout(1500);
   await shot('preview');
   step('a click on the ground walks there');
+  // Sam's things: tap the turntable and its card says what it holds, in Sam's words
+  await page.evaluate(() => { const p = window.__planet; p.player.stop(); p.player.look(-p.player.yawToward(p.spec.things[0].center), 0); });
+  await page.waitForTimeout(400);
+  const at = await page.evaluate(() => window.__planet.screenOf('turntable'));
+  if (!at) throw new Error("Sam's turntable should be in view once you turn to it");
+  await page.mouse.click(at.x, at.y);
+  await until(page, () => !document.getElementById('thing').hidden, null, 10000);
+  const said = await page.evaluate(() => document.getElementById('thing').textContent);
+  if (!/The turntable/.test(said) || !/Kind of Blue/.test(said) || !/Miles Davis/.test(said)) throw new Error(`the turntable's card: ${said}`);
+  await page.waitForTimeout(2500);
+  await shot('preview-thing');
+  await page.keyboard.press('Escape');
+  if (!(await page.evaluate(() => document.getElementById('thing').hidden))) throw new Error('Esc should close a thing\'s card');
+  step("a click on one of Sam's things walks up to it and shows what it holds; Esc closes it");
   const bad = await page.context().newPage();
   await bad.goto(`${base}/p/preview/#not-a-planet`);
   await until(bad, () => /no planet in this address/.test(document.getElementById('veil-status').textContent), null, 30000);
