@@ -191,6 +191,10 @@ for the Site checks). Only what's missing is paid for; a task already started is
 paid for twice. The planets it makes models for: the kit's example (Sam) and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
 when it's finished). Caps: 8 models a planet, 24 a run, about $0.60 a model.
+The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
+cliff, and the porch and cliff made again from clearer words) took about 3 minutes a run. Words
+that describe one object do best: the porch came out as a guitar and an amp until its words said
+it was built like a little open hut, with them on its deck.
 
 Next: models made from the chat itself, while they talk, so their own AI's words become the
 model in the preview.
