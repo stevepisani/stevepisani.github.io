@@ -133,7 +133,7 @@ ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.co
 // ---------- Sending a planet to be built: the connector, then the table on the real schema ----------
 const { wardrobeDb } = await import('./wardrobe-db.mjs');
 const w = await wardrobeDb();
-const migration = readFileSync(new URL('../supabase/migrations/20261026000100_planet_requests.sql', import.meta.url), 'utf8');
+const migration = ['20261026000100_planet_requests.sql', '20261026000200_planet_request_tests.sql'].map((f) => readFileSync(new URL(`../supabase/migrations/${f}`, import.meta.url), 'utf8')).join('\n');
 // what Supabase grants on a new table, then the migration again (it's safe to re-run): what it takes back stays taken
 await w.db.exec(`grant usage on schema public to anon, authenticated; grant all on public.planet_requests to anon, authenticated; grant execute on all functions in schema public to anon, authenticated;`);
 await w.db.exec(migration);
@@ -152,6 +152,10 @@ const full = await sendIt({ spec: least });
 ok(!full.isError && full.structuredContent.sent === false && /as many planets waiting/.test(full.content[0].text), '50 waiting to be built: the next one isn\'t sent, and they\'re told so', full);
 await w.db.exec(`update public.planet_requests set status = 'built' where slug like 'old-%'; insert into public.planet_requests (slug, name, spec) select 'day-' || i, 'Day', '{}'::jsonb from generate_series(1, 18) i`);
 ok((await sendIt({ spec: least })).structuredContent.sent === false, '20 in a day: the next one waits for tomorrow');
+const test = await sendIt({ spec: { ...least, slug: 'test-sam' } });
+ok(test.structuredContent.sent && test.structuredContent.test && /test/.test(test.content[0].text) && (await w.q("select status from public.planet_requests where slug = 'test-sam'"))[0].status === 'test', "a test planet (slug test-…) is saved as a test, past the real planets' caps, and says so", test);
+await w.db.exec(`insert into public.planet_requests (slug, name, spec, status) select 'test-' || i, 'T', '{}'::jsonb, 'test' from generate_series(1, 19) i`);
+ok((await sendIt({ spec: { ...least, slug: 'test-more' } })).structuredContent.sent === false, 'tests have their own 20 a day');
 const refused = async (role, sql, what) => {
   let error;
   try { await w.db.exec(`set role ${role}; ${sql}`); } catch (e) { error = e; } finally { await w.db.exec('reset role'); }
