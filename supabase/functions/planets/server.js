@@ -61,6 +61,7 @@ export const EXAMPLE = {
   things: [
     {
       id: 'turntable', name: 'The turntable', note: 'Always something spinning.', collection: 'records', at: { bearing: -22, distance: 5 }, scale: 1.5,
+      model: 'A 1960s record player: a walnut wood plinth, a black vinyl record with a blue label on the platter, a chrome tonearm resting on the record, two silver knobs at the front',
       parts: [
         { shape: 'box', size: [1.4, 0.5, 1.1], round: 0.12, color: '#7a4a2a', finish: 'gloss' },
         { shape: 'cylinder', size: [1, 0.04, 1], at: [-0.12, 0.52, 0], color: '#111111', finish: 'gloss', spin: 200 },
@@ -71,6 +72,7 @@ export const EXAMPLE = {
     },
     {
       id: 'porch', name: 'The porch', note: 'Where the evenings go.', collection: 'porch', at: { bearing: 30, distance: 10 }, turn: -10,
+      model: 'The front porch of a small Texas house at night: a wooden deck, white posts and railing, a tin roof, a warm porch lamp, a red electric guitar leaning on a small black amplifier, a rocking chair',
       light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] },
       parts: [
         { shape: 'box', size: [4, 0.3, 3], color: '#8a6a4a' },
