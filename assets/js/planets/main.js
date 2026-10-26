@@ -15,6 +15,7 @@ import { readSpec, tellCard } from '../world/spec.js';
 import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
 import { buildThings } from './things.js';
+import { loadModels } from './models.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('planet'), canvas = $('planet-canvas'), veil = $('veil'), status = $('veil-status'), hint = $('hint'), card = $('thing');
@@ -81,6 +82,8 @@ async function start(spec) {
   const things = buildThings(spec.things, ground.surface);
   scene.add(things.group);
   if ((spec.things || []).length) hint.dataset.things = '';
+  // their real models, where they've been made (models.js), in place of the shapes as they come
+  const models = loadModels(spec, things);
 
   // where a tap means to walk: a ring on the ground, fading as you arrive
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
@@ -181,7 +184,8 @@ async function start(spec) {
       tellCard('ready');
       window.__planet.ready = true;
       // in a chat's card, a few views of it go back to the AI that made it, to look at and fix
-      if (window.parent !== window && (spec.things || []).length) setTimeout(() => tellCard('look', looks()), 1500);
+      // (after their models are in, so it sees what they'll see)
+      if (window.parent !== window && (spec.things || []).length) Promise.all([models, new Promise((r) => setTimeout(r, 1500))]).then(() => tellCard('look', looks()));
     }
   });
   // A few views of the planet as drawn: from above where you land, then up to three of their
@@ -220,5 +224,5 @@ async function start(spec) {
     const p = t && new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(camera);
     return p && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1 ? { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight } : null;
   };
-  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks };
+  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models };
 }
