@@ -1,20 +1,20 @@
 ---
-layout: world
+layout: planet
 title: A tiny planet
-description: "Someone's tiny planet, drawn from a planet spec: a preview, kept nowhere."
+description: "Someone's tiny planet, from a planet spec: a preview, kept nowhere."
 permalink: /p/preview/
 sitemap: false
+preview: true
 ---
 {%- comment -%}
-  A planet someone's own ChatGPT or Claude is designing, drawn from the spec in the address
+  A planet someone's own ChatGPT or Claude asked for, from the spec in the address
   (#<packed spec>, supabase/functions/_shared/planet.js packPlanet): the Planets connector's
   preview_planet makes the link, and its card in the chat shows this page (docs/planets.md).
-  Nothing is stored: the address is the planet. No panels of Steve's: the menu is the spec's links.
-{%- endcomment -%}
-{%- comment -%}
-  Tell the chat's card the page is here before the world's script has even downloaded: the card
+  Nothing is stored: the address is the planet. It's a friend's planet (_layouts/planet.html,
+  assets/js/planets/), never Steve's.
+
+  Tell the chat's card the page is here before the planet's script has even downloaded: the card
   falls back to a plain card only when a frame says nothing at all (blocked), never because the
-  bundle is slow to arrive.
+  script is slow to arrive.
 {%- endcomment -%}
 <script>if (window.parent !== window) window.parent.postMessage({ planet: 'loading' }, '*');</script>
-{% include world.html preview=true %}

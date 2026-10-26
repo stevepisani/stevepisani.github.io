@@ -7,23 +7,19 @@ rather than leaving it in a chat.
 ## Next up (ready to build, nothing needed from Steve)
 
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
-   [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet,
-   designed by their own ChatGPT or Claude from what they love, on this planet's engine. A planet is
-   one JSON spec (`supabase/functions/_shared/planet.js`): what matters to them (collections), how
-   each is shown (displays), where it lives (places composed from parts in slots), and one look.
-   Every planet has a hub (sign and links), a telescope and a launch pad; the rest is invented per
-   person, never a toggle for Steve's own places. Phases: (1) the spec and the builder, Steve's
-   planet rebuilt on it and a friend's beside it; (2) a Planets MCP server of its own; (3) a
-   friends beta at `/p/name`, invites only; (4) only if friends use it, its own product at
-   mytinyplanet.ai, then mytinyplanet.com at about 20 users. Done: the spec, its checks
-   (`tools/planet-test.mjs`), Steve's planet read from one (`tools/planet.mjs`), and an early
-   phase 2: the in-chat preview (PRO-2312, `docs/planets.md`), the Planets connector at
-   `mcp.stevenpisani.com/planets` (`get_kit`, `preview_planet`) whose card shows the planet in
-   the chat. The telescope's cities now come from the spec too
-   (PRO-2288); what's left of Steve in the world is the bartender's offline answers
-   (`barback.js`), which a preview never shows (no chat). A page for friends, `/planets/`, says how to add the connector to Claude or ChatGPT and what to ask; Only the planet itself is a given: the connector never asks for a sign or a bar, and a preview draws only the places its spec lists (none of Steve's own things). Steve tries it on his own ChatGPT first and compares what it writes with his spec, then sends it to a friend. Next: the displays (PRO-2289), so a preview draws more than the sign, the
-   menu, the chalkboard, the campfire and the robot; and checking the card in ChatGPT's phone app (it now shows the
-   walkable planet there too, the same as on a computer; untested on a real phone).
+   [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
+   their own, from what they love. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
+   unique to its person, and the only thing shared with his is the planet's size (no bar, sign,
+   telescope, rocket or campfire); the first ten are built by hand, in a way that doesn't scale; a
+   library of shared places comes only if it takes off. Done: the spec and its checks
+   (`supabase/functions/_shared/planet.js`, `tools/planet-test.mjs`), Steve's planet read from one,
+   the Planets connector at `mcp.stevenpisani.com/planets` with its card in the chat (walkable on
+   a computer and in a phone's app), `/planets/` (how a friend adds it), and a friend's planet as
+   its own small world (`assets/js/planets/`, `docs/planets.md`): bare until built, its own
+   ground under the stars, with a launch screen you can already look round. Next, in order: the
+   intake (the connector asks open questions and saves the answers to a private, capped table,
+   and Steve hears about it; Steve chose this, Oct 25), then each friend's planet built by hand at
+   `/p/<name>/` on the same small world. Untested on a real phone and in ChatGPT's phone app.
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
@@ -138,12 +134,12 @@ rather than leaving it in a chat.
   petals), St. Patrick's Day (a rainbow, a pot of gold, shamrocks), Easter (eggs hidden in the
   grass, a basket, bunny ears; its date computed) and the Fourth of July (fireworks over the lagoon
   all night, bunting, flags). Eleven days in all, each its own small file.
-- Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can design a little planet with
+- Oct 2026: My Tiny Planet in a chat: anyone's ChatGPT or Claude can ask for a little planet with
   the new Planets connector (`https://mcp.stevenpisani.com/planets`, no sign-in) and show it in
-  the chat, walkable, in a frame of the new preview page (`/p/preview/#<the spec>`): the spec
-  travels in the link, so nothing is stored. Their sign, name, menu, chalkboard, campfire and
-  robot's lines are drawn; a preview never writes or asks the AI. In a phone's app it's the same
-  walkable planet (a plain card with "Walk around it" only if 3D can't run).
+  the chat, walkable, in a frame of the preview page (`/p/preview/#<the spec>`): the spec travels
+  in the link, so nothing is stored. It's their own small world, not Steve's: bare until it's
+  built for them, with their name, under the stars, on a computer and in a phone's app alike (a
+  plain card with "Walk around it" only if 3D can't run).
 - Oct 2026: a security audit before Hacker News (the advisors, every policy and grant on the live
   project, every function, the client, the workflows, the whole git history: no secret has ever
   been committed). Fixed: the fireflies' channel made private, presence only, so nobody can
