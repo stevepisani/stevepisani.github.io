@@ -109,7 +109,8 @@ const call = async (method, params) => planets.rpc({ jsonrpc: '2.0', id: 1, meth
 const init = (await call('initialize', { protocolVersion: '2025-06-18' })).result;
 ok(init.protocolVersion === '2025-06-18' && init.serverInfo.name === 'planets' && /get_kit/.test(init.instructions), 'it says who it is and how to use it');
 const tools = (await call('tools/list')).result.tools;
-ok(tools.map((t) => t.name).join() === 'get_kit,preview_planet' && tools.every((t) => t.annotations.readOnlyHint), 'two tools, both read-only (nothing is stored)');
+ok(tools.map((t) => t.name).join() === 'get_kit,preview_planet,send_planet' && tools[0].annotations.readOnlyHint && tools[1].annotations.readOnlyHint && !tools[2].annotations.readOnlyHint && !tools[2].annotations.destructiveHint, 'three tools: two read-only, and send_planet, the one that saves something (and destroys nothing)');
+ok(/never send it without their go-ahead/i.test(init.instructions), 'a planet is sent only when its person says so');
 ok(tools[1]._meta.ui.resourceUri === planets.APP_URI && tools[1]._meta['openai/outputTemplate'] === planets.APP_URI, 'preview_planet shows the card');
 const res = (await call('resources/read', { uri: planets.APP_URI })).result.contents[0];
 ok(res.mimeType === 'text/html;profile=mcp-app' && res.text.includes('window.card = 1') && !res.text.includes('// </script>'), "the card's page carries its script, and the script can't close the tag early");
@@ -128,5 +129,42 @@ const bare = (await call('tools/call', { name: 'preview_planet', arguments: { sp
 ok(bare.name === 'Sam' && bare.links.length === 0 && bare.loves.length === 0, 'a planet with nothing on it: just their name on its plain card', bare);
 ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
 ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');
+
+// ---------- Sending a planet to be built: the connector, then the table on the real schema ----------
+const { wardrobeDb } = await import('./wardrobe-db.mjs');
+const w = await wardrobeDb();
+const migration = readFileSync(new URL('../supabase/migrations/20261026000100_planet_requests.sql', import.meta.url), 'utf8');
+// what Supabase grants on a new table, then the migration again (it's safe to re-run): what it takes back stays taken
+await w.db.exec(`grant usage on schema public to anon, authenticated; grant all on public.planet_requests to anon, authenticated; grant execute on all functions in schema public to anon, authenticated;`);
+await w.db.exec(migration);
+// the ctx index.ts builds on supabase-js, here on SQL
+const send = async ({ spec, note, contact }) => (await w.q('select public.planet_request_add($1::jsonb, $2, $3) as id', [JSON.stringify(spec), note, contact]))[0].id;
+const sendIt = async (args) => (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'send_planet', arguments: args } }, { send })).result;
+const sent = await sendIt({ spec: sam, note: '  Make the porch glow.  ', contact: 'sam@example.com' });
+ok(!sent.isError && sent.structuredContent.sent && sent.structuredContent.page === 'https://stevenpisani.com/p/sam/' && sent.content[0].text.includes(sent.structuredContent.page), 'sent: where it will be once it is built', sent);
+const saved = (await w.q('select * from public.planet_requests'))[0];
+ok(saved.slug === 'sam' && saved.name === 'Sam' && saved.spec.collections.records.items[0].name === 'Kind of Blue' && saved.note === 'Make the porch glow.' && saved.contact === 'sam@example.com' && saved.status === 'new', 'saved as sent: the spec, their note and how to reach them, waiting to be told', saved);
+ok((await sendIt({ spec: { ...sam, slug: 'Sam' } })).isError && (await w.q('select count(*)::int as n from public.planet_requests'))[0].n === 1, 'a spec with mistakes is never sent');
+ok((await sendIt({ spec: least, note: 'x'.repeat(1001) })).isError, 'nor a note past 1,000 characters');
+ok(!(await sendIt({ spec: least })).isError && (await w.q("select note, contact from public.planet_requests where slug = 'sam' order by id desc"))[0].contact === null, 'the note and contact are optional');
+await w.db.exec(`insert into public.planet_requests (slug, name, spec, at) select 'old-' || i, 'Old', '{}'::jsonb, now() - interval '2 days' from generate_series(1, 48) i`);
+const full = await sendIt({ spec: least });
+ok(!full.isError && full.structuredContent.sent === false && /as many planets waiting/.test(full.content[0].text), '50 waiting to be built: the next one isn\'t sent, and they\'re told so', full);
+await w.db.exec(`update public.planet_requests set status = 'built' where slug like 'old-%'; insert into public.planet_requests (slug, name, spec) select 'day-' || i, 'Day', '{}'::jsonb from generate_series(1, 18) i`);
+ok((await sendIt({ spec: least })).structuredContent.sent === false, '20 in a day: the next one waits for tomorrow');
+const refused = async (role, sql, what) => {
+  let error;
+  try { await w.db.exec(`set role ${role}; ${sql}`); } catch (e) { error = e; } finally { await w.db.exec('reset role'); }
+  ok(/permission denied/.test(error?.message), what, error?.message);
+};
+await refused('anon', 'select * from public.planet_requests', 'signed out, nobody reads them');
+await refused('anon', `insert into public.planet_requests (slug, name, spec) values ('x', 'X', '{}')`, 'nor writes one straight in');
+await refused('anon', `select public.planet_request_add('{}'::jsonb)`, 'nor gets round the caps');
+await refused('authenticated', `select public.planet_request_add('{}'::jsonb)`, 'nor does anyone signed in');
+await w.db.exec(`set role authenticated; set request.jwt.claims = '{"sub":"33333333-3333-4333-8333-333333333333","email":"nobody@example.com","role":"authenticated"}'`);
+ok((await w.q('select * from public.planet_requests')).length === 0, 'someone signed in who isn\'t a member sees none of them');
+await w.db.exec(`set request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","email":"steve@example.com","role":"authenticated"}'`);
+ok((await w.q("update public.planet_requests set status = 'building' where slug = 'sam' returning id")).length === 2, 'Steve reads them and marks what he is building');
+await w.db.exec('reset role');
 
 console.log(`planet: ${passed} checks passed`);
