@@ -11,7 +11,7 @@
 // (with a local connector: tools/planet-test.mjs covers the connector's logic).
 import { mkdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
-import { chromium } from 'playwright';
+import { chromium } from './chromium.mjs';
 
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const URL_ = arg('url', 'https://mcp.stevenpisani.com/planets');

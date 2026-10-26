@@ -9,7 +9,7 @@
 //   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|holiday|nogl]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
-import { chromium } from 'playwright';
+import { chromium } from './chromium.mjs';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, statSync, mkdirSync, readdirSync } from 'node:fs';
 import { zipSync } from 'fflate';

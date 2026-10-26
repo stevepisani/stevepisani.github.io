@@ -120,7 +120,10 @@ tries the script itself offline.
 
 A cloud session needs its environment to allow `mcp.stevenpisani.com` and `stevenpisani.com`
 (Allowed domains, in the project's cloud environment settings); without them the first call
-fails to connect.
+fails to connect. Run `npm install` and `npm run build` first if the session's setup hook
+didn't (it runs only when the site is the session's own folder). The browser comes from
+`tools/chromium.mjs`, which falls back to the cloud image's newer Chromium in `/opt/pw-browsers`
+when the one Playwright expects isn't there (Oct 26: all three made-up planets passed live).
 
 ## Building a friend's planet
 

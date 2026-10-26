@@ -5,7 +5,7 @@
 // corners), and 68% for the "maskable" one, whose outer edge a launcher may cut to a circle.
 //   node tools/app-icons.mjs        (writes assets/images/app-icon-{512,192,180}.png and
 //                                    app-icon-maskable-512.png; commit them)
-import { chromium } from 'playwright';
+import { chromium } from './chromium.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const CREAM = '#faf7f2'; // --bg (light)

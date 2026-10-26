@@ -18,7 +18,8 @@ rather than leaving it in a chat.
    its own small world (`assets/js/planets/`, `docs/planets.md`): bare until built, its own
    ground under the stars, with a launch screen you can already look round, and the intake
    (Steve chose it, Oct 25): `send_planet` saves a planet its person is happy with to a private,
-   capped table, and an hourly issue tells Steve. Next: each friend's planet built by hand at
+   capped table, and an hourly issue tells Steve. Tested live end to end from a cloud session (Oct 26:
+   `tools/planet-live.mjs`, three made-up planets previewed, walked and sent as tests). Next: each friend's planet built by hand at
    `/p/<slug>/` on the same small world (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
