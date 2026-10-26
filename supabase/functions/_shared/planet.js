@@ -11,7 +11,8 @@
 //     look: { theme, home, ground, sky },  theme from THEMES; home: a city, never an address;
 //                                          ground: { color, hills 0..1 }; sky: { color, light }
 //     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid,
-//                parts: [{ shape, size, at, turn, color, finish, spin, text }], light }],
+//                parts: [{ shape, size, at, turn, color, finish, spin, text, round, profile,
+//                          outline, path, thick, repeat, mirror }], light }],
 //                                          what stands on someone else's planet, composed by
 //                                          their own AI from simple shapes (SHAPES, FINISHES),
 //                                          in metres, placed from where you land
@@ -35,9 +36,12 @@ export const THEMES = ['tiki-night'];
 export const PLACES = ['tiki-bar', 'campfire', 'hammock'];
 export const DISPLAYS = ['chalkboard', 'star-sky'];
 export const SIGHTS = ['moon', 'sun', 'earth'];
-// what a thing on someone else's planet is made of: simple shapes, each a size in metres, a colour
-// and a finish; `text` is a flat panel with their own words on it
-export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text'];
+// what a thing on someone else's planet is made of: shapes, each a size in metres, a colour and a
+// finish. `text` is a flat panel with their own words on it; `lathe` turns a side profile round its
+// up (a vase, a bottle, a bun), `extrude` gives a flat outline depth (a guitar, a heart, a cactus),
+// and `tube` runs along a path (a handle, a cable, a rail). A part can be repeated in steps (the
+// keys of a piano, petals round a stem) and mirrored left to right (a pair of wings).
+export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text', 'lathe', 'extrude', 'tube'];
 export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
 
 export const LIMITS = {
@@ -58,6 +62,9 @@ export const LIMITS = {
   allParts: 400, // in all of them
   lights: 8, // things that cast light
   size: 12, // metres: the most any part, or a thing's reach from its foot, measures
+  points: 32, // in a lathe's profile or an extrude's outline
+  path: 16, // in a tube's path
+  repeat: 24, // copies of a part made by repeat
 };
 
 const SLUG = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])$/;
@@ -102,6 +109,13 @@ export function checkPlanet(spec) {
   const triple = (at, v, lo, hi) => {
     if (v === undefined) return;
     if (!Array.isArray(v) || v.length !== 3 || !v.every((n) => typeof n === 'number' && n >= lo && n <= hi)) fail(at, `should be [x, y, z], each from ${lo} to ${hi}`);
+  };
+  // a list of [x, y] or [x, y, z] points, each number from lo to hi
+  const points = (at, v, n, lo, hi, least, most) => {
+    if (v === undefined) return fail(at, 'missing');
+    if (!Array.isArray(v) || v.length < least || v.length > most || !v.every((q) => Array.isArray(q) && q.length === n && q.every((x) => typeof x === 'number' && x >= lo && x <= hi))) {
+      fail(at, `should be ${least} to ${most} points, each [${n === 2 ? 'x, y' : 'x, y, z'}] from ${lo} to ${hi}`);
+    }
   };
   const id = (at, v) => (typeof v === 'string' && ID.test(v) ? true : (fail(at, 'should be a short id: a-z, 0-9 and -'), false));
   const href = (at, v) => {
@@ -205,11 +219,13 @@ export function checkPlanet(spec) {
     if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
     const ps = list(`${at}.parts`, t.parts, LIMITS.parts);
     if (!ps.length) fail(`${at}.parts`, 'should have at least one part');
-    parts += ps.length;
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
       if (!isObj(p)) return fail(pat, 'should be an object');
-      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text']);
+      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror']);
+      // a repeated or mirrored part counts once for each copy it makes
+      const copies = (isObj(p.repeat) && Number.isInteger(p.repeat.count) ? p.repeat.count : 1) * (p.mirror === true ? 2 : 1);
+      parts += copies;
       if (!SHAPES.includes(p.shape)) fail(`${pat}.shape`, `should be one of ${SHAPES.join(', ')}`);
       if (p.size === undefined) fail(`${pat}.size`, 'missing: [width, height, depth] in metres');
       triple(`${pat}.size`, p.size, 0.01, LIMITS.size);
@@ -220,6 +236,23 @@ export function checkPlanet(spec) {
       between(`${pat}.spin`, p.spin, -360, 360);
       if (p.shape === 'text') text(`${pat}.text`, p.text, LIMITS.name * 2, true);
       else if (p.text !== undefined) fail(`${pat}.text`, 'only a text part has text');
+      // each shape's own keys, and only on that shape
+      const own = { round: 'box', profile: 'lathe', outline: 'extrude', path: 'tube', thick: 'tube' };
+      for (const [k, shape] of Object.entries(own)) if (p[k] !== undefined && p.shape !== shape) fail(`${pat}.${k}`, `only a ${shape} part has ${k}`);
+      between(`${pat}.round`, p.round, 0, 0.5);
+      if (p.shape === 'lathe') points(`${pat}.profile`, p.profile, 2, 0, 1, 2, LIMITS.points);
+      if (p.shape === 'extrude') points(`${pat}.outline`, p.outline, 2, 0, 1, 3, LIMITS.points);
+      if (p.shape === 'tube') { points(`${pat}.path`, p.path, 3, -0.5, 0.5, 2, LIMITS.path); between(`${pat}.thick`, p.thick, 0.005, 2); }
+      if (p.repeat !== undefined) {
+        if (!isObj(p.repeat)) fail(`${pat}.repeat`, 'should be { count, at, turn }');
+        else {
+          only(`${pat}.repeat`, p.repeat, ['count', 'at', 'turn']);
+          if (!Number.isInteger(p.repeat.count) || p.repeat.count < 2 || p.repeat.count > LIMITS.repeat) fail(`${pat}.repeat.count`, `should be a whole number from 2 to ${LIMITS.repeat}`);
+          triple(`${pat}.repeat.at`, p.repeat.at, -LIMITS.size, LIMITS.size);
+          triple(`${pat}.repeat.turn`, p.repeat.turn, -360, 360);
+        }
+      }
+      if (p.mirror !== undefined && typeof p.mirror !== 'boolean') fail(`${pat}.mirror`, 'should be true or false');
     });
     if (t.light !== undefined) {
       lights++;

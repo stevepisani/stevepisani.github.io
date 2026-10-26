@@ -24,7 +24,7 @@ rather than leaving it in a chat.
    each tied to what they love; tap one to walk up and see it. Better models (Steve, Oct 26:
    "a much better job with the modeling"; [the research](https://claude.ai/artifact/4yDa6BYwqp7gJv7dWRHGGH)):
    step 1, the look, is done (shadows, bloom, reflections, ambient occlusion on computers, ground
-   patches); then richer shapes, a craft guide with Inês and Dev rebuilt, renders sent back to
+   patches); step 2, richer shapes, is in (lathe, extrude, tube, rounded boxes, repeat, mirror); then a craft guide with Inês and Dev rebuilt, renders sent back to
    their AI to look and fix, and for sent planets real hero models from Meshy (Steve approved
    up to $5 a planet for the first ones; the monthly cap is his call). Next: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
