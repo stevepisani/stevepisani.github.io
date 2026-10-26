@@ -153,6 +153,8 @@ export function buildThings(things = [], surface) {
     // how far it reaches from its foot, along the ground: where you stop when you walk up to it
     // (measured before it's placed, so in metres from its foot)
     const box = new THREE.Box3().setFromObject(body);
+    thing.box = box;
+    thing.body = body;
     const reach = Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
     root.add(body);
     if (thing.light) {
@@ -168,6 +170,30 @@ export function buildThings(things = [], surface) {
   }
   return {
     group, colliders, pickable,
+    // a real model in place of a thing's shapes (models.js): as big as fits in the room the shapes
+    // took (as tall, and as long along the ground), standing where they stood
+    swap(thing, model) {
+      const { body, box } = thing;
+      const had = new Set();
+      body.traverse((o) => { if (o.isMesh) had.add(o); });
+      for (let i = pickable.length; i--;) if (had.has(pickable[i])) pickable.splice(i, 1);
+      for (let i = spinning.length; i--;) if (had.has(spinning[i].mesh)) spinning.splice(i, 1);
+      body.clear();
+      const m = new THREE.Box3().setFromObject(model), ms = m.getSize(new THREE.Vector3()), bs = box.getSize(new THREE.Vector3());
+      const s = Math.min(bs.y / ms.y, Math.max(bs.x, bs.z) / Math.max(ms.x, ms.z));
+      model.scale.setScalar(s);
+      const mid = box.getCenter(new THREE.Vector3()), mm = m.getCenter(new THREE.Vector3());
+      // a little into the ground: the planet curves away under anything long (a sag of L²/8R)
+      const sag = (Math.max(ms.x, ms.z) * s) ** 2 / (8 * RADIUS) + 0.02;
+      model.position.set(mid.x - mm.x * s, box.min.y - m.min.y * s - sag, mid.z - mm.z * s);
+      model.traverse((o) => {
+        if (!o.isMesh) return;
+        o.castShadow = o.receiveShadow = true;
+        o.userData.thing = thing;
+        pickable.push(o);
+      });
+      body.add(model);
+    },
     // a spinning part turns about its own up, after its own turn
     update(t) { for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed)); },
   };

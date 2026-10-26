@@ -10,12 +10,14 @@
 //     links: [{ id, label, note, href }],  the hub's menu; href https://, mailto: or a site path
 //     look: { theme, home, ground, sky },  theme from THEMES; home: a city, never an address;
 //                                          ground: { color, hills 0..1 }; sky: { color, light }
-//     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid,
+//     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid, model,
 //                parts: [{ shape, size, at, turn, color, finish, spin, text, round, profile,
 //                          outline, path, thick, repeat, mirror }], light }],
 //                                          what stands on someone else's planet, composed by
 //                                          their own AI from simple shapes (SHAPES, FINISHES),
-//                                          in metres, placed from where you land
+//                                          in metres, placed from where you land; model: the
+//                                          thing in words, for a real 3D model (Meshy) that
+//                                          takes the parts' place once it's made
 //     collections: { <id>: { title, items: [...] } | { title, src } },
 //                                          what matters to them: plain lists (items: text, or
 //                                          small objects), or a site path that serves the list
@@ -200,11 +202,12 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'turn', 'scale', 'solid', 'parts', 'light']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'turn', 'scale', 'solid', 'model', 'parts', 'light']);
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
     text(`${at}.note`, t.note, LIMITS.text);
+    text(`${at}.model`, t.model, LIMITS.text);
     known(`${at}.collection`, t.collection);
     if (!isObj(t.at)) fail(`${at}.at`, 'missing: { bearing, distance }');
     else {

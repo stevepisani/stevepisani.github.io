@@ -12,9 +12,9 @@
 //
 // Tasks already started are picked up again from the manifest, so a re-run never pays twice.
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, rmSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { Image } from 'imagescript';
+import { get, task, finished, madeBefore, auth, IMAGE_TO_3D as FROM_IMAGE, RETEXTURE, optimize } from './meshy.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const spec = JSON.parse(readFileSync(root + 'tools/models/gauge.json', 'utf8'));
@@ -25,47 +25,8 @@ const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile
 const save = () => writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
 const report = { errors: [], polyhaven: {} };
 const redo = new Set((process.argv[process.argv.indexOf('--redo') + 1] || '').split(',').filter(Boolean));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-// gltf-transform's command line at the version package.json pins for the library
-const GLTF_CLI = `@gltf-transform/cli@${JSON.parse(readFileSync(root + 'node_modules/@gltf-transform/core/package.json', 'utf8')).version}`;
-
-async function get(url, opts = {}) {
-  for (let i = 0; ; i++) {
-    const r = await fetch(url, opts);
-    if (r.ok) return r;
-    if (i === 3 || r.status < 500) throw new Error(`${opts.method || 'GET'} ${url}: ${r.status} ${(await r.text()).slice(0, 300)}`);
-    await sleep(2000 * 2 ** i);
-  }
-}
 
 // ---- Meshy ------------------------------------------------------------------------------------
-const MESHY = 'https://api.meshy.ai/openapi/v2/text-to-3d';
-const auth = { Authorization: `Bearer ${process.env.MESHY_API_KEY}`, 'Content-Type': 'application/json' };
-
-async function task(body) {
-  const r = await get(MESHY, { method: 'POST', headers: auth, body: JSON.stringify(body) });
-  return (await r.json()).result;
-}
-async function finished(id, label, api = MESHY) {
-  for (let t = 0; t < 180; t++) { // up to 30 minutes
-    const j = await (await get(`${api}/${id}`, { headers: auth })).json();
-    if (j.status === 'SUCCEEDED') return j;
-    if (j.status === 'FAILED' || j.status === 'CANCELED') throw new Error(`${label}: Meshy ${j.status}: ${j.task_error?.message || ''}`);
-    await sleep(10000);
-  }
-  throw new Error(`${label}: Meshy took over 30 minutes`);
-}
-
-// the account's recent tasks, so a model already made by a run whose manifest was lost isn't paid
-// for again (a refine keeps its preview's prompt)
-let recent;
-const madeBefore = async (prompt) => {
-  recent ??= get(`${MESHY}?page_size=50&sort_by=-created_at`, { headers: auth }).then((r) => r.json()).catch(() => []);
-  const list = await recent;
-  const ok = (Array.isArray(list) ? list : []).filter((t) => t.status === 'SUCCEEDED' && t.prompt === prompt);
-  return ok.find((t) => t.mode === 'refine') || ok.find((t) => t.mode === 'preview');
-};
-
 async function model(name, m) {
   const out = MODELS + name + '.glb';
   if (existsSync(out) && !redo.has(name)) return;
@@ -91,7 +52,6 @@ async function model(name, m) {
 }
 
 // image-to-3D: one task, from the picture as a data URI
-const FROM_IMAGE = 'https://api.meshy.ai/openapi/v1/image-to-3d';
 async function fromImage(name, m, rec) {
   if (!rec.image) {
     const image_url = 'data:image/png;base64,' + readFileSync(root + m.image).toString('base64');
@@ -103,7 +63,6 @@ async function fromImage(name, m, rec) {
 }
 
 // the picture is flat colour, so its model is too: paint it again from the texture words
-const RETEXTURE = 'https://api.meshy.ai/openapi/v1/retexture';
 async function retexture(name, m, rec) {
   if (!rec.retexture) {
     const r = await get(RETEXTURE, { method: 'POST', headers: auth, body: JSON.stringify({ input_task_id: rec.image, text_style_prompt: m.texture.slice(0, 800), enable_pbr: true, ai_model: 'latest' }) });
@@ -117,7 +76,7 @@ async function shrink(name, m, rec, done) {
   const out = MODELS + name + '.glb', raw = TMP + name + '.glb';
   writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));
   if (m.simplify) await simplify(raw, m.simplify);
-  execFileSync('npx', ['-y', GLTF_CLI, 'optimize', raw, out, '--compress', 'meshopt', '--texture-compress', 'webp', '--texture-size', String(m.textureSize), '--simplify', 'false'], { stdio: 'inherit' });
+  optimize(raw, out, m.textureSize);
   Object.assign(rec, { file: name + '.glb', bytes: statSync(out).size, made: new Date().toISOString().slice(0, 10) });
   save();
   console.log(`${name}: ${(rec.bytes / 1024).toFixed(0)} KB`);

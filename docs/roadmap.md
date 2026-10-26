@@ -25,8 +25,10 @@ rather than leaving it in a chat.
    "a much better job with the modeling"; [the research](https://claude.ai/artifact/4yDa6BYwqp7gJv7dWRHGGH)):
    step 1, the look, is done (shadows, bloom, reflections, ambient occlusion on computers, ground
    patches); step 2, richer shapes, is in (lathe, extrude, tube, rounded boxes, repeat, mirror), and step 3: the kit's craft guide says how to model with them, and the live test's Inês and Dev are rebuilt with them as the worked examples; and step 4, look and fix: the preview notes what a careful eye
-   would fix, and the card sends their AI pictures of the planet as drawn; then for sent planets real hero models from Meshy (Steve approved
-   up to $5 a planet for the first ones; the monthly cap is his call). Next: try it in Claude and ChatGPT
+   would fix, and the card sends their AI pictures of the planet as drawn. Steve, after those: "still very very poor. let's try just using meshy". So a thing
+   can now be described in words (`model`), and the Planet models workflow makes a real Meshy model from them that takes the shapes' place
+   (`docs/planets.md`, "Real models"); Sam, Inês and Dev are the first (Steve approved up to $5 a planet for the first ones; the monthly cap is his call).
+   Next: models made live from the chat, so their own AI's words become the model in the preview. Then: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 

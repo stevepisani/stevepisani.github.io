@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "slug": "test-dev",
+  "who": {
+    "name": "Dev"
+  },
+  "look": {"home":"Denver","ground":{"color":"#8a5544","hills":0.9},"sky":{"color":"#6a3ab0","light":"#d8e0ff"}},
+  "collections": {
+    "climbs": {
+      "title": "Climbs",
+      "items": [{"name":"The Naked Edge","where":"Eldorado Canyon","year":2019},{"name":"Longs Peak","why":"First fourteener"}]
+    },
+    "gear": {
+      "title": "Always in the van",
+      "items": ["A stove older than me","Two ropes","Too many cams"]
+    }
+  },
+  "things": [
+    {
+      "id": "wall",
+      "name": "The Naked Edge",
+      "note": "Eldorado Canyon, 2019.",
+      "collection": "climbs",
+      "at": {"bearing":-12,"distance":8},
+      "model": "A massive red sandstone cliff buttress like the Naked Edge in Eldorado Canyon, Colorado: broad and blocky at its base, rising in stacked layered slabs of red and orange rock with green lichen to a sharp knife-edge arete at the top, a blue climbing rope hanging down its face",
+      "parts": [
+        {"shape":"extrude","size":[3.2,7,1.6],"at":[0,3.5,0],"color":"#a4553a","outline":[[0.05,0],[0.95,0],[0.9,0.25],[1,0.45],[0.82,0.7],[0.75,0.88],[0.6,1],[0.42,0.93],[0.3,0.78],[0.12,0.6],[0.18,0.35],[0,0.15]]},
+        {"shape":"extrude","size":[2.4,5,1.2],"at":[1.6,2.5,-0.6],"turn":[0,20,0],"color":"#8e4a33","outline":[[0,0],[1,0],[0.85,0.5],[0.7,0.85],[0.45,1],[0.2,0.7]]},
+        {"shape":"sphere","size":[0.25,0.2,0.2],"at":[-0.6,1.4,0.82],"color":"#36d17a","finish":"gloss"},
+        {"shape":"sphere","size":[0.25,0.2,0.2],"at":[0.4,2.3,0.82],"color":"#ffcf33","finish":"gloss"},
+        {"shape":"sphere","size":[0.25,0.2,0.2],"at":[-0.3,3.3,0.82],"color":"#ff4f6a","finish":"gloss"},
+        {"shape":"sphere","size":[0.25,0.2,0.2],"at":[0.5,4.3,0.82],"color":"#3aa0ff","finish":"gloss"},
+        {"shape":"sphere","size":[0.25,0.2,0.2],"at":[-0.1,5.3,0.82],"color":"#36d17a","finish":"gloss"},
+        {"shape":"tube","size":[1.2,6,0.2],"at":[0.1,3.3,0.9],"thick":0.04,"color":"#ff6a3c","finish":"glow","path":[[0,-0.5,0],[0.2,-0.3,0.1],[-0.1,-0.1,0.1],[0.15,0.1,0.1],[-0.05,0.3,0.1],[0.1,0.5,0]]}
+      ]
+    },
+    {
+      "id": "van",
+      "name": "The van",
+      "note": "Home most weekends.",
+      "collection": "gear",
+      "at": {"bearing":42,"distance":6},
+      "turn": 70,
+      "model": "A white high-roof camper van with an orange stripe along its side, a black roof rack, big off-road tyres, a ladder on the back doors, ready for a weekend of climbing",
+      "parts": [
+        {"shape":"box","size":[1.9,1.9,4.6],"at":[0,1.35,0],"round":0.25,"color":"#eeeeea","finish":"gloss"},
+        {"shape":"box","size":[1.92,0.18,4.4],"at":[0,1.1,0],"color":"#d4572a"},
+        {"shape":"box","size":[1.6,0.7,0.06],"at":[0,1.85,2.29],"color":"#9cc6e8","finish":"glass"},
+        {"shape":"box","size":[0.04,0.5,0.9],"at":[0.95,1.85,-0.5],"color":"#9cc6e8","finish":"glass","mirror":true},
+        {"shape":"box","size":[1.4,0.08,2.4],"at":[0,2.36,-0.4],"round":0.4,"color":"#3a3a3a","finish":"metal"},
+        {"shape":"box","size":[0.06,0.12,2.4],"at":[0.7,2.42,-0.4],"color":"#3a3a3a","finish":"metal","mirror":true},
+        {"shape":"cylinder","size":[0.75,0.28,0.75],"at":[0.92,0.4,1.5],"turn":[0,0,90],"color":"#1c1c1c","mirror":true,"repeat":{"count":2,"at":[0,0,-3]}},
+        {"shape":"cylinder","size":[0.35,0.3,0.35],"at":[0.93,0.4,1.5],"turn":[0,0,90],"color":"#c0c4cc","finish":"metal","mirror":true,"repeat":{"count":2,"at":[0,0,-3]}},
+        {"shape":"sphere","size":[0.2,0.2,0.08],"at":[0.65,1,2.31],"color":"#fff7d6","finish":"glow","mirror":true},
+        {"shape":"box","size":[0.5,0.3,0.35],"at":[1.6,0.15,0.4],"round":0.2,"color":"#4a6a3a","finish":"metal"},
+        {"shape":"cone","size":[0.18,0.3,0.18],"at":[1.6,0.45,0.4],"color":"#4aa8ff","finish":"glow"},
+        {"shape":"lathe","size":[0.35,0.3,0.35],"at":[1.6,0.75,0.4],"color":"#b0b4bc","finish":"metal","profile":[[0.8,0],[0.95,0.1],[0.95,0.9],[1,1]]}
+      ],
+      "light": {"color":"#9ec2ff","strength":0.5,"at":[1.4,1.2,0]}
+    }
+  ]
+}
