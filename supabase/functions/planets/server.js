@@ -2,11 +2,11 @@
 // or Claude designs a little planet for the person it's talking with, from what they love, and
 // shows it in the chat. Three tools: get_kit (what a planet can hold, and how to write one),
 // preview_planet (checks a spec and shows it in the card: their own planet, assets/js/planets/,
-// bare until it's built for them by hand; none of Steve's places) and send_planet (when they're
+// with the things their AI made for them from simple shapes; none of Steve's places) and send_planet (when they're
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, packPlanet, line, PREVIEW_PAGE, LIMITS } from '../_shared/planet.js';
+import { checkPlanet, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -15,11 +15,11 @@ export const SERVER = { name: 'planets', title: 'My Tiny Planet', version: '0.1.
 const INSTRUCTIONS = [
   'My Tiny Planet: design a little walkable planet for the person you are talking with, from what they love, and show it here.',
   'Call get_kit first: it says what a planet can hold and what is drawn today.',
-  'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Every planet is built for its person by hand, from those answers: nothing on it is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
-  'Until it is built, the preview shows their planet bare: their own ground under the stars, with their name. Say so plainly.',
-  'Write the spec, then preview_planet.',
+  'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Nothing on a planet is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
+  'Then build it for them: compose a few things (things) from simple shapes that are unmistakably theirs, from what they told you, in the colours and mood of their world (look.ground, look.sky). Make each one specific and a little delightful, with care for proportion: a thing they love, made big enough to walk up to. Tie each thing to a collection, so tapping it shows what they love in their own words.',
+  'Write the spec, then preview_planet. Look at what the preview says, and tell them what you made and that they can walk up to each thing and tap it.',
   'Change it and preview again whenever they ask. A preview stores nothing: its link is the planet, so give them the link to keep.',
-  'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who builds it. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
+  'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who gives it its own address and may add to it by hand. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
   'A planet is public: never put a home address, phone number or anything private in it.',
 ].join(' ');
 
@@ -53,33 +53,65 @@ export const EXAMPLE = {
   slug: 'sam',
   who: { name: 'Sam' },
   links: [{ id: 'band', label: 'My band', note: 'Live dates and recordings', href: 'https://example.com' }, { id: 'mail', label: 'Write to me', href: 'mailto:sam@example.com' }],
-  look: { home: 'Austin' },
+  look: { home: 'Austin', ground: { color: '#5b4a3c', hills: 0.4 }, sky: { color: '#3a5bd0', light: '#ffd8a8' } },
   collections: {
     records: { title: 'Records I love', items: [{ name: 'Kind of Blue', by: 'Miles Davis', year: 1959, why: 'The first record I wore out' }, { name: 'Blue Train', by: 'John Coltrane', year: 1957 }] },
     porch: { title: 'Evenings', items: ['Playing on the porch until the street lights come on', 'Every amp sounds better at 7'] },
   },
+  things: [
+    {
+      id: 'turntable', name: 'The turntable', note: 'Always something spinning.', collection: 'records', at: { bearing: -22, distance: 5 }, scale: 1.5,
+      parts: [
+        { shape: 'box', size: [1.4, 0.5, 1.1], color: '#7a4a2a', finish: 'gloss' },
+        { shape: 'cylinder', size: [1, 0.04, 1], at: [-0.12, 0.52, 0], color: '#111111', finish: 'gloss', spin: 200 },
+        { shape: 'cylinder', size: [0.34, 0.045, 0.34], at: [-0.12, 0.53, 0], color: '#2456c8', finish: 'matte', spin: 200 },
+        { shape: 'box', size: [0.05, 0.05, 0.75], at: [0.5, 0.58, 0.05], turn: [0, 18, 0], color: '#cfd3da', finish: 'metal' },
+      ],
+    },
+    {
+      id: 'porch', name: 'The porch', note: 'Where the evenings go.', collection: 'porch', at: { bearing: 30, distance: 10 }, turn: -10,
+      light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] },
+      parts: [
+        { shape: 'box', size: [4, 0.3, 3], color: '#8a6a4a' },
+        { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [-1.8, 1.6, 1.3], color: '#e8e2d6' },
+        { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [1.8, 1.6, 1.3], color: '#e8e2d6' },
+        { shape: 'box', size: [4.4, 0.2, 3.4], at: [0, 2.95, 0], color: '#3c4a5a' },
+        { shape: 'box', size: [0.7, 0.9, 0.5], at: [0.9, 0.75, -0.6], color: '#2a2a2a', finish: 'gloss' },
+        { shape: 'sphere', size: [0.35, 0.35, 0.35], at: [0, 2.7, 0.8], color: '#ffcf8a', finish: 'glow' },
+        { shape: 'text', text: 'Live at 7', size: [2.6, 0.5, 0.1], at: [0, 3.35, 1.71], color: '#ff9a5c', finish: 'glow' },
+      ],
+    },
+  ],
 };
 
 // What a spec holds for someone else's planet. Steve's own planet's parts (places, the robot,
 // the telescope, the launch pad) still pass checkPlanet, for his spec, but aren't offered here:
 // nothing on a friend's planet is copied from his (Steve, Oct 2026).
 const KIT = {
-  what: 'A planet is one JSON spec for a small walkable planet at night, built by hand for its person from what they love (Steve Pisani builds the first ones himself). Only the planet\'s size is shared; nothing on it is copied from anyone else\'s. Until it\'s built, a preview shows it bare: their own ground and stones under the stars, their name and home city, walkable. The spec is where what they love goes, in their own words, so their planet can be built from it.',
+  what: 'A planet is one JSON spec for a small walkable planet at night, 20 m across the middle (about 126 m round), made for its person from what they love. Only the planet\'s size is shared; nothing on it is copied from anyone else\'s. You build what stands on it (things) from simple shapes, and choose its ground and sky. You land on top, looking ahead; tap or click to walk, drag to look, tap a thing to walk up to it and see what it holds.',
   drawn_today: [
     'who.name: the top bar',
     'look.home: the top bar ("A tiny planet in Austin"); a city, never an address',
-    'slug: the planet\'s own hills (no two are the same shape)',
+    'look.ground: { color, hills 0..1 }: the ground\'s colour (a rock, sand, grass, snow… colour) and how hilly it is; slug shapes the hills, so no two are the same',
+    'look.sky: { color, light }: the colour the nebula takes on, and the colour of the starlight on everything',
+    'things: what stands on the planet, each made of parts; tapping one shows its name, note and collection',
   ],
-  kept_for_building: 'collections (what they love: lists of things, each text or a small object with a name and any details, like why it matters) and links (their own pages: https:// or mailto:). Kept in the spec and shown on the chat card; their planet is built from them.',
+  things: {
+    how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
+    parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall.`,
+    light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
+    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Several things spread round the planet, a few close by, and something worth walking to further off. Overlap parts to model shapes (a guitar: a body of two flattened spheres, a box neck, a cylinder sound hole). Use glow and lights for warmth against the night.',
+  },
   shape: {
     version: 1,
     slug: 'a-z, 0-9 and -, 2 to 32 characters: the planet\'s name in its address',
     who: { name: `required, ${LIMITS.name} characters at most` },
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
-    look: { home: 'a city' },
+    look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
+    things: `up to ${LIMITS.things}: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid, parts: [...], light }], ${LIMITS.allParts} parts in all`,
   },
-  sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who builds it by hand, and it will be at its own address when it is built. A preview alone is never sent.',
+  sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who gives it its own address and may add to it by hand. A preview alone is never sent.',
   limits: LIMITS,
   example: EXAMPLE,
 };
@@ -151,7 +183,7 @@ async function call(name, args, ctx) {
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   return {
-    text: `${spec.who.name}'s planet is ready to walk around, bare for now: it gets built by hand from what they love, once they send it (send_planet). It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
+    text: `${spec.who.name}'s planet is ready to walk around${(spec.things || []).length ? `, with ${spec.things.map((t) => t.name).join(', ')} on it` : ', bare for now: add things to it (get_kit, things) from what they love'}. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
     data: { view: 'planet', url, planet },
   };
 }

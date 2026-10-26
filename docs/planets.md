@@ -2,8 +2,10 @@
 
 Anyone's ChatGPT or Claude can ask the person it's talking with what they love and show them
 their own little planet right there in the chat, walkable. Every planet is its person's own: the
-only thing shared with Steve's is its size (Steve, Oct 2026), and the first ten are built by hand
-from what they said. Until then a planet is bare. The plan and what's next are in
+only thing shared with Steve's is its size (Steve, Oct 2026). Their AI builds it in the chat from
+what they said (Steve chose this, Oct 26, for the wow of seeing it at once): their ground and sky,
+and things made of simple shapes, each tied to what they love in their words. The first ten
+sent are then finished by hand. The plan and what's next are in
 `docs/roadmap.md` (My Tiny Planet, Linear P-PRO-40); this file is how what's built works.
 
 ## The pieces
@@ -12,8 +14,10 @@ from what they said. Until then a planet is bare. The plan and what's next are i
   `checkPlanet`, the one check every spec passes before anything draws it, on the server and in
   the browser alike. Steve's is built from `_data/` (`tools/planet.mjs`) and also holds his
   planet's own parts (places, the robot, the telescope, the launch pad: `planetParts` reads them
-  for the homepage). For anyone else it holds who they are (`who.name`, `look.home`), their links
-  and what they love (`collections`, in their own words): what their planet is built from.
+  for the homepage). For anyone else it holds who they are (`who.name`, `look.home`), their links,
+  what they love (`collections`, in their own words), the look of their planet (`look.ground`:
+  colour and hills; `look.sky`: the nebula's colour and the starlight's) and what stands on it
+  (`things`, below).
   `packPlanet` / `unpackPlanet` put a spec in an address (below).
 - **A friend's planet** (`assets/js/planets/`, built to `dist/planets.js`; `_layouts/planet.html`,
   `assets/css/planet.css`): its own small world on three.js, a quarter of the homepage's download
@@ -22,8 +26,17 @@ from what they said. Until then a planet is bare. The plan and what's next are i
   (`world/player.js`, which takes the planet's own ground), and the empty sky (`buildSpace` in
   `world/sky.js`: the nebula and the stars, which Steve's sky builds on). `ground.js` makes the
   ground: hills of its own, seeded by the planet's slug so no two are the same shape, and loose
-  stones; a built planet will pass its own colour and hills. You land looking a little down,
+  stones, in the planet's own colour (`look.ground`). You land looking a little down,
   tap or click to walk (a ring marks where), drag to look, WASD too.
+  `things.js` draws their things: each is up to 40 parts (box, sphere, cylinder, cone, torus,
+  capsule, or `text`: a panel of their words), each a size in metres, a place from the thing's
+  foot, a turn, a colour and a finish (matte, gloss, metal, glass, glow), maybe spinning; a thing
+  can cast light (8 a planet). A thing is placed by a bearing from straight ahead where you land
+  and a distance along the ground, stands upright and faces you; it's solid unless it says not.
+  The planet is 20 m across, so the horizon is about 6 m off: 3 to 10 m is in full view from
+  where you land. Tap a thing and you walk up to it and a card says what it is (name, note) and
+  holds (its collection, in their words); ×, Esc or a tap on the ground closes it. Caps
+  (`LIMITS`): 24 things, 400 parts, 12 m a part.
   The launch screen is the night sky over the planet's horizon (drawn where the first frame has
   it), and it's already live: an inline script draws the stars and lets you drag them round at
   the same rate the planet turns you, and the planet appears facing where you looked
@@ -39,9 +52,10 @@ from what they said. Until then a planet is bare. The plan and what's next are i
   SJPJr's), at `https://mcp.stevenpisani.com/planets` (the proxy in `proxy/` sends `/planets`
   there and everything else to SJPJr). Open to anyone, no sign-in: it reads nothing, and the one
   thing it stores is a planet someone sends to be built (below). Its instructions say to ask open questions and keep the answers in the person's own
-  words, never to suggest a bar, a sign or anything as a default, and to say plainly that the
-  planet is bare until it's built. `get_kit` offers only who they are, their links and what they
-  love: none of Steve's planet's parts (Steve, Oct 2026). A spec needs only `version`, `slug` and
+  words, never to suggest a bar, a sign or anything as a default, and then to build them a few
+  things that are unmistakably theirs, tied to what they love. `get_kit` offers who they are,
+  their links, what they love, the look and `things` (how to place and make them, and some craft:
+  scale, spread, light): none of Steve's planet's parts (Steve, Oct 2026). A spec needs only `version`, `slug` and
   `who.name`. Three tools, the first two read-only:
   - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example
     (Sam's, which `tools/planet-test.mjs` checks passes);
@@ -75,9 +89,9 @@ from what they said. Until then a planet is bare. The plan and what's next are i
 
 ## What a preview draws today
 
-The planet, bare: its own ground and stones under the stars, their name and home city in the top
-bar. Nothing else from the spec is drawn yet; their links and what they love show on the chat's
-plain card and are kept for building their planet. A preview never writes anywhere; the page
+Their ground (colour and hills) and sky (the nebula's colour and the starlight), their things,
+and their name and home city in the top bar; with no things it's bare rock under the stars.
+Their links show on the chat's plain card. A preview never writes anywhere; the page
 count counts it as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a
 server).
 
@@ -130,9 +144,10 @@ when the one Playwright expects isn't there (Oct 26: all three made-up planets p
 The first ten are built by hand (Steve, Oct 2026). From a request: read it in Supabase, set its
 status to `building`, and give the planet its own page, `p/<slug>.html` with `layout: planet`,
 `permalink: /p/<slug>/` and the spec as sent under `planet:` in its front matter (the layout
-writes it into `planet-data`). That page is already their planet, bare. What makes it theirs is
-built for them from what they love, on the same small world (`assets/js/planets/`); the first
-one built decides how a planet's own parts are kept, so this section grows with it. Then set the
+writes it into `planet-data`). That page is already their planet as previewed, things and all.
+Finishing it by hand means changing its spec (better things, more of them) or, where shapes
+can't do it, adding to `assets/js/planets/` for that planet; the first one finished decides how
+a planet's own code is kept, so this section grows with it. Then set the
 status to `built` and tell them (the contact, if they gave one).
 
 ## Costs and limits

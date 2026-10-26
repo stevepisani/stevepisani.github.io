@@ -48,6 +48,19 @@ ok(checkPlanet(sam).length === 0, 'a fuller planet of their own passes', checkPl
 // ---------- what's caught ----------
 ok(checkPlanet(null)[0] === 'spec: should be an object' && checkPlanet([]).length === 1, 'something that isn\'t a spec at all');
 caught(least, (s) => { s.version = 2; }, /^version: should be 1/, 'a version this code doesn\'t know');
+
+// things their AI made them, from simple shapes (assets/js/planets/things.js)
+const made = { ...least, look: { ground: { color: '#5b4a3c', hills: 0.4 }, sky: { color: '#3a5bd0', light: '#ffd8a8' } }, collections: { records: { title: 'Records', items: ['Kind of Blue'] } }, things: [{ id: 'deck', name: 'The turntable', collection: 'records', at: { bearing: -20, distance: 5 }, light: { color: '#ffcf8a', strength: 0.5 }, parts: [{ shape: 'box', size: [1.4, 0.5, 1.1], color: '#7a4a2a', finish: 'gloss' }, { shape: 'cylinder', size: [1, 0.04, 1], at: [0, 0.52, 0], spin: 200 }, { shape: 'text', text: 'Spin it', size: [2, 0.4, 0.1], at: [0, 1.2, 0], finish: 'glow' }] }] };
+ok(checkPlanet(made).length === 0, 'a planet with its own ground, sky and things passes', checkPlanet(made));
+caught(made, (s) => { s.things[0].parts[0].shape = 'teapot'; }, /^things\[0\]\.parts\[0\]\.shape: should be one of/, 'a shape the kit doesn\'t have');
+caught(made, (s) => { s.things[0].parts[0].size = [1, 50, 1]; }, /^things\[0\]\.parts\[0\]\.size:/, 'a part bigger than the planet allows');
+caught(made, (s) => { delete s.things[0].parts[2].text; }, /^things\[0\]\.parts\[2\]\.text: missing/, 'a text part with no words');
+caught(made, (s) => { s.things[0].at.distance = 0; }, /^things\[0\]\.at\.distance:/, 'a thing on top of where you land');
+caught(made, (s) => { s.things[0].collection = 'nope'; }, /^things\[0\]\.collection: no collection "nope"/, 'a thing tied to a collection that isn\'t there');
+caught(made, (s) => { s.things[0].parts = []; }, /^things\[0\]\.parts: should have at least one part/, 'a thing with nothing to it');
+caught(made, (s) => { s.things = Array.from({ length: 9 }, (_, i) => ({ ...s.things[0], id: `t${i}` })); }, /^things: more than 8 with a light/, 'more lights than a planet allows');
+caught(made, (s) => { s.things = Array.from({ length: 11 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(40).fill(s.things[0].parts[0]) })); }, /^things: more than 400 parts in all/, 'more parts than a planet allows');
+caught(made, (s) => { s.look.ground.color = 'brown'; }, /^look\.ground\.color: should be a colour/, 'a colour that isn\'t #rrggbb');
 for (const slug of ['', 'a', 'Sam', '-sam', 'sam-', 'sam steve', 'x'.repeat(33), 7]) caught(least, (s) => { s.slug = slug; }, /^slug:/, `a bad slug: ${JSON.stringify(slug)}`);
 caught(least, (s) => { delete s.who; }, /^who: missing/, 'no who');
 caught(least, (s) => { s.who.name = '  '; }, /^who\.name: empty/, 'an empty name');
