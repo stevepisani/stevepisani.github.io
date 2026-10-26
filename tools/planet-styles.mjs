@@ -7,9 +7,8 @@
 // the pictures go to tools/models/planets/styles/ (not published).
 //
 //   MESHY_API_KEY=... node tools/planet-styles.mjs
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 import { get, task, finished, balance, optimize, IMAGE_TO_3D } from './meshy.mjs';
 
 export const STYLES = {
