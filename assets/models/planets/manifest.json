@@ -1,0 +1,58 @@
+{
+  "sam/turntable": {
+    "model": "A 1960s record player: a walnut wood plinth, a black vinyl record with a blue label on the platter, a chrome tonearm resting on the record, two silver knobs at the front",
+    "preview": "01a17a42-f00b-7279-bd59-ab1cd724ba03",
+    "refine": "01a17a44-5183-7793-aa2d-70cde8e48e24",
+    "file": "sam/turntable.glb",
+    "bytes": 568996,
+    "made": "2026-10-26"
+  },
+  "sam/porch": {
+    "model": "The front porch of a small Texas house at night: a wooden deck, white posts and railing, a tin roof, a warm porch lamp, a red electric guitar leaning on a small black amplifier, a rocking chair",
+    "preview": "01a17a42-f07f-770a-a429-8ae489b37892",
+    "refine": "01a17a44-51f8-7217-8bc5-1e6d9c13ef6e",
+    "file": "sam/porch.glb",
+    "bytes": 556496,
+    "made": "2026-10-26"
+  },
+  "test-dev/wall": {
+    "model": "A tall, sharp sandstone rock spire like the Naked Edge in Eldorado Canyon, Colorado: red and orange layered rock with lichen, a knife-edge arete, a climbing rope running up its face",
+    "preview": "01a17a42-f091-750e-87ed-115f367e86e9",
+    "refine": "01a17a44-51ed-73a8-8135-288c3d1f1aa3",
+    "file": "test-dev/wall.glb",
+    "bytes": 474768,
+    "made": "2026-10-26"
+  },
+  "test-dev/van": {
+    "model": "A white high-roof camper van with an orange stripe along its side, a black roof rack, big off-road tyres, a ladder on the back doors, ready for a weekend of climbing",
+    "preview": "01a17a42-f086-7236-9a5c-74824d3c2e9a",
+    "refine": "01a17a45-4779-760a-ad71-83d1fa315c9f",
+    "file": "test-dev/van.glb",
+    "bytes": 840960,
+    "made": "2026-10-26"
+  },
+  "test-ines/oven": {
+    "model": "A traditional Portuguese wood-fired bread oven: a whitewashed clay dome on a low stone base, an arched brick opening with a fire glowing inside, a short chimney, three round loaves cooling on the ledge",
+    "preview": "01a17a42-fa93-73bb-8015-9f249fcfe727",
+    "refine": "01a17a45-f54a-7389-ba24-3abd3a263066",
+    "file": "test-ines/oven.glb",
+    "bytes": 639816,
+    "made": "2026-10-26"
+  },
+  "test-ines/tram": {
+    "model": "A vintage Lisbon tram, Tram 28: a short wooden tram car painted yellow below and cream above, rounded roof, a row of windows down each side, a trolley pole on the roof, the number 28 on the front",
+    "preview": "01a17a42-fa9a-7739-8b7a-dd13c85c2013",
+    "refine": "01a17a45-f4b6-7517-87d1-412e150d9646",
+    "file": "test-ines/tram.glb",
+    "bytes": 822760,
+    "made": "2026-10-26"
+  },
+  "test-ines/pao": {
+    "model": "A Portuguese Pão de Deus sweet bun: a round, golden-brown glossy brioche bun with a crackly top of toasted shredded coconut, dusted with icing sugar",
+    "preview": "01a17a42-fa92-7441-b9dc-b2dabc4fc501",
+    "refine": "01a17a45-f4b9-74f9-8452-6034dd0d8cdf",
+    "file": "test-ines/pao.glb",
+    "bytes": 707908,
+    "made": "2026-10-26"
+  }
+}
