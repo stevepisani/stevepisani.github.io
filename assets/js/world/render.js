@@ -23,7 +23,9 @@ export function loadAO() {
   return import(/* by URL: never part of world.js */ url.href).then((m) => m.N8AOPostPass).catch((e) => { console.warn('no ambient occlusion', e); return null; });
 }
 
-export function createPipeline(renderer, scene, camera, { high, N8AOPostPass = null }) {
+// `tone` and `bloom` default to the homepage's; a friend's planet keeps the colours their AI chose
+// (ACES, which saturates where AgX desaturates) and blooms a little less (planets/main.js).
+export function createPipeline(renderer, scene, camera, { high, N8AOPostPass = null, tone = ToneMappingMode.AGX, bloom: glow = 1 }) {
   // postprocessing does its own tone mapping at the end of the chain
   renderer.toneMapping = THREE.NoToneMapping;
   const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
@@ -48,12 +50,12 @@ export function createPipeline(renderer, scene, camera, { high, N8AOPostPass = n
     mipmapBlur: true,
     luminanceThreshold: 1.0,   // only HDR emissives (flames, neon, lamps) bloom
     luminanceSmoothing: 0.25,
-    intensity: high ? 1.35 : 1.0,
+    intensity: (high ? 1.35 : 1.0) * glow,
     radius: 0.72,
   });
-  const tone = new ToneMappingEffect({ mode: ToneMappingMode.AGX });
+  const toneMapping = new ToneMappingEffect({ mode: tone });
   const vignette = new VignetteEffect({ offset: 0.32, darkness: 0.62 });
-  const effects = [bloom, tone, vignette];
+  const effects = [bloom, toneMapping, vignette];
   if (high) {
     const grain = new NoiseEffect({ blendFunction: BlendFunction.OVERLAY, premultiply: true });
     grain.blendMode.opacity.value = 0.12;

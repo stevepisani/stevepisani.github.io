@@ -24,14 +24,19 @@ sent are then finished by hand. The plan and what's next are in
   and none of Steve's planet (no bar, sign, campfire, telescope, rocket, lagoon, machine or Earth).
   It shares only the radius (`RADIUS`, `world/planet.js`) and a few general parts: walking
   (`world/player.js`, which takes the planet's own ground), and the empty sky (`buildSpace` in
-  `world/sky.js`: the nebula and the stars, which Steve's sky builds on). `ground.js` makes the
-  ground: hills of its own, seeded by the planet's slug so no two are the same shape, and loose
-  stones, in the planet's own colour (`look.ground`). You land looking a little down,
+  `world/sky.js`: the nebula and the stars, which Steve's sky builds on), and the site's look
+  (`world/render.js`: ambient occlusion on computers, bloom, vignette; here with ACES tone
+  mapping, so the colours their AI chose stay as chosen, and a softer bloom). The starlight
+  casts shadows round where you stand (a 2048 map on computers, 1024 on phones), and a dim
+  room's reflections (`RoomEnvironment`) give metal, gloss and glass something to show. That
+  look made `dist/planets.js` about 735 KB (from 570). `ground.js` makes the
+  ground: hills of its own, seeded by the planet's slug so no two are the same shape, patches of
+  a duller tone and of pale dust, and loose stones, in the planet's own colour (`look.ground`). You land looking a little down,
   tap or click to walk (a ring marks where), drag to look, WASD too.
   `things.js` draws their things: each is up to 40 parts (box, sphere, cylinder, cone, torus,
   capsule, or `text`: a panel of their words), each a size in metres, a place from the thing's
   foot, a turn, a colour and a finish (matte, gloss, metal, glass, glow), maybe spinning; a thing
-  can cast light (8 a planet). A thing is placed by a bearing from straight ahead where you land
+  can cast light (8 a planet). Solid parts cast shadows; glowing parts and words bloom. A thing is placed by a bearing from straight ahead where you land
   and a distance along the ground, stands upright and faces you; it's solid unless it says not.
   The planet is 20 m across, so the horizon is about 6 m off: 3 to 10 m is in full view from
   where you land. Tap a thing and you walk up to it and a card says what it is (name, note) and

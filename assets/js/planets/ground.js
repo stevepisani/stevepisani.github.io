@@ -32,18 +32,24 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
   const geo = new THREE.IcosahedronGeometry(RADIUS, quality.high ? 96 : 64);
   const pos = geo.attributes.position, colors = new Float32Array(pos.count * 3);
   const base = new THREE.Color(color), c = new THREE.Color(), d = new THREE.Vector3();
+  // patches of a second, duller tone and of pale dust, at their own scales, so it isn't one flat colour
+  const patches = Array.from({ length: 6 }, (_, i) => ({ k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(5 + i * 3 + rand() * 2), phase: rand() * Math.PI * 2 }));
+  const patch = (dir, from) => patches.slice(from, from + 3).reduce((a, w) => a + Math.sin(dir.dot(w.k) + w.phase), 0) / 3;
+  const dull = base.clone().offsetHSL(0.03, -0.12, -0.07), dust = base.clone().offsetHSL(-0.01, -0.15, 0.08);
   for (let i = 0; i < pos.count; i++) {
     d.fromBufferAttribute(pos, i).normalize();
     const h = height(d);
     pos.setXYZ(i, d.x * (RADIUS + h), d.y * (RADIUS + h), d.z * (RADIUS + h));
     // a little lighter on the tops, darker in the hollows, and a grain of noise so it reads as ground
-    c.copy(base).multiplyScalar(0.8 + h * 0.4 + (rand() - 0.5) * 0.04);
+    c.copy(base).lerp(dull, THREE.MathUtils.smoothstep(patch(d, 0), -0.1, 0.5) * 0.8).lerp(dust, THREE.MathUtils.smoothstep(patch(d, 3), 0.3, 0.8) * 0.6);
+    c.multiplyScalar(0.8 + h * 0.4 + (rand() - 0.5) * 0.06);
     c.toArray(colors, i * 3);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
   const mesh = new THREE.Mesh(geo, material);
+  mesh.receiveShadow = true;
   // loose stones, so the ground reads as ground and you can see yourself walk: one instanced mesh,
   // sunk a little so none floats on a slope
   const STONES = quality.high ? 3000 : 2000;
@@ -57,6 +63,7 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
     m.compose(p, q, sc.set(r, r * (0.5 + rand() * 0.4), r * (0.7 + rand() * 0.5)));
     stones.setMatrixAt(i, m);
   }
+  stones.receiveShadow = true;
   mesh.add(stones);
   return { mesh, surface };
 }

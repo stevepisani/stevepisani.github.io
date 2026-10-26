@@ -58,7 +58,7 @@ export function buildSpace({ quality, uniforms = { time: { value: 0 } }, tint })
   const nebula = new THREE.Mesh(
     new THREE.SphereGeometry(800, 48, 24),
     new THREE.ShaderMaterial({
-      uniforms: { ...uniforms, tint: { value: tint ? new THREE.Color(tint).multiplyScalar(1.8 / Math.max(0.05, ...new THREE.Color(tint).toArray())) : new THREE.Color(1, 1, 1) } },
+      uniforms: { ...uniforms, tint: { value: tint ? new THREE.Color(tint).multiplyScalar(1.3 / Math.max(0.05, ...new THREE.Color(tint).toArray())) : new THREE.Color(1, 1, 1) } },
       side: THREE.BackSide,
       depthWrite: false,
       vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.); }`,

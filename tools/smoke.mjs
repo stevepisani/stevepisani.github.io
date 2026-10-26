@@ -1773,8 +1773,8 @@ async function preview(page, shot) {
   step('a click on the ground walks there');
   // Sam's things: tap the turntable and its card says what it holds, in Sam's words
   await page.evaluate(() => { const p = window.__planet; p.player.stop(); p.player.look(-p.player.yawToward(p.spec.things[0].center), 0); });
-  await page.waitForTimeout(400);
-  const at = await page.evaluate(() => window.__planet.screenOf('turntable'));
+  // the camera turns on the next frame, which under software WebGL can take a while
+  const at = await page.waitForFunction(() => window.__planet.screenOf('turntable'), null, { timeout: 20000 }).then((h) => h.jsonValue()).catch(() => null);
   if (!at) throw new Error("Sam's turntable should be in view once you turn to it");
   await page.mouse.click(at.x, at.y);
   await until(page, () => !document.getElementById('thing').hidden, null, 10000);

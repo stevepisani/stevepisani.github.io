@@ -6,6 +6,9 @@
 // screen's next step and comes quickly; the launch screen (_layouts/planet.html) already lets you
 // drag to look around, and you face where you looked when the planet appears.
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { ToneMappingMode } from 'postprocessing';
+import { createPipeline, loadAO } from '../world/render.js';
 import { Player, bindInput } from '../world/player.js';
 import { buildSpace } from '../world/sky.js';
 import { readSpec, tellCard } from '../world/spec.js';
@@ -18,6 +21,7 @@ const root = $('planet'), canvas = $('planet-canvas'), veil = $('veil'), status 
 const TEST = new URLSearchParams(location.search).has('test');
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = { high: !coarse && innerWidth > 900 };
+const aoIn = quality.high ? loadAO() : null; // ambient occlusion, computers only, asked for at once
 
 const say = (text) => { status.textContent = text; };
 const fail = (why, detail) => {
@@ -30,7 +34,7 @@ const { spec, errors = [] } = await readSpec(root, JSON.parse($('planet-data').t
 if (!spec) fail(/^There’s no/.test(errors[0]) ? errors[0] : `This planet can’t be drawn: ${errors[0]}${errors.length > 1 ? ` (and ${errors.length - 1} more)` : ''}`, errors);
 else start(spec);
 
-function start(spec) {
+async function start(spec) {
   document.title = `${spec.who.name}: a tiny planet`;
   $('topbar-name').textContent = spec.who.name;
   $('topbar-line').textContent = spec.look && spec.look.home ? `A tiny planet in ${spec.look.home}` : 'A tiny planet';
@@ -45,8 +49,9 @@ function start(spec) {
   }
   say('Shaping the planet…');
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, 0.05, 2000);
@@ -55,9 +60,21 @@ function start(spec) {
   const space = buildSpace({ quality, uniforms: { time }, tint: sky.color });
   scene.add(space);
   // cool starlight from one side and a little from all round, so the ground reads at night
+  // its shadows follow you: a small square of ground round where you stand, sharp up close
+  const SUN = new THREE.Vector3(0.55, 0.62, 0.56).normalize();
   const sun = new THREE.DirectionalLight(sky.light || 0xc8d6ff, 2.2);
-  sun.position.set(0.55, 0.62, 0.56).multiplyScalar(100);
-  scene.add(sun, new THREE.HemisphereLight(sky.light || 0x9aa0b8, 0x15161e, (spec.things || []).length ? 1.4 : 0.8));
+  sun.castShadow = true;
+  sun.shadow.mapSize.setScalar(quality.high ? 2048 : 1024);
+  Object.assign(sun.shadow.camera, { left: -16, bottom: -16, right: 16, top: 16, near: 1, far: 90 });
+  sun.shadow.bias = -0.0004;
+  sun.shadow.normalBias = 0.03;
+  sun.shadow.radius = 3;
+  scene.add(sun, sun.target, new THREE.HemisphereLight(sky.light || 0x9aa0b8, 0x15161e, (spec.things || []).length ? 1.1 : 0.8));
+  // a soft room's reflections, so metal, gloss and glass have something to show; dim, it's night
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.2;
+  pmrem.dispose();
   const ground = buildGround(spec.slug, { quality, ...look.ground });
   scene.add(ground.mesh);
   // what their AI made for them from what they love (things.js); none, and the planet is bare
@@ -132,8 +149,11 @@ function start(spec) {
   $('thing-close').addEventListener('click', close);
   addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
+  // the site's own look (world/render.js): ambient occlusion on computers, glow that blooms
+  const pipeline = createPipeline(renderer, scene, camera, { ...quality, N8AOPostPass: await aoIn, tone: ToneMappingMode.ACES_FILMIC, bloom: 0.6 });
   const resize = () => {
     renderer.setSize(innerWidth, innerHeight, false);
+    pipeline.setSize(innerWidth, innerHeight);
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
   };
@@ -149,8 +169,10 @@ function start(spec) {
     things.update(now / 1000);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
+    sun.target.position.copy(player.pos);
+    sun.position.copy(player.pos).addScaledVector(SUN, 40);
     if (ring.material.opacity > 0) ring.material.opacity = player.target ? 0.8 : Math.max(0, ring.material.opacity - dt * 2);
-    renderer.render(scene, camera);
+    pipeline.render(dt);
     // the launch screen goes once the first frames are drawn (shaders compile there), never over a frozen scene
     if (++frames === 3) {
       veil.classList.add('is-gone');
