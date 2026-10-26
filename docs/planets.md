@@ -35,8 +35,12 @@ sent are then finished by hand. The plan and what's next are in
   tap or click to walk (a ring marks where), drag to look, WASD too.
   `things.js` draws their things: each is up to 40 parts (box, sphere, cylinder, cone, torus,
   capsule, or `text`: a panel of their words), each a size in metres, a place from the thing's
-  foot, a turn, a colour and a finish (matte, gloss, metal, glass, glow), maybe spinning; a thing
-  can cast light (8 a planet). Solid parts cast shadows; glowing parts and words bloom. A thing is placed by a bearing from straight ahead where you land
+  foot, a turn, a colour and a finish (matte, gloss, metal, glass, glow), maybe spinning. For real
+  silhouettes there's more: a box can round its edges (`round`), a `lathe` turns a side profile
+  round its up (a vase, a bun), an `extrude` gives a flat outline depth (a guitar body, a heart),
+  and a `tube` runs along a smooth path (a handle, a tonearm); any part can `repeat` in steps
+  (piano keys, a railing) and `mirror` to the other side (a pair of wheels), each copy counting
+  toward the 400 parts. Sam's example uses each of them. A thing can cast light (8 a planet). Solid parts cast shadows; glowing parts and words bloom. A thing is placed by a bearing from straight ahead where you land
   and a distance along the ground, stands upright and faces you; it's solid unless it says not.
   The planet is 20 m across, so the horizon is about 6 m off: 3 to 10 m is in full view from
   where you land. Tap a thing and you walk up to it and a card says what it is (name, note) and

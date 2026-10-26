@@ -62,10 +62,11 @@ export const EXAMPLE = {
     {
       id: 'turntable', name: 'The turntable', note: 'Always something spinning.', collection: 'records', at: { bearing: -22, distance: 5 }, scale: 1.5,
       parts: [
-        { shape: 'box', size: [1.4, 0.5, 1.1], color: '#7a4a2a', finish: 'gloss' },
+        { shape: 'box', size: [1.4, 0.5, 1.1], round: 0.12, color: '#7a4a2a', finish: 'gloss' },
         { shape: 'cylinder', size: [1, 0.04, 1], at: [-0.12, 0.52, 0], color: '#111111', finish: 'gloss', spin: 200 },
         { shape: 'cylinder', size: [0.34, 0.045, 0.34], at: [-0.12, 0.53, 0], color: '#2456c8', finish: 'matte', spin: 200 },
-        { shape: 'box', size: [0.05, 0.05, 0.75], at: [0.5, 0.58, 0.05], turn: [0, 18, 0], color: '#cfd3da', finish: 'metal' },
+        { shape: 'cylinder', size: [0.12, 0.12, 0.12], at: [0.55, 0.56, -0.38], color: '#cfd3da', finish: 'metal' },
+        { shape: 'tube', size: [0.4, 0.1, 0.8], at: [0.42, 0.62, 0], path: [[0.32, 0.4, -0.48], [0.2, 0.5, -0.1], [0.05, 0.3, 0.25], [-0.25, 0, 0.42]], thick: 0.07, color: '#cfd3da', finish: 'metal' },
       ],
     },
     {
@@ -73,10 +74,13 @@ export const EXAMPLE = {
       light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] },
       parts: [
         { shape: 'box', size: [4, 0.3, 3], color: '#8a6a4a' },
-        { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [-1.8, 1.6, 1.3], color: '#e8e2d6' },
-        { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [1.8, 1.6, 1.3], color: '#e8e2d6' },
+        { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [1.8, 1.6, 1.3], color: '#e8e2d6', mirror: true },
+        { shape: 'cylinder', size: [0.05, 0.7, 0.05], at: [-1.8, 0.65, 1.35], color: '#e8e2d6', repeat: { count: 9, at: [0.2, 0, 0] } },
+        { shape: 'box', size: [1.9, 0.07, 0.09], at: [-0.95, 1.02, 1.35], color: '#e8e2d6' },
         { shape: 'box', size: [4.4, 0.2, 3.4], at: [0, 2.95, 0], color: '#3c4a5a' },
-        { shape: 'box', size: [0.7, 0.9, 0.5], at: [0.9, 0.75, -0.6], color: '#2a2a2a', finish: 'gloss' },
+        { shape: 'box', size: [0.7, 0.9, 0.5], at: [0.9, 0.75, -0.6], round: 0.08, color: '#2a2a2a', finish: 'gloss' },
+        { shape: 'extrude', size: [0.5, 0.62, 0.1], at: [0.25, 0.65, -0.55], turn: [0, 0, 14], color: '#c8402a', finish: 'gloss', outline: [[0.5, 1], [0.66, 0.96], [0.72, 0.84], [0.66, 0.66], [0.86, 0.56], [1, 0.36], [0.92, 0.12], [0.7, 0], [0.3, 0], [0.08, 0.12], [0, 0.36], [0.14, 0.56], [0.34, 0.66], [0.28, 0.84], [0.34, 0.96]] },
+        { shape: 'box', size: [0.07, 0.75, 0.04], at: [0.16, 1.28, -0.55], turn: [0, 0, 14], color: '#5a3a22' },
         { shape: 'sphere', size: [0.35, 0.35, 0.35], at: [0, 2.7, 0.8], color: '#ffcf8a', finish: 'glow' },
         { shape: 'text', text: 'Live at 7', size: [2.6, 0.5, 0.1], at: [0, 3.35, 1.71], color: '#ff9a5c', finish: 'glow' },
       ],
@@ -98,9 +102,9 @@ const KIT = {
   ],
   things: {
     how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
-    parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall.`,
+    parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall. Beyond the simple shapes, for real silhouettes: box with round 0..0.5 rounds its edges (a share of its smallest side); lathe turns a side profile round its up, profile [[out, up], ...] each 0..1 of its size, bottom to top, out 1 at the widest (a vase, a bottle, a bun, a lamp shade); extrude gives a flat outline depth, outline [[across, up], ...] each 0..1 of its size, going round (a guitar body, a heart, a leaf, a cactus, a state's shape); tube runs along a smooth path, path [[x, y, z], ...] each -0.5..0.5 of its size, thick its thickness in metres (a handle, a cable, a tonearm, a rail). Any part can repeat: { count 2..${LIMITS.repeat}, at [x, y, z] the step, turn [x, y, z] degrees a step about the foot } (piano keys, fence posts, petals round a stem), and mirror: true copies it to the other side, x for -x (a pair of wheels, wings, ears). Each copy counts as a part.`,
     light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
-    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Several things spread round the planet, a few close by, and something worth walking to further off. Overlap parts to model shapes (a guitar: a body of two flattened spheres, a box neck, a cylinder sound hole). Use glow and lights for warmth against the night.',
+    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Several things spread round the planet, a few close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 4 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
   },
   shape: {
     version: 1,

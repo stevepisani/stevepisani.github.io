@@ -4,6 +4,7 @@
 // you land (a bearing and a distance along the ground), stands upright on the ground, and faces
 // you unless it's turned. Its parts are sized and placed in metres from its foot.
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RADIUS } from '../world/planet.js';
 
 const DEG = Math.PI / 180;
@@ -63,6 +64,48 @@ export function placeOnPlanet(bearing, distance) {
   return new THREE.Vector3(0, Math.cos(t), 0).addScaledVector(ahead, Math.sin(t)).normalize();
 }
 
+// one part, as a mesh placed in its thing: unit-sized shapes are scaled to its size; a rounded box,
+// a tube and a lathe or extrude are built for it
+function part(p) {
+  const [w, h, d] = p.size;
+  let mesh;
+  if (p.shape === 'text') {
+    const t = words(p.text, p.color, p.finish);
+    mesh = new THREE.Mesh(geometry('text'), t.material);
+    // as tall as asked, unless that would make it wider than asked
+    const height = Math.min(h, w / t.aspect);
+    mesh.scale.set(height * t.aspect, height, 1);
+  } else {
+    const m = material(p.color, p.finish);
+    if (p.shape === 'box' && p.round) {
+      mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, p.round * Math.min(w, h, d)), m);
+    } else if (p.shape === 'tube') {
+      const curve = new THREE.CatmullRomCurve3(p.path.map(([x, y, z]) => new THREE.Vector3(x * w, y * h, z * d)));
+      mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 12 * p.path.length, (p.thick || 0.05) / 2, 12), m);
+    } else if (p.shape === 'lathe') {
+      // its side profile, [out from the middle, up], each 0..1 of its size, turned round its up
+      m.side = THREE.DoubleSide;
+      mesh = new THREE.Mesh(new THREE.LatheGeometry(p.profile.map(([r, y]) => new THREE.Vector2(r * 0.5, y - 0.5)), 48), m);
+      mesh.scale.set(w, h, d);
+    } else if (p.shape === 'extrude') {
+      // a flat outline, [across, up], each 0..1 of its size, given its depth
+      const shape = new THREE.Shape(p.outline.map(([x, y]) => new THREE.Vector2(x - 0.5, y - 0.5)));
+      mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 1, bevelEnabled: false }).translate(0, 0, -0.5), m);
+      mesh.scale.set(w, h, d);
+    } else {
+      mesh = new THREE.Mesh(geometry(p.shape), m);
+      mesh.scale.set(w, h, d);
+    }
+    // solid parts cast shadows; light passes through glass, and what glows lights itself
+    mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
+    mesh.receiveShadow = true;
+  }
+  mesh.position.fromArray(p.at || [0, h / 2, 0]);
+  if (p.turn) mesh.rotation.set(p.turn[0] * DEG, p.turn[1] * DEG, p.turn[2] * DEG);
+  if (p.spin) mesh.userData.spin = p.spin;
+  return mesh;
+}
+
 /**
  * Their things, from a spec that passed checkPlanet: { group, colliders, pickable, update(t) }.
  * `surface(dir)` is the ground's distance from the centre (ground.js), so everything stands on it.
@@ -83,32 +126,35 @@ export function buildThings(things = [], surface) {
     root.rotateY(face + (thing.turn || 0) * DEG);
     root.scale.setScalar(thing.scale || 1);
 
-    let reach = 0.3;
+    const body = new THREE.Group();
     for (const p of thing.parts) {
-      const [w, h, d] = p.size;
-      let mesh;
-      if (p.shape === 'text') {
-        const t = words(p.text, p.color, p.finish);
-        mesh = new THREE.Mesh(geometry('text'), t.material);
-        // as tall as asked, unless that would make it wider than asked
-        const height = Math.min(h, w / t.aspect);
-        mesh.scale.set(height * t.aspect, height, 1);
-      } else {
-        mesh = new THREE.Mesh(geometry(p.shape), material(p.color, p.finish));
-        mesh.scale.set(w, h, d);
-        // solid parts cast shadows; light passes through glass, and what glows lights itself
-        mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
-        mesh.receiveShadow = true;
+      const one = part(p);
+      // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
+      const copies = new THREE.Group();
+      const n = p.repeat ? p.repeat.count : 1;
+      for (let i = 0; i < n; i++) {
+        const step = new THREE.Group();
+        if (p.repeat) {
+          step.position.fromArray(p.repeat.at || [0, 0, 0]).multiplyScalar(i);
+          step.rotation.set(...(p.repeat.turn || [0, 0, 0]).map((a) => a * DEG * i));
+        }
+        step.add(i ? one.clone() : one);
+        copies.add(step);
       }
-      const [x, y, z] = p.at || [0, h / 2, 0];
-      mesh.position.set(x, y, z);
-      if (p.turn) mesh.rotation.set(p.turn[0] * DEG, p.turn[1] * DEG, p.turn[2] * DEG);
-      mesh.userData.thing = thing;
-      if (p.spin) spinning.push({ mesh, speed: p.spin * DEG, base: mesh.quaternion.clone() });
-      root.add(mesh);
-      pickable.push(mesh);
-      reach = Math.max(reach, Math.hypot(x, z) + Math.max(w, d) / 2 * (p.shape === 'text' ? 0 : 1));
+      body.add(copies);
+      if (p.mirror) { const m = copies.clone(); m.scale.x = -1; body.add(m); }
     }
+    body.traverse((o) => {
+      if (!o.isMesh) return;
+      o.userData.thing = thing; // a clone's userData is a copy: point every copy at the thing itself
+      pickable.push(o);
+      if (o.userData.spin) spinning.push({ mesh: o, speed: o.userData.spin * DEG, base: o.quaternion.clone() });
+    });
+    // how far it reaches from its foot, along the ground: where you stop when you walk up to it
+    // (measured before it's placed, so in metres from its foot)
+    const box = new THREE.Box3().setFromObject(body);
+    const reach = Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
+    root.add(body);
     if (thing.light) {
       const light = new THREE.PointLight(thing.light.color || '#ffd9a0', 24 * (thing.light.strength ?? 0.6), 16, 1.4);
       light.position.set(...(thing.light.at || [0, 2, 0]));
