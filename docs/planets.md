@@ -107,7 +107,8 @@ sent are then finished by hand. The plan and what's next are in
 
 ## What a preview draws today
 
-Their ground (colour and hills) and sky (the nebula's colour and the starlight), their things,
+Their ground (colour and hills) and sky (the nebula's colour and the starlight), their things
+(each as its real model where one has been made, see below, else as its shapes),
 and their name and home city in the top bar; with no things it's bare rock under the stars.
 Their links show on the chat's plain card. A preview never writes anywhere; the page
 count counts it as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a
@@ -168,7 +169,34 @@ can't do it, adding to `assets/js/planets/` for that planet; the first one finis
 a planet's own code is kept, so this section grows with it. Then set the
 status to `built` and tell them (the contact, if they gave one).
 
+## Real models (Meshy)
+
+Simple shapes only go so far (Steve, Oct 26: "still very very poor. let's try just using meshy").
+A thing can say what it is in words, `model` (up to 600 characters: what it is, its materials and
+colours, what makes it theirs). `tools/planet-models.mjs` makes a Meshy text-to-3D model from
+those words (a preview, then a refine with PBR textures, made small with gltf-transform: meshopt,
+1024 px WebP textures) into `assets/models/planets/<slug>/<thing id>.glb`, listed in
+`assets/models/planets/manifest.json` under `<slug>/<thing id>` with the words it was made from.
+The planet (`planets/models.js`) loads the manifest, and each model as it comes, one at a time,
+in place of the thing's shapes (`swap` in `things.js`): as big as fits in the room the shapes
+took (as tall, and as long along the ground), standing where they stood. The shapes show until
+then, and still do if the words have changed since. The pictures sent back to the AI wait for the
+models.
+
+It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, with the
+`MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
+`tools/models/planets/` or the kit's example changes on a branch other than main, or by hand with
+`redo` (`slug/id`, comma-separated), and commits what it made to that branch (push again after,
+for the Site checks). Only what's missing is paid for; a task already started is picked up, not
+paid for twice. The planets it makes models for: the kit's example (Sam) and each spec in
+`tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
+when it's finished). Caps: 8 models a planet, 24 a run, about $0.60 a model.
+
+Next: models made from the chat itself, while they talk, so their own AI's words become the
+model in the preview.
+
 ## Costs and limits
 
-No AI of ours: an edge function call per tool call, within the plan's included calls, and a row
+Meshy, for a planet's real models: about $0.60 a model, at most 8 a planet (above). Otherwise
+no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).

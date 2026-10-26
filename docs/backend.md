@@ -232,5 +232,6 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | Places API (New), finding saved places (capped at 1,000 calls a month, inside Google's free monthly calls for Text Search) | $0 |
 | The telescope's moon (an edge function call per visitor per hour, on the free plan's 500,000 a month) | $0 |
 | The Planets connector (`docs/planets.md`: an edge function call per tool call, nothing stored, no AI of ours; requests over 256 KB refused) | $0 |
+| Meshy models for the things on friends' planets (`tools/planet-models.mjs`, by the Planet models workflow: about 30 credits, so about $0.60, a model; at most 8 a planet and 24 a run, and only what's missing; Steve approved up to $5 a planet for the first ones) | about $5 a planet built |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.
