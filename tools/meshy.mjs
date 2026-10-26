@@ -44,7 +44,8 @@ let recent;
 export async function madeBefore(prompt) {
   recent ??= get(`${TEXT_TO_3D}?page_size=50&sort_by=-created_at`, { headers: auth }).then((r) => r.json()).catch(() => []);
   const list = await recent;
-  const ok = (Array.isArray(list) ? list : []).filter((t) => t.status === 'SUCCEEDED' && t.prompt === prompt);
+  // (or still being made: it's waited for, not paid for twice)
+  const ok = (Array.isArray(list) ? list : []).filter((t) => ['SUCCEEDED', 'IN_PROGRESS', 'PENDING'].includes(t.status) && t.prompt === prompt);
   return ok.find((t) => t.mode === 'refine') || ok.find((t) => t.mode === 'preview');
 }
 

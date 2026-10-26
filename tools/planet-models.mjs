@@ -79,6 +79,7 @@ async function make({ key, slug, thing }, manifest, save, redo) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   mkdirSync(TMP, { recursive: true });
+  mkdirSync(OUT, { recursive: true });
   const manifestFile = OUT + 'manifest.json';
   const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : {};
   const save = () => writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
