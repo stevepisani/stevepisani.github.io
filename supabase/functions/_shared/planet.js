@@ -401,6 +401,70 @@ export function planetParts(spec) {
   };
 }
 
+// ---------- Looking it over ----------
+// What a careful eye would say about a planet's things before anyone walks round it: a part
+// hanging in the air, two things in each other, something too small to see or too long for a
+// planet this round, a planet with nothing lit. Boxes are measured as if nothing were turned, so
+// these are things to look at, not errors; the preview tells the AI who made it (preview_planet).
+const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from the middle, in metres
+
+/** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
+export function lookOver(spec) {
+  const notes = [];
+  const things = spec.things || [];
+  // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
+  const boxes = (t) => (t.parts || []).map((p) => {
+    // a turned part is measured as if it could face any way: turned about its up, its longest side
+    // either way along the ground; tipped over, its longest side every way
+    const [x, y, z] = p.size, [tx, ty, tz] = (p.turn || [0, 0, 0]).map((a) => a % 180 !== 0), s = t.scale || 1;
+    const [w, h, d] = tx || tz ? Array(3).fill(Math.max(x, y, z)) : ty ? [Math.max(x, z), y, Math.max(x, z)] : p.size;
+    const at = p.at || [0, h / 2, 0];
+    const n = p.repeat ? p.repeat.count : 1, step = (p.repeat && p.repeat.at) || [0, 0, 0];
+    const xs = [], ys = [], zs = [];
+    for (let i = 0; i < n; i += Math.max(1, n - 1)) {
+      for (const m of p.mirror ? [1, -1] : [1]) {
+        const x = (at[0] + step[0] * i) * m, y = at[1] + step[1] * i, z = at[2] + step[2] * i;
+        xs.push(x - w / 2, x + w / 2); ys.push(y - h / 2, y + h / 2); zs.push(z - d / 2, z + d / 2);
+      }
+    }
+    return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), Math.min(...zs), Math.max(...zs)].map((v) => v * s);
+  });
+  const reach = new Map();
+  const lit = things.some((t) => t.light || (t.parts || []).some((p) => p.finish === 'glow'));
+  things.forEach((t, i) => {
+    const bs = boxes(t);
+    if (!bs.length) return;
+    const all = [Math.min(...bs.map((b) => b[0])), Math.max(...bs.map((b) => b[1])), Math.min(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3])), Math.min(...bs.map((b) => b[4])), Math.max(...bs.map((b) => b[5]))];
+    const wide = Math.max(all[1] - all[0], all[5] - all[4]), tall = all[3] - all[2];
+    if (wide < 0.4 && tall < 0.4) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
+    // the ground falls away by length² / 8R under something straight: 15 cm at 5 m
+    if (wide > 5) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);
+    // a part off the ground that touches no other part: it hangs in the air
+    const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
+    bs.forEach((b, j) => {
+      const p = t.parts[j];
+      if (p.shape === 'text' || p.finish === 'glow' || b[2] < 0.05) return;
+      const held = bs.some((o, k) => k !== j && near(o, b));
+      if (!held) notes.push(`things[${i}].parts[${j}] (${p.shape}): touches nothing and hangs ${b[2].toFixed(2)} m above the ground; move it onto another part or the ground (at is its middle)`);
+    });
+    reach.set(t, Math.max(Math.abs(all[0]), Math.abs(all[1]), Math.abs(all[4]), Math.abs(all[5])));
+  });
+  // two things in each other: their feet closer than they reach
+  const where = (t) => {
+    const b = t.at.bearing * Math.PI / 180, a = t.at.distance / GROUND_RADIUS;
+    return [Math.sin(a) * Math.sin(b), Math.cos(a), -Math.sin(a) * Math.cos(b)];
+  };
+  for (let i = 0; i < things.length; i++) {
+    for (let j = i + 1; j < things.length; j++) {
+      const [a, b] = [where(things[i]), where(things[j])];
+      const apart = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])) * GROUND_RADIUS;
+      if (apart < (reach.get(things[i]) || 0) + (reach.get(things[j]) || 0) - 0.3) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ${apart.toFixed(1)} m apart, so they stand in each other; move one (at.bearing or at.distance)`);
+    }
+  }
+  if (things.length && !lit) notes.push('things: nothing glows and nothing casts light, so the planet is dim at night; give something a light or a glowing part');
+  return notes;
+}
+
 // ---------- A planet in an address ----------
 // A preview is kept nowhere: the spec travels in the address of the preview page, after the #
 // (never sent to a server), squeezed (deflate) and written in base64url. A 64 KB spec is a few

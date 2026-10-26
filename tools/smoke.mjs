@@ -1810,8 +1810,10 @@ async function planetCard(page, shot, { phone = false } = {}) {
     window.showCard = async (html, result, platform) => {
       const frame = document.getElementById('card');
       const hc = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US', platform };
-      const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {} }, { hostContext: hc });
+      const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {}, updateModelContext: { text: {}, image: {} } }, { hostContext: hc });
       window.opened = [];
+      window.context = null;
+      bridge.onupdatemodelcontext = async (p) => { window.context = p; return {}; };
       bridge.onopenlink = async ({ url }) => { window.opened.push(url); return {}; };
       bridge.onsizechange = ({ height }) => { if (height) frame.style.height = height + 'px'; };
       bridge.oninitialized = () => { bridge.sendToolInput({ arguments: {} }); bridge.sendToolResult(result); };
@@ -1840,6 +1842,11 @@ async function planetCard(page, shot, { phone = false } = {}) {
     return;
   }
   step('on a computer: the planet itself, walkable, in the card');
+  // a few views of the planet go back to the model that made it, as pictures, to look at and fix
+  await until(page, () => window.context, null, 60000);
+  const seen = await page.evaluate(() => window.context.content.map((c) => (c.type === 'image' ? `${c.mimeType}:${c.data.length}` : c.text)));
+  if (!/^Sam's planet as drawn: 1\. from above.*The turntable.*The porch/.test(seen[0]) || seen.length !== 4 || !seen.slice(1).every((x) => /^image\/jpeg:\d{4,}$/.test(x))) throw new Error(`the views sent to the model: ${JSON.stringify(seen).slice(0, 300)}`);
+  step("a view from above and one of each thing go into the model's context, as pictures");
   // where 3D can't run (here, no WebGL2), the plain card, and a way to walk round it in the browser
   await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return kind === 'webgl2' ? null : get.call(this, kind, ...rest); }; });
   await show('desktop');

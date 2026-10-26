@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, lookOver, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -152,6 +152,20 @@ ok(!shown.isError && shown.structuredContent.view === 'planet' && shown.structur
 ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(sam), "the preview's link is the planet");
 const card = shown.structuredContent.planet;
 ok(card.name === 'Sam' && card.home === 'Austin' && card.links.length === 2 && card.loves[0].title === 'Records I love' && card.loves[0].items.join() === 'Kind of Blue,Blue Train' && !('sign' in card) && !('board' in card), 'the plain card: who it is for, their links and what they love', card);
+// looking it over: what a careful eye would fix, said back with the preview
+ok(lookOver(sam).length === 0 && !/look these over/.test(shown.content[0].text), "Sam's example: nothing to look over", lookOver(sam));
+const sloppy = { ...least, things: [
+  { id: 'a', name: 'Lamp', at: { bearing: 0, distance: 5 }, parts: [{ shape: 'box', size: [1, 1, 1] }, { shape: 'sphere', size: [0.3, 0.3, 0.3], at: [0, 2, 0] }] },
+  { id: 'b', name: 'Pebble', at: { bearing: 2, distance: 5 }, parts: [{ shape: 'box', size: [0.2, 0.2, 0.2] }] },
+  { id: 'c', name: 'Train', at: { bearing: 90, distance: 8 }, parts: [{ shape: 'box', size: [1, 1, 7] }] },
+] };
+const seen = lookOver(sloppy);
+for (const [re, what] of [[/^things\[0\]\.parts\[1\] \(sphere\): touches nothing/, 'a part hanging in the air'], [/^things\[1\] \(Pebble\): under 40 cm/, 'a thing too small to see'], [/^things\[2\] \(Train\): 7\.0 m long/, 'a thing too long for a round planet'], [/^things\[0\] \(Lamp\) and things\[1\] \(Pebble\): 0\.2 m apart/, 'two things in each other'], [/^things: nothing glows/, 'a planet with nothing lit']]) ok(seen.some((n) => re.test(n)), `looked over: ${what}`, seen);
+ok(seen.length === 5, 'looked over: nothing else', seen);
+const tipped = { ...least, things: [{ id: 'w', name: 'Wheel', at: { bearing: 0, distance: 5 }, light: {}, parts: [{ shape: 'cylinder', size: [0.6, 0.14, 0.6], at: [0, 0.3, 0], turn: [0, 0, 90] }] }] };
+ok(lookOver(tipped).length === 0, 'looked over: a wheel turned on its side stands on the ground', lookOver(tipped));
+const sloppyShown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sloppy } })).result;
+ok(!sloppyShown.isError && /look these over/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview says what to look over, for the model to fix', sloppyShown.content[0].text);
 const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
 ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
 const bare = (await call('tools/call', { name: 'preview_planet', arguments: { spec: least } })).result.structuredContent.planet;

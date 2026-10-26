@@ -69,7 +69,11 @@ sent are then finished by hand. The plan and what's next are in
   - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example
     (Sam's, which `tools/planet-test.mjs` checks passes);
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
-    model fixes it and tries again), packs it into a preview link, and shows the card;
+    model fixes it and tries again), packs it into a preview link, and shows the card. Its text
+    also says what a careful eye would fix (`lookOver` in `_shared/planet.js`): a part touching
+    nothing in mid-air, two things standing in each other, a thing under 40 cm or over 5 m long
+    (the ground falls away under it), a planet with nothing lit. Boxes are measured as if
+    nothing were turned, so these are notes for the model, never errors;
   - `send_planet(spec, note?, contact?)`: once the person has seen the preview and says to send
     it (the instructions say never without their go-ahead), checks the spec again and saves it,
     with anything they'd like Steve to know and how to reach them, both optional and in their
@@ -91,7 +95,12 @@ sent are then finished by hand. The plan and what's next are in
   click, with Full screen and Open in browser (Steve, Oct 2026: the phone and the computer should
   be the same). The page tells the card how it's going (`tellCard` in `spec.js`: loading, from an
   inline script before the planet's script arrives, then ready or failed); a frame that says
-  nothing for 12 s was blocked by the app, and the card falls back. If the frame fails or is
+  nothing for 12 s was blocked by the app, and the card falls back. Once it's drawn, the page
+  sends the card a few views of itself (`looks()` in `planets/main.js`: from above where you land,
+  then up to three things, each framed from the side it faces; 512 px JPEGs, drawn and read
+  between two frames), and where the host takes pictures in the model's context
+  (`hostCapabilities.updateModelContext.image`), the card puts them there with
+  `ui/update-model-context`, so the AI that made the planet sees it and can fix what's off. If the frame fails or is
   blocked, or there's no WebGL2, it's a plain card: their name and city, their links, a little of
   what they love, and "Walk around it", which opens the preview page in the browser. The card's page allows the site as a frame
   (`frameDomains` for MCP Apps, `frame_domains` in ChatGPT's `openai/widgetCSP`).

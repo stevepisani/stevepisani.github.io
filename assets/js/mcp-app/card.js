@@ -23,7 +23,7 @@ export const request = (method, params) => new Promise((resolve, reject) => {
   post({ id, method, params });
 });
 const notify = (method, params) => post({ method, params });
-export let host = {}, toolInput = null, ui = {};
+export let host = {}, caps = {}, toolInput = null, ui = {};
 let root = null, current = null, stack = [];
 window.addEventListener('message', (e) => {
   if (e.source !== window.parent) return;
@@ -182,5 +182,5 @@ button { font: inherit; color: inherit; }
 
 // ---------- Start ----------
 request('ui/initialize', { appInfo: { name: 'sjpjr-card', version: '2.0.0' }, appCapabilities: {}, protocolVersion: PROTOCOL })
-  .then((r) => { context(r?.hostContext || {}); notify('ui/notifications/initialized', {}); })
+  .then((r) => { caps = r?.hostCapabilities || {}; context(r?.hostContext || {}); notify('ui/notifications/initialized', {}); })
   .catch(() => {});
