@@ -15,6 +15,10 @@ on:
       redo:
         description: Models to make again (slug/id, comma-separated)
         required: false
+      styles:
+        description: Draw the house-style samples instead (tools/planet-styles.mjs)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,14 +42,15 @@ jobs:
         continue-on-error: true
         env:
           MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
-        run: node tools/planet-models.mjs --redo "${{ inputs.redo }}"
+        run: |
+          if [ "${{ inputs.styles }}" = "true" ]; then node tools/planet-styles.mjs; else node tools/planet-models.mjs --redo "${{ inputs.redo }}"; fi
       # whatever was made, even when something failed (a re-run picks up from the manifest). Push
       # again after it: a commit by this workflow doesn't start the Site checks.
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/models/planets
+          git add assets/models/planets tools/models/planets
           git diff --cached --quiet || { git commit -m "Models for friends' planets (tools/planet-models.mjs)" && git push; }
       - if: steps.make.outcome != 'success'
         run: exit 1
