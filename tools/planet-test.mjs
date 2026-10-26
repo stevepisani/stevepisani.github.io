@@ -115,15 +115,17 @@ const res = (await call('resources/read', { uri: planets.APP_URI })).result.cont
 ok(res.mimeType === 'text/html;profile=mcp-app' && res.text.includes('window.card = 1') && !res.text.includes('// </script>'), "the card's page carries its script, and the script can't close the tag early");
 ok(res._meta.ui.csp.frameDomains.includes(new URL(PREVIEW_PAGE).origin) && res._meta['openai/widgetCSP'].frame_domains.includes(new URL(PREVIEW_PAGE).origin), 'the card may show the preview page in a frame, in both apps');
 const kit = (await call('tools/call', { name: 'get_kit', arguments: {} })).result;
-ok(checkPlanet(kit.structuredContent.example).length === 0 && kit.structuredContent.drawn_today.length > 3, "get_kit: what's drawn today, and an example that passes", checkPlanet(kit.structuredContent.example));
+ok(checkPlanet(kit.structuredContent.example).length === 0 && kit.structuredContent.drawn_today.length >= 3, "get_kit: what's drawn today, and an example that passes", checkPlanet(kit.structuredContent.example));
+ok(['places', 'robot', 'telescope', 'launchPad'].every((k) => !(k in kit.structuredContent.shape) && !(k in kit.structuredContent.example)) && !kit.structuredContent.shape.who.sign && !/tiki|campfire|hammock/i.test(JSON.stringify(kit.structuredContent) + init.instructions), "get_kit offers nothing of Steve's planet: no places, robot, telescope, launch pad or sign");
 const shown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sam } })).result;
 ok(!shown.isError && shown.structuredContent.view === 'planet' && shown.structuredContent.url.startsWith(`${PREVIEW_PAGE}#`) && shown.content[0].text.includes(shown.structuredContent.url), 'a preview: the card, and the link in the text for apps without cards', shown);
 ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(sam), "the preview's link is the planet");
-ok(shown.structuredContent.planet.sign === "Sam's" && shown.structuredContent.planet.board.names.join() === 'Opener,Ballad,Closer' && shown.structuredContent.planet.links.length === 2, 'the plain card has what it needs', shown.structuredContent.planet);
+const card = shown.structuredContent.planet;
+ok(card.name === 'Sam' && card.home === 'Austin' && card.links.length === 2 && card.loves[0].title === 'Records I love' && card.loves[0].items.join() === 'Kind of Blue,Blue Train' && !('sign' in card) && !('board' in card), 'the plain card: who it is for, their links and what they love', card);
 const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
 ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
 const bare = (await call('tools/call', { name: 'preview_planet', arguments: { spec: least } })).result.structuredContent.planet;
-ok(bare.robot === null && bare.board.names.length === 0 && bare.thoughts.length === 0, 'a planet with nothing on it: no robot or chalkboard on its plain card', bare);
+ok(bare.name === 'Sam' && bare.links.length === 0 && bare.loves.length === 0, 'a planet with nothing on it: just their name on its plain card', bare);
 ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
 ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');
 

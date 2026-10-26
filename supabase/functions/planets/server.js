@@ -1,10 +1,11 @@
 // The Planets connector (My Tiny Planet, docs/planets.md), without the transport: anyone's ChatGPT
 // or Claude designs a little planet for the person it's talking with, from what they love, and
 // shows it in the chat. Two tools: get_kit (what a planet can hold, and how to write one) and
-// preview_planet (checks a spec and shows it, drawn by the homepage's own world, in the card).
+// preview_planet (checks a spec and shows it in the card: their own planet, assets/js/planets/,
+// bare until it's built for them by hand; none of Steve's places).
 // Nothing is stored and nobody signs in: a preview's address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, packPlanet, planetParts, PREVIEW_PAGE, THEMES, PLACES, DISPLAYS, SIGHTS, LIMITS } from '../_shared/planet.js';
+import { checkPlanet, packPlanet, line, PREVIEW_PAGE, LIMITS } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -13,7 +14,8 @@ export const SERVER = { name: 'planets', title: 'My Tiny Planet', version: '0.1.
 const INSTRUCTIONS = [
   'My Tiny Planet: design a little walkable planet for the person you are talking with, from what they love, and show it here.',
   'Call get_kit first: it says what a planet can hold and what is drawn today.',
-  'Ask a few open questions about them and what they love, then design the planet around their answers. Only the planet itself is a given: put on it what fits them, and nothing because the kit has a slot for it.',
+  'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Every planet is built for its person by hand, from those answers: nothing on it is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
+  'Until it is built, the preview shows their planet bare: their own ground under the stars, with their name. Say so plainly.',
   'Write the spec, then preview_planet.',
   'Change it and preview again whenever they ask. Nothing is stored: the preview link is the planet, so give them the link to keep.',
   'A planet is public: never put a home address, phone number or anything private in it.',
@@ -22,8 +24,8 @@ const INSTRUCTIONS = [
 // The in-chat card (MCP Apps, SEP-1865, which ChatGPT and Claude both render): one small page whose
 // script is the site's (assets/js/mcp-app/planets.js, built to /assets/js/dist/planet-card.js),
 // fetched by index.ts and put in the page. The card shows the preview page in a frame, so the
-// frame's address (the site) is allowed as well as its script; where 3D can't run (a phone's app),
-// it shows the planet's parts as a plain card and a link to walk around it in the browser.
+// frame's address (the site) is allowed as well as its script; where 3D can't run, it shows who
+// the planet is for and what they love as a plain card, and a link to walk around it in the browser.
 export const APP_URI = 'ui://planets/preview.html';
 export const APP_MIME = 'text/html;profile=mcp-app';
 const showsCard = { ui: { resourceUri: APP_URI }, 'openai/outputTemplate': APP_URI };
@@ -33,7 +35,7 @@ export function appResource(script) {
   const _meta = {
     ui: { csp: { resourceDomains: [SITE], frameDomains: [SITE] }, prefersBorder: true },
     'openai/widgetCSP': { resource_domains: [SITE], frame_domains: [SITE], connect_domains: [] },
-    'openai/widgetDescription': 'Shows the planet just previewed, in 3D where the app can (walk around it, sit at the bar, read the chalkboard), or as a plain card with a link where it can’t. Don’t describe what it shows; say what you changed and what they could add.',
+    'openai/widgetDescription': 'Shows the planet just previewed, in 3D where the app can (walk around it), or as a plain card with a link where it can’t. Don’t describe what it shows; say what you changed and what they could tell you next.',
   };
   return { uri: APP_URI, name: 'planet-preview', title: 'My Tiny Planet', mimeType: APP_MIME, html, _meta };
 }
@@ -46,46 +48,33 @@ const read = { readOnlyHint: true, destructiveHint: false, idempotentHint: true,
 export const EXAMPLE = {
   version: 1,
   slug: 'sam',
-  who: { name: 'Sam', sign: "Sam's" },
+  who: { name: 'Sam' },
   links: [{ id: 'band', label: 'My band', note: 'Live dates and recordings', href: 'https://example.com' }, { id: 'mail', label: 'Write to me', href: 'mailto:sam@example.com' }],
-  look: { theme: 'tiki-night', home: 'Austin' },
+  look: { home: 'Austin' },
   collections: {
-    records: { title: 'Records I love', items: [{ name: 'Kind of Blue', by: 'Miles Davis', year: 1959 }, { name: 'Blue Train', by: 'John Coltrane', year: 1957 }] },
-    campfire: { title: 'By the fire', items: ['The best songs are written on the porch.', 'Every amp sounds better at 7.'] },
+    records: { title: 'Records I love', items: [{ name: 'Kind of Blue', by: 'Miles Davis', year: 1959, why: 'The first record I wore out' }, { name: 'Blue Train', by: 'John Coltrane', year: 1957 }] },
+    porch: { title: 'Evenings', items: ['Playing on the porch until the street lights come on', 'Every amp sounds better at 7'] },
   },
-  places: [
-    { id: 'bar', kind: 'tiki-bar', displays: [{ kind: 'chalkboard', collection: 'records' }] },
-    { id: 'fire', kind: 'campfire', collection: 'campfire' },
-  ],
-  robot: { lines: ['Welcome in. Pull up a stool.', 'Ask me about the records on the board.'], ask: ['What are you playing?'] },
-  telescope: { engraving: 'Sam' },
 };
 
+// What a spec holds for someone else's planet. Steve's own planet's parts (places, the robot,
+// the telescope, the launch pad) still pass checkPlanet, for his spec, but aren't offered here:
+// nothing on a friend's planet is copied from his (Steve, Oct 2026).
 const KIT = {
-  what: 'A planet is one JSON spec, for a small walkable planet at night. Only the planet is a given: its ground, a lagoon, palms and rocks. Everything on it comes from what the person loves, and a spec needs no more than version, slug and who.name. A place is drawn only if the spec lists it (places, by kind), and the telescope and the launch pad only if the spec has them.',
+  what: 'A planet is one JSON spec for a small walkable planet at night, built by hand for its person from what they love (Steve Pisani builds the first ones himself). Only the planet\'s size is shared; nothing on it is copied from anyone else\'s. Until it\'s built, a preview shows it bare: their own ground and stones under the stars, their name and home city, walkable. The spec is where what they love goes, in their own words, so their planet can be built from it.',
   drawn_today: [
-    'places: what is built on the planet, each only if listed: a tiki-bar (a bar with a bartender robot, a chalkboard and a menu card), a campfire (sit on the log and roast marshmallows), a hammock (lie back under the stars). The telescope is there if telescope is set, the rocket and its launch console if launchPad is.',
-    'who.sign (optional, defaults to who.name): the neon sign over a tiki-bar, its menu card, the telescope (12 characters at most)',
-    'who.name: the top bar, and lines that name them',
+    'who.name: the top bar',
     'look.home: the top bar ("A tiny planet in Austin"); a city, never an address',
-    'links: the menu and the top bar (label, a one-line note, an https:// or mailto: link)',
-    'a tiki-bar place\'s chalkboard display: up to six names chalked behind the bar; tapping one shows its details (an object\'s other fields)',
-    'a campfire place\'s collection: one thought each time they eat a toasted marshmallow',
-    'robot.lines: what a tiki-bar\'s robot says while they sit',
-    'telescope.pins: cities on the Earth in the telescope, each with its time now; home: true rings it (without pins, a few round the world)',
+    'slug: the planet\'s own hills (no two are the same shape)',
   ],
-  kept_for_later: 'Everything else in a valid spec (star-sky displays, the telescope\'s sights, the launch pad\'s countdowns) is checked and kept, and drawn as the planet grows. Each place is built the way Steve Pisani\'s own planet builds it for now: more kinds of places, and ways to dress them, come as the kit grows.',
+  kept_for_building: 'collections (what they love: lists of things, each text or a small object with a name and any details, like why it matters) and links (their own pages: https:// or mailto:). Kept in the spec and shown on the chat card; their planet is built from them.',
   shape: {
     version: 1,
     slug: 'a-z, 0-9 and -, 2 to 32 characters: the planet\'s name in its address',
-    who: { name: `required, ${LIMITS.name} characters at most`, sign: `${LIMITS.sign} characters at most` },
+    who: { name: `required, ${LIMITS.name} characters at most` },
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
-    look: { theme: THEMES, home: 'a city' },
+    look: { home: 'a city' },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
-    places: `up to ${LIMITS.places}: [{ id, kind: one of ${PLACES.join(', ')}, displays: [{ kind: one of ${DISPLAYS.join(', ')}, collection: <id> }], collection: <id> }]`,
-    robot: { lines: `up to ${LIMITS.lines}`, ask: `up to ${LIMITS.lines} questions` },
-    telescope: { engraving: `${LIMITS.sign} characters at most`, pins: `up to ${LIMITS.pins}: [{ city, lat, lon, zone: an IANA time zone like America/Chicago, note, home: true for theirs }]`, sights: SIGHTS },
-    launchPad: { countdowns: `up to ${LIMITS.countdowns}: [{ name, on: YYYY-MM-DD }]`, launches: '"all", "none" or { provider }', rocket: { name: 'short', colors: ['#rrggbb', '#rrggbb'] } },
   },
   limits: LIMITS,
   example: EXAMPLE,
@@ -95,7 +84,7 @@ export const TOOLS = [
   {
     name: 'get_kit',
     title: 'What a planet can hold',
-    description: 'What a tiny planet spec can hold, what the world draws from it today, the limits, and a small example. Call it before writing a spec.',
+    description: 'What a tiny planet spec can hold, what is drawn from it today, the limits, and a small example. Call it before writing a spec.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: read,
     _meta: { 'openai/toolInvocation/invoking': 'Opening the kit…', 'openai/toolInvocation/invoked': 'Kit open' },
@@ -117,11 +106,11 @@ async function call(name, args) {
   const errors = checkPlanet(spec);
   if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and preview again:\n${errors.slice(0, 30).join('\n')}`);
   const url = `${PREVIEW_PAGE}#${await packPlanet(spec)}`;
-  const p = planetParts(spec);
-  const bar = p.has.includes('tiki-bar'); // the robot and the chalkboard are the bar's
-  const planet = { name: p.name, sign: p.sign, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), board: { title: p.board.title, names: bar ? p.board.items.slice(0, 6).map((x) => x.name) : [] }, thoughts: p.thoughts.slice(0, 6), robot: bar ? p.robot.lines[0] : null };
+  // what the plain card shows: who it's for, their links, and a little of what they love
+  const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
+  const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   return {
-    text: `${p.sign} is ready. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
+    text: `${spec.who.name}'s planet is ready to walk around, bare for now: it gets built by hand from what they love. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
     data: { view: 'planet', url, planet },
   };
 }

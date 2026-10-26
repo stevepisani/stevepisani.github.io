@@ -46,12 +46,13 @@ function turnEarth(earth, sunDir, at) {
   turned = Date.now();
 }
 
-export function buildSky({ quality }) {
+/**
+ * Deep space with nothing in it: the nebula dome and the twinkling stars, in one group (centred on
+ * the camera by whoever owns it). Every planet's sky starts here; Steve's adds Earth, the moon and
+ * the sun (buildSky), a friend's planet adds what's theirs (assets/js/planets/).
+ */
+export function buildSpace({ quality, uniforms = { time: { value: 0 } } }) {
   const group = new THREE.Group();
-  // what the telescope can be pointed at: where each is, and how wide it looks (radians across)
-  const bodies = {};
-  const uniforms = { time: { value: 0 } };
-
   // Nebula dome: fbm noise in three hues over near-black. Rendered first, never writes depth.
   const nebula = new THREE.Mesh(
     new THREE.SphereGeometry(800, 48, 24),
@@ -115,6 +116,16 @@ export function buildSky({ quality }) {
     stars.renderOrder = -1;
     group.add(stars);
   }
+  return group;
+}
+
+export function buildSky({ quality }) {
+  const group = new THREE.Group();
+  // what the telescope can be pointed at: where each is, and how wide it looks (radians across)
+  const bodies = {};
+  const uniforms = { time: { value: 0 } };
+
+  group.add(buildSpace({ quality, uniforms }));
 
   // One sun lights everything: the asteroid (main.js's key light), Earth and the moon.
   // It's far away next to all three, so its light comes from the same direction for each, and

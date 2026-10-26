@@ -74,3 +74,4 @@ exclude:
   - assets/js/walk
   - assets/js/apps
   - assets/js/mcp-app
+  - assets/js/planets

@@ -25,9 +25,12 @@ const _up = new THREE.Vector3(), _d = new THREE.Vector3();
 const X = new THREE.Vector3(1, 0, 0);
 
 export class Player {
-  constructor(camera, { colliders }) {
+  // `surface`: the ground's radius in a direction (Steve's planet's by default; a friend's planet
+  // has ground of its own, assets/js/planets/)
+  constructor(camera, { colliders, surface = surfaceRadius }) {
     this.camera = camera;
     this.colliders = colliders;
+    this.surface = surface;
     this.pos = new THREE.Vector3();     // feet, on the surface
     this.quat = new THREE.Quaternion(); // body orientation (local +Y = up, -Z = forward)
     this.pitch = 0;
@@ -50,7 +53,7 @@ export class Player {
   /** Stand at `dir` on the surface, facing toward the point `lookAt` (world). */
   spawn(dir, lookAt, pitch = -0.04) {
     const up = dir.clone().normalize();
-    this.pos.copy(up).multiplyScalar(surfaceRadius(up));
+    this.pos.copy(up).multiplyScalar(this.surface(up));
     this.quat.setFromUnitVectors(Y, up);
     this.quat.multiply(this._q.setFromAxisAngle(Y, this.yawToward(lookAt)));
     this.pitch = pitch;
@@ -169,7 +172,7 @@ export class Player {
 
     // snap to the ground and parallel-transport orientation to the new up
     const newUp = this._up.copy(this.pos).normalize();
-    this.pos.copy(newUp).multiplyScalar(surfaceRadius(newUp));
+    this.pos.copy(newUp).multiplyScalar(this.surface(newUp));
     this.quat.premultiply(this._q.setFromUnitVectors(up, newUp)).normalize();
   }
 
@@ -191,7 +194,7 @@ export class Player {
       }
     }
     const up = _up.copy(target).normalize();
-    return target.copy(up).multiplyScalar(surfaceRadius(up));
+    return target.copy(up).multiplyScalar(this.surface(up));
   }
 
   /** Put the camera at the player's eyes, with a very small walking bob. */

@@ -1,0 +1,39 @@
+/* A friend's tiny planet (_layouts/planet.html, assets/js/planets/): the canvas, their name, and
+   the launch screen. None of Steve's planet's looks (world.css): no neon, no bar, no tiki. */
+.planet-page { margin: 0; background: #05060f; overflow: hidden; overscroll-behavior: none; }
+.planet { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
+.planet__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; cursor: grab; }
+.planet__canvas.is-dragging { cursor: grabbing; }
+
+.topbar { position: absolute; z-index: 7; inset: 0 0 auto; padding: 14px 18px; background: linear-gradient(rgb(5 6 15 / .7), rgb(5 6 15 / 0)); pointer-events: none; }
+.topbar__id { display: grid; gap: 1px; color: #fff; line-height: 1.2; text-shadow: 0 1px 12px rgb(0 0 0 / .6); }
+.topbar__id strong { font: 700 1.15rem var(--font-display); }
+.topbar__id span { font-size: .85rem; color: #c3c8e6; }
+
+/* The launch screen: the night sky over the planet's horizon, where the first frame will have them.
+   It takes drags (the stars move as the sky will); the bar's sheen is compositor-only, so it keeps
+   moving while the planet is built. */
+.veil { position: absolute; inset: 0; z-index: 2; cursor: grab; touch-action: none; transition: opacity .5s ease-out;
+  background: radial-gradient(90% 70% at 60% 30%, #1d1838, transparent 70%), #05060f; }
+.veil:active { cursor: grabbing; }
+.veil.is-gone { opacity: 0; pointer-events: none; }
+.veil[hidden] { display: none; }
+.veil__stars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.veil__ground { position: absolute; inset: 0; background: radial-gradient(148vh 55% at 50% 118%, #29304d 99.6%, transparent 100%); }
+/* the horizon where the first frame has it: eye height over a 20 m planet with the camera's fov
+   (main.js), measured from screenshots; a planet's own hills move it a little */
+@media (pointer: coarse) { .veil__ground { background: radial-gradient(80vh 55% at 50% 117%, #29304d 99.6%, transparent 100%); } }
+.veil__load { position: absolute; left: 50%; bottom: max(9%, 48px); translate: -50% 0; width: min(320px, calc(100vw - 32px)); display: grid; justify-items: center; gap: 10px; text-align: center; pointer-events: none; }
+.veil__bar { position: relative; width: 180px; height: 4px; border-radius: 4px; background: rgb(255 255 255 / .14); overflow: hidden; }
+.veil__bar::after { content: ""; position: absolute; inset: 0; width: 40%; background: linear-gradient(90deg, transparent, rgb(200 215 255 / .7), transparent); animation: veil-sheen 1.3s ease-in-out infinite; }
+@keyframes veil-sheen { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.veil__status { margin: 0; font: 500 .95rem var(--font-body); color: #dfe2f5; text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+.veil__try { margin: 0; font: .85rem var(--font-body); color: #9aa0c0; }
+[data-state="failed"] .veil__bar, [data-state="failed"] .veil__try { display: none; }
+@media (prefers-reduced-motion: reduce) { .veil__bar::after { animation: none; } }
+
+.hint { position: absolute; z-index: 3; left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; padding: 10px 18px; border-radius: 999px; background: rgb(14 16 36 / .72); backdrop-filter: blur(10px); color: #fff; font: 500 .95rem var(--font-body); white-space: nowrap; border: 1px solid rgb(255 255 255 / .12); pointer-events: none; transition: opacity .4s; }
+[data-state="loading"] .hint, [data-state="failed"] .hint { display: none; }
+.hint.is-gone { opacity: 0; }
+@media (max-width: 480px) { .hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); } }
+@media (pointer: coarse) { .hint::before { content: "Tap anywhere to walk. Drag to look around."; } .hint { font-size: 0; } .hint::before { font-size: .95rem; } }

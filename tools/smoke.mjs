@@ -1742,44 +1742,44 @@ async function noWebGL(page, shot) {
   step('"Rockets and Horses": the walk is its cards');
 }
 
-// Someone else's planet, previewed: the page draws the spec in its address (the sign, the menu,
-// the chalkboard, the robot's line), says plainly when there's none, and never writes anywhere
+// Someone else's planet, previewed: their own small world (assets/js/planets/), none of Steve's.
+// The launch screen takes a drag before the planet's script has arrived, and the planet appears
+// facing where they looked; then it's walkable, and an address with no planet in it says so.
 async function preview(page, shot) {
-  const packed = await packPlanet(planets.EXAMPLE);
-  await page.goto(`${base}/p/preview/?test=1#${packed}`);
-  await until(page, () => window.__sceneReady, null, 240000);
-  const got = await page.evaluate(() => ({ name: document.getElementById('topbar-name').textContent, links: [...document.querySelectorAll('.menu__list a')].map((a) => a.getAttribute('href')), sign: document.querySelector('.menu__bar').textContent, veil: !!document.querySelector('.veil__sign'), status: document.getElementById('veil-status').textContent, board: [...document.querySelectorAll('#board-list button')].map((b) => b.textContent), seat: window.__world.interactables.find((x) => x.id === 'seat').label }));
-  if (got.name !== 'Sam' || got.sign !== "Sam's" || got.veil || got.seat !== "Sam's" || got.links.join() !== 'https://example.com,mailto:sam@example.com' || got.board.join() !== 'Kind of Blue,Blue Train') throw new Error(`the preview didn't draw Sam's planet: ${JSON.stringify(got)}`);
+  let arrive;
+  const held = new Promise((r) => { arrive = r; });
+  await page.route('**/assets/js/dist/planets.js*', async (route) => { await held; route.continue(); });
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(planets.EXAMPLE)}`, { waitUntil: 'commit' });
+  await page.waitForSelector('#veil-stars');
+  await page.mouse.move(640, 300);
+  await page.mouse.down();
+  await page.mouse.move(440, 300, { steps: 6 });
+  await page.mouse.up();
+  const looked = await page.evaluate(() => window.__veilLook);
+  if (!(Math.abs(looked - 0.8) < 0.05)) throw new Error(`a drag on the launch screen should look round (0.8 rad): ${looked}`);
+  await shot('preview-launch');
+  arrive();
+  await until(page, () => window.__planet && window.__planet.ready, null, 240000);
+  const got = await page.evaluate(() => {
+    const f = window.__planet.player.forward();
+    return { name: document.getElementById('topbar-name').textContent, line: document.getElementById('topbar-line').textContent, facing: Math.atan2(-f.x, -f.z), steves: !!(window.__world || document.getElementById('world') || document.querySelector('.veil__sign, .menu, #chat')) };
+  });
+  if (got.name !== 'Sam' || got.line !== 'A tiny planet in Austin' || got.steves || Math.abs(got.facing + looked) > 0.05) throw new Error(`Sam's planet, facing where the drag left them, with nothing of Steve's: ${JSON.stringify(got)}`);
+  step("Sam's planet from the address: their name and city, facing where they looked while it loaded, nothing of Steve's");
+  await page.mouse.click(640, 700);
+  await until(page, () => window.__planet.player.moving, null, 30000);
+  await page.waitForTimeout(1500);
   await shot('preview');
-  await page.evaluate(() => window.__world.sitDown());
-  await expectState(page, 'seat');
-  await page.evaluate(() => { window.__world.board.open(); window.__world.board.pick(0); });
-  await until(page, () => !document.getElementById('board-card').hidden);
-  if ((await page.textContent('#board-meta')) !== 'Miles Davis · 1959' || await page.isVisible('#board-make') || await page.isVisible('#chat')) throw new Error('a record on the board: its details, no "Make me one", and no AI bartender in a preview');
-  step("Sam's planet from the address: the sign, top bar, menu, chalkboard (a record's details, nothing to make) and no bartender to ask");
-  // only what Sam's spec puts on it: the bar, the campfire and the telescope, none of Steve's own things
-  const here = await page.evaluate(() => window.__world.here);
-  if (here.things.sort().join() !== 'campfire,drinks,launch,menu,seat') throw new Error(`Sam's planet should have only what its spec lists: ${here.things}`);
-  step('only what its spec lists: the bar, the campfire and the telescope, none of Steve\'s things');
+  step('a click on the ground walks there');
   const bad = await page.context().newPage();
   await bad.goto(`${base}/p/preview/#not-a-planet`);
-  await until(bad, () => /can’t be drawn/.test(document.getElementById('veil-status').textContent), null, 30000);
+  await until(bad, () => /no planet in this address/.test(document.getElementById('veil-status').textContent), null, 30000);
   await bad.close();
   step('an address with no planet in it says so');
 }
 
-// a planet that lists nothing has nothing on it but the planet: no bar, no sign on the launch screen
-async function previewBare(page, shot) {
-  await page.goto(`${base}/p/preview/?test=1#${await packPlanet({ version: 1, slug: 'jo', who: { name: 'Jo' } })}`);
-  await until(page, () => window.__sceneReady, null, 240000);
-  const bare = await page.evaluate(() => window.__world.here);
-  if (bare.things.length || bare.bar) throw new Error(`a planet with nothing listed should be bare: ${JSON.stringify(bare)}`);
-  await shot('bare');
-  step('a planet that lists nothing is just the planet: nothing to use, no bar');
-}
-
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
-// in a frame where 3D can run, and on a phone a plain card with a link to walk around it
+// in a frame on a computer and in a phone's app alike, and a plain card where 3D can't run
 async function planetCard(page, shot, { phone = false } = {}) {
   const ctx = { cardScript: async () => readFileSync(join(root, 'assets/js/dist/planet-card.js'), 'utf8') };
   const html = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: planets.APP_URI } }, ctx)).result.contents[0].text;
@@ -1813,15 +1813,15 @@ async function planetCard(page, shot, { phone = false } = {}) {
   let world = null;
   for (let i = 0; i < 240 && !world; i++) { world = page.frames().find((f) => f.url().startsWith(PREVIEW_PAGE)); if (!world) await page.waitForTimeout(250); }
   if (!world) throw new Error('the card never opened the preview page in its frame');
-  await world.waitForFunction(() => window.__sceneReady, null, { timeout: 240000 });
-  if ((await world.textContent('.menu__bar')) !== "Sam's" || (await card.locator('.pl-parts:empty').count()) !== 1) throw new Error("the card's frame should show Sam's planet, and no plain card beside it");
+  await world.waitForFunction(() => window.__planet && window.__planet.ready, null, { timeout: 240000 });
+  if ((await world.textContent('#topbar-name')) !== 'Sam' || (await card.locator('.pl-parts:empty').count()) !== 1) throw new Error("the card's frame should show Sam's planet, and no plain card beside it");
   await page.waitForTimeout(1500);
   await shot(phone ? 'card-planet-phone' : 'card-planet');
   if (phone) {
     // walk on it with a tap, the way a thumb does in the chat
     const box = await card.locator('.pl-frame').boundingBox();
-    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * 0.7);
-    await world.waitForFunction(() => window.__world.player.moving, null, { timeout: 30000 });
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height * 0.85);
+    await world.waitForFunction(() => window.__planet.player.moving, null, { timeout: 30000 });
     step("in a phone's app: the planet itself, walkable, in the card, as on a computer");
     return;
   }
@@ -1831,12 +1831,12 @@ async function planetCard(page, shot, { phone = false } = {}) {
   await show('desktop');
   await card.getByRole('button', { name: 'Walk around it' }).click();
   const text = flatText(await card.locator('#app').innerText());
-  if (!/Sam's/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
+  if (!/Sam/.test(text) || !/Austin/.test(text) || !/My band/.test(text) || !/Kind of Blue/.test(text) || !/porch/.test(text) || (await card.locator('iframe').count())) throw new Error(`the plain card: ${text.slice(0, 300)}`);
   // (the card asks the host to open it, a message away: wait for it to arrive)
   await until(page, () => window.opened.length > 0, null, 10000).catch(() => {});
   if (!(await page.evaluate(() => window.opened[0] || '')).startsWith(`${PREVIEW_PAGE}#`)) throw new Error('"Walk around it" should open the preview page');
   await shot('card-plain');
-  step('with no WebGL2: the plain card (sign, menu, chalkboard, campfire) and "Walk around it" opens the planet');
+  step('with no WebGL2: the plain card (who it is for, their links, what they love) and "Walk around it" opens the planet');
 }
 
 const want = (k) => !only || only === k;
@@ -1851,7 +1851,6 @@ if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, 
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
-if (want('planets')) await session('planets bare', { viewport: { width: 1280, height: 800 } }, previewBare);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

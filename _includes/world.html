@@ -1,13 +1,13 @@
 {%- comment -%}
   The planet: the canvas, the launch screen, the top bar, the menu and everything laid over the
   3D (assets/js/world/), and the planet's spec and kit for the world to read. The homepage
-  includes it with Steve's planet (planet=, name=, tagline=); /p/preview/ includes it empty
-  (preview=true), and the world fills it in from the spec in the address (docs/planets.md).
+  includes it with Steve's planet (planet=, name=, tagline=). Other people's planets have a page of
+  their own (_layouts/planet.html, docs/planets.md).
 {%- endcomment -%}
 {%- assign planet = include.planet -%}
 {%- assign sign = planet.who.sign | default: planet.who.name -%}
 {%- assign engraving = planet.telescope.engraving | default: sign -%}
-<div class="world" id="world" data-state="loading"{% if include.preview %} data-preview{% endif %}>
+<div class="world" id="world" data-state="loading">
   <canvas class="world__canvas" id="world-canvas" tabindex="0" aria-label="{{ sign | default: 'A little' }} asteroid: a tiki bar on a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu."></canvas>
 
   {%- comment -%}
@@ -22,7 +22,6 @@
       textures.js neonSign()/signBox(), and set in 3D by world.css at the pose the camera sees it
       from where you land, so the real one appears exactly on top of it.
     {%- endcomment -%}
-    {%- unless include.preview %}
     <div class="veil__sign" aria-hidden="true">
       <svg viewBox="-270 -180 540 330">
         <defs>
@@ -48,11 +47,10 @@
         </g>
       </svg>
     </div>
-    {%- endunless %}
     <div class="veil__load">
       <span class="veil__bar" aria-hidden="true"><span id="veil-progress"></span></span>
-      <p class="veil__status" id="veil-status" role="status">{% if include.preview %}Loading the planet…{% else %}Opening the bar…{% endif %}</p>
-      {% unless include.preview %}<p class="veil__slow">Taking a while? The sections up top already work, or <a href="{{ '/classic' | relative_url }}">see the site without 3D</a>.</p>{% endunless %}
+      <p class="veil__status" id="veil-status" role="status">Opening the bar…</p>
+      <p class="veil__slow">Taking a while? The sections up top already work, or <a href="{{ '/classic' | relative_url }}">see the site without 3D</a>.</p>
     </div>
   </div>
 
@@ -106,7 +104,7 @@
         </ul>
         <div class="menu__foot">
           <button type="button" class="menu__leave" id="leave">Leave the bar</button>
-          {% unless include.preview %}<a href="{{ '/classic' | relative_url }}">Regular website</a>{% endunless %}
+          <a href="{{ '/classic' | relative_url }}">Regular website</a>
         </div>
       </div>
     </div>

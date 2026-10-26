@@ -38,25 +38,23 @@ import { REAL_PLACES } from './realplaces.js';
 import { createTerminal, launchOnThisDay } from './terminal.js';
 import { holidayNow, holidayAsked } from '../holidays.js';
 import holidayLibs from 'holiday-libs';
-import { readSpec, planetParts, planetHas, fillPage, tellCard } from './spec.js';
+import { readSpec, planetParts } from './spec.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('world');
 const canvas = $('world-canvas');
-// This planet's spec (supabase/functions/_shared/planet.js says what's in one; Steve's is built
-// from _data/ by tools/planet.mjs) and the kit, what every planet shares (the moon's landing sites,
-// famous launches by date), both written into the page. On the preview page the spec is someone
-// else's, from the address (spec.js), and nothing here writes anywhere or asks the AI bartender.
-const PREVIEW = 'preview' in root.dataset;
+// Steve's planet's spec (supabase/functions/_shared/planet.js says what's in one; built from
+// _data/ by tools/planet.mjs) and the kit (the moon's landing sites, famous launches by date), both
+// written into the page. Other people's planets aren't drawn here: they're their own small worlds
+// (assets/js/planets/, docs/planets.md).
 const { kit, ...pageData } = JSON.parse($('world-data').textContent);
-const { spec = null, errors = [] } = await readSpec(root, pageData);
+const { spec } = await readSpec(root, pageData);
 // what the places show (the sign, the chalkboard, the campfire, the robot), with defaults
-const parts = spec ? planetParts(spec) : null;
-if (PREVIEW && spec) { fillPage(spec, parts); tellCard('loading'); }
-const boardItems = parts ? parts.board.items : []; // what's chalked on the board behind the bar
-// What's on the planet besides the planet itself: everything on Steve's; on someone else's, only
-// what their spec puts there (places.js layout: the trails, and what grass and scatter keep clear of)
-const plan = layout(PREVIEW && spec ? ((kinds) => (kind) => kinds.has(kind))(planetHas(spec)) : EVERYTHING);
+const parts = planetParts(spec);
+const boardItems = parts.board.items; // what's chalked on the board behind the bar
+// What's on the planet besides the planet itself: everything (places.js layout: the trails, and
+// what grass and scatter keep clear of)
+const plan = layout(EVERYTHING);
 const { trailEdge, keepClear, nearLandmark } = plan;
 const hasBar = plan.has('tiki-bar');
 // The one Supabase project (url and public key from _config.yml, in the page head)
@@ -312,13 +310,7 @@ function webgl2() {
 }
 
 async function start() {
-  if (!spec) { // a preview whose address holds no planet, or one that doesn't pass: say why, plainly
-    $('veil-status').textContent = errors.length > 1 ? `This planet can’t be drawn: ${errors[0]} (and ${errors.length - 1} more).` : `This planet can’t be drawn: ${errors[0]}`;
-    root.dataset.state = 'error';
-    tellCard('failed', errors);
-    return;
-  }
-  if (!webgl2()) { tellCard('failed', ['no WebGL2']); return fallback('no WebGL2'); }
+  if (!webgl2()) return fallback('no WebGL2');
   // Launch screen: say what's happening, and let it paint between the heavy steps.
   const progress = $('veil-progress'), status = $('veil-status');
   let shown = 0;
@@ -2524,7 +2516,6 @@ async function start() {
   // Sent to the shared table. Tests (?test, automated browsers) don't write to it.
   async function sendBottle(message, signed) {
     if (TEST || navigator.webdriver) { window.__lastBottle = { message, signed }; return { ok: true }; }
-    if (PREVIEW) return { ok: false, preview: true }; // a preview's planet isn't anyone's yet: nowhere to wash up
     try {
       const res = await fetch(`${DB.url}/rest/v1/bottles`, {
         method: 'POST',
@@ -2902,7 +2893,7 @@ async function start() {
     seatLeave.hidden = !(state === 'seat' && !flight && panel.hidden && menu.hidden && !board.on);
     boardBackBtn.hidden = !(state === 'seat' && board.on && panel.hidden && menu.hidden);
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
-    chat.hidden = PREVIEW || !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
+    chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
     chatAsk.hidden = chat.hidden || talked || !(parts.robot.ask || []).length;
     if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
@@ -2974,7 +2965,6 @@ async function start() {
   $('veil').classList.add('is-gone');
   decor?.ready?.(); // the planet is on screen (a New Year's Eve preview counts down from here)
   setTimeout(() => { $('veil').hidden = true; }, reducedMotion ? 0 : 500);
-  tellCard('ready');
   setTimeout(() => showHint(coarse ? 'Tap anywhere to walk. Drag to look around.' : 'Click anywhere to walk. Drag to look around.', 'walk'), 900);
   if (panel.hidden) canvas.focus({ preventScroll: true });
 
@@ -2983,9 +2973,8 @@ async function start() {
   window.__world.here = { things: interactables.map((i) => i.id), bar: !!bar.group.parent }; // what's on this planet to use (the smoke test)
   window.__sceneReady = true;
 
-  // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs);
-  // a preview's sky stays plain for now (a star-sky display of its own collection is to come)
-  if (!PREVIEW) fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
+  // Steve's books, for the stars over the hammock (_data/library.json, from tools/library.mjs)
+  fetch('/library.json').then((r) => (r.ok ? r.json() : null)).then((d) => { bookSky.setBooks(d); window.__world.stars = bookSky.count; }).catch(() => {});
 
   // What can wait for the browser to be idle, so none of it lands on your first steps: the
   // physics engine (a megabyte of WebAssembly and its ground), then the bottles' shaders
@@ -2998,7 +2987,7 @@ async function start() {
   whenIdle(() => sky.earth.userData.sharpen(), 4000); // Earth at full size, for the telescope
 
   // Everyone else here right now, as fireflies (Supabase Realtime presence).
-  if (!PREVIEW) fireflies = createFireflies(scene, DB);
+  fireflies = createFireflies(scene, DB);
   window.__world.fireflies = fireflies;
 
   // Sound: off until asked for (the speaker in the top bar), then everything where it is.
