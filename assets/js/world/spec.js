@@ -1,10 +1,10 @@
-// The planet's spec, as the world reads it (supabase/functions/_shared/planet.js says what's in one).
+// A planet's spec, as a page reads it (supabase/functions/_shared/planet.js says what's in one).
 // On the homepage it's Steve's, written into the page by Jekyll (_data/planet.json). On the
 // preview page (/p/preview/, docs/planets.md) it's someone else's, packed into the address by the
-// Planets connector: unpacked and checked here before anything draws, then the page's own text
-// (top bar, menu, the launch screen's sign) is filled in from it, as Jekyll does for Steve's.
+// Planets connector, and unpacked and checked here before anything draws; a friend's planet
+// (assets/js/planets/) reads it the same way.
 import { checkPlanet, unpackPlanet } from '../../../supabase/functions/_shared/planet.js';
-export { planetParts, planetHas } from '../../../supabase/functions/_shared/planet.js'; // what the places show, and what's on the planet
+export { planetParts } from '../../../supabase/functions/_shared/planet.js'; // what Steve's places show
 
 const KEPT = 'planet-preview'; // the last good preview in this tab, for a reload after the # has moved on
 
@@ -21,36 +21,6 @@ export async function readSpec(root, data) {
   if (errors.length) return { errors };
   try { sessionStorage.setItem(KEPT, packed); } catch (e) { /* private mode: a reload needs the link again */ }
   return { spec };
-}
-
-// a link as the menu shows it: a site path only means something on Steve's site, so in a preview
-// it's shown without going anywhere (an <a> with no href)
-const link = (l, menu) => {
-  const outside = /^(https:|mailto:)/.test(l.href);
-  const a = document.createElement('a');
-  a.dataset.order = l.id;
-  if (outside) { a.href = l.href; a.target = '_blank'; a.rel = 'noopener'; }
-  if (!menu) { a.textContent = l.label; return a; }
-  const label = Object.assign(document.createElement('span'), { className: 'menu__label', textContent: l.label });
-  if (outside) label.append(Object.assign(document.createElement('span'), { className: 'menu__ext', title: 'Opens in a new tab', textContent: ' ↗' }));
-  a.append(label, Object.assign(document.createElement('span'), { className: 'menu__note', textContent: l.note || '' }));
-  return a;
-};
-
-/** The page's own text from the spec, for a preview (Jekyll writes Steve's into the homepage). */
-export function fillPage(spec, parts) {
-  const $ = (id) => document.getElementById(id);
-  document.title = `${parts.sign}: a tiny planet`;
-  const bar = parts.has.includes('tiki-bar');
-  $('world-canvas').setAttribute('aria-label', `${parts.sign}: ${bar ? 'a tiki bar on ' : ''}a tiny planet. Click or tap to walk, drag to look around. Everything here is also in the Menu.`);
-  $('topbar-name').textContent = spec.who.name;
-  $('topbar-line').textContent = spec.look && spec.look.home ? `A tiny planet in ${spec.look.home}` : 'A tiny planet';
-  const links = spec.links || [];
-  document.querySelector('.topbar__nav').replaceChildren(...links.map((l) => link(l, false)));
-  document.querySelector('.menu__list').replaceChildren(...links.map((l) => { const li = document.createElement('li'); li.append(link(l, true)); return li; }));
-  document.querySelector('.menu__bar').textContent = parts.sign;
-  $('eyepiece-mag').textContent = parts.engraving;
-  // (the launch screen paints Steve's sign only on his own planet: a preview's has none)
 }
 
 /** Tells the chat's card (assets/js/mcp-app/views/planet.js), if this page is in one, how it went. */

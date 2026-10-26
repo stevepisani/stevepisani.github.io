@@ -58,11 +58,11 @@ export const TRAILS = [
 ];
 for (const t of TRAILS) t.sampled = sampleTrail(t.points, t);
 
-// What's on a planet. Steve's has everything. Someone else's (the preview page) has only what its
-// spec puts there (planet.js planetHas): the places it lists by kind (tiki-bar, campfire,
-// hammock), a telescope and a launch pad if it has them, and none of Steve's own things ('steve':
-// the door, the radio dish, the petunias, the flatcar, the canoe, the stones, the bottles). The
-// planet itself (its ground, lagoon, cutaway and scatter) is always there.
+// What's on a planet, by kind of place (tiki-bar, campfire, hammock, telescope, launch-pad, and
+// 'steve' for his own things: the door, the radio dish, the petunias, the flatcar, the canoe, the
+// stones, the bottles). Steve's has everything. Other people's planets are their own small worlds
+// now (assets/js/planets/), so nothing here asks for less; the switch stays for the day shared
+// places are wanted (Steve, Oct 2026: a library only if planets for friends take off).
 export const EVERYTHING = () => true;
 // which trails each kind of place needs: the walk from where you land, and the trails off it
 const TRAIL_FOR = {

@@ -246,7 +246,7 @@ export function planetHas(spec) {
 }
 
 // an item in a collection as one line: text as it is; an object by its name or title, or its first text
-const line = (x) => {
+export const line = (x) => {
   if (x === null || x === undefined) return '';
   if (typeof x !== 'object') return String(x);
   if (Array.isArray(x)) return x.map(line).filter(Boolean).join(', ');

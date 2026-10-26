@@ -1,73 +1,74 @@
 # My Tiny Planet: planets for other people
 
-Anyone's ChatGPT or Claude can design a little planet for the person it's talking with, from what
-they love, and show it right there in the chat, walkable, on this planet's engine. The plan, its
-phases and what's next are in `docs/roadmap.md` (My Tiny Planet, Linear P-PRO-40); this file is
-how what's built works.
+Anyone's ChatGPT or Claude can ask the person it's talking with what they love and show them
+their own little planet right there in the chat, walkable. Every planet is its person's own: the
+only thing shared with Steve's is its size (Steve, Oct 2026), and the first ten are built by hand
+from what they said. Until then a planet is bare. The plan and what's next are in
+`docs/roadmap.md` (My Tiny Planet, Linear P-PRO-40); this file is how what's built works.
 
 ## The pieces
 
 - **The spec** (`supabase/functions/_shared/planet.js`): one small JSON per planet, and
   `checkPlanet`, the one check every spec passes before anything draws it, on the server and in
-  the browser alike. Steve's is built from `_data/` (`tools/planet.mjs`). The same file has
-  `planetParts` (what the world draws from a spec, with defaults: the sign, the chalkboard, the
-  campfire, the robot) and `packPlanet` / `unpackPlanet` (a spec in an address, below).
-- **The preview page**, `/p/preview/` (`p/preview.html`): the homepage's world
-  (`_includes/world.html`, the same include the homepage uses) with no planet of its own. It
-  reads one from its address, after the `#`: the spec, deflated and in base64url (Steve's is
-  about 4 KB that way). `assets/js/world/spec.js` unpacks it, runs `checkPlanet`, and fills the
-  page from it (top bar, menu, the launch screen's sign) the way Jekyll fills Steve's. Nothing
-  is stored anywhere: the address is the planet. The last good one is kept in the tab
-  (`sessionStorage`) so a reload works after the world has moved the `#` on. An address with no
-  planet in it, or one that fails the check, says so on the launch screen.
+  the browser alike. Steve's is built from `_data/` (`tools/planet.mjs`) and also holds his
+  planet's own parts (places, the robot, the telescope, the launch pad: `planetParts` reads them
+  for the homepage). For anyone else it holds who they are (`who.name`, `look.home`), their links
+  and what they love (`collections`, in their own words): what their planet is built from.
+  `packPlanet` / `unpackPlanet` put a spec in an address (below).
+- **A friend's planet** (`assets/js/planets/`, built to `dist/planets.js`; `_layouts/planet.html`,
+  `assets/css/planet.css`): its own small world on three.js, a quarter of the homepage's download
+  and none of Steve's planet (no bar, sign, campfire, telescope, rocket, lagoon, machine or Earth).
+  It shares only the radius (`RADIUS`, `world/planet.js`) and a few general parts: walking
+  (`world/player.js`, which takes the planet's own ground), and the empty sky (`buildSpace` in
+  `world/sky.js`: the nebula and the stars, which Steve's sky builds on). `ground.js` makes the
+  ground: hills of its own, seeded by the planet's slug so no two are the same shape, and loose
+  stones; a built planet will pass its own colour and hills. You land looking a little down,
+  tap or click to walk (a ring marks where), drag to look, WASD too.
+  The launch screen is the night sky over the planet's horizon (drawn where the first frame has
+  it), and it's already live: an inline script draws the stars and lets you drag them round at
+  the same rate the planet turns you, and the planet appears facing where you looked
+  (`window.__veilLook`). It says "Loading the planet…" and fades after the first frames are drawn.
+- **The preview page**, `/p/preview/` (`p/preview.html`, `layout: planet`): a friend's planet
+  with no spec of its own. It reads one from its address, after the `#`: the spec, deflated and in
+  base64url. `assets/js/world/spec.js` (`readSpec`) unpacks it and runs `checkPlanet`. Nothing is
+  stored anywhere: the address is the planet. The last good one is kept in the tab
+  (`sessionStorage`) for a reload. An address with no planet in it, or one that fails the check,
+  says so on the launch screen. A built planet's page will carry its spec (`planet:` in its front
+  matter, written into `planet-data`).
 - **The connector**, `supabase/functions/planets` (MCP over Streamable HTTP, stateless, like
   SJPJr's), at `https://mcp.stevenpisani.com/planets` (the proxy in `proxy/` sends `/planets`
   there and everything else to SJPJr). Open to anyone, no sign-in: it reads nothing and stores
-  nothing. Its instructions, `get_kit` and the starter message on `/planets/` assume only the
-  planet itself: no sign, bar or anything else is asked for, and a spec needs only `version`,
-  `slug` and `who.name` (Steve, Oct 2026: don't be prescriptive). Two tools, both read-only:
-  - `get_kit`: what a spec can hold, what the world draws from it today, the limits, and an
-    example (Sam's, which `tools/planet-test.mjs` checks passes);
+  nothing. Its instructions say to ask open questions and keep the answers in the person's own
+  words, never to suggest a bar, a sign or anything as a default, and to say plainly that the
+  planet is bare until it's built. `get_kit` offers only who they are, their links and what they
+  love: none of Steve's planet's parts (Steve, Oct 2026). A spec needs only `version`, `slug` and
+  `who.name`. Two tools, both read-only:
+  - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example
+    (Sam's, which `tools/planet-test.mjs` checks passes);
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
     model fixes it and tries again), packs it into a preview link, and shows the card.
 - **The card** (`assets/js/mcp-app/planets.js`, built to `dist/planet-card.js`): SJPJr's card
   shell (`card.js`) with one view, `views/planet.js`. On a computer and in a phone's app alike it
   shows the preview page in a frame, so the planet itself is in the chat, walkable by tap or
   click, with Full screen and Open in browser (Steve, Oct 2026: the phone and the computer should
-  be the same). The page tells the card how it's going (`tellCard` in `spec.js`: loading, ready,
-  failed); a frame that says nothing for 12 s was blocked by the app, and the card falls back. If
-  the frame fails or is blocked, or there's no WebGL2, it's a plain card: the sign, the robot's
-  first line, the menu, the chalkboard and the campfire, and "Walk around it", which opens the
-  preview page in the browser. The card's page allows the site as a frame
+  be the same). The page tells the card how it's going (`tellCard` in `spec.js`: loading, from an
+  inline script before the planet's script arrives, then ready or failed); a frame that says
+  nothing for 12 s was blocked by the app, and the card falls back. If the frame fails or is
+  blocked, or there's no WebGL2, it's a plain card: their name and city, their links, a little of
+  what they love, and "Walk around it", which opens the preview page in the browser. The card's page allows the site as a frame
   (`frameDomains` for MCP Apps, `frame_domains` in ChatGPT's `openai/widgetCSP`).
 
 ## What a preview draws today
 
-Only what its spec puts on the planet (`planetHas` in `planet.js`; `layout` and `section` in
-`assets/js/world/places.js`): the places it lists by kind (a tiki bar, a campfire, a hammock), the
-telescope if it has `telescope`, and the rocket and its launch console if it has `launchPad`, each
-with the trail to it. None of Steve's own things (the door, the radio dish, the petunias, the
-flatcar, the canoe, the stones, the bottles) and no holiday decorations. A spec with no places is
-just the planet: its ground, the lagoon, palms and rocks, the cutaway, the sky. What isn't there is
-still built (the world holds on to its parts) but kept out of the scene, with nothing to bump into,
-no light on the ground and nothing to pick; its sound is silent.
+The planet, bare: its own ground and stones under the stars, their name and home city in the top
+bar. Nothing else from the spec is drawn yet; their links and what they love show on the chat's
+plain card and are kept for building their planet. A preview never writes anywhere; the page
+count counts it as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a
+server).
 
-From the spec: the sign (neon, the menu card, the signpost, the telescope's ring), the name and
-home city in the top bar, the links as the menu, a tiki bar's chalkboard display (up to six names;
-tapping one shows its other fields, and "Make me one" only for a drink with a recipe), a
-campfire's collection (a thought with each marshmallow), the robot's lines, and the cities on the
-telescope's Earth (`telescope.pins`, with a few round the world when there are none). A link to a
-site path means something only on Steve's site, so in a preview it's shown but goes nowhere. A
-preview's launch screen has none of Steve's sign: a plain "Loading the planet…" (Steve, Oct 2026:
-his neon makes no sense on anyone else's; something of their own comes next). The page tells the
-card it's there from an inline script before the world's bundle arrives, so a slow download never
-looks like a blocked frame. The chat's plain card shows the robot and the chalkboard only for a
-planet with a bar.
-
-Each place is still built the way Steve's planet builds it, in the same spot; the hammock's book
-sky stays empty in a preview. A preview never writes: no AI bartender (the chat box is hidden), no
-bottles sent, no fireflies; the page count does count it, as one view of `/p/preview/` (the spec is
-after the `#`, so it never reaches a server).
+Steve's planet's engine (`assets/js/world/`) no longer draws anyone else's. `layout` and
+`section` in `world/places.js` can still leave places off a planet, kept for the day shared places
+are wanted.
 
 ## Trying it
 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  {% include head.html %}
+  <script>document.documentElement.dataset.theme = 'dark';</script>
+  <link rel="stylesheet" href="{{ '/assets/css/planet.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+  {%- comment -%} A friend's planet is its own small bundle (assets/js/planets/, docs/planets.md), not Steve's world {%- endcomment %}
+  <link rel="modulepreload" href="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high">
+</head>
+<body class="planet-page">
+  {{ content }}
+  {%- comment -%}
+    Someone's tiny planet: its canvas, the top bar with their name, and the launch screen.
+    The launch screen is the night sky over the planet's horizon, and it's already live: drag it
+    and the stars move the way the sky will, and the planet appears facing where you looked.
+    The page's data (`planet-data`) is empty on the preview page, which reads the planet from its
+    address; a built planet's page will carry its spec.
+  {%- endcomment %}
+  <div class="planet" id="planet" data-state="loading"{% if page.preview %} data-preview{% endif %}>
+    <canvas class="planet__canvas" id="planet-canvas" tabindex="0" aria-label="A tiny planet. Click or tap to walk, drag to look around."></canvas>
+    <header class="topbar">
+      <div class="topbar__id"><strong id="topbar-name">A tiny planet</strong><span id="topbar-line"></span></div>
+    </header>
+    <div class="veil" id="veil">
+      <canvas class="veil__stars" id="veil-stars" aria-hidden="true"></canvas>
+      <div class="veil__ground" aria-hidden="true"></div>
+      <div class="veil__load" role="status">
+        <div class="veil__bar" aria-hidden="true"><span></span></div>
+        <p class="veil__status" id="veil-status">Loading the planet…</p>
+        <p class="veil__try">Drag to look around while it lands.</p>
+      </div>
+    </div>
+    <p class="hint" id="hint" aria-hidden="true">Click anywhere to walk. Drag to look around.</p>
+  </div>
+  <script type="application/json" id="planet-data">{% if page.planet %}{"spec": {{ page.planet | jsonify }}}{% else %}{}{% endif %}</script>
+  <script>
+    // The launch screen's sky, drawn before the planet's script arrives: a few hundred stars you
+    // can drag round, at the same rate the planet turns you (player.js bindInput), so the first
+    // frame picks up where you were looking (window.__veilLook, radians; main.js).
+    (function () {
+      var c = document.getElementById('veil-stars'), x = c.getContext('2d'), look = 0, tilt = 0, press = null;
+      var s = 7, rand = function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      var stars = []; for (var i = 0; i < 500; i++) stars.push([rand() * Math.PI * 2, rand() * 1.1 - 0.15, rand() < 0.06 ? 1.6 : 0.6 + rand() * 0.7]);
+      function draw() {
+        var w = c.width = innerWidth * Math.min(devicePixelRatio, 2), h = c.height = innerHeight * Math.min(devicePixelRatio, 2);
+        var f = (h / 2) / Math.tan((matchMedia('(pointer: coarse)').matches ? 72 : 68) * Math.PI / 360); // px per radian at the middle, as the camera
+        x.clearRect(0, 0, w, h); x.fillStyle = '#fff';
+        stars.forEach(function (t) {
+          var a = ((t[0] + look) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+          if (Math.abs(a) > 1.4) return;
+          x.globalAlpha = 0.35 + t[2] * 0.35;
+          x.fillRect(w / 2 + Math.tan(a) * f, h / 2 - Math.tan(t[1] + tilt) * f, t[2] * 1.4, t[2] * 1.4);
+        });
+      }
+      var v = document.getElementById('veil');
+      v.addEventListener('pointerdown', function (e) { press = { x: e.clientX, y: e.clientY, s: e.pointerType === 'mouse' ? 0.004 : 0.005 }; try { v.setPointerCapture(e.pointerId); } catch (err) {} });
+      v.addEventListener('pointermove', function (e) {
+        if (!press) return;
+        look += (e.clientX - press.x) * press.s; tilt = Math.max(-0.6, Math.min(0.6, tilt + (e.clientY - press.y) * press.s * 0.5));
+        press.x = e.clientX; press.y = e.clientY; window.__veilLook = -look; draw();
+      });
+      v.addEventListener('pointerup', function () { press = null; });
+      v.addEventListener('pointercancel', function () { press = null; });
+      addEventListener('resize', draw); draw();
+    })();
+  </script>
+  <script type="module" src="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high"></script>
+</body>
+</html>

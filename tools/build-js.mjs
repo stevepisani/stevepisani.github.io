@@ -14,6 +14,8 @@
 //                   one post with a 3D scene, with its own three.js
 //   dist/mcp-app.js the wardrobe's in-chat card (assets/js/mcp-app/widget.js), which the MCP
 //                   server's page loads in ChatGPT and Claude
+//   dist/planets.js a friend's planet (/p/…, assets/js/planets/main.js): its own small world,
+//                   three.js and none of Steve's
 //   dist/planet-card.js the Planets connector's card (assets/js/mcp-app/planets.js): a planet
 //                   previewed in a chat, by the same shell
 //   dist/apps/*.js  one per app page (every file in assets/js/apps/: SJPJr, the consent page),
@@ -116,6 +118,8 @@ const builds = [
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
   { ...common, entryPoints: { world: 'assets/js/world/main.js' }, outdir: out, format: 'esm', splitting: true, chunkNames: '[name]-[hash]', assetNames: '[name]-[hash]', loader: { '.wasm': 'file' }, plugins: [rapierWasm, ao.give, holidays.give], metafile: true },
   // ambient occlusion, for computers only (render.js loads it by URL), on world.js's three.js
+  // a friend's planet (/p/…): its own small world on three.js, none of Steve's (assets/js/planets/)
+  { ...common, entryPoints: { planets: 'assets/js/planets/main.js' }, outdir: out, format: 'esm', metafile: true },
   { ...common, entryPoints: { ao: 'assets/js/world/ao.js' }, outdir: out, format: 'esm', plugins: [ao.take], metafile: true },
   // a holiday's decorations (main.js loads the day's by URL), on world.js's three.js
   { ...common, entryPoints: holidayFiles, outdir: out + '/holidays', format: 'esm', plugins: [holidays.take], metafile: true },
