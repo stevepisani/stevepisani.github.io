@@ -6,7 +6,7 @@
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES } from '../_shared/planet.js';
+import { checkPlanet, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -17,7 +17,7 @@ const INSTRUCTIONS = [
   'Call get_kit first: it says what a planet can hold and what is drawn today.',
   'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Nothing on a planet is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
   'Then build it for them: compose a few things (things) from simple shapes that are unmistakably theirs, from what they told you, in the colours and mood of their world (look.ground, look.sky). Make each one specific and a little delightful, with care for proportion: a thing they love, made big enough to walk up to. Tie each thing to a collection, so tapping it shows what they love in their own words.',
-  'Write the spec, then preview_planet. Look at what the preview says, and tell them what you made and that they can walk up to each thing and tap it.',
+  'Write the spec, then preview_planet. Look at what the preview says: it notes parts hanging in the air, things standing in each other and the like, and where the chat can show you pictures, the card sends you a few views of the planet as drawn. Fix what looks wrong and preview again before you show them; then tell them what you made and that they can walk up to each thing and tap it.',
   'Change it and preview again whenever they ask. A preview stores nothing: its link is the planet, so give them the link to keep.',
   'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who gives it its own address and may add to it by hand. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
   'A planet is public: never put a home address, phone number or anything private in it.',
@@ -104,7 +104,7 @@ const KIT = {
     how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
     parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall. Beyond the simple shapes, for real silhouettes: box with round 0..0.5 rounds its edges (a share of its smallest side); lathe turns a side profile round its up, profile [[out, up], ...] each 0..1 of its size, bottom to top, out 1 at the widest (a vase, a bottle, a bun, a lamp shade); extrude gives a flat outline depth, outline [[across, up], ...] each 0..1 of its size, going round (a guitar body, a heart, a leaf, a cactus, a state's shape); tube runs along a smooth path, path [[x, y, z], ...] each -0.5..0.5 of its size, thick its thickness in metres (a handle, a cable, a tonearm, a rail). Any part can repeat: { count 2..${LIMITS.repeat}, at [x, y, z] the step, turn [x, y, z] degrees a step about the foot } (piano keys, fence posts, petals round a stem), and mirror: true copies it to the other side, x for -x (a pair of wheels, wings, ears). Each copy counts as a part.`,
     light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
-    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Several things spread round the planet, a few close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 4 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
+    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Several things spread round the planet, a few close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 5 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
   },
   shape: {
     version: 1,
@@ -186,8 +186,11 @@ async function call(name, args, ctx) {
   // what the plain card shows: who it's for, their links, and a little of what they love
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
+  // what a careful eye would fix before they walk round it (lookOver): for the model, not for them
+  const notes = lookOver(spec);
+  const fix = notes.length ? `\n\nBefore you show them, look these over and fix what's really wrong, then preview again (boxes are measured as if nothing were turned, so a note can be off):\n- ${notes.join('\n- ')}` : '';
   return {
-    text: `${spec.who.name}'s planet is ready to walk around${(spec.things || []).length ? `, with ${spec.things.map((t) => t.name).join(', ')} on it` : ', bare for now: add things to it (get_kit, things) from what they love'}. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
+    text: `${spec.who.name}'s planet is ready to walk around${(spec.things || []).length ? `, with ${spec.things.map((t) => t.name).join(', ')} on it` : ', bare for now: add things to it (get_kit, things) from what they love'}. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
     data: { view: 'planet', url, planet },
   };
 }

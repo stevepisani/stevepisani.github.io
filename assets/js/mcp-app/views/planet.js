@@ -5,7 +5,9 @@
 //            what they love as a plain card. Either way a link opens it in the browser, full size.
 // The preview page tells this card how it's going (tellCard in assets/js/world/spec.js): loading,
 // ready, or failed; a frame that says nothing at all was blocked, and the plain card takes over.
-import { app, button, css, el, full, goFull, host, request, views } from '../card.js';
+// Once it's drawn, it sends a few views of itself ("look"), which go into the model's context where
+// the host takes pictures there, so the AI that made the planet can see it and fix what's off.
+import { app, button, caps, css, el, full, goFull, host, request, views } from '../card.js';
 
 const SILENT_MS = 12000; // a frame that hasn't said "loading" by now isn't going to
 
@@ -60,6 +62,10 @@ views.planet = (data) => {
       heard = true;
       if (e.data.planet === 'failed') { clearTimeout(silent); removeEventListener('message', listen); showPlain(); }
       if (e.data.planet === 'ready') clearTimeout(silent);
+      if (e.data.planet === 'look' && caps.updateModelContext?.image && e.data.detail?.images?.length) {
+        const { text, images } = e.data.detail;
+        request('ui/update-model-context', { content: [{ type: 'text', text }, ...images.map((data) => ({ type: 'image', data, mimeType: 'image/jpeg' }))] }).catch(() => {});
+      }
     };
     addEventListener('message', listen);
     app.append(stage);
