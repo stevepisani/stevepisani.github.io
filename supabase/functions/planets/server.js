@@ -1,9 +1,10 @@
 // The Planets connector (My Tiny Planet, docs/planets.md), without the transport: anyone's ChatGPT
 // or Claude designs a little planet for the person it's talking with, from what they love, and
-// shows it in the chat. Two tools: get_kit (what a planet can hold, and how to write one) and
+// shows it in the chat. Three tools: get_kit (what a planet can hold, and how to write one),
 // preview_planet (checks a spec and shows it in the card: their own planet, assets/js/planets/,
-// bare until it's built for them by hand; none of Steve's places).
-// Nothing is stored and nobody signs in: a preview's address is the planet (packPlanet). index.ts
+// bare until it's built for them by hand; none of Steve's places) and send_planet (when they're
+// happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
+// Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
 import { checkPlanet, packPlanet, line, PREVIEW_PAGE, LIMITS } from '../_shared/planet.js';
 
@@ -17,7 +18,8 @@ const INSTRUCTIONS = [
   'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Every planet is built for its person by hand, from those answers: nothing on it is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
   'Until it is built, the preview shows their planet bare: their own ground under the stars, with their name. Say so plainly.',
   'Write the spec, then preview_planet.',
-  'Change it and preview again whenever they ask. Nothing is stored: the preview link is the planet, so give them the link to keep.',
+  'Change it and preview again whenever they ask. A preview stores nothing: its link is the planet, so give them the link to keep.',
+  'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who builds it. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
   'A planet is public: never put a home address, phone number or anything private in it.',
 ].join(' ');
 
@@ -43,6 +45,7 @@ export function appResource(script) {
 // A mistake in the call, said so the model can fix it
 export class Invalid extends Error {}
 const read = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const sends = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
 
 // a small planet, as an example of the shape (tools/planet-test.mjs checks it passes)
 export const EXAMPLE = {
@@ -76,6 +79,7 @@ const KIT = {
     look: { home: 'a city' },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
   },
+  sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who builds it by hand, and it will be at its own address when it is built. A preview alone is never sent.',
   limits: LIMITS,
   example: EXAMPLE,
 };
@@ -97,20 +101,56 @@ export const TOOLS = [
     annotations: read,
     _meta: { ...showsCard, 'openai/toolInvocation/invoking': 'Building the planet…', 'openai/toolInvocation/invoked': 'Planet ready' },
   },
+  {
+    name: 'send_planet',
+    title: 'Send a planet to be built',
+    description: 'Sends the planet to Steve Pisani, who builds each one by hand from its spec. Only when the person has seen the preview and says to send it. Saves the spec, their note and how to reach them (both optional, in their words); it will be at its own address when it is built.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        spec: { type: 'object', description: 'The planet spec, as last previewed.' },
+        note: { type: 'string', maxLength: 1000, description: 'Anything they would like Steve to know, in their own words (optional).' },
+        contact: { type: 'string', maxLength: 200, description: 'How Steve can reach them when it is built, only if they gave it (optional).' },
+      },
+      required: ['spec'],
+      additionalProperties: false,
+    },
+    annotations: sends,
+    _meta: { 'openai/toolInvocation/invoking': 'Sending the planet…', 'openai/toolInvocation/invoked': 'Planet sent' },
+  },
 ];
 
-async function call(name, args) {
+// where a planet will be once it's built
+export const planetPage = (slug) => `${SITE}/p/${slug}/`;
+
+async function call(name, args, ctx) {
   if (name === 'get_kit') return { text: JSON.stringify(KIT), data: KIT };
-  // preview_planet
   const spec = args.spec;
   const errors = checkPlanet(spec);
   if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and preview again:\n${errors.slice(0, 30).join('\n')}`);
+  if (name === 'send_planet') {
+    const text = (v, max, what) => {
+      if (v == null || v === '') return null;
+      if (typeof v !== 'string' || v.length > max) throw new Invalid(`${what} should be text, ${max} characters at most.`);
+      return v.trim() || null;
+    };
+    const note = text(args.note, 1000, 'note'), contact = text(args.contact, 200, 'contact');
+    if (!ctx.send) throw new Error('send_planet: no store');
+    const id = await ctx.send({ spec, note, contact });
+    if (!id) return { text: "Steve has as many planets waiting to be built as he can take right now, so this one wasn't sent. Keep the preview link; try again in a day or two.", data: { sent: false } };
+    const page = planetPage(spec.slug);
+    return {
+      text: `Sent. Steve builds each planet by hand, so it isn't there yet; when it's built it will be at ${page}. Until then the preview link is the planet as it stands.`,
+      data: { sent: true, page },
+    };
+  }
+  // preview_planet
   const url = `${PREVIEW_PAGE}#${await packPlanet(spec)}`;
   // what the plain card shows: who it's for, their links, and a little of what they love
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   return {
-    text: `${spec.who.name}'s planet is ready to walk around, bare for now: it gets built by hand from what they love. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
+    text: `${spec.who.name}'s planet is ready to walk around, bare for now: it gets built by hand from what they love, once they send it (send_planet). It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}`,
     data: { view: 'planet', url, planet },
   };
 }
@@ -139,7 +179,7 @@ export async function rpc(msg, ctx = {}) {
       const { name, arguments: args } = msg.params || {};
       if (!TOOLS.some((t) => t.name === name)) return fail(-32602, `There's no tool called ${name}.`);
       try {
-        const { text, data } = await call(name, args || {});
+        const { text, data } = await call(name, args || {}, ctx);
         return ok({ content: [{ type: 'text', text }], structuredContent: data });
       } catch (e) {
         if (!(e instanceof Invalid)) console.error(e);
