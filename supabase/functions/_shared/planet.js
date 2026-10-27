@@ -472,7 +472,8 @@ export function placeThings(things = []) {
     const p = [of.distance * Math.sin(of.bearing * DEG), of.distance * Math.cos(of.bearing * DEG)];
     // the side it faces: back toward where you land, then its own turn
     const front = rot(unit([-p[0], -p[1]]), of.turn * DEG);
-    const side = { front, back: [-front[0], -front[1]], left: rot(front, Math.PI / 2), right: rot(front, -Math.PI / 2) }[t.near.side];
+    // left and right are beside it and a little forward, so the anchor never hides them from the path
+    const side = { front, back: [-front[0], -front[1]], left: rot(front, Math.PI / 3), right: rot(front, -Math.PI / 3) }[t.near.side];
     const apart = thingReach(anchor) + (t.near.gap ?? 0.5) + thingReach(t);
     const c = [p[0] + side[0] * apart, p[1] + side[1] * apart];
     // facing the thing it's near: the turn from facing where you land to facing it
