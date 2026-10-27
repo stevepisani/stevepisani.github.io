@@ -101,7 +101,8 @@ for (const [name, w] of todo) {
     writeFileSync(new URL(`${name}.json`, dir), JSON.stringify({
       id: world.id, marble: world.world_marble_url, model: w.model, made: new Date().toISOString(), caption,
       credit: w.credit,
-      ...splats.semantics_metadata, // metric_scale_factor, ground_plane_offset
+      // metric_scale_factor (its units to metres) and ground_plane_offset (where the ground is)
+      semantics: splats.semantics_metadata ?? null,
     }, null, 2) + '\n');
     console.log(`${name}: done, ${world.world_marble_url}`);
   } catch (e) {

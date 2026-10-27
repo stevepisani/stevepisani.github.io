@@ -25,5 +25,25 @@
       "license": "CC BY-SA 4.0",
       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
     }
+  },
+  "art-museum": {
+    "model": "marble-1.1-plus",
+    "prompt": "Standing on the empty stone plaza at the foot of the Rocky Steps of the Philadelphia Museum of Art in late afternoon light: ahead, the wide granite stairs climb in flights to the golden-sandstone museum, its columned central portico and two wings with pediments, two bare flagpoles and old lamp posts. Behind, past the plaza, Eakins Oval with its fountain and the Benjamin Franklin Parkway lined with trees, leading to the downtown skyline and City Hall's tower. Quiet, nobody about.",
+    "photos": [
+      {
+        "file": "pma-steps-up.jpg",
+        "azimuth": 0
+      },
+      {
+        "file": "pma-steps-out.jpg",
+        "azimuth": 180
+      }
+    ],
+    "credit": {
+      "by": "Dough4872",
+      "source": "https://commons.wikimedia.org/wiki/File:Philadelphia_Museum_of_Art_looking_northwest_from_bottom_of_Rocky_Steps.jpeg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    }
   }
 }
