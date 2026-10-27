@@ -53,13 +53,49 @@
     "bytes": 915368,
     "made": "2026-10-27"
   },
-  "test-ines/pao": {
-    "model": "A Portuguese Pão de Deus sweet bun: a round, golden-brown glossy brioche bun with a crackly top of toasted shredded coconut, dusted with icing sugar",
+  "sam/crate": {
+    "model": "A wooden crate full of vinyl records standing on end, their colourful sleeves showing, with one record leaning against the front of the crate",
     "style": "storybook",
-    "picture": "01a17aae-93e9-7482-9fa3-e2077e76a3e3",
-    "model3d": "01a17aae-bc54-71bd-b5c5-56bc72ca0354",
-    "file": "test-ines/pao.glb",
-    "bytes": 622120,
+    "picture": "01a17ad2-175f-7590-917c-00f25bbe137c",
+    "model3d": "01a17ada-dc3a-744c-931b-7c561cfee78f",
+    "file": "sam/crate.glb",
+    "bytes": 721072,
+    "made": "2026-10-27"
+  },
+  "test-dev/pad": {
+    "model": "A folded blue climbing crash pad on the ground with a coiled red climbing rope on top and a chalk bag and a rack of climbing cams beside it",
+    "style": "storybook",
+    "picture": "01a17ad2-175b-7325-9ea1-7da73b1416ce",
+    "model3d": "01a17ad2-406e-776b-b931-429008a6c3bd",
+    "file": "test-dev/pad.glb",
+    "bytes": 709324,
+    "made": "2026-10-27"
+  },
+  "test-dev/camp": {
+    "model": "A little campsite: two folding camp chairs facing a small old green camping stove with a kettle on it, and a lantern glowing on the ground",
+    "style": "storybook",
+    "picture": "01a17ad2-178c-7715-8631-3a610390c138",
+    "model3d": "01a17ad2-40af-774b-b4ed-b4dbfd8420b7",
+    "file": "test-dev/camp.glb",
+    "bytes": 871420,
+    "made": "2026-10-27"
+  },
+  "test-ines/table": {
+    "model": "A small rustic wooden table with a linen cloth, a wicker basket and a tray of round golden Pão de Deus buns topped with coconut, cooling",
+    "style": "storybook",
+    "picture": "01a17ad2-178b-76e2-aa75-b2d34daad444",
+    "model3d": "01a17ad2-e063-73a4-bd39-23968a1df4f2",
+    "file": "test-ines/table.glb",
+    "bytes": 1132056,
+    "made": "2026-10-27"
+  },
+  "test-ines/bench": {
+    "model": "A weathered wooden bench with two sacks of flour leaning against it and a wooden bread peel propped beside it",
+    "style": "storybook",
+    "picture": "01a17ad6-cc74-7312-a4db-bcee9bc6dae5",
+    "model3d": "01a17ad6-f627-77dd-a638-9d07f3d624f8",
+    "file": "test-ines/bench.glb",
+    "bytes": 636744,
     "made": "2026-10-27"
   }
 }
