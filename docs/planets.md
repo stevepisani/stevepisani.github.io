@@ -42,6 +42,13 @@ sent are then finished by hand. The plan and what's next are in
   (piano keys, a railing) and `mirror` to the other side (a pair of wheels), each copy counting
   toward the 400 parts. Sam's example uses each of them. A thing can cast light (8 a planet). Solid parts cast shadows; glowing parts and words bloom. A thing is placed by a bearing from straight ahead where you land
   and a distance along the ground, stands upright and faces you; it's solid unless it says not.
+  Or it's set beside a thing listed before it, `near: { of, side, gap }` (front, back, left or
+  right are that thing's own sides as it faces you): `placeThings` in `_shared/planet.js` works out
+  where, clear of the other by both their reaches plus the gap, and turns it to face the other, so
+  a planet is a few little places (an oven with its table and bench) rather than things in a ring.
+  The same function places things for `lookOver`, so its notes match what's drawn. `paths.js`
+  lays a worn path from where you land to each thing placed by `at` (3 m out or more), curving in
+  to its front: one mesh, a canvas texture with soft edges, in a paler shade of the ground.
   The planet is 20 m across, so the horizon is about 6 m off: 3 to 10 m is in full view from
   where you land. Tap a thing and you walk up to it and a card says what it is (name, note) and
   holds (its collection, in their words); ×, Esc or a tap on the ground closes it. Caps

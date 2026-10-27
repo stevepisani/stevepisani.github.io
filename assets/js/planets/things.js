@@ -1,11 +1,12 @@
 // What stands on someone else's planet (My Tiny Planet, docs/planets.md): things their own AI
 // composed in the chat from simple shapes, from what they love. Nothing here is Steve's: no bar,
 // no sign, nothing by default; a planet with no `things` is bare. Each thing is placed from where
-// you land (a bearing and a distance along the ground), stands upright on the ground, and faces
-// you unless it's turned. Its parts are sized and placed in metres from its foot.
+// you land (a bearing and a distance along the ground) and faces you, or beside another thing
+// (near) and faces it; it stands upright on the ground, and turns if it's turned. Its parts are sized and placed in metres from its foot.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RADIUS } from '../world/planet.js';
+import { placeThings } from '../../../supabase/functions/_shared/planet.js';
 
 const DEG = Math.PI / 180;
 
@@ -114,8 +115,12 @@ function part(p) {
 export function buildThings(things = [], surface) {
   const group = new THREE.Group(), colliders = [], pickable = [], spinning = [];
   const Y = new THREE.Vector3(0, 1, 0);
+  // where each stands, from where you land or beside another thing (placeThings, in the spec's rules)
+  const placed = placeThings(things);
   for (const thing of things) {
-    const dir = placeOnPlanet(thing.at.bearing, thing.at.distance);
+    const at = placed.get(thing.id);
+    if (!at) continue;
+    const dir = placeOnPlanet(at.bearing, at.distance);
     const root = new THREE.Group();
     root.position.copy(dir).multiplyScalar(surface(dir));
     // stand up on the ground, then face back toward where you land, then their own turn
@@ -123,7 +128,7 @@ export function buildThings(things = [], surface) {
     const back = new THREE.Vector3(0, 1, 0).sub(dir.clone().multiplyScalar(dir.y)); // toward the landing spot, along the ground
     const localBack = back.lengthSq() > 1e-6 ? back.applyQuaternion(root.quaternion.clone().invert()) : new THREE.Vector3(0, 0, 1);
     const face = Math.atan2(localBack.x, localBack.z);
-    root.rotateY(face + (thing.turn || 0) * DEG);
+    root.rotateY(face + at.turn * DEG);
     root.scale.setScalar(thing.scale || 1);
 
     const body = new THREE.Group();
@@ -169,7 +174,7 @@ export function buildThings(things = [], surface) {
     thing.root = root;
   }
   return {
-    group, colliders, pickable,
+    group, colliders, pickable, placed,
     // a real model in place of a thing's shapes (models.js): as big as fits in the room the shapes
     // took (as tall, and as long along the ground), standing where they stood
     swap(thing, model) {

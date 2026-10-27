@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, lookOver, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -164,6 +164,21 @@ for (const [re, what] of [[/^things\[0\]\.parts\[1\] \(sphere\): touches nothing
 ok(seen.length === 5, 'looked over: nothing else', seen);
 const tipped = { ...least, things: [{ id: 'w', name: 'Wheel', at: { bearing: 0, distance: 5 }, light: {}, parts: [{ shape: 'cylinder', size: [0.6, 0.14, 0.6], at: [0, 0.3, 0], turn: [0, 0, 90] }] }] };
 ok(lookOver(tipped).length === 0, 'looked over: a wheel turned on its side stands on the ground', lookOver(tipped));
+// a place: a thing beside another (near), placed by code, facing it, never inside it
+const place = { ...least, things: [
+  { id: 'oven', name: 'Oven', at: { bearing: 0, distance: 6 }, light: {}, parts: [{ shape: 'box', size: [2, 1.6, 1.6] }] },
+  { id: 'table', name: 'Table', near: { of: 'oven', side: 'left', gap: 0.6 }, parts: [{ shape: 'box', size: [1.4, 0.8, 0.8] }] },
+  { id: 'bench', name: 'Bench', near: { of: 'oven', side: 'front' }, parts: [{ shape: 'box', size: [1.4, 0.5, 0.5] }] },
+] };
+ok(checkPlanet(place).length === 0 && lookOver(place).length === 0, 'a place of things near each other passes and needs nothing looked over', [checkPlanet(place), lookOver(place)]);
+const placed = placeThings(place.things);
+ok(placed.get('oven').bearing === 0 && placed.get('oven').distance === 6 && placed.get('oven').turn === 0, 'a thing with at stays where it was put');
+ok(placed.get('table').bearing > 0 && Math.abs(placed.get('table').distance - 6) < 1.5, 'near, left: beside it, on its own left (your right as you face it from where you land)', placed.get('table'));
+ok(placed.get('bench').distance < 6 && Math.abs(placed.get('bench').bearing) < 1 && Math.abs(Math.abs(placed.get('bench').turn) - 180) < 1, 'near, front: between you and it, turned to face it', placed.get('bench'));
+caught(place, (s) => { s.things[1].near.of = 'bench'; }, /^things\[1\]\.near\.of:/, 'near a thing that comes later');
+caught(place, (s) => { s.things[1].near.side = 'above'; }, /^things\[1\]\.near\.side:/, 'a side that isn\'t front, back, left or right');
+caught(place, (s) => { s.things[1].at = { bearing: 0, distance: 5 }; }, /^things\[1\]/, 'both at and near');
+caught(place, (s) => { delete s.things[1].near; }, /^things\[1\]/, 'neither at nor near');
 const sloppyShown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sloppy } })).result;
 ok(!sloppyShown.isError && /look these over/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview says what to look over, for the model to fix', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
