@@ -202,7 +202,7 @@ It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, wi
 `tools/models/planets/` or the kit's example changes on a branch other than main, or by hand with
 `redo` (`slug/id`, comma-separated), and commits what it made to that branch (push again after,
 for the Site checks). Only what's missing is paid for; a task already started is picked up, not
-paid for twice. The planets it makes models for: the kit's example (Sam) and each spec in
+paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam) and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
 when it's finished). Caps: 8 models a planet, 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
