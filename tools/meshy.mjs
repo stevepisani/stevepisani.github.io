@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 
 export const TEXT_TO_3D = 'https://api.meshy.ai/openapi/v2/text-to-3d';
 export const IMAGE_TO_3D = 'https://api.meshy.ai/openapi/v1/image-to-3d';
+export const TEXT_TO_IMAGE = 'https://api.meshy.ai/openapi/v1/text-to-image';
 export const RETEXTURE = 'https://api.meshy.ai/openapi/v1/retexture';
 export const auth = { Authorization: `Bearer ${process.env.MESHY_API_KEY}`, 'Content-Type': 'application/json' };
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -1,28 +1,34 @@
-// Makes real 3D models for the things on friends' planets (My Tiny Planet, docs/planets.md): each
-// thing whose spec describes it in words (`model`) gets a Meshy text-to-3D model (a preview, then
-// a refine with PBR textures), made small with gltf-transform into
-// assets/models/planets/<slug>/<thing id>.glb and listed in assets/models/planets/manifest.json
-// under "<slug>/<thing id>" with the words it was made from. The planet (assets/js/planets/
-// models.js) shows it in place of the thing's shapes. The planets: the kit's example (Sam, in
-// supabase/functions/planets/server.js) and each spec in tools/models/planets/.
-// Run by .github/workflows/planet-models.yml, which has MESHY_API_KEY:
+// Makes real 3D models for the things on friends' planets (My Tiny Planet, docs/planets.md), all in
+// one house style, storybook miniature (Steve chose it, Oct 27, 2026: "lock it in and have it as
+// our style"). Each thing whose spec describes it in words (`model`) is first drawn as a picture
+// in that style (Meshy text-to-image: alone on white, no base), kept in tools/models/planets/
+// pictures/, then made into 3D from the picture (image-to-3D, PBR textures), made small with
+// gltf-transform into assets/models/planets/<slug>/<thing id>.glb and listed in
+// assets/models/planets/manifest.json under "<slug>/<thing id>" with the words and the style it
+// was made from. The planet (assets/js/planets/models.js) shows it in place of the thing's
+// shapes. The planets: the kit's example (Sam, in supabase/functions/planets/server.js) and each
+// spec in tools/models/planets/. Run by .github/workflows/planet-models.yml, which has
+// MESHY_API_KEY:
 //
 //   MESHY_API_KEY=... node tools/planet-models.mjs [--redo slug/id,slug/id]
 //
-// Only what's missing is paid for, and a model whose words changed is made again. Costs: about 30
-// credits a model (20 the preview, 10 the refine), so about $0.60; capped below.
+// Only what's missing is paid for, and a model whose words or style changed is made again.
+// Costs: a few credits the picture, 30 the model, so about $0.70 a thing; capped below.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { checkPlanet } from '../supabase/functions/_shared/planet.js';
 import { EXAMPLE } from '../supabase/functions/planets/server.js';
-import { get, task, finished, madeBefore, balance, optimize } from './meshy.mjs';
+import { get, task, finished, balance, optimize, IMAGE_TO_3D, TEXT_TO_IMAGE } from './meshy.mjs';
 
 // the caps: 8 models a planet (about $5, what Steve set for the first planets), 24 a run
 export const PER_PLANET = 8, PER_RUN = 24;
-const STYLE = 'One object on its own, no ground, no base plate, no background. Realistic, detailed, true to life';
+// the house style: change it and every model is made again
+export const STYLE_NAME = 'storybook';
+const STYLE = 'A storybook miniature: hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy, like a Tiny Glade or Little Prince illustration come to life';
+const FRAME = 'One object alone on a plain white background, with no ground, no base, no plinth and no shadow under it, no text and no logos; seen from the front and a little above, three-quarter view, the whole object in frame';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/', SPECS = root + 'tools/models/planets/';
+const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/', SPECS = root + 'tools/models/planets/', PICTURES = SPECS + 'pictures/';
 
 /** every planet whose things are to be modelled */
 export function planets() {
@@ -40,7 +46,7 @@ export function wanted(list, manifest, redo = new Set()) {
     if (things.length > PER_PLANET) throw new Error(`${spec.slug}: ${things.length} things to model, more than ${PER_PLANET} a planet`);
     for (const thing of things) {
       const key = `${spec.slug}/${thing.id}`, had = manifest[key];
-      if (!redo.has(key) && had?.model === thing.model && had.file && existsSync(OUT + had.file)) continue;
+      if (!redo.has(key) && had?.model === thing.model && had.style === STYLE_NAME && had.file && existsSync(OUT + had.file)) continue;
       todo.push({ key, slug: spec.slug, thing });
     }
   }
@@ -49,25 +55,26 @@ export function wanted(list, manifest, redo = new Set()) {
 }
 
 async function make({ key, slug, thing }, manifest, save, redo) {
-  const prompt = `${thing.model}. ${STYLE}`.slice(0, 600);
-  // a record for these words (started before, maybe by a run that stopped), or a new one
+  // a record for these words in this style (started before, maybe by a run that stopped), or a new one
   let rec = manifest[key];
-  if (!rec || rec.model !== thing.model || redo.has(key)) rec = manifest[key] = { model: thing.model };
-  if (!rec.refine && !redo.has(key)) {
-    const t = await madeBefore(prompt);
-    if (t?.mode === 'refine') Object.assign(rec, { preview: t.preview_task_id, refine: t.id });
-    else if (t) rec.preview = t.id;
+  if (!rec || rec.model !== thing.model || rec.style !== STYLE_NAME || redo.has(key)) rec = manifest[key] = { model: thing.model, style: STYLE_NAME };
+  // first the picture, in the house style
+  const picture = PICTURES + key.replace('/', '-') + '.png';
+  if (!existsSync(picture)) {
+    // a picture already asked for is waited for, not paid for twice
+    if (!rec.picture) { rec.picture = await task({ ai_model: 'nano-banana-2', prompt: `${thing.model}. ${STYLE}. ${FRAME}.`.slice(0, 1000), aspect_ratio: '1:1' }, TEXT_TO_IMAGE); save(); }
+    const done = await finished(rec.picture, `${key} picture`, TEXT_TO_IMAGE);
+    mkdirSync(PICTURES, { recursive: true });
+    writeFileSync(picture, Buffer.from(await (await get(done.image_urls[0])).arrayBuffer()));
+    delete rec.model3d;
   }
-  if (!rec.preview && !rec.refine) {
-    rec.preview = await task({ mode: 'preview', prompt, art_style: 'realistic', ai_model: 'latest', topology: 'triangle', target_polycount: 30000, should_remesh: true });
+  // then the model, from the picture
+  if (!rec.model3d) {
+    const image_url = 'data:image/png;base64,' + readFileSync(picture).toString('base64');
+    rec.model3d = await task({ image_url, ai_model: 'latest', topology: 'triangle', target_polycount: 30000, should_remesh: true, should_texture: true, enable_pbr: true }, IMAGE_TO_3D);
     save();
   }
-  if (!rec.refine) {
-    await finished(rec.preview, `${key} preview`);
-    rec.refine = await task({ mode: 'refine', preview_task_id: rec.preview, enable_pbr: true, texture_prompt: thing.model.slice(0, 600) });
-    save();
-  }
-  const done = await finished(rec.refine, `${key} refine`);
+  const done = await finished(rec.model3d, `${key} model`, IMAGE_TO_3D);
   const raw = TMP + key.replace('/', '-') + '.glb', file = `${key}.glb`;
   mkdirSync(OUT + slug, { recursive: true });
   writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));
