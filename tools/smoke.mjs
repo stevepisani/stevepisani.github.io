@@ -6,7 +6,7 @@
 // the planet is driven through `window.__world` with `?test=1` and reduced motion.
 //
 //   npm run build && bundle exec jekyll build && npm test            (CI does this)
-//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|phone|pages|apps|holiday|nogl]
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|desktop-1|desktop-2|desktop-3|phone|pages|apps|planets|holiday|nogl, or several: pages,apps]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from './chromium.mjs';
@@ -147,429 +147,437 @@ async function pages(page) {
 }
 
 // The planet, everything a visitor can do
-async function planet(page, shot, { phone = false } = {}) {
+async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
   const t0 = Date.now();
   await page.goto(base + '/?test=1');
   await until(page, () => window.__sceneReady, null, 240000);
   step(`scene up in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   await shot('arrive');
 
-  // a section from the top bar opens as a panel, and closes
-  if (phone) { await press(page, '#menu-btn'); await press(page, '#menu a[data-order="about"]'); }
-  else await press(page, '#topbar a[data-order="about"]');
-  await until(page, () => !document.getElementById('panel').hidden);
-  await shot('panel');
-  await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('panel').hidden);
-  step('a section opens from the top bar and closes');
-
-  // tap the bar: walk over and sit
+  // a tap where a finger or the mouse would
   const tap = async (xy) => (phone ? page.touchscreen.tap(...xy) : page.mouse.click(...xy));
-  const onScreen = (id) => page.evaluate((id) => {
-    const W = window.__world, it = W.interactables.find((i) => i.id === id);
-    const p = it.point.clone().project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
-    return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
-  }, id);
-  // from far off the stool hides behind the deck's edge, so that tap walks you up to the bar,
-  // standing; a tap on your stool then sits you (only the stool, or near it, does)
-  await tap(await onScreen('seat'));
-  await until(page, () => window.__world.state === 'seat' || (window.__world.state === 'walk' && window.__world.player.target), null, 20000);
-  await until(page, () => window.__world.state === 'seat' || !window.__world.player.target, null, 600000);
-  const walkedUp = await page.evaluate(() => window.__world.state === 'walk');
-  if (walkedUp) await tap(await onScreen('seat'));
-  await expectState(page, 'seat', 600000);
-  await shot('seated');
-  step(walkedUp ? 'tap the bar: walked up to it; tap the stool: sat down' : 'tap the stool: walked over and sat down');
-
-  // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
-  await tap(await onScreen('menu'));
-  await until(page, () => window.__world.menuHeld && !document.getElementById('menu').hidden);
-  await press(page, '#menu a[data-order="lab"]');
-  await until(page, () => !document.getElementById('panel').hidden, null, 60000);
-  await shot('ordered');
-  await press(page, '#panel-close');
-  await until(page, () => document.getElementById('panel').hidden && !document.getElementById('menu').hidden, null, 60000);
-  await press(page, '#menu-close');
-  await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
-  step('menu: picked up, ordered, served, put down');
-
-  // the chalkboard: tap it and you lean in on it; tap a name and its recipe is chalked on a card;
-  // Esc puts the card away; "Make me one" turns you to the robot, which makes it (skipped to the end)
-  await tap(await onScreen('drinks'));
-  await until(page, () => window.__world.board.on && !document.getElementById('board-back').hidden);
-  await page.waitForTimeout(1500); // a frame or two at the board's view
-  const nameAt = () => page.evaluate(() => { for (let y = 40; y < innerHeight; y += 5) for (let x = 10; x < innerWidth; x += 10) if (window.__world.board.rowAt(x, y) === 0) return [x, y]; return null; });
-  const name = await nameAt();
-  if (!name) throw new Error('chalkboard: no drink name on screen after leaning in');
-  await tap(name);
-  await until(page, () => !document.getElementById('board-card').hidden && window.__world.board.picked === 0);
-  await shot('chalkboard');
-  await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('board-card').hidden && window.__world.board.on);
-  await tap(name);
-  await until(page, () => !document.getElementById('board-card').hidden);
-  await press(page, '#board-make');
-  await until(page, () => window.__world.making && !window.__world.board.on && document.querySelectorAll('#making-build li').length > 0);
-  await page.keyboard.press('Escape');
-  await until(page, () => !window.__world.making, null, 60000);
-  step('chalkboard: leaned in, read a recipe, the robot made it');
-
-  // ask the bartender: your question shows in the transcript and, with every request outside the
-  // site refused here, the robot says the bar's closed
-  await until(page, () => !document.getElementById('chat').hidden);
-  // something to ask is offered until you've asked; the box is 16 px (or iOS zooms in on it); going
-  // to type turns you to face the bartender
-  if (await page.isHidden('#chat-ask') || (await page.$$('#chat-ask button')).length < 2) throw new Error("the bar doesn't offer anything to ask");
-  if (await page.$eval('#chat-input', (el) => parseFloat(getComputedStyle(el).fontSize)) < 16) throw new Error('the question box is under 16 px: iOS zooms into it');
-  await page.focus('#chat-input');
-  await until(page, () => window.__world.faceK > 0.99, null, 30000);
-  await page.fill('#chat-input', 'What should I order?');
-  await press(page, '#chat button[type="submit"]');
-  await until(page, () => document.getElementById('chat-ask').hidden);
-  // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
-  await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
-  await shot('asked');
-  // done typing (Done on a phone's keyboard): out of the box, "Leave the bar" is back
-  await page.evaluate(() => document.activeElement && document.activeElement.blur());
-  await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
-  step(`asked the bartender: the question showed, and offline the house answered ("${await page.textContent('#chat-log li:last-child')}")`);
-
-  await press(page, '#seat-leave');
-  await expectState(page, 'walk', 120000);
-  step('left the bar');
-
-  // a tap on the bar away from your stool (its far end) walks you up to it but doesn't sit you
-  const barEnd = await page.evaluate(() => {
-    const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
-    W.player.spawn(b.localToWorld(new V(0, 0, 6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
-    W.player.applyToCamera();
-    W.camera.updateMatrixWorld(true);
-    const p = b.localToWorld(new V(-1.7, 1.0, 1.0)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
-    return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
-  });
-  await tap(barEnd);
-  await until(page, () => window.__world.player.target, null, 20000);
-  await until(page, () => !window.__world.player.target, null, 600000);
-  if (await page.evaluate(() => window.__world.state) !== 'walk') throw new Error('a tap on the far end of the bar sat you down: only your stool should');
-  step('a tap on the bar away from the stool walks you up to it, standing');
-
-  // from behind the bar, going to the seat walks you round to the front, not into the counter, and sits you
-  await page.evaluate(() => {
-    const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
-    W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
-    W.goUse('seat');
-  });
-  await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
-  await expectState(page, 'seat', 600000);
-  await press(page, '#seat-leave');
-  await expectState(page, 'walk', 120000);
-  step('from behind the bar: walked round to the front and sat down');
-
-  // the campfire: sit, roast, eat, leave
-  await page.evaluate(() => window.__world.sitAtFire());
-  await expectState(page, 'camp');
-  await page.evaluate(() => { window.__world.roaster.state.toast = 0.5; });
-  await page.evaluate(() => window.__world.eatIt());
-  await shot('fire');
-  await page.evaluate(() => window.__world.leaveFire());
-  await expectState(page, 'walk');
-  step('campfire: sat, ate one, left');
-
-  // the hammock: lie in it, the stars, the reading list, get up
-  await page.evaluate(() => window.__world.lieInHammock());
-  await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
-  await shot('hammock');
-  // the book sky: lying back you look up and the stars gather into their shelves (the reading
-  // list is a button away, and closing it brings you back to them); lean in on a shelf (the view
-  // narrows, its titles come up, the strip names it, its newest book's card opens), step to the
-  // next shelf, step through its books; Esc puts the card away, Esc again leans out; Back leans out too
-  await until(page, () => window.__world.stars > 0, null, 60000);
-  if (!(await page.isHidden('#panel'))) throw new Error('lying back opened the reading list: the stars come first');
-  await until(page, () => window.__world.sky.settled, null, 60000);
-  await press(page, '#hammock-read');
-  await until(page, () => !document.getElementById('panel').hidden, null, 60000);
-  await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('panel').hidden);
-  const fov0 = await page.evaluate(() => window.__world.camera.fov);
-  await page.evaluate(() => window.__world.zoom('science-fiction'));
-  await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
-  if (await page.isHidden('#sky-shelf') || !(await page.textContent('#sky-name')).includes('Science Fiction')) throw new Error("leaning in on a shelf didn't show its name");
-  await until(page, () => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'science-fiction'); return W.starCard === r.books[0].book.title; }, null, 60000); // its newest book, without hunting for it
-  await shot('shelf');
-  // a title on screen is a tap target for its book
-  const label = await page.evaluate(() => { const el = [...document.querySelectorAll('.sky-label:not([hidden]):not(.is-open)')][0]; if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.left + 8, y: b.top + b.height / 2, title: el.textContent }; });
-  if (!label) throw new Error('leaned in, no other titles showed');
-  await tap([label.x, label.y]);
-  await until(page, (t) => window.__world.starCard === t, label.title);
-  await page.evaluate(() => window.__world.stepShelf(1));
-  await until(page, () => window.__world.zoomed === 'fiction');
-  await until(page, () => !document.getElementById('star-card').hidden, null, 60000);
-  if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
-  const first = await page.textContent('#star-title');
-  await press(page, '#star-next');
-  if ((await page.textContent('#star-title')) === first) throw new Error("the card's › didn't step to the next book");
-  if (/paper|listen|audible/i.test(await page.textContent('#star-card'))) throw new Error('a card still says how the book was read');
-  await shot('star');
-  await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('star-card').hidden && !document.getElementById('sky-shelf').hidden);
-  await page.keyboard.press('Escape');
-  await until(page, (f) => !window.__world.zoomed && window.__world.camera.fov === f && window.__world.state === 'hammock', fov0);
-  await page.evaluate(() => window.__world.zoom('fiction'));
-  await until(page, () => window.__world.zoomed === 'fiction' && location.hash === '#sky');
-  await page.goBack();
-  await until(page, () => !window.__world.zoomed && document.getElementById('sky-shelf').hidden);
-  await page.goBack(); // and Back again gets you up
-  await expectState(page, 'walk');
-  step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
-
-  // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
-  // says what; › swings it to the next; Esc steps back
-  await page.evaluate(() => window.__world.scope.go());
-  await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
-  const firstSight = await page.evaluate(() => window.__world.scope.target);
-  if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
-  await shot('telescope');
-  // Earth's cities come from the spec's telescope pins: Steve's are Philadelphia (ringed) and six round the world
-  if (await page.evaluate(() => document.querySelectorAll('#earth-pins .earth-pin:not(.is-iss)').length !== 7 || document.querySelectorAll('#earth-pins .is-home').length !== 1)) throw new Error("the telescope's Earth doesn't pin Steve's cities, home ringed");
-  if (await page.evaluate(() => window.__world.scope.count) > 1) {
-    await press(page, '#scope-next');
-    await until(page, (f) => window.__world.scope.target !== f, firstSight);
-  }
-  if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
-  if (await page.isVisible('#scope-more')) throw new Error('the telescope card still offers something besides the sky');
-  await page.keyboard.press('Escape');
-  await expectState(page, 'walk');
-  // launch control: tap the console by the rocket and you lean in to its screen, the terminal laid
-  // over it. Offline first: it says so. Then with a made-up manifest (tools/fixtures/launches.json,
-  // its dates moved to just ahead of now, the first within the hour): the next launches, ‹ ›,
-  // "Remind me" (a calendar file), "Watch live" (the first one's stream), the engine test (guard
-  // up, fire: you turn to the rocket and back), and the panel's list; Esc stands you up
-  await page.evaluate(() => window.__world.goUse('console'));
-  await until(page, () => window.__world.state === 'console' && window.__world.console.open && !window.__world.cameraFlying, null, 120000);
-  await until(page, () => /manifest/.test(document.getElementById('term-name').textContent));
-  await page.keyboard.press('Escape');
-  await expectState(page, 'walk');
-  const fixture = JSON.parse(readFileSync(new URL('./fixtures/launches.json', import.meta.url)));
-  const soon = [40 * 60e3, 26 * 3600e3, 50 * 3600e3, 75 * 3600e3, 120 * 3600e3];
-  fixture.results.forEach((l, i) => { l.net = new Date(Date.now() + soon[i]).toISOString(); });
-  await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/upcoming\//, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
-  await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/[0-9a-f-]+\/\?mode=detailed/, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ vid_urls: [{ url: 'https://www.youtube.com/watch?v=stand-in', title: 'Stand-in stream', priority: 1, live: false }] }) }));
-  await page.evaluate(() => { localStorage.removeItem('launches'); window.__world.console.go(); });
-  await until(page, (name) => window.__world.console.open && document.getElementById('term-name').textContent === name, fixture.results[0].name.split(' | ')[1], 120000);
-  await until(page, () => !document.getElementById('term-watch').hidden, null, 60000);
-  if (await page.evaluate(() => document.getElementById('term-count').textContent) !== `1 / ${fixture.results.length}`) throw new Error("the terminal doesn't say which launch of how many");
-  // the terminal sits on the console's screen: inside the window, over where the screen is drawn
-  const box = await page.evaluate(() => { const r = document.getElementById('term-screen').getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerWidth, innerHeight]; });
-  if (box[2] < 200 || box[3] < 120 || box[0] < -2 || box[0] + box[2] > box[4] + 2 || box[1] < 0 || box[1] + box[3] > box[5]) throw new Error(`the terminal isn't over the console's screen in view: ${box.map(Math.round).join(', ')}`);
-  for (const id of ['term-prev', 'term-next', 'term-remind', 'term-test', 'console-leave']) {
-    const r = await page.evaluate((id) => { const b = document.getElementById(id).getBoundingClientRect(); return [b.width, b.height, b.bottom <= innerHeight, b.right <= innerWidth]; }, id);
-    if (r[0] < 44 || r[1] < 44 || !r[2] || !r[3]) throw new Error(`#${id} isn't a whole 44 px tap target on screen (${r.join(', ')})`);
-  }
-  await shot('launch-control');
-  await press(page, '#term-next');
-  await until(page, () => window.__world.console.term.index === 1);
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), press(page, '#term-remind')]);
-  if (!/\.ics$/.test(download.suggestedFilename())) throw new Error(`"Remind me" saved ${download.suggestedFilename()}, not a calendar file`);
-  await press(page, '#term-prev');
-  await press(page, '#term-test');
-  await until(page, () => window.__world.console.armed && /Fire/.test(document.getElementById('term-test').textContent));
-  await press(page, '#term-test');
-  await until(page, () => window.__world.console.burning, null, 60000);
-  await until(page, () => window.__world.console.open && !window.__world.console.burning && /Engines off/.test(document.getElementById('term-out').textContent), null, 240000);
-  if (await page.evaluate(() => window.__world.console.armed)) throw new Error("the engine test's guard stayed up");
-  await page.keyboard.press('Escape');
-  await expectState(page, 'walk');
-  await page.evaluate(() => document.querySelector('#menu a[data-order="launch"]').click());
-  await until(page, (n) => document.querySelectorAll('#panel-body .launch-row').length === n, fixture.results.length);
-  if (!(await page.textContent('#panel-body [data-launch-history]')).trim()) throw new Error('the launch panel has no line from launch history');
-  await press(page, '#panel-close');
-  await until(page, () => document.getElementById('panel').hidden);
-  await page.unroute(/ll\.thespacedevs\.com/);
-  step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
-  await expectState(page, 'walk');
-  // the bowl of petunias behind where you land: walk up to it, look down, and it thinks its line
-  await page.evaluate(() => window.__world.goUse('petunias'));
-  await until(page, () => !document.getElementById('bubble').hidden && document.getElementById('bubble').textContent === 'Oh no, not again.', null, 120000);
-  if (await page.evaluate(() => window.__world.player.pitch > -0.3)) throw new Error("walking up to the petunias didn't look down at them");
-  step('the petunias: walked up, looked down, "Oh no, not again."');
-  await expectState(page, 'walk');
-  // the booster on its flatcar by the pad: walk up, and its panel tells the gauge's story and links to the walk
-  await page.evaluate(() => window.__world.goUse('gauge'));
-  await until(page, () => document.getElementById('panel').dataset.id === 'gauge' && !document.getElementById('panel').hidden, null, 240000);
-  if (!(await page.$('#panel a[href$="Rockets-and-Horses.html#walk"]'))) throw new Error("the flatcar's panel doesn't link to the walk");
-  await shot('flatcar');
-  await page.keyboard.press('Escape');
-  await until(page, () => document.getElementById('panel').hidden);
-  step('the flatcar: walked up, the gauge panel, a link to the walk');
-  await expectState(page, 'walk');
-  // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
-  // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
-  // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in
-  // daylight (the full moon's picture); Esc goes back to the whole moon, then Back steps back
-  const picture = readFileSync(join(root, 'assets/images/saturn-v-800.webp'));
-  await page.route(/functions\/v1\/sky$/, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/sky.json', import.meta.url)) }));
-  await page.route(/^https:\/\/(svs\.gsfc\.nasa\.gov|soho\.nascom\.nasa\.gov)\//, (route) => route.fulfill({ contentType: 'image/webp', body: picture }));
-  const live = await page.evaluate(() => window.__world.scope.targets.includes('moon'));
-  if (live) {
-    await page.evaluate(() => window.__world.scope.go());
-    await until(page, () => window.__world.scope.live && window.__world.scope.k === 1 && +document.getElementById('eyepiece-live').style.opacity > 0.9, null, 120000);
-    if (await page.isHidden('#scope-live')) throw new Error("the card doesn't say the moon is live");
-    const rings = await page.$$('.eyepiece__mark:not([hidden])');
-    if (!rings.length) throw new Error('no landing sites on the moon');
-    await shot('telescope-live');
-    const fovMoon = await page.evaluate(() => window.__world.camera.fov);
-    const ring = await rings[0].boundingBox();
-    await tap([ring.x + ring.width / 2, ring.y + ring.height / 2]); // where it is (it's laid out again every frame)
-    await until(page, (f) => window.__world.scope.site >= 0 && window.__world.camera.fov < f / 2, fovMoon, 60000);
-    if (!/^Apollo/.test(await page.textContent('#scope-name'))) throw new Error("a landing site's card doesn't name it");
-    if (!/full moon/.test(await page.textContent('#scope-note'))) throw new Error('a landing site in the dark should be shown at full moon');
-    await shot('landing-site');
+  // in three parts, so CI can run them side by side (each loads the planet afresh)
+  if (parts.includes(1)) {
+    // a section from the top bar opens as a panel, and closes
+    if (phone) { await press(page, '#menu-btn'); await press(page, '#menu a[data-order="about"]'); }
+    else await press(page, '#topbar a[data-order="about"]');
+    await until(page, () => !document.getElementById('panel').hidden);
+    await shot('panel');
     await page.keyboard.press('Escape');
-    await until(page, () => window.__world.scope.site === -1 && window.__world.state === 'scope');
-    await page.goBack(); // Back steps back from the telescope
+    await until(page, () => document.getElementById('panel').hidden);
+    step('a section opens from the top bar and closes');
+
+    // tap the bar: walk over and sit
+    const onScreen = (id) => page.evaluate((id) => {
+      const W = window.__world, it = W.interactables.find((i) => i.id === id);
+      const p = it.point.clone().project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+      return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
+    }, id);
+    // from far off the stool hides behind the deck's edge, so that tap walks you up to the bar,
+    // standing; a tap on your stool then sits you (only the stool, or near it, does)
+    await tap(await onScreen('seat'));
+    await until(page, () => window.__world.state === 'seat' || (window.__world.state === 'walk' && window.__world.player.target), null, 20000);
+    await until(page, () => window.__world.state === 'seat' || !window.__world.player.target, null, 600000);
+    const walkedUp = await page.evaluate(() => window.__world.state === 'walk');
+    if (walkedUp) await tap(await onScreen('seat'));
+    await expectState(page, 'seat', 600000);
+    await shot('seated');
+    step(walkedUp ? 'tap the bar: walked up to it; tap the stool: sat down' : 'tap the stool: walked over and sat down');
+
+    // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
+    await tap(await onScreen('menu'));
+    await until(page, () => window.__world.menuHeld && !document.getElementById('menu').hidden);
+    await press(page, '#menu a[data-order="lab"]');
+    await until(page, () => !document.getElementById('panel').hidden, null, 60000);
+    await shot('ordered');
+    await press(page, '#panel-close');
+    await until(page, () => document.getElementById('panel').hidden && !document.getElementById('menu').hidden, null, 60000);
+    await press(page, '#menu-close');
+    await until(page, () => !window.__world.menuHeld && !window.__world.cardFlying);
+    step('menu: picked up, ordered, served, put down');
+
+    // the chalkboard: tap it and you lean in on it; tap a name and its recipe is chalked on a card;
+    // Esc puts the card away; "Make me one" turns you to the robot, which makes it (skipped to the end)
+    await tap(await onScreen('drinks'));
+    await until(page, () => window.__world.board.on && !document.getElementById('board-back').hidden);
+    await page.waitForTimeout(1500); // a frame or two at the board's view
+    const nameAt = () => page.evaluate(() => { for (let y = 40; y < innerHeight; y += 5) for (let x = 10; x < innerWidth; x += 10) if (window.__world.board.rowAt(x, y) === 0) return [x, y]; return null; });
+    const name = await nameAt();
+    if (!name) throw new Error('chalkboard: no drink name on screen after leaning in');
+    await tap(name);
+    await until(page, () => !document.getElementById('board-card').hidden && window.__world.board.picked === 0);
+    await shot('chalkboard');
+    await page.keyboard.press('Escape');
+    await until(page, () => document.getElementById('board-card').hidden && window.__world.board.on);
+    await tap(name);
+    await until(page, () => !document.getElementById('board-card').hidden);
+    await press(page, '#board-make');
+    await until(page, () => window.__world.making && !window.__world.board.on && document.querySelectorAll('#making-build li').length > 0);
+    await page.keyboard.press('Escape');
+    await until(page, () => !window.__world.making, null, 60000);
+    step('chalkboard: leaned in, read a recipe, the robot made it');
+
+    // ask the bartender: your question shows in the transcript and, with every request outside the
+    // site refused here, the robot says the bar's closed
+    await until(page, () => !document.getElementById('chat').hidden);
+    // something to ask is offered until you've asked; the box is 16 px (or iOS zooms in on it); going
+    // to type turns you to face the bartender
+    if (await page.isHidden('#chat-ask') || (await page.$$('#chat-ask button')).length < 2) throw new Error("the bar doesn't offer anything to ask");
+    if (await page.$eval('#chat-input', (el) => parseFloat(getComputedStyle(el).fontSize)) < 16) throw new Error('the question box is under 16 px: iOS zooms into it');
+    await page.focus('#chat-input');
+    await until(page, () => window.__world.faceK > 0.99, null, 30000);
+    await page.fill('#chat-input', 'What should I order?');
+    await press(page, '#chat button[type="submit"]');
+    await until(page, () => document.getElementById('chat-ask').hidden);
+    // offline (no Supabase here), so the house answers from the site's own facts: one of Steve's drinks
+    await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 2 && /^Try the /.test(l[1].textContent); }, null, 60000);
+    await shot('asked');
+    // done typing (Done on a phone's keyboard): out of the box, "Leave the bar" is back
+    await page.evaluate(() => document.activeElement && document.activeElement.blur());
+    await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
+    step(`asked the bartender: the question showed, and offline the house answered ("${await page.textContent('#chat-log li:last-child')}")`);
+
+    await press(page, '#seat-leave');
+    await expectState(page, 'walk', 120000);
+    step('left the bar');
+
+    // a tap on the bar away from your stool (its far end) walks you up to it but doesn't sit you
+    const barEnd = await page.evaluate(() => {
+      const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
+      W.player.spawn(b.localToWorld(new V(0, 0, 6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+      W.player.applyToCamera();
+      W.camera.updateMatrixWorld(true);
+      const p = b.localToWorld(new V(-1.7, 1.0, 1.0)).project(W.camera), r = document.getElementById('world-canvas').getBoundingClientRect();
+      return [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height];
+    });
+    await tap(barEnd);
+    await until(page, () => window.__world.player.target, null, 20000);
+    await until(page, () => !window.__world.player.target, null, 600000);
+    if (await page.evaluate(() => window.__world.state) !== 'walk') throw new Error('a tap on the far end of the bar sat you down: only your stool should');
+    step('a tap on the bar away from the stool walks you up to it, standing');
+
+    // from behind the bar, going to the seat walks you round to the front, not into the counter, and sits you
+    await page.evaluate(() => {
+      const W = window.__world, V = W.camera.position.constructor, b = W.bar.group;
+      W.player.spawn(b.localToWorld(new V(0.8, 0, -4.6)).normalize(), b.localToWorld(new V(0, 1.4, 0)), -0.05);
+      W.goUse('seat');
+    });
+    await until(page, () => window.__world.player.target && window.__world.player.target.legs.length > 1, null, 20000);
+    await expectState(page, 'seat', 600000);
+    await press(page, '#seat-leave');
+    await expectState(page, 'walk', 120000);
+    step('from behind the bar: walked round to the front and sat down');
+
+    // the campfire: sit, roast, eat, leave
+    await page.evaluate(() => window.__world.sitAtFire());
+    await expectState(page, 'camp');
+    await page.evaluate(() => { window.__world.roaster.state.toast = 0.5; });
+    await page.evaluate(() => window.__world.eatIt());
+    await shot('fire');
+    await page.evaluate(() => window.__world.leaveFire());
     await expectState(page, 'walk');
+    step('campfire: sat, ate one, left');
+
+    // the hammock: lie in it, the stars, the reading list, get up
+    await page.evaluate(() => window.__world.lieInHammock());
+    await until(page, () => window.__world.state === 'hammock' && window.__world.lying, null, 120000);
+    await shot('hammock');
+    // the book sky: lying back you look up and the stars gather into their shelves (the reading
+    // list is a button away, and closing it brings you back to them); lean in on a shelf (the view
+    // narrows, its titles come up, the strip names it, its newest book's card opens), step to the
+    // next shelf, step through its books; Esc puts the card away, Esc again leans out; Back leans out too
+    await until(page, () => window.__world.stars > 0, null, 60000);
+    if (!(await page.isHidden('#panel'))) throw new Error('lying back opened the reading list: the stars come first');
+    await until(page, () => window.__world.sky.settled, null, 60000);
+    await press(page, '#hammock-read');
+    await until(page, () => !document.getElementById('panel').hidden, null, 60000);
+    await page.keyboard.press('Escape');
+    await until(page, () => document.getElementById('panel').hidden);
+    const fov0 = await page.evaluate(() => window.__world.camera.fov);
+    await page.evaluate(() => window.__world.zoom('science-fiction'));
+    await until(page, (f) => window.__world.zoomK === 1 && window.__world.camera.fov < f - 10 && document.querySelector('.sky-label:not([hidden])'), fov0, 60000);
+    if (await page.isHidden('#sky-shelf') || !(await page.textContent('#sky-name')).includes('Science Fiction')) throw new Error("leaning in on a shelf didn't show its name");
+    await until(page, () => { const W = window.__world, r = W.sky.regions.find((x) => x.slug === 'science-fiction'); return W.starCard === r.books[0].book.title; }, null, 60000); // its newest book, without hunting for it
+    await shot('shelf');
+    // a title on screen is a tap target for its book
+    const label = await page.evaluate(() => { const el = [...document.querySelectorAll('.sky-label:not([hidden]):not(.is-open)')][0]; if (!el) return null; const b = el.getBoundingClientRect(); return { x: b.left + 8, y: b.top + b.height / 2, title: el.textContent }; });
+    if (!label) throw new Error('leaned in, no other titles showed');
+    await tap([label.x, label.y]);
+    await until(page, (t) => window.__world.starCard === t, label.title);
+    await page.evaluate(() => window.__world.stepShelf(1));
+    await until(page, () => window.__world.zoomed === 'fiction');
+    await until(page, () => !document.getElementById('star-card').hidden, null, 60000);
+    if (!(await page.textContent('#star-kind')).startsWith('Fiction')) throw new Error("a book's card doesn't name its shelf");
+    const first = await page.textContent('#star-title');
+    await press(page, '#star-next');
+    if ((await page.textContent('#star-title')) === first) throw new Error("the card's › didn't step to the next book");
+    if (/paper|listen|audible/i.test(await page.textContent('#star-card'))) throw new Error('a card still says how the book was read');
+    await shot('star');
+    await page.keyboard.press('Escape');
+    await until(page, () => document.getElementById('star-card').hidden && !document.getElementById('sky-shelf').hidden);
+    await page.keyboard.press('Escape');
+    await until(page, (f) => !window.__world.zoomed && window.__world.camera.fov === f && window.__world.state === 'hammock', fov0);
+    await page.evaluate(() => window.__world.zoom('fiction'));
+    await until(page, () => window.__world.zoomed === 'fiction' && location.hash === '#sky');
+    await page.goBack();
+    await until(page, () => !window.__world.zoomed && document.getElementById('sky-shelf').hidden);
+    await page.goBack(); // and Back again gets you up
+    await expectState(page, 'walk');
+    step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
+
+    // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
+    // says what; › swings it to the next; Esc steps back
+    await page.evaluate(() => window.__world.scope.go());
+    await until(page, () => window.__world.state === 'scope' && window.__world.scope.k === 1 && !document.getElementById('scope-card').hidden, null, 120000);
+    const firstSight = await page.evaluate(() => window.__world.scope.target);
+    if (!firstSight || await page.evaluate(() => window.__world.camera.fov >= 60)) throw new Error("the telescope didn't narrow onto anything");
+    await shot('telescope');
+    // Earth's cities come from the spec's telescope pins: Steve's are Philadelphia (ringed) and six round the world
+    if (await page.evaluate(() => document.querySelectorAll('#earth-pins .earth-pin:not(.is-iss)').length !== 7 || document.querySelectorAll('#earth-pins .is-home').length !== 1)) throw new Error("the telescope's Earth doesn't pin Steve's cities, home ringed");
+    if (await page.evaluate(() => window.__world.scope.count) > 1) {
+      await press(page, '#scope-next');
+      await until(page, (f) => window.__world.scope.target !== f, firstSight);
+    }
+    if (await page.evaluate(() => { const m = window.__world.interactables.find((i) => i.id === 'launch').mount; return !m.held; })) throw new Error("the telescope didn't swing round to what you're looking at");
+    if (await page.isVisible('#scope-more')) throw new Error('the telescope card still offers something besides the sky');
+    await page.keyboard.press('Escape');
+    await expectState(page, 'walk');
+    // launch control: tap the console by the rocket and you lean in to its screen, the terminal laid
+    // over it. Offline first: it says so. Then with a made-up manifest (tools/fixtures/launches.json,
+    // its dates moved to just ahead of now, the first within the hour): the next launches, ‹ ›,
+    // "Remind me" (a calendar file), "Watch live" (the first one's stream), the engine test (guard
+    // up, fire: you turn to the rocket and back), and the panel's list; Esc stands you up
+    await page.evaluate(() => window.__world.goUse('console'));
+    await until(page, () => window.__world.state === 'console' && window.__world.console.open && !window.__world.cameraFlying, null, 120000);
+    await until(page, () => /manifest/.test(document.getElementById('term-name').textContent));
+    await page.keyboard.press('Escape');
+    await expectState(page, 'walk');
+    const fixture = JSON.parse(readFileSync(new URL('./fixtures/launches.json', import.meta.url)));
+    const soon = [40 * 60e3, 26 * 3600e3, 50 * 3600e3, 75 * 3600e3, 120 * 3600e3];
+    fixture.results.forEach((l, i) => { l.net = new Date(Date.now() + soon[i]).toISOString(); });
+    await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/upcoming\//, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(fixture) }));
+    await page.route(/ll\.thespacedevs\.com\/2\.3\.0\/launches\/[0-9a-f-]+\/\?mode=detailed/, (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ vid_urls: [{ url: 'https://www.youtube.com/watch?v=stand-in', title: 'Stand-in stream', priority: 1, live: false }] }) }));
+    await page.evaluate(() => { localStorage.removeItem('launches'); window.__world.console.go(); });
+    await until(page, (name) => window.__world.console.open && document.getElementById('term-name').textContent === name, fixture.results[0].name.split(' | ')[1], 120000);
+    await until(page, () => !document.getElementById('term-watch').hidden, null, 60000);
+    if (await page.evaluate(() => document.getElementById('term-count').textContent) !== `1 / ${fixture.results.length}`) throw new Error("the terminal doesn't say which launch of how many");
+    // the terminal sits on the console's screen: inside the window, over where the screen is drawn
+    const box = await page.evaluate(() => { const r = document.getElementById('term-screen').getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerWidth, innerHeight]; });
+    if (box[2] < 200 || box[3] < 120 || box[0] < -2 || box[0] + box[2] > box[4] + 2 || box[1] < 0 || box[1] + box[3] > box[5]) throw new Error(`the terminal isn't over the console's screen in view: ${box.map(Math.round).join(', ')}`);
+    for (const id of ['term-prev', 'term-next', 'term-remind', 'term-test', 'console-leave']) {
+      const r = await page.evaluate((id) => { const b = document.getElementById(id).getBoundingClientRect(); return [b.width, b.height, b.bottom <= innerHeight, b.right <= innerWidth]; }, id);
+      if (r[0] < 44 || r[1] < 44 || !r[2] || !r[3]) throw new Error(`#${id} isn't a whole 44 px tap target on screen (${r.join(', ')})`);
+    }
+    await shot('launch-control');
+    await press(page, '#term-next');
+    await until(page, () => window.__world.console.term.index === 1);
+    const [download] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), press(page, '#term-remind')]);
+    if (!/\.ics$/.test(download.suggestedFilename())) throw new Error(`"Remind me" saved ${download.suggestedFilename()}, not a calendar file`);
+    await press(page, '#term-prev');
+    await press(page, '#term-test');
+    await until(page, () => window.__world.console.armed && /Fire/.test(document.getElementById('term-test').textContent));
+    await press(page, '#term-test');
+    await until(page, () => window.__world.console.burning, null, 60000);
+    await until(page, () => window.__world.console.open && !window.__world.console.burning && /Engines off/.test(document.getElementById('term-out').textContent), null, 240000);
+    if (await page.evaluate(() => window.__world.console.armed)) throw new Error("the engine test's guard stayed up");
+    await page.keyboard.press('Escape');
+    await expectState(page, 'walk');
+    await page.evaluate(() => document.querySelector('#menu a[data-order="launch"]').click());
+    await until(page, (n) => document.querySelectorAll('#panel-body .launch-row').length === n, fixture.results.length);
+    if (!(await page.textContent('#panel-body [data-launch-history]')).trim()) throw new Error('the launch panel has no line from launch history');
+    await press(page, '#panel-close');
+    await until(page, () => document.getElementById('panel').hidden);
+    await page.unroute(/ll\.thespacedevs\.com/);
+    step(`launch control: leaned in to the console, ${fixture.results.length} launches, stepped through, saved one to the calendar, a stream for the first, an engine test, the panel's list`);
+    await expectState(page, 'walk');
+    // the bowl of petunias behind where you land: walk up to it, look down, and it thinks its line
+    await page.evaluate(() => window.__world.goUse('petunias'));
+    await until(page, () => !document.getElementById('bubble').hidden && document.getElementById('bubble').textContent === 'Oh no, not again.', null, 120000);
+    if (await page.evaluate(() => window.__world.player.pitch > -0.3)) throw new Error("walking up to the petunias didn't look down at them");
+    step('the petunias: walked up, looked down, "Oh no, not again."');
+    await expectState(page, 'walk');
+    // the booster on its flatcar by the pad: walk up, and its panel tells the gauge's story and links to the walk
+    await page.evaluate(() => window.__world.goUse('gauge'));
+    await until(page, () => document.getElementById('panel').dataset.id === 'gauge' && !document.getElementById('panel').hidden, null, 240000);
+    if (!(await page.$('#panel a[href$="Rockets-and-Horses.html#walk"]'))) throw new Error("the flatcar's panel doesn't link to the walk");
+    await shot('flatcar');
+    await page.keyboard.press('Escape');
+    await until(page, () => document.getElementById('panel').hidden);
+    step('the flatcar: walked up, the gauge panel, a link to the walk');
+    await expectState(page, 'walk');
+    // again, with the live views answering (made up: tools/fixtures/sky.json, a crescent with the
+    // landing sites in the dark, the nearest full moon, and a stand-in picture for NASA's): the real
+    // moon goes over the drawn one with its landing sites; tap one and the view narrows onto it, in
+    // daylight (the full moon's picture); Esc goes back to the whole moon, then Back steps back
+    const picture = readFileSync(join(root, 'assets/images/saturn-v-800.webp'));
+    await page.route(/functions\/v1\/sky$/, (route) => route.fulfill({ contentType: 'application/json', body: readFileSync(new URL('./fixtures/sky.json', import.meta.url)) }));
+    await page.route(/^https:\/\/(svs\.gsfc\.nasa\.gov|soho\.nascom\.nasa\.gov)\//, (route) => route.fulfill({ contentType: 'image/webp', body: picture }));
+    const live = await page.evaluate(() => window.__world.scope.targets.includes('moon'));
+    if (live) {
+      await page.evaluate(() => window.__world.scope.go());
+      await until(page, () => window.__world.scope.live && window.__world.scope.k === 1 && +document.getElementById('eyepiece-live').style.opacity > 0.9, null, 120000);
+      if (await page.isHidden('#scope-live')) throw new Error("the card doesn't say the moon is live");
+      const rings = await page.$$('.eyepiece__mark:not([hidden])');
+      if (!rings.length) throw new Error('no landing sites on the moon');
+      await shot('telescope-live');
+      const fovMoon = await page.evaluate(() => window.__world.camera.fov);
+      const ring = await rings[0].boundingBox();
+      await tap([ring.x + ring.width / 2, ring.y + ring.height / 2]); // where it is (it's laid out again every frame)
+      await until(page, (f) => window.__world.scope.site >= 0 && window.__world.camera.fov < f / 2, fovMoon, 60000);
+      if (!/^Apollo/.test(await page.textContent('#scope-name'))) throw new Error("a landing site's card doesn't name it");
+      if (!/full moon/.test(await page.textContent('#scope-note'))) throw new Error('a landing site in the dark should be shown at full moon');
+      await shot('landing-site');
+      await page.keyboard.press('Escape');
+      await until(page, () => window.__world.scope.site === -1 && window.__world.state === 'scope');
+      await page.goBack(); // Back steps back from the telescope
+      await expectState(page, 'walk');
+    }
+    await page.unroute(/functions\/v1\/sky$/);
+    step(`telescope: looked through it at ${firstSight.toLowerCase()}${live ? ', then the real moon and a landing site' : ''}, stepped back`);
+
+    // skip a stone
+    await page.evaluate(() => window.__world.goToShore());
+    await until(page, () => window.__world.state === 'shore' && window.__world.stoneInHand, null, 120000);
+    await page.evaluate(() => { window.__lastThrow = null; window.__world.throwStone(0.7); });
+    await until(page, () => window.__lastThrow, null, 60000);
+    await page.evaluate(() => window.__world.leaveShore());
+    await expectState(page, 'walk');
+    step(`skipped a stone (${await page.evaluate(() => `${window.__lastThrow.skips} skips`)})`);
+
+    // a message in a bottle: written, rolled up, thrown (tests never write to the table)
+    await page.evaluate(() => { const it = window.__world.interactables.find((i) => i.id === 'bottles'); window.__world.player.spawn(it.approach.clone().normalize(), it.point, 0); });
+    await page.evaluate(() => window.__world.note.go());
+    await until(page, () => window.__world.note.step === 'writing');
+    await page.fill('#note-text', 'Smoke test: hello from the little planet.');
+    await shot('note');
+    await press(page, '.note__roll');
+    await until(page, () => window.__world.note.step === 'ready');
+    if (!(await page.evaluate(() => window.__lastBottle && window.__lastBottle.message))) throw new Error('the bottle was not sent');
+    await page.evaluate(() => window.__world.note.throwIt());
+    await page.keyboard.press('Escape');
+    await expectState(page, 'walk');
+    step('wrote a message, threw the bottle');
   }
-  await page.unroute(/functions\/v1\/sky$/);
-  step(`telescope: looked through it at ${firstSight.toLowerCase()}${live ? ', then the real moon and a landing site' : ''}, stepped back`);
 
-  // skip a stone
-  await page.evaluate(() => window.__world.goToShore());
-  await until(page, () => window.__world.state === 'shore' && window.__world.stoneInHand, null, 120000);
-  await page.evaluate(() => { window.__lastThrow = null; window.__world.throwStone(0.7); });
-  await until(page, () => window.__lastThrow, null, 60000);
-  await page.evaluate(() => window.__world.leaveShore());
-  await expectState(page, 'walk');
-  step(`skipped a stone (${await page.evaluate(() => `${window.__lastThrow.skips} skips`)})`);
+  if (parts.includes(2)) {
+    // physics: the engine loads, a coconut is picked up and thrown and lands on the ground
+    await until(page, () => window.__world.physics, null, 120000);
+    await page.evaluate(() => window.__world.goGrab(0));
+    await until(page, () => window.__world.carrying, null, 300000);
+    await page.evaluate(() => window.__world.toss(0.6));
+    // software rendering is a few frames a second, and the physics never steps more than 0.1 s a
+    // frame: wait for it to come down and slow to a roll rather than a fixed time
+    await until(page, () => {
+      const W = window.__world, it = W.physics.items[0], p = it.object.position, v = it.body && it.body.linvel();
+      return v && p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius < 0.3 && Math.hypot(v.x, v.y, v.z) < 1;
+    }, null, 120000).catch(() => {});
+    const landed = await page.evaluate(() => {
+      const W = window.__world, it = W.physics.items[0], p = it.object.position;
+      return { moved: p.distanceTo(it.home), above: p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius };
+    });
+    if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
+    step(`threw a coconut ${landed.moved.toFixed(1)} m`);
 
-  // a message in a bottle: written, rolled up, thrown (tests never write to the table)
-  await page.evaluate(() => { const it = window.__world.interactables.find((i) => i.id === 'bottles'); window.__world.player.spawn(it.approach.clone().normalize(), it.point, 0); });
-  await page.evaluate(() => window.__world.note.go());
-  await until(page, () => window.__world.note.step === 'writing');
-  await page.fill('#note-text', 'Smoke test: hello from the little planet.');
-  await shot('note');
-  await press(page, '.note__roll');
-  await until(page, () => window.__world.note.step === 'ready');
-  if (!(await page.evaluate(() => window.__lastBottle && window.__lastBottle.message))) throw new Error('the bottle was not sent');
-  await page.evaluate(() => window.__world.note.throwIt());
-  await page.keyboard.press('Escape');
-  await expectState(page, 'walk');
-  step('wrote a message, threw the bottle');
+    // the second coconut picked up brings the neon hoop, clear of everything; one dropped down
+    // through its rim sets off the fireworks, and it flickers back out
+    await page.evaluate(() => window.__world.goGrab(0));
+    await until(page, () => window.__world.carrying, null, 300000);
+    // it comes only where you're facing open ground (never behind you), so if nothing in view is
+    // clear, turn as a visitor would, a twelfth of a circle at a time, until it starts to appear
+    for (let i = 0; i < 12; i++) {
+      const coming = await until(page, () => window.__world.hoop.state !== 'off', null, 15000).then(() => true, () => false);
+      if (coming) break;
+      await page.evaluate(() => window.__world.player.look(Math.PI / 6, 0));
+    }
+    // its flicker-in runs on frames (0.1 s of it at most a frame), which crawl on a phone in CI
+    await until(page, () => window.__world.hoop.state === 'up', null, 120000);
+    const clearOf = await page.evaluate(() => {
+      const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
+      return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
+    });
+    if (!(clearOf > 2)) throw new Error(`the hoop came down on top of something (${clearOf.toFixed(1)} m from it)`);
+    await shot('hoop');
+    await page.evaluate(() => {
+      const W = window.__world, it = W.physics.items[0];
+      W.putDown();
+      W.physics.take(it);
+      W.physics.release(it, W.hoop.rim.addScaledVector(W.hoop.up, 0.7), W.hoop.up.multiplyScalar(-1));
+    });
+    await until(page, () => window.__hoopScored === 1, null, 120000);
+    await shot('fireworks');
+    await until(page, () => window.__world.hoop.state === 'off', null, 120000);
+    step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 
-  // physics: the engine loads, a coconut is picked up and thrown and lands on the ground
-  await until(page, () => window.__world.physics, null, 120000);
-  await page.evaluate(() => window.__world.goGrab(0));
-  await until(page, () => window.__world.carrying, null, 300000);
-  await page.evaluate(() => window.__world.toss(0.6));
-  // software rendering is a few frames a second, and the physics never steps more than 0.1 s a
-  // frame: wait for it to come down and slow to a roll rather than a fixed time
-  await until(page, () => {
-    const W = window.__world, it = W.physics.items[0], p = it.object.position, v = it.body && it.body.linvel();
-    return v && p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius < 0.3 && Math.hypot(v.x, v.y, v.z) < 1;
-  }, null, 120000).catch(() => {});
-  const landed = await page.evaluate(() => {
-    const W = window.__world, it = W.physics.items[0], p = it.object.position;
-    return { moved: p.distanceTo(it.home), above: p.length() - W.surfaceRadius(p.clone().normalize()) - it.radius };
-  });
-  if (!(landed.moved > 0.5) || Math.abs(landed.above) > 0.6) throw new Error(`the coconut didn't land: ${JSON.stringify(landed)}`);
-  step(`threw a coconut ${landed.moved.toFixed(1)} m`);
-
-  // the second coconut picked up brings the neon hoop, clear of everything; one dropped down
-  // through its rim sets off the fireworks, and it flickers back out
-  await page.evaluate(() => window.__world.goGrab(0));
-  await until(page, () => window.__world.carrying, null, 300000);
-  // it comes only where you're facing open ground (never behind you), so if nothing in view is
-  // clear, turn as a visitor would, a twelfth of a circle at a time, until it starts to appear
-  for (let i = 0; i < 12; i++) {
-    const coming = await until(page, () => window.__world.hoop.state !== 'off', null, 15000).then(() => true, () => false);
-    if (coming) break;
-    await page.evaluate(() => window.__world.player.look(Math.PI / 6, 0));
+    // the cutaway: from the end of the bridge, a tap on its middle walks you out onto
+    // it (the deck counts as ground; nothing on the bridge takes the tap instead)
+    const mid = await page.evaluate(() => {
+      const W = window.__world, m = W.machine, g = m.group, V = g.position.constructor;
+      W.player.spawn(g.localToWorld(new V(-6.5, 0, 0)).normalize(), m.platform, -0.35);
+      W.player.applyToCamera(); W.camera.updateMatrixWorld(true);
+      const p = g.localToWorld(new V(0, -0.08, 0)).project(W.camera), r = document.querySelector('canvas').getBoundingClientRect(); // the deck's surface, not just above it
+      const xy = [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height], hit = W.pick(...xy);
+      return { xy, ground: !!(hit && hit.ground), thing: hit && hit.thing && hit.thing.id };
+    });
+    if (!mid.ground) throw new Error(`a tap on the bridge didn't land on it as ground (${mid.thing || 'nothing'})`);
+    await tap(mid.xy);
+    await until(page, () => !window.__world.player.target, null, 120000);
+    const onMid = await page.evaluate(() => window.__world.player.pos.distanceTo(window.__world.machine.platform));
+    if (!(onMid < 1)) throw new Error(`didn't walk out to the middle of the bridge (${onMid.toFixed(2)} m off)`);
+    await page.evaluate(() => { window.__world.player.pitch = -1.2; });
+    await shot('machine');
+    step('tapped the middle of the bridge, walked out to it, looked down into the planet');
   }
-  // its flicker-in runs on frames (0.1 s of it at most a frame), which crawl on a phone in CI
-  await until(page, () => window.__world.hoop.state === 'up', null, 120000);
-  const clearOf = await page.evaluate(() => {
-    const W = window.__world, rim = W.hoop.rim, feet = rim.clone().addScaledVector(W.hoop.up, -2.6);
-    return Math.min(...W.interactables.map((i) => i.point.distanceTo(feet)));
-  });
-  if (!(clearOf > 2)) throw new Error(`the hoop came down on top of something (${clearOf.toFixed(1)} m from it)`);
-  await shot('hoop');
-  await page.evaluate(() => {
-    const W = window.__world, it = W.physics.items[0];
-    W.putDown();
-    W.physics.take(it);
-    W.physics.release(it, W.hoop.rim.addScaledVector(W.hoop.up, 0.7), W.hoop.up.multiplyScalar(-1));
-  });
-  await until(page, () => window.__hoopScored === 1, null, 120000);
-  await shot('fireworks');
-  await until(page, () => window.__world.hoop.state === 'off', null, 120000);
-  step('a second coconut brought the hoop; one through it set off fireworks, and it left');
 
-  // the cutaway: from the end of the bridge, a tap on its middle walks you out onto
-  // it (the deck counts as ground; nothing on the bridge takes the tap instead)
-  const mid = await page.evaluate(() => {
-    const W = window.__world, m = W.machine, g = m.group, V = g.position.constructor;
-    W.player.spawn(g.localToWorld(new V(-6.5, 0, 0)).normalize(), m.platform, -0.35);
-    W.player.applyToCamera(); W.camera.updateMatrixWorld(true);
-    const p = g.localToWorld(new V(0, -0.08, 0)).project(W.camera), r = document.querySelector('canvas').getBoundingClientRect(); // the deck's surface, not just above it
-    const xy = [r.left + ((p.x + 1) / 2) * r.width, r.top + ((1 - p.y) / 2) * r.height], hit = W.pick(...xy);
-    return { xy, ground: !!(hit && hit.ground), thing: hit && hit.thing && hit.thing.id };
-  });
-  if (!mid.ground) throw new Error(`a tap on the bridge didn't land on it as ground (${mid.thing || 'nothing'})`);
-  await tap(mid.xy);
-  await until(page, () => !window.__world.player.target, null, 120000);
-  const onMid = await page.evaluate(() => window.__world.player.pos.distanceTo(window.__world.machine.platform));
-  if (!(onMid < 1)) throw new Error(`didn't walk out to the middle of the bridge (${onMid.toFixed(2)} m off)`);
-  await page.evaluate(() => { window.__world.player.pitch = -1.2; });
-  await shot('machine');
-  step('tapped the middle of the bridge, walked out to it, looked down into the planet');
+  if (parts.includes(3)) {
+    // a long walk: from where you land to the campfire on the far side of the planet, round
+    // whatever's in between (route.js), without stopping short
+    const far = await page.evaluate(() => {
+      const W = window.__world, P = W.player, it = W.interactables.find((i) => i.id === 'campfire');
+      P.spawn(W.SPOTS.spawn, it.point, 0);
+      const via = W.routeTo(it.approach);
+      P.walkTo(it.approach, { arrive: 0.45, via });
+      return { corners: via.length, metres: Math.round(P.pos.angleTo(it.approach) * P.pos.length()) };
+    });
+    await until(page, () => !window.__world.player.target, null, 240000);
+    const short = await page.evaluate(() => { const W = window.__world; return W.player.pos.distanceTo(W.interactables.find((i) => i.id === 'campfire').approach); });
+    if (!(short < 0.6)) throw new Error(`the walk to the campfire stopped ${short.toFixed(1)} m short`);
+    step(`walked ${far.metres} m from where you land to the campfire, round ${far.corners} corners`);
 
-  // a long walk: from where you land to the campfire on the far side of the planet, round
-  // whatever's in between (route.js), without stopping short
-  const far = await page.evaluate(() => {
-    const W = window.__world, P = W.player, it = W.interactables.find((i) => i.id === 'campfire');
-    P.spawn(W.SPOTS.spawn, it.point, 0);
-    const via = W.routeTo(it.approach);
-    P.walkTo(it.approach, { arrive: 0.45, via });
-    return { corners: via.length, metres: Math.round(P.pos.angleTo(it.approach) * P.pos.length()) };
-  });
-  await until(page, () => !window.__world.player.target, null, 240000);
-  const short = await page.evaluate(() => { const W = window.__world; return W.player.pos.distanceTo(W.interactables.find((i) => i.id === 'campfire').approach); });
-  if (!(short < 0.6)) throw new Error(`the walk to the campfire stopped ${short.toFixed(1)} m short`);
-  step(`walked ${far.metres} m from where you land to the campfire, round ${far.corners} corners`);
-
-  // the door past the telescope: walk up and step through it into the real place (the real
-  // splat, about a minute under software WebGL), look round, then step back out where you went
-  // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
-  // Last, because under software WebGL the kept place's context slows the planet afterwards
-  // (switching contexts costs there what it doesn't on a GPU).
-  if (!phone) {
-    const tick = { timeout: 300000, polling: 500 };
-    // a drag down tips the view up, on the planet as through the door (the same feel everywhere)
-    const lookUp = () => page.evaluate(() => { const c = window.__world.camera; const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(c.position.clone().normalize()); });
-    const before = await lookUp();
-    await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
-    await page.waitForTimeout(500);
-    if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
-    await page.evaluate(() => window.__world.goUse('door'));
-    await page.waitForFunction(() => window.__world.door.inside, null, tick);
-    if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
-    if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
-    const [yaw0, pitch0] = await page.evaluate(() => [window.__world.door.view.yaw, window.__world.door.view.pitch]);
-    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 450, { steps: 4 }); await page.mouse.up();
-    await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
-    if (!(await page.evaluate(() => window.__world.door.view.pitch) > pitch0)) throw new Error('through the door a drag down should tip the view up, as on the planet');
-    if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
-    // out through the door back (behind where you came in): on the planet again, facing down the
-    // trail, away from the door, as you saw through it
-    await page.evaluate(() => window.__world.door.view.toDoorBack());
-    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
-    if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
-    const away = await page.evaluate(() => { const W = window.__world, c = W.camera, d = W.interactables.find((i) => i.id === 'door'); const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(d.point.clone().sub(c.position).normalize()); });
-    if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
-    // the place is kept for next time, out of sight: one view of it, not drawn, not shown
-    if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
-    // the second door, behind the bar, onto a world made by Marble: there, and it goes somewhere
-    if (!(await page.evaluate(() => { const d = window.__world.interactables.find((i) => i.id === 'museum'); return d && d.place === 'museum' && d.verb === 'Step through'; }))) throw new Error('no door to the Art Museum behind the bar');
-    step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail; the door to the Art Museum is behind the bar');
+    // the door past the telescope: walk up and step through it into the real place (the real
+    // splat, about a minute under software WebGL), look round, then step back out where you went
+    // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
+    // Last, because under software WebGL the kept place's context slows the planet afterwards
+    // (switching contexts costs there what it doesn't on a GPU).
+    if (!phone) {
+      const tick = { timeout: 300000, polling: 500 };
+      // a drag down tips the view up, on the planet as through the door (the same feel everywhere)
+      const lookUp = () => page.evaluate(() => { const c = window.__world.camera; const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(c.position.clone().normalize()); });
+      const before = await lookUp();
+      await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
+      await page.waitForTimeout(500);
+      if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
+      await page.evaluate(() => window.__world.goUse('door'));
+      await page.waitForFunction(() => window.__world.door.inside, null, tick);
+      if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
+      if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
+      const [yaw0, pitch0] = await page.evaluate(() => [window.__world.door.view.yaw, window.__world.door.view.pitch]);
+      await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 450, { steps: 4 }); await page.mouse.up();
+      await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
+      if (!(await page.evaluate(() => window.__world.door.view.pitch) > pitch0)) throw new Error('through the door a drag down should tip the view up, as on the planet');
+      if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
+      // out through the door back (behind where you came in): on the planet again, facing down the
+      // trail, away from the door, as you saw through it
+      await page.evaluate(() => window.__world.door.view.toDoorBack());
+      await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
+      if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+      const away = await page.evaluate(() => { const W = window.__world, c = W.camera, d = W.interactables.find((i) => i.id === 'door'); const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(d.point.clone().sub(c.position).normalize()); });
+      if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
+      // the place is kept for next time, out of sight: one view of it, not drawn, not shown
+      if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
+      // the second door, behind the bar, onto a world made by Marble: there, and it goes somewhere
+      if (!(await page.evaluate(() => { const d = window.__world.interactables.find((i) => i.id === 'museum'); return d && d.place === 'museum' && d.verb === 'Step through'; }))) throw new Error('no door to the Art Museum behind the bar');
+      step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail; the door to the Art Museum is behind the bar');
+    }
   }
 }
 
@@ -1862,7 +1870,9 @@ async function planetCard(page, shot, { phone = false } = {}) {
   step('with no WebGL2: the plain card (who it is for, their links, what they love) and "Walk around it" opens the planet');
 }
 
-const want = (k) => !only || only === k;
+// --only takes one part or several (a comma list); desktop-1, -2 and -3 are the desktop planet's
+// three parts on their own (CI runs each in its own job), never run unless asked for
+const want = (k) => (only ? only.split(',').includes(k) : !/-\d$/.test(k));
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
 if (want('apps')) await session('places tab', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'America/New_York' }, placesTab);
@@ -1871,6 +1881,7 @@ if (want('apps')) await session('card in chat', { viewport: { width: 440, height
 if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
+for (const n of [1, 2, 3]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);

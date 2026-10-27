@@ -46,12 +46,13 @@ npm run check
 # migration in PGlite, a few seconds), then trips in detail the same way (tools/trips-test.mjs), then places (tools/places-test.mjs), then the smoke test: every page, then the planet driven
 # through everything a visitor can do, on desktop and phone, the private apps against a made-up
 # Supabase, someone else's planet previewed and its card in a chat, and the no-WebGL fallback, in headless Chromium; offline, never writes to Supabase.
-# About 6 minutes under software WebGL. node tools/smoke.mjs --only desktop|phone|pages|apps|planets|holiday|nogl, --shots <dir>.
+# About 6 minutes under software WebGL. node tools/smoke.mjs --only desktop|phone|pages|apps|planets|holiday|nogl (or several, comma separated), --shots <dir>.
 npm test
 ```
 
 CI (`.github/workflows/site.yml`) runs build, check, the planet, wardrobe, trips and places tests and the smoke test on every PR, and on main
-deploys only once they pass. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
+deploys only once they pass. The tests that need no browser run beside the build, and the smoke test runs as six jobs side by side
+(the desktop planet in three parts, `--only desktop-1`, `-2`, `-3`, then phone, holiday, and the rest), so a run takes about 10 minutes, not 25. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
 
 ## The JavaScript build
 
