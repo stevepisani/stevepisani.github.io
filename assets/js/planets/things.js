@@ -159,6 +159,7 @@ export function buildThings(things = [], surface) {
     // (measured before it's placed, so in metres from its foot)
     const box = new THREE.Box3().setFromObject(body);
     thing.box = box;
+    thing.hull = box.clone(); // where a tap means it (main.js): its shapes now, its model once it's in
     thing.body = body;
     const reach = Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
     root.add(body);
@@ -191,6 +192,7 @@ export function buildThings(things = [], surface) {
       // a little into the ground: the planet curves away under anything long (a sag of L²/8R)
       const sag = (Math.max(ms.x, ms.z) * s) ** 2 / (8 * RADIUS) + 0.02;
       model.position.set(mid.x - mm.x * s, box.min.y - m.min.y * s - sag, mid.z - mm.z * s);
+      thing.hull.copy(m).applyMatrix4(model.matrix.compose(model.position, model.quaternion, model.scale));
       model.traverse((o) => {
         if (!o.isMesh) return;
         o.castShadow = o.receiveShadow = true;
