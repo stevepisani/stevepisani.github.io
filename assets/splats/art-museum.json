@@ -1,0 +1,16 @@
+{
+  "marble": "https://marble.worldlabs.ai/world/3a2148bd-cbdd-455f-9204-d9e516acfc22",
+  "model": "marble-1.1-plus",
+  "made": "2026-10-27T21:00:05.047Z",
+  "caption": "The scene is a panoramic view of a grand urban plaza and monumental architecture, rendered in a realistic style, capturing the bright light of a late afternoon. The overall tone is majestic and serene, with clear skies and a sense of vast openness. The empty stone plaza stretches forward, leading to the wide granite steps of the Philadelphia Museum of Art, which climb in several flights towards the building. The museum, constructed of golden sandstone, features a columned central portico flanked by two wings, each adorned with pediments. Two bare flagpoles stand tall on either side of the museum's entrance, accompanied by old lamp posts that punctuate the architectural grandeur. Directly behind the plaza, Eakins Oval unfolds, dominated by a central fountain and lined by the verdant trees of the Benjamin Franklin Parkway. The Parkway extends into the distance, leading to the towering downtown skyline, with the distinctive City Hall's tower rising prominently. The plaza's surface is a uniform expanse of light-colored paving stones, reflecting the clear blue sky above, and the wide granite steps are meticulously cut and stacked, each step providing a clear, broad ascent. The columned central portico of the museum is precisely centered on the steps, creating a symmetrical and imposing facade. The bare flagpoles are situated just in front of the museum's main structure, with old lamp posts positioned further down the steps, illuminating the path. Eakins Oval is laid out geometrically behind the plaza, with the fountain as its focal point, and the trees of the Benjamin Franklin Parkway are neatly planted along its edges, forming a clear avenue towards the distant cityscape. ",
+  "credit": {
+    "by": "Dough4872",
+    "source": "https://commons.wikimedia.org/wiki/File:Philadelphia_Museum_of_Art_looking_northwest_from_bottom_of_Rocky_Steps.jpeg",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+  },
+  "semantics": {
+    "metric_scale_factor": 2.7590129375457764,
+    "ground_plane_offset": 1.2143223285675049
+  }
+}
