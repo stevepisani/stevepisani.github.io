@@ -182,15 +182,23 @@ caught(place, (s) => { delete s.things[1].near; }, /^things\[1\]/, 'neither at n
 const sloppyShown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sloppy } })).result;
 ok(!sloppyShown.isError && /look these over/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview says what to look over, for the model to fix', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
-const { wanted, planets: modelled, PER_PLANET, PER_RUN } = await import('./planet-models.mjs');
+const { wanted, planets: modelled, PER_PLANET, PER_RUN, FIRST_PLANETS } = await import('./planet-models.mjs');
 ok(planets.EXAMPLE.things.every((t) => t.model) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models");
 ok(errorsWith(planets.EXAMPLE, (s) => { s.things[0].model = 'x'.repeat(LIMITS.text + 1); }).some((e) => /^things\[0\]\.model/.test(e)), "a model's words have a cap");
 const toModel = wanted(modelled(), {});
 ok(toModel.length === modelled().reduce((n, p) => n + (p.things || []).filter((t) => t.model).length, 0) && toModel.length <= PER_RUN, 'every thing described is to be modelled, until it is', toModel.map((t) => t.key));
-const many = { ...least, things: Array.from({ length: PER_PLANET + 1 }, (_, i) => ({ id: `t${i}`, name: `T${i}`, model: 'A chair', at: { bearing: i * 30 - 120, distance: 6 }, parts: [{ shape: 'box', size: [1, 1, 1] }] })) };
+const many = { ...least, things: Array.from({ length: PER_PLANET + 1 }, (_, i) => ({ id: `t${i}`, name: `T${i}`, model: 'A chair', at: { bearing: i * 20 - 160, distance: 6 }, parts: [{ shape: 'box', size: [1, 1, 1] }] })) };
 let overCap = false;
-try { wanted([many], {}); } catch (e) { overCap = /more than 8 a planet/.test(e.message); }
+try { wanted([many], {}); } catch (e) { overCap = new RegExp(`more than ${PER_PLANET} a planet`).test(e.message); }
 ok(overCap, `no more than ${PER_PLANET} models a planet`);
+// models for the first friends' planets only: the 11th waits for Steve; tests and the example never count
+const friend = (slug) => ({ ...least, slug, things: [{ id: 'chair', name: 'Chair', model: 'A chair', at: { bearing: 0, distance: 6 }, parts: [{ shape: 'box', size: [1, 1, 1] }] }] });
+const had = Object.fromEntries(Array.from({ length: FIRST_PLANETS }, (_, i) => [`friend-${i}/chair`, {}]));
+ok(wanted([friend('friend-3')], had).length === 1 && wanted([friend('test-x')], had).length === 1, 'a first friend\'s planet and a test planet are modelled with the first ones made');
+let past = false;
+try { wanted([friend('friend-new')], had); } catch (e) { past = /first 10 friends/.test(e.message); }
+ok(past, `models for the first ${FIRST_PLANETS} friends' planets only`);
+ok(wanted(Array.from({ length: FIRST_PLANETS }, (_, i) => friend(`new-${i}`)), {}).length === FIRST_PLANETS, `the first ${FIRST_PLANETS} are all modelled`);
 const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
 ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
 const bare = (await call('tools/call', { name: 'preview_planet', arguments: { spec: least } })).result.structuredContent.planet;

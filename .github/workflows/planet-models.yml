@@ -2,7 +2,7 @@
 # the words in each thing's `model`, drawn first as a picture in the house style) and commits them
 # to the branch it ran on. Here because it needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy. It runs whenever
 # a planet's spec changes on a branch other than main, or by hand (with `redo`: slug/id,
-# comma-separated). Meshy credits are spent only on what's missing, capped in the tool (8 models a
+# comma-separated). Meshy credits are spent only on what's missing, capped in the tool (14 models a
 # planet, 24 a run).
 name: Planet models
 
