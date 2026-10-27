@@ -1,8 +1,29 @@
 {
-  "_": "Worlds made by World Labs' Marble (tools/marble-place.mjs, run by the Marble workflow). Each is made once: a world whose files are in assets/splats/ (or assets/splats/drafts/) is never paid for again. model: marble-1.0-draft (about $0.20, a quick look), marble-1.1 (about $1.28) or marble-1.1-plus (up to about $2.48, for big outdoor places). prompt: the words. photos: files in tools/models/marble/, each with the way it faces (azimuth, degrees: 0 ahead, 90 right, 180 behind, 270 left); one photo is an image prompt, several a multi-image one. draft: true puts it in assets/splats/drafts/, for looking at, never published.",
+  "_": "Worlds made by World Labs' Marble (tools/marble-place.mjs, run by the Marble workflow). Each is made once: a world whose files are in assets/splats/ (or assets/splats/drafts/) is never paid for again. model: marble-1.0-draft (about $0.20, a quick look), marble-1.1 (about $1.28) or marble-1.1-plus (up to about $2.48, for big outdoor places). prompt: the words. photos: files in tools/models/marble/, each with the way it faces (azimuth, degrees: 0 ahead, 90 right, 180 behind, 270 left); one photo is an image prompt, several a multi-image one. draft: true puts it in assets/splats/drafts/, for looking at, never published. credit: whose photos they are and their licence, carried into the world's .json for the door's plaque.",
   "steps-words": {
     "draft": true,
     "model": "marble-1.0-draft",
     "prompt": "The front steps of the Philadelphia Museum of Art at dusk, seen from the foot of the steps: a wide sweep of granite stairs climbing in flights to the museum's columned Greek-temple portico, its pediment and columns lit warm gold by floodlights, the sky deep blue with the last orange glow low in the west. Behind you, the Benjamin Franklin Parkway runs straight to the city skyline, its towers' windows lit. Plaza paving at the bottom, a few lamp posts glowing, no people."
+  },
+  "steps-photos": {
+    "draft": true,
+    "model": "marble-1.0-draft",
+    "prompt": "The Rocky Steps of the Philadelphia Museum of Art: the plaza at the foot of the wide granite stairs, the columned museum above, and behind, from the top, the Benjamin Franklin Parkway, Eakins Oval and the city skyline. No people.",
+    "photos": [
+      {
+        "file": "pma-steps-up.jpg",
+        "azimuth": 0
+      },
+      {
+        "file": "pma-steps-out.jpg",
+        "azimuth": 180
+      }
+    ],
+    "credit": {
+      "by": "Dough4872",
+      "source": "https://commons.wikimedia.org/wiki/File:Philadelphia_Museum_of_Art_looking_northwest_from_bottom_of_Rocky_Steps.jpeg",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/"
+    }
   }
 }
