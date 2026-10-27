@@ -205,7 +205,7 @@ It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, wi
 for the Site checks). Only what's missing is paid for; a task already started is picked up, not
 paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam) and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
-when it's finished). Caps: 8 models a planet, 24 a run, about $0.70 a model.
+when it's finished). Caps: 14 models a planet (about $10) for the first 10 friends' planets, then none until Steve says (Steve, Oct 27: "10 an onboarding for the first 10 people"; the example and `test-` planets don't count), 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
 cliff, and the porch and cliff made again from clearer words) took about 3 minutes a run. Words
 that describe one object do best: the porch came out as a guitar and an amp until its words said
@@ -216,6 +216,6 @@ model in the preview.
 
 ## Costs and limits
 
-Meshy, for a planet's real models: about $0.70 a model, at most 8 a planet (above). Otherwise
+Meshy, for a planet's real models: about $0.70 a model, at most 14 a planet for the first 10 friends (above). Otherwise
 no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).

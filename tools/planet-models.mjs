@@ -13,15 +13,19 @@
 //   MESHY_API_KEY=... node tools/planet-models.mjs [--redo slug/id,slug/id]
 //
 // Only what's missing is paid for, and a model whose words or style changed is made again.
-// Costs: a few credits the picture, 30 the model, so about $0.70 a thing; capped below.
+// Costs: a few credits the picture, 30 the model, so about $0.70 a thing; capped below (about $10
+// a planet for the first 10 friends).
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { checkPlanet } from '../supabase/functions/_shared/planet.js';
 import { EXAMPLE } from '../supabase/functions/planets/server.js';
 import { get, task, finished, balance, optimize, IMAGE_TO_3D, TEXT_TO_IMAGE } from './meshy.mjs';
 
-// the caps: 8 models a planet (about $5, what Steve set for the first planets), 24 a run
-export const PER_PLANET = 8, PER_RUN = 24;
+// the caps (Steve, Oct 27, 2026: "10 an onboarding for the first 10 people"): 14 models a planet,
+// about $10, for the first 10 friends' planets, then none until he says; 24 a run. The kit's example
+// and the test planets (test-…) aren't friends and don't count toward the 10.
+export const PER_PLANET = 14, PER_RUN = 24, FIRST_PLANETS = 10;
+const isFriend = (slug) => slug !== EXAMPLE.slug && !slug.startsWith('test-');
 // the house style: change it and every model is made again
 export const STYLE_NAME = 'storybook';
 const STYLE = 'A storybook miniature: hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy, like a Tiny Glade or Little Prince illustration come to life';
@@ -39,11 +43,17 @@ export function planets() {
 /** what's to be made: [{ key, slug, thing }], refusing a planet or a run over its cap */
 export function wanted(list, manifest, redo = new Set()) {
   const todo = [];
+  // the friends' planets with a model already: the first ones, in the order they got them
+  const friends = new Set(Object.keys(manifest).map((k) => k.split('/')[0]).filter(isFriend));
   for (const spec of list) {
     const errors = checkPlanet(spec);
     if (errors.length) throw new Error(`${spec.slug}: ${errors[0]}`);
     const things = (spec.things || []).filter((t) => t.model);
     if (things.length > PER_PLANET) throw new Error(`${spec.slug}: ${things.length} things to model, more than ${PER_PLANET} a planet`);
+    if (things.length && isFriend(spec.slug) && !friends.has(spec.slug)) {
+      if (friends.size >= FIRST_PLANETS) throw new Error(`${spec.slug}: models are for the first ${FIRST_PLANETS} friends' planets, and they have them; ask Steve before making more`);
+      friends.add(spec.slug);
+    }
     for (const thing of things) {
       const key = `${spec.slug}/${thing.id}`, had = manifest[key];
       if (!redo.has(key) && had?.model === thing.model && had.style === STYLE_NAME && had.file && existsSync(OUT + had.file)) continue;
