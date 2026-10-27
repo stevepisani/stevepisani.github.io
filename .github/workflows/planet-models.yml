@@ -1,6 +1,6 @@
 # Makes the real 3D models for the things on friends' planets (tools/planet-models.mjs: Meshy, from
-# the words in each thing's `model`) and commits them to the branch it ran on. Here because it
-# needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy. It runs whenever
+# the words in each thing's `model`, drawn first as a picture in the house style) and commits them
+# to the branch it ran on. Here because it needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy. It runs whenever
 # a planet's spec changes on a branch other than main, or by hand (with `redo`: slug/id,
 # comma-separated). Meshy credits are spent only on what's missing, capped in the tool (8 models a
 # planet, 24 a run).
@@ -15,10 +15,6 @@ on:
       redo:
         description: Models to make again (slug/id, comma-separated)
         required: false
-      styles:
-        description: Draw the house-style samples instead (tools/planet-styles.mjs)
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -42,8 +38,7 @@ jobs:
         continue-on-error: true
         env:
           MESHY_API_KEY: ${{ secrets.MESHY_API_KEY }}
-        run: |
-          if [ "${{ inputs.styles }}" = "true" ]; then node tools/planet-styles.mjs; else node tools/planet-models.mjs --redo "${{ inputs.redo }}"; fi
+        run: node tools/planet-models.mjs --redo "${{ inputs.redo }}"
       # whatever was made, even when something failed (a re-run picks up from the manifest). Push
       # again after it: a commit by this workflow doesn't start the Site checks.
       - name: Commit
