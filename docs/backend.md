@@ -232,6 +232,7 @@ The rule: the whole site costs no more than $20 a month. Today it's about $5 at 
 | Places API (New), finding saved places (capped at 1,000 calls a month, inside Google's free monthly calls for Text Search) | $0 |
 | The telescope's moon (an edge function call per visitor per hour, on the free plan's 500,000 a month) | $0 |
 | The Planets connector (`docs/planets.md`: an edge function call per tool call, nothing stored, no AI of ours; requests over 256 KB refused) | $0 |
+| World Labs Marble worlds for the doors (`tools/marble-place.mjs`, by the Marble workflow: about $0.20 a draft, $1.28 to $2.48 a world; each made once, at most $5 a run; prepaid credits, `WORLDLABS_API_KEY`; Steve's call, Oct 27: the Art Museum experiment, about $3 so far) | one-off, prepaid |
 | Meshy models for the things on friends' planets (`tools/planet-models.mjs`, by the Planet models workflow: a picture and a model, about 35 credits, so about $0.70, a thing; at most 14 a planet (about $10) for the first 10 friends' planets and none after until Steve says, and 24 a run, and only what's missing; Steve's call, Oct 27: up to $10 an onboarding for the first 10, about $100 in all, outside the $20 a month) | up to $10 a planet built, the first 10 only |
 
 Anything that adds a recurring cost needs its cap set in code and a line in this table.
