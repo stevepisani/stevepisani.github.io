@@ -32,7 +32,7 @@ sent are then finished by hand. The plan and what's next are in
   look made `dist/planets.js` about 735 KB (from 570). `ground.js` makes the
   ground: hills of its own, seeded by the planet's slug so no two are the same shape, patches of
   a duller tone and of pale dust, and loose stones, in the planet's own colour (`look.ground`). You land looking a little down,
-  tap or click to walk (a ring marks where; a tap through a thing's gaps, under a table or between chairs, still picks that thing), drag to look, WASD too.
+  tap or click to walk (a ring marks where; a tap through a thing's gaps, under a table or between chairs, still picks that thing, even with another behind it: the nearest box round what's drawn, turned with the thing), drag to look, WASD too.
   `things.js` draws their things: each is up to 40 parts (box, sphere, cylinder, cone, torus,
   capsule, or `text`: a panel of their words), each a size in metres, a place from the thing's
   foot, a turn, a colour and a finish (matte, gloss, metal, glass, glow), maybe spinning. For real

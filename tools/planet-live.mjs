@@ -83,7 +83,8 @@ for (const spec of PEOPLE) {
       // each of their things: turn to it, tap it, and its card says what it is
       for (const t of spec.things || []) {
         await page.keyboard.press('Escape');
-        await page.evaluate((id) => { const p = window.__planet; p.player.stop(); p.player.look(-p.player.yawToward(p.spec.things.find((x) => x.id === id).center), 0); }, t.id);
+        // from where they arrive, which every thing is placed to be seen from (walking round, one can hide another)
+        await page.evaluate((id) => { const p = window.__planet; p.player.stop(); p.player.spawn(p.player.up.clone().set(0, 1, 0), p.spec.things.find((x) => x.id === id).center, 0); }, t.id);
         // the camera turns on the next frame drawn, which a slow machine takes a while over
         const drawn = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
         await drawn();
