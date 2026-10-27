@@ -56,7 +56,11 @@
   "sam/crate": {
     "model": "A wooden crate full of vinyl records standing on end, their colourful sleeves showing, with one record leaning against the front of the crate",
     "style": "storybook",
-    "picture": "01a17ad2-175f-7590-917c-00f25bbe137c"
+    "picture": "01a17ad2-175f-7590-917c-00f25bbe137c",
+    "model3d": "01a17ada-dc3a-744c-931b-7c561cfee78f",
+    "file": "sam/crate.glb",
+    "bytes": 721072,
+    "made": "2026-10-27"
   },
   "test-dev/pad": {
     "model": "A folded blue climbing crash pad on the ground with a coiled red climbing rope on top and a chalk bag and a rack of climbing cams beside it",
