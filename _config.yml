@@ -75,3 +75,5 @@ exclude:
   - assets/js/apps
   - assets/js/mcp-app
   - assets/js/planets
+  # Marble drafts (tools/marble-place.mjs), for looking at, never published
+  - assets/splats/drafts

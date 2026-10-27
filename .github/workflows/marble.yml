@@ -1,0 +1,50 @@
+# Makes the worlds in tools/models/marble.json with World Labs' Marble (tools/marble-place.mjs)
+# and commits their splats to the branch it ran on. Here because it needs the WORLDLABS_API_KEY
+# repo secret. It runs whenever the manifest or its photos change on a branch other than main, or by
+# hand (with `redo`: worlds to make again). Credits are spent only on worlds that are missing, at
+# most $5 a run (MAX_CREDITS).
+name: Marble
+
+on:
+  push:
+    branches-ignore: [main]
+    paths: [tools/models/marble.json, tools/models/marble/**, tools/marble-place.mjs]
+  workflow_dispatch:
+    inputs:
+      redo:
+        description: Worlds to make again (comma-separated names from marble.json)
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: marble-${{ github.ref }}
+
+jobs:
+  make:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Make what's missing
+        id: make
+        continue-on-error: true
+        env:
+          WORLDLABS_API_KEY: ${{ secrets.WORLDLABS_API_KEY }}
+        run: node tools/marble-place.mjs --redo "${{ inputs.redo }}"
+      # whatever was made, even when something failed. Push again after it: a commit by this
+      # workflow doesn't start the Site checks.
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/splats
+          git diff --cached --quiet || { git commit -m "Marble worlds (tools/marble-place.mjs)" && git push; }
+      - if: steps.make.outcome != 'success'
+        run: exit 1
