@@ -55,7 +55,7 @@ const webp = await page.evaluate(async ({ place, back, FACE, W, H }) => {
   } else {
     // the planet: stand at the door's step (so the sky and the lamps are where they'd be), then
     // stop the frame loop and pose the camera by hand at the step, turned round to the trail
-    const w = window.__world, it = w.interactables.find((i) => i.id === 'door'), g = it.object;
+    const w = window.__world, it = w.interactables.find((i) => i.place === place), g = it.object;
     w.player.spawn(it.approach.clone().normalize(), it.point, 0);
     await new Promise((r) => setTimeout(r, 3000));
     w.renderer.setAnimationLoop(null);

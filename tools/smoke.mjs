@@ -567,7 +567,9 @@ async function planet(page, shot, { phone = false } = {}) {
     if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
     // the place is kept for next time, out of sight: one view of it, not drawn, not shown
     if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
-    step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail');
+    // the second door, behind the bar, onto a world made by Marble: there, and it goes somewhere
+    if (!(await page.evaluate(() => { const d = window.__world.interactables.find((i) => i.id === 'museum'); return d && d.place === 'museum' && d.verb === 'Step through'; }))) throw new Error('no door to the Art Museum behind the bar');
+    step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail; the door to the Art Museum is behind the bar');
   }
 }
 

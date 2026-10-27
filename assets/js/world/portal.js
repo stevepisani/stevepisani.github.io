@@ -109,14 +109,17 @@ async function load(place, parent, progress) {
   sun.position.set(4, 10, 6);
   scene.add(sun);
 
-  // the scan, turned upright (y down → y up: half a turn about x) and moved so where you come
-  // in is the origin, at ground level: the light copy first, the full one when it's in (it takes
-  // the light one's place; that one is hidden, not freed: see the top)
-  const up = (x, y, z) => new THREE.Vector3(x, -y, -z); // a scan point, upright
+  // the scan, turned upright (y down → y up: half a turn about x), in metres (`scale`: a made
+  // world's units aren't) and moved so where you come in is the origin, at ground level: the light
+  // copy first, the full one when it's in (it takes the light one's place; that one is hidden, not
+  // freed: see the top)
+  const scale = p.scale || 1;
+  const up = (x, y, z) => new THREE.Vector3(x, -y, -z).multiplyScalar(scale); // a scan point, upright
   const origin = up(...p.at);
   const mesh = (fileBytes, url) => {
     const m = new SplatMesh({ fileBytes, fileName: url });
     m.quaternion.set(1, 0, 0, 0);
+    m.scale.setScalar(scale);
     m.position.copy(origin).negate();
     return m;
   };
