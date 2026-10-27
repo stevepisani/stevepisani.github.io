@@ -1,58 +1,65 @@
 {
   "sam/turntable": {
     "model": "A 1960s record player: a walnut wood plinth, a black vinyl record with a blue label on the platter, a chrome tonearm resting on the record, two silver knobs at the front",
-    "preview": "01a17a42-f00b-7279-bd59-ab1cd724ba03",
-    "refine": "01a17a44-5183-7793-aa2d-70cde8e48e24",
+    "style": "storybook",
+    "picture": "01a17aac-39aa-74c6-80eb-5bfa730dcde1",
+    "model3d": "01a17aac-6210-759a-99a2-7b587ac29dad",
     "file": "sam/turntable.glb",
-    "bytes": 568996,
-    "made": "2026-10-26"
+    "bytes": 585144,
+    "made": "2026-10-27"
   },
   "sam/porch": {
     "model": "A small wooden front porch, built like a little open hut: a raised plank deck, four white posts holding up a corrugated tin roof, a white railing along the front, a porch lamp under the roof, and on the deck a red electric guitar leaning against a small black amplifier",
-    "preview": "01a17a4e-c33f-7320-a138-4812b4f0deba",
-    "refine": "01a17a50-58a0-70dd-b381-f4911ef8e615",
+    "style": "storybook",
+    "picture": "01a17aac-39a9-73c7-8867-e67ea56ffc82",
+    "model3d": "01a17aac-6204-7339-9e53-67cd6eb24dbe",
     "file": "sam/porch.glb",
-    "bytes": 800660,
-    "made": "2026-10-26"
+    "bytes": 856784,
+    "made": "2026-10-27"
   },
   "test-dev/wall": {
     "model": "A massive red sandstone cliff buttress like the Naked Edge in Eldorado Canyon, Colorado: broad and blocky at its base, rising in stacked layered slabs of red and orange rock with green lichen to a sharp knife-edge arete at the top, a blue climbing rope hanging down its face",
-    "preview": "01a17a4e-c3e9-71cc-9ae2-5bda3e2c0040",
-    "refine": "01a17a50-095d-71d3-81bc-3641f1bd8f95",
+    "style": "storybook",
+    "picture": "01a17aac-39d4-7005-ac21-aaa82d7588fa",
+    "model3d": "01a17aac-6235-742d-934c-c0db1eeea561",
     "file": "test-dev/wall.glb",
-    "bytes": 506864,
-    "made": "2026-10-26"
+    "bytes": 540760,
+    "made": "2026-10-27"
   },
   "test-dev/van": {
     "model": "A white high-roof camper van with an orange stripe along its side, a black roof rack, big off-road tyres, a ladder on the back doors, ready for a weekend of climbing",
-    "preview": "01a17a42-f086-7236-9a5c-74824d3c2e9a",
-    "refine": "01a17a45-4779-760a-ad71-83d1fa315c9f",
+    "style": "storybook",
+    "picture": "01a17aac-39d8-71f0-b338-e25c9a45edee",
+    "model3d": "01a17aac-894d-77ca-afd7-70956f376e8a",
     "file": "test-dev/van.glb",
-    "bytes": 840960,
-    "made": "2026-10-26"
+    "bytes": 1069728,
+    "made": "2026-10-27"
   },
   "test-ines/oven": {
     "model": "A traditional Portuguese wood-fired bread oven: a whitewashed clay dome on a low stone base, an arched brick opening with a fire glowing inside, a short chimney, three round loaves cooling on the ledge",
-    "preview": "01a17a42-fa93-73bb-8015-9f249fcfe727",
-    "refine": "01a17a45-f54a-7389-ba24-3abd3a263066",
+    "style": "storybook",
+    "picture": "01a17aae-93a7-7120-9e23-e643ef31474d",
+    "model3d": "01a17aae-e3f8-74b1-8dc4-cd928e6a544d",
     "file": "test-ines/oven.glb",
-    "bytes": 639816,
-    "made": "2026-10-26"
+    "bytes": 543068,
+    "made": "2026-10-27"
   },
   "test-ines/tram": {
     "model": "A vintage Lisbon tram, Tram 28: a short wooden tram car painted yellow below and cream above, rounded roof, a row of windows down each side, a trolley pole on the roof, the number 28 on the front",
-    "preview": "01a17a42-fa9a-7739-8b7a-dd13c85c2013",
-    "refine": "01a17a45-f4b6-7517-87d1-412e150d9646",
+    "style": "storybook",
+    "picture": "01a17aae-93e0-7642-a983-0f41cdab6ee6",
+    "model3d": "01a17aae-e396-7721-81c3-00a215628d1b",
     "file": "test-ines/tram.glb",
-    "bytes": 822760,
-    "made": "2026-10-26"
+    "bytes": 915368,
+    "made": "2026-10-27"
   },
   "test-ines/pao": {
     "model": "A Portuguese Pão de Deus sweet bun: a round, golden-brown glossy brioche bun with a crackly top of toasted shredded coconut, dusted with icing sugar",
-    "preview": "01a17a42-fa92-7441-b9dc-b2dabc4fc501",
-    "refine": "01a17a45-f4b9-74f9-8452-6034dd0d8cdf",
+    "style": "storybook",
+    "picture": "01a17aae-93e9-7482-9fa3-e2077e76a3e3",
+    "model3d": "01a17aae-bc54-71bd-b5c5-56bc72ca0354",
     "file": "test-ines/pao.glb",
-    "bytes": 707908,
-    "made": "2026-10-26"
+    "bytes": 622120,
+    "made": "2026-10-27"
   }
 }

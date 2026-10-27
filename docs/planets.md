@@ -173,10 +173,17 @@ status to `built` and tell them (the contact, if they gave one).
 
 Simple shapes only go so far (Steve, Oct 26: "still very very poor. let's try just using meshy").
 A thing can say what it is in words, `model` (up to 600 characters: what it is, its materials and
-colours, what makes it theirs). `tools/planet-models.mjs` makes a Meshy text-to-3D model from
-those words (a preview, then a refine with PBR textures, made small with gltf-transform: meshopt,
+colours, what makes it theirs). Every model is made in one house style, **storybook miniature**:
+hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy (Steve
+chose it on Oct 27 from the same oven and van drawn and modelled in three styles: "lock it in and
+have it as our style"). `tools/planet-models.mjs` holds the style's words (`STYLE`, `STYLE_NAME`)
+and makes each thing in two steps, the way the chariot in "Rockets and Horses" got its shape:
+first a picture in the house style (Meshy text-to-image, `nano-banana-2`: the thing alone on
+white, no ground, no base, no text or logos), kept in `tools/models/planets/pictures/`, then a
+model from the picture (image-to-3D with PBR textures), made small with gltf-transform (meshopt,
 1024 px WebP textures) into `assets/models/planets/<slug>/<thing id>.glb`, listed in
-`assets/models/planets/manifest.json` under `<slug>/<thing id>` with the words it was made from.
+`assets/models/planets/manifest.json` under `<slug>/<thing id>` with the words and the style it
+was made from. Change the style and every model is made again.
 The planet (`planets/models.js`) loads the manifest, and each model as it comes, one at a time,
 in place of the thing's shapes (`swap` in `things.js`): as big as fits in the room the shapes
 took (as tall, and as long along the ground), standing where they stood. The shapes show until
@@ -190,7 +197,7 @@ It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, wi
 for the Site checks). Only what's missing is paid for; a task already started is picked up, not
 paid for twice. The planets it makes models for: the kit's example (Sam) and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
-when it's finished). Caps: 8 models a planet, 24 a run, about $0.60 a model.
+when it's finished). Caps: 8 models a planet, 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
 cliff, and the porch and cliff made again from clearer words) took about 3 minutes a run. Words
 that describe one object do best: the porch came out as a guitar and an amp until its words said
@@ -201,6 +208,6 @@ model in the preview.
 
 ## Costs and limits
 
-Meshy, for a planet's real models: about $0.60 a model, at most 8 a planet (above). Otherwise
+Meshy, for a planet's real models: about $0.70 a model, at most 8 a planet (above). Otherwise
 no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).

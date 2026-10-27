@@ -1,6 +1,6 @@
 # Makes the real 3D models for the things on friends' planets (tools/planet-models.mjs: Meshy, from
-# the words in each thing's `model`) and commits them to the branch it ran on. Here because it
-# needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy. It runs whenever
+# the words in each thing's `model`, drawn first as a picture in the house style) and commits them
+# to the branch it ran on. Here because it needs the MESHY_API_KEY repo secret, and the Claude sandbox can't reach Meshy. It runs whenever
 # a planet's spec changes on a branch other than main, or by hand (with `redo`: slug/id,
 # comma-separated). Meshy credits are spent only on what's missing, capped in the tool (8 models a
 # planet, 24 a run).
@@ -45,7 +45,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/models/planets
+          git add assets/models/planets tools/models/planets
           git diff --cached --quiet || { git commit -m "Models for friends' planets (tools/planet-models.mjs)" && git push; }
       - if: steps.make.outcome != 'success'
         run: exit 1
