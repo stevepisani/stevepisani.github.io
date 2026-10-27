@@ -99,20 +99,24 @@ async function start(spec) {
   player.look(window.__veilLook || 0, 0); // face where they looked while it loaded
   player.enabled = true;
 
-  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _box = new THREE.Box3(), _p = new THREE.Vector3();
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), _ray = new THREE.Ray(), _inv = new THREE.Matrix4(), _p = new THREE.Vector3();
   let walked = false;
   const aim = (x, y) => {
     ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     const thing = ray.intersectObjects(things.pickable, false)[0];
     const hit = ray.intersectObject(ground.mesh, false)[0];
-    if (thing && (!hit || thing.distance <= hit.distance + 0.01)) return { thing: thing.object.userData.thing };
-    // a tap through a thing's gaps (under a table, between chairs) still means that thing: its box
-    let best = null, d = hit ? hit.distance : Infinity;
+    let best = null, d = hit ? hit.distance + 0.01 : Infinity;
+    if (thing && thing.distance <= d) { best = thing.object.userData.thing; d = thing.distance; }
+    // a tap through a thing's gaps (under a table, between chairs) still means that thing, even with
+    // another thing behind it: the nearest box in the way, the box round what's drawn, turned with the
+    // thing (one square to the world, round a thing tilted on the planet, reaches well past it)
     for (const t of spec.things || []) {
-      if (!t.root) continue;
-      const p = ray.ray.intersectBox(_box.setFromObject(t.root), _p);
-      const k = p && p.distanceTo(ray.ray.origin);
+      if (!t.root || !t.hull) continue;
+      _ray.copy(ray.ray).applyMatrix4(_inv.copy(t.root.matrixWorld).invert());
+      if (t.hull.containsPoint(_ray.origin)) continue; // standing in its box: its mesh decides
+      const p = _ray.intersectBox(t.hull, _p);
+      const k = p && p.applyMatrix4(t.root.matrixWorld).distanceTo(ray.ray.origin);
       if (p && k < d) { d = k; best = t; }
     }
     return best ? { thing: best } : hit ? { point: hit.point } : null;
