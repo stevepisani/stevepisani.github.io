@@ -580,7 +580,7 @@ async function start() {
     if (it.id === 'stones') return goToShore();
     if (it.id === 'bottles') return goToBottles();
     if (it.id === 'launch') return lookThroughScope();
-    if (it.id === 'door') return stepThrough(it);
+    if (it.place) return stepThrough(it); // a door to a real place
     if (it.id === 'console') return lookAtConsole();
     if (it.id === 'petunias') return player.face(it.point, () => { if (state === 'walk') say('Oh no, not again.', 4000); }, { down: true });
     // a landmark that's a panel: turn to it first, so it's there when the panel closes
@@ -2024,15 +2024,17 @@ async function start() {
   // where you went in, the door in front of you.
   const doorLeave = $('door-leave'), portalCredit = $('portal-credit');
   const portalUrl = (() => { const u = new URL('./portal.js', import.meta.url); u.search = new URL(import.meta.url).search; return u.href; })();
-  const door = { it: null, view: null, busy: false, inside: false, tries: 0, fetching: false };
-  // Loading fast: as you come within 16 m of the door, its place starts coming in (its bundle, then
+  const door = { it: null, view: null, busy: false, inside: false, tries: 0, fetching: new Set() };
+  // Loading fast: as you come within 16 m of a door, its place starts coming in (its bundle, then
   // the light copy, then the full splat; portal.js prefetch()), so by the time you're at the step
   // there's little or nothing left to wait for.
-  const doorSpot = spot('door');
-  if (doorSpot) setInterval(() => {
-    if (door.fetching || state !== 'walk' || player.pos.distanceTo(doorSpot.point) > 16) return;
-    door.fetching = true;
-    import(/* by URL, as below */ portalUrl).then((m) => m.prefetch(doorSpot.place)).catch(() => { door.fetching = false; });
+  const doorSpot = spot('door'), doorSpots = interactables.filter((i) => i.place);
+  if (doorSpots.length) setInterval(() => {
+    if (state !== 'walk') return;
+    const near = doorSpots.find((d) => !door.fetching.has(d.place) && player.pos.distanceTo(d.point) < 16);
+    if (!near) return;
+    door.fetching.add(near.place);
+    import(/* by URL, as below */ portalUrl).then((m) => m.prefetch(near.place)).catch(() => { door.fetching.delete(near.place); });
   }, 1000);
   function stepThrough(it) {
     if (state !== 'walk' || door.busy) return;
@@ -2071,7 +2073,8 @@ async function start() {
             if (state !== 'door' || door.view !== view) return;
             door.inside = true;
             renderer.setAnimationLoop(null); // the planet rests while you're away
-            portalCredit.innerHTML = `<b>${P.name}</b>, ${P.where}. Scan by ${P.credit.by} (<a href="${P.credit.source}" target="_blank" rel="noopener">SuperSplat</a>), <a href="${P.credit.licenseUrl}" target="_blank" rel="noopener">${P.credit.license}</a>, cropped.`;
+            const C = P.credit;
+            portalCredit.innerHTML = `<b>${P.name}</b>, ${P.where}. ${C.made} ${C.by} (<a href="${C.source}" target="_blank" rel="noopener">${C.site}</a>), <a href="${C.licenseUrl}" target="_blank" rel="noopener">${C.license}</a>${C.note ? `, ${C.note}` : ''}.`;
             portalCredit.hidden = false;
             doorLeave.hidden = false;
             door.busy = false;

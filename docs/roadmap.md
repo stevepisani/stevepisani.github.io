@@ -32,6 +32,14 @@ rather than leaving it in a chat.
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 
+0. **A place to step into on friends' planets, made by Marble?** The Art Museum door (Oct 27,
+   `docs/world.md`, "A made place") was the test. What it showed: Marble makes a walkable splat
+   world in about 5 minutes for $1.28 to $2.48 (8 MB at 500k splats), and it needs a picture: from
+   words alone it invents the building. So for a friend it would be one place, from their own photo
+   or the storybook picture we already make, behind a door on their planet. Not decided: Steve to
+   walk the museum first. Genie 4 (Oct 27) can't do this: no public API, and it streams video
+   rather than giving 3D we can keep.
+
 0. **The inbox, more of it** (`docs/vision.md`, rule 4): the table is in (`public.inbox`, each
    file kept as it came under `photos/inbox/<owner>/`), and a Google Takeout is its first source.
    Next: photos, links, screenshots and receipts dropped in the same way, processed now, overnight
@@ -103,7 +111,8 @@ rather than leaving it in a chat.
 
 - **Your own captures for the door:** a Gaussian-splat scan of the backyard or a Philly park (or
   a real tiki bar, with the owner's okay) with Polycam or Scaniverse, exported as `.ply` or
-  `.spz`. A new place is an entry in `realplaces.js`, a file in `assets/splats/` and a panorama
+  `.spz`. Or just a few photos of a place: Marble makes the world (`tools/models/marble.json`,
+  about $1.28 to $2.48 each, from the credits on platform.worldlabs.ai). A new place is an entry in `realplaces.js`, a file in `assets/splats/` and a panorama
   (`tools/portal-view.mjs`); `docs/world.md` has the steps. Credit Polycam on what's shown.
 - **From the security audit (Oct 2026), in the Supabase dashboard:** upgrade Postgres (Project
   Settings, Infrastructure: the advisor says 17.4.1.074 has security fixes waiting; a few minutes
@@ -132,6 +141,9 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: a second door, behind the bar, onto the Rocky Steps of the Philadelphia Museum of Art:
+  a world made by World Labs' Marble from two Wikimedia Commons photos (Dough4872, CC BY-SA 4.0),
+  not scanned. The Marble workflow makes worlds from words or photos (`tools/marble-place.mjs`).
 - Oct 2026: the two data posts moved to Tabby Stack's blog (tabbystack.io/blog); their old addresses here redirect there (`moved/`, `_layouts/redirect.html`), and /about links to it. This blog is for everything else now.
 - Oct 2026: holidays on the planet, only on the day (the visitor's date; `?holiday=halloween` to
   see it any day): Halloween first, jack-o'-lanterns along the walk and round the bar, bats round

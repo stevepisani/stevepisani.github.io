@@ -9,7 +9,8 @@
 // Writes, for a world called name (under drafts/ for a draft):
 //   name.spz        the splat at 500k splats (the full one; about 10 MB)
 //   name-lite.spz   at 100k (the light copy, shown first)
-//   name-pano.jpg   Marble's panorama of it
+//   name-pano.jpg   Marble's panorama of it, from where you come in (in assets/splats/drafts/, never
+//                   published: the door's view is made from it, smaller)
 //   name.json       the world's id, its Marble link, the caption, and the scale and ground offset
 //                   that turn its units into metres
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -82,7 +83,7 @@ const errors = [];
 for (const [name, w] of todo) {
   try {
     const dir = new URL(`${w.draft ? 'assets/splats/drafts' : 'assets/splats'}/`, root);
-    mkdirSync(dir, { recursive: true });
+    mkdirSync(new URL('assets/splats/drafts/', root), { recursive: true });
     const op = await call('/worlds:generate', { display_name: name, model: w.model, world_prompt: await prompt(w) });
     console.log(`${name}: started (${op.operation_id})`);
     let done = op;
@@ -97,7 +98,7 @@ for (const [name, w] of todo) {
     const { splats, imagery, caption } = world.assets;
     await download(splats.spz_urls['500k'] || splats.spz_urls.full_res, new URL(`${name}.spz`, dir));
     await download(splats.spz_urls['100k'], new URL(`${name}-lite.spz`, dir));
-    if (imagery?.pano_url) await download(imagery.pano_url, new URL(`${name}-pano.jpg`, dir));
+    if (imagery?.pano_url) await download(imagery.pano_url, new URL(`assets/splats/drafts/${name}-pano.jpg`, root));
     writeFileSync(new URL(`${name}.json`, dir), JSON.stringify({
       id: world.id, marble: world.world_marble_url, model: w.model, made: new Date().toISOString(), caption,
       credit: w.credit,
