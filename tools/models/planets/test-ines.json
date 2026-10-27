@@ -61,17 +61,29 @@
       "light": {"color":"#fff0c8","strength":0.5,"at":[0,1.6,0]}
     },
     {
-      "id": "pao",
-      "name": "Pão de Deus",
-      "note": "My grandmother’s, every Sunday.",
+      "id": "table",
+      "name": "The cooling table",
+      "note": "Pão de Deus, every Sunday.",
       "collection": "breads",
-      "at": {"bearing":4,"distance":4.5},
-      "scale": 1.4,
-      "model": "A Portuguese Pão de Deus sweet bun: a round, golden-brown glossy brioche bun with a crackly top of toasted shredded coconut, dusted with icing sugar",
+      "near": {"of":"oven","side":"left","gap":0.6},
+      "model": "A small rustic wooden table with a linen cloth, a wicker basket and a tray of round golden Pão de Deus buns topped with coconut, cooling",
       "parts": [
-        {"shape":"lathe","size":[1.3,0.7,1.3],"at":[0,0.35,0],"color":"#c98a3c","finish":"gloss","profile":[[0.85,0],[0.97,0.15],[1,0.35],[0.92,0.6],[0.7,0.82],[0.4,0.95],[0,1]]},
-        {"shape":"lathe","size":[1,0.3,1],"at":[0,0.66,0],"color":"#f4ead2","profile":[[1,0],[0.85,0.45],[0.55,0.8],[0,1]]},
-        {"shape":"sphere","size":[0.06,0.03,0.06],"at":[0.3,0.74,0],"color":"#ffffff","repeat":{"count":12,"turn":[0,30,0]}}
+        {"shape":"box","size":[1.4,0.08,0.8],"at":[0,0.78,0],"color":"#8a5a3a"},
+        {"shape":"box","size":[0.08,0.74,0.08],"at":[0.6,0.37,0.32],"color":"#7a4a2a","mirror":true,"repeat":{"count":2,"at":[0,0,-0.64]}},
+        {"shape":"sphere","size":[0.22,0.12,0.22],"at":[-0.3,0.88,0],"color":"#c98a3c","repeat":{"count":4,"at":[0.2,0,0]}}
+      ]
+    },
+    {
+      "id": "bench",
+      "name": "The bench",
+      "note": "Where the dough rests, and so do I.",
+      "collection": "mornings",
+      "near": {"of":"oven","side":"right","gap":0.6},
+      "model": "A weathered wooden bench with two sacks of flour leaning against it and a wooden bread peel propped beside it",
+      "parts": [
+        {"shape":"box","size":[1.5,0.08,0.45],"at":[0,0.45,0],"color":"#8a6a4a"},
+        {"shape":"box","size":[0.08,0.41,0.4],"at":[0.65,0.2,0],"color":"#7a5a3a","mirror":true},
+        {"shape":"capsule","size":[0.4,0.6,0.3],"at":[-0.4,0.3,0.4],"color":"#e8dcc4"}
       ]
     }
   ]

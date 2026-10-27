@@ -16,6 +16,7 @@ import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
 import { buildThings } from './things.js';
 import { loadModels } from './models.js';
+import { buildPaths } from './paths.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('planet'), canvas = $('planet-canvas'), veil = $('veil'), status = $('veil-status'), hint = $('hint'), card = $('thing');
@@ -81,6 +82,9 @@ async function start(spec) {
   // what their AI made for them from what they love (things.js); none, and the planet is bare
   const things = buildThings(spec.things, ground.surface);
   scene.add(things.group);
+  // worn paths from where you land to each of their places (paths.js)
+  const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color);
+  if (paths) scene.add(paths);
   if ((spec.things || []).length) hint.dataset.things = '';
   // their real models, where they've been made (models.js), in place of the shapes as they come
   const models = loadModels(spec, things);

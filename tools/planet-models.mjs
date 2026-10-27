@@ -63,7 +63,7 @@ async function make({ key, slug, thing }, manifest, save, redo) {
   if (!existsSync(picture)) {
     // a picture already asked for is waited for, not paid for twice
     if (!rec.picture) { rec.picture = await task({ ai_model: 'nano-banana-2', prompt: `${thing.model}. ${STYLE}. ${FRAME}.`.slice(0, 1000), aspect_ratio: '1:1' }, TEXT_TO_IMAGE); save(); }
-    const done = await finished(rec.picture, `${key} picture`, TEXT_TO_IMAGE);
+    const done = await finished(rec.picture, `${key} picture`, TEXT_TO_IMAGE).catch((e) => { delete rec.picture; save(); throw e; });
     mkdirSync(PICTURES, { recursive: true });
     writeFileSync(picture, Buffer.from(await (await get(done.image_urls[0])).arrayBuffer()));
     delete rec.model3d;
@@ -74,7 +74,8 @@ async function make({ key, slug, thing }, manifest, save, redo) {
     rec.model3d = await task({ image_url, ai_model: 'latest', topology: 'triangle', target_polycount: 30000, should_remesh: true, should_texture: true, enable_pbr: true }, IMAGE_TO_3D);
     save();
   }
-  const done = await finished(rec.model3d, `${key} model`, IMAGE_TO_3D);
+  // a task Meshy failed is forgotten, so the next run asks again rather than waiting on it forever
+  const done = await finished(rec.model3d, `${key} model`, IMAGE_TO_3D).catch((e) => { delete rec.model3d; save(); throw e; });
   const raw = TMP + key.replace('/', '-') + '.glb', file = `${key}.glb`;
   mkdirSync(OUT + slug, { recursive: true });
   writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));

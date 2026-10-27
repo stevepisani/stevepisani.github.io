@@ -45,6 +45,9 @@ export const SIGHTS = ['moon', 'sun', 'earth'];
 // keys of a piano, petals round a stem) and mirrored left to right (a pair of wings).
 export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text', 'lathe', 'extrude', 'tube'];
 export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
+// where a thing can stand beside another (near): in front of it (the side it faces), behind it,
+// or to its left or right as it faces
+export const SIDES = ['front', 'back', 'left', 'right'];
 
 export const LIMITS = {
   bytes: 64 * 1024, // the whole spec, as JSON
@@ -202,20 +205,30 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'turn', 'scale', 'solid', 'model', 'parts', 'light']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'parts', 'light']);
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
     text(`${at}.note`, t.note, LIMITS.text);
     text(`${at}.model`, t.model, LIMITS.text);
     known(`${at}.collection`, t.collection);
-    if (!isObj(t.at)) fail(`${at}.at`, 'missing: { bearing, distance }');
+    // placed from where you land (at), or beside another thing placed before it (near)
+    if ((t.at === undefined) === (t.near === undefined)) fail(`${at}.at`, 'should have at: { bearing, distance }, or near: { of, side, gap }, not both');
+    else if (t.at !== undefined) {
+      if (!isObj(t.at)) fail(`${at}.at`, 'should be { bearing, distance }');
+      else {
+        only(`${at}.at`, t.at, ['bearing', 'distance']);
+        if (t.at.bearing === undefined) fail(`${at}.at.bearing`, 'missing');
+        between(`${at}.at.bearing`, t.at.bearing, -180, 180);
+        if (t.at.distance === undefined) fail(`${at}.at.distance`, 'missing');
+        between(`${at}.at.distance`, t.at.distance, 2, 60);
+      }
+    } else if (!isObj(t.near)) fail(`${at}.near`, 'should be { of, side, gap }');
     else {
-      only(`${at}.at`, t.at, ['bearing', 'distance']);
-      if (t.at.bearing === undefined) fail(`${at}.at.bearing`, 'missing');
-      between(`${at}.at.bearing`, t.at.bearing, -180, 180);
-      if (t.at.distance === undefined) fail(`${at}.at.distance`, 'missing');
-      between(`${at}.at.distance`, t.at.distance, 2, 60);
+      only(`${at}.near`, t.near, ['of', 'side', 'gap']);
+      if (!thingIds.has(t.near.of) || t.near.of === t.id) fail(`${at}.near.of`, 'should be the id of a thing listed before this one');
+      if (!SIDES.includes(t.near.side)) fail(`${at}.near.side`, `should be one of ${SIDES.join(', ')}`);
+      between(`${at}.near.gap`, t.near.gap, 0, 10);
     }
     between(`${at}.turn`, t.turn, -180, 180);
     between(`${at}.scale`, t.scale, 0.25, 4);
@@ -412,11 +425,9 @@ export function planetParts(spec) {
 const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from the middle, in metres
 
 /** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
-export function lookOver(spec) {
-  const notes = [];
-  const things = spec.things || [];
-  // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
-  const boxes = (t) => (t.parts || []).map((p) => {
+// each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
+function partBoxes(t) {
+  return (t.parts || []).map((p) => {
     // a turned part is measured as if it could face any way: turned about its up, its longest side
     // either way along the ground; tipped over, its longest side every way
     const [x, y, z] = p.size, [tx, ty, tz] = (p.turn || [0, 0, 0]).map((a) => a % 180 !== 0), s = t.scale || 1;
@@ -432,12 +443,56 @@ export function lookOver(spec) {
     }
     return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys), Math.min(...zs), Math.max(...zs)].map((v) => v * s);
   });
-  const reach = new Map();
+}
+const boxOf = (bs) => [Math.min(...bs.map((b) => b[0])), Math.max(...bs.map((b) => b[1])), Math.min(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3])), Math.min(...bs.map((b) => b[4])), Math.max(...bs.map((b) => b[5]))];
+
+/** How far a thing reaches from its foot along the ground, in metres. */
+export function thingReach(t) {
+  const bs = partBoxes(t);
+  if (!bs.length) return 0;
+  const all = boxOf(bs);
+  return Math.max(Math.abs(all[0]), Math.abs(all[1]), Math.abs(all[4]), Math.abs(all[5]));
+}
+
+/**
+ * Where each thing stands: { bearing, distance, turn } by id, from where you land. A thing placed
+ * with at stands there; one placed near another stands on that side of it, clear of it by gap
+ * (half a metre unless said), facing it, then turned by its own turn. Worked out on a flat map of
+ * the ground round where you land (x to the right, n ahead), close enough on a planet this size.
+ * turn is from facing where you land, as things.js turns them.
+ */
+export function placeThings(things = []) {
+  const placed = new Map(), DEG = Math.PI / 180;
+  const rot = ([x, n], a) => [x * Math.cos(a) - n * Math.sin(a), x * Math.sin(a) + n * Math.cos(a)];
+  const unit = ([x, n]) => { const l = Math.hypot(x, n) || 1; return [x / l, n / l]; };
+  for (const t of things) {
+    if (t.at) { placed.set(t.id, { bearing: t.at.bearing, distance: t.at.distance, turn: t.turn || 0 }); continue; }
+    const of = placed.get(t.near && t.near.of), anchor = things.find((x) => x.id === (t.near && t.near.of));
+    if (!of) continue;
+    const p = [of.distance * Math.sin(of.bearing * DEG), of.distance * Math.cos(of.bearing * DEG)];
+    // the side it faces: back toward where you land, then its own turn
+    const front = rot(unit([-p[0], -p[1]]), of.turn * DEG);
+    const side = { front, back: [-front[0], -front[1]], left: rot(front, Math.PI / 2), right: rot(front, -Math.PI / 2) }[t.near.side];
+    const apart = thingReach(anchor) + (t.near.gap ?? 0.5) + thingReach(t);
+    const c = [p[0] + side[0] * apart, p[1] + side[1] * apart];
+    // facing the thing it's near: the turn from facing where you land to facing it
+    const from = unit([-c[0], -c[1]]), to = unit([p[0] - c[0], p[1] - c[1]]);
+    const face = Math.atan2(from[0] * to[1] - from[1] * to[0], from[0] * to[0] + from[1] * to[1]) / DEG;
+    const turn = ((face + (t.turn || 0) + 540) % 360) - 180;
+    placed.set(t.id, { bearing: Math.atan2(c[0], c[1]) / DEG, distance: Math.max(0.5, Math.hypot(c[0], c[1])), turn });
+  }
+  return placed;
+}
+
+export function lookOver(spec) {
+  const notes = [];
+  const things = spec.things || [];
+  const reach = new Map(), placed = placeThings(things);
   const lit = things.some((t) => t.light || (t.parts || []).some((p) => p.finish === 'glow'));
   things.forEach((t, i) => {
-    const bs = boxes(t);
+    const bs = partBoxes(t);
     if (!bs.length) return;
-    const all = [Math.min(...bs.map((b) => b[0])), Math.max(...bs.map((b) => b[1])), Math.min(...bs.map((b) => b[2])), Math.max(...bs.map((b) => b[3])), Math.min(...bs.map((b) => b[4])), Math.max(...bs.map((b) => b[5]))];
+    const all = boxOf(bs);
     const wide = Math.max(all[1] - all[0], all[5] - all[4]), tall = all[3] - all[2];
     if (wide < 0.4 && tall < 0.4) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
     // the ground falls away by length² / 8R under something straight: 15 cm at 5 m
@@ -450,18 +505,21 @@ export function lookOver(spec) {
       const held = bs.some((o, k) => k !== j && near(o, b));
       if (!held) notes.push(`things[${i}].parts[${j}] (${p.shape}): touches nothing and hangs ${b[2].toFixed(2)} m above the ground; move it onto another part or the ground (at is its middle)`);
     });
-    reach.set(t, Math.max(Math.abs(all[0]), Math.abs(all[1]), Math.abs(all[4]), Math.abs(all[5])));
+    reach.set(t, thingReach(t));
   });
   // two things in each other: their feet closer than they reach
   const where = (t) => {
-    const b = t.at.bearing * Math.PI / 180, a = t.at.distance / GROUND_RADIUS;
+    const at = placed.get(t.id);
+    if (!at) return null;
+    const b = at.bearing * Math.PI / 180, a = at.distance / GROUND_RADIUS;
     return [Math.sin(a) * Math.sin(b), Math.cos(a), -Math.sin(a) * Math.cos(b)];
   };
   for (let i = 0; i < things.length; i++) {
     for (let j = i + 1; j < things.length; j++) {
       const [a, b] = [where(things[i]), where(things[j])];
+      if (!a || !b) continue;
       const apart = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])) * GROUND_RADIUS;
-      if (apart < (reach.get(things[i]) || 0) + (reach.get(things[j]) || 0) - 0.3) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ${apart.toFixed(1)} m apart, so they stand in each other; move one (at.bearing or at.distance)`);
+      if (apart < (reach.get(things[i]) || 0) + (reach.get(things[j]) || 0) - 0.3) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ${apart.toFixed(1)} m apart, so they stand in each other; move one (its at, or its near's gap)`);
     }
   }
   if (things.length && !lit) notes.push('things: nothing glows and nothing casts light, so the planet is dim at night; give something a light or a glowing part');

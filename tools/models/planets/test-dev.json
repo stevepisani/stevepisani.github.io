@@ -57,6 +57,31 @@
         {"shape":"lathe","size":[0.35,0.3,0.35],"at":[1.6,0.75,0.4],"color":"#b0b4bc","finish":"metal","profile":[[0.8,0],[0.95,0.1],[0.95,0.9],[1,1]]}
       ],
       "light": {"color":"#9ec2ff","strength":0.5,"at":[1.4,1.2,0]}
+    },
+    {
+      "id": "pad",
+      "name": "At the foot of the wall",
+      "note": "Two ropes, too many cams.",
+      "collection": "gear",
+      "near": {"of":"wall","side":"front","gap":0.4},
+      "model": "A folded blue climbing crash pad on the ground with a coiled red climbing rope on top and a chalk bag and a rack of climbing cams beside it",
+      "parts": [
+        {"shape":"box","size":[1.2,0.3,0.9],"at":[0,0.15,0],"round":0.2,"color":"#3a6ab0"},
+        {"shape":"torus","size":[0.6,0.6,0.6],"at":[0,0.35,0],"turn":[90,0,0],"color":"#c83a3a"}
+      ]
+    },
+    {
+      "id": "camp",
+      "name": "Camp",
+      "note": "A stove older than me.",
+      "collection": "gear",
+      "near": {"of":"van","side":"left","gap":0.5},
+      "model": "A little campsite: two folding camp chairs facing a small old green camping stove with a kettle on it, and a lantern glowing on the ground",
+      "parts": [
+        {"shape":"box","size":[0.5,0.3,0.35],"at":[0,0.15,0],"color":"#4a6a3a"},
+        {"shape":"box","size":[0.5,0.8,0.5],"at":[0.7,0.4,0.3],"color":"#3a5a8a","mirror":true}
+      ],
+      "light": {"color":"#ffcf8a","strength":0.5,"at":[0,0.6,0.4]}
     }
   ]
 }
