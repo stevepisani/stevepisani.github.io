@@ -47,7 +47,13 @@ sent are then finished by hand. The plan and what's next are in
   other thing never hides them from where you land): `placeThings` in `_shared/planet.js` works out
   where, clear of the other by both their reaches plus the gap, and turns it to face the other, so
   a planet is a few little places (an oven with its table and bench) rather than things in a ring.
-  The same function places things for `lookOver`, so its notes match what's drawn. `paths.js`
+  The same function places things for `lookOver`, so its notes match what's drawn. A thing can
+  say what it does when you walk up to it (`use`): `sit` sits you on it, facing the way it faces
+  (so a bench set near the oven looks at the oven), with a "Stand up" button under their name, and
+  Esc, a step or a tap elsewhere gets you up; `switch` turns its light, and whatever glows on it,
+  on or off. Sitting down and getting up are one eased motion by the clock, from and to the walking
+  view (a cut with reduced motion). A walk that's blocked close to the thing (the van beside the
+  camp chairs) still counts as there. `paths.js`
   lays a worn path from where you land to each thing placed by `at` (3 m out or more), curving in
   to its front: one mesh, a canvas texture with soft edges, in a paler shade of the ground.
   The planet is 20 m across, so the horizon is about 6 m off: 3 to 10 m is in full view from
@@ -152,12 +158,14 @@ deployed connector at `mcp.stevenpisani.com/planets`, with three made-up people 
 Lisbon, a climber in Denver, and someone with only a name): it says hello, lists the tools, opens
 the kit and the card's page, sends back a spec with a mistake, previews each planet, opens its
 preview page in headless Chromium and checks it draws, says whose it is and walks where you tap,
-then sends each one. Their slugs start with `test-`, and a planet whose slug does is saved as a
+taps each thing from where you land for its card (and sits on what's for sitting, switches what
+switches), then sends each one. Their slugs start with `test-`, and a planet whose slug does is saved as a
 test (`status = 'test'`, `20261026000200_planet_request_tests.sql`): it has its own 20 a day and
 never takes a real planet's place, Steve is never told, and the hourly job deletes it a day
 later. Check what was saved in Supabase (`select slug, status, note from planet_requests where
-status = 'test'`). `--no-send` stops before sending; `--site _site --url <a local connector>`
-tries the script itself offline.
+status = 'test'`). `--no-send` stops before sending; `--site _site` serves the site from a local build, and
+`--local` asks this checkout's connector in the same process (nothing is sent), so `--local
+--site _site` tries a change to both before it's merged.
 
 A cloud session needs its environment to allow `mcp.stevenpisani.com` and `stevenpisani.com`
 (Allowed domains, in the project's cloud environment settings); without them the first call
@@ -198,12 +206,20 @@ took (as tall, and as long along the ground), standing where they stood. The sha
 then, and still do if the words have changed since. The pictures sent back to the AI wait for the
 models.
 
+Stock things, as a film set keeps stock props: nine small things every place uses (bench, chair,
+table, lamp post, crate, sack, mailbox, planter, fence; `STOCK` in `_shared/planet.js`, each with
+its size and its words), made once in the house style as the planet `stock` (`stock/<name>` in the
+manifest; Steve approved about $6 for them, Oct 27). A thing says `stock: 'bench'` instead of model
+words and needs no parts: `partsOf` gives it a rounded box its size, which stands in until the
+model loads, for the layout, `lookOver` and taps alike. Any planet can have them, free and at once,
+so each planet's own models go on what's truly theirs (all nine were made on Oct 27, 0.5 to 1.3 MB each). Sam's example has a stock bench to sit on.
+
 It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, with the
 `MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
 `tools/models/planets/` or the kit's example changes on a branch other than main, or by hand with
 `redo` (`slug/id`, comma-separated), and commits what it made to that branch (push again after,
 for the Site checks). Only what's missing is paid for; a task already started is picked up, not
-paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam) and each spec in
+paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam), the stock things, and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
 when it's finished). Caps: 14 models a planet (about $10) for the first 10 friends' planets, then none until Steve says (Steve, Oct 27: "10 an onboarding for the first 10 people"; the example and `test-` planets don't count), 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
