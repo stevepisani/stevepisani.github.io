@@ -75,6 +75,7 @@
     },
     {
       "id": "bench",
+      "use": "sit",
       "name": "The bench",
       "note": "Where the dough rests, and so do I.",
       "collection": "mornings",

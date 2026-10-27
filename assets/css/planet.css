@@ -42,6 +42,11 @@
 .hint[data-things] > span + span { display: inline; }
 @media (pointer: coarse) { .hint::before { content: "Tap anywhere to walk. Drag to look around."; } .hint[data-things]::before { content: "Tap anything to walk up to it. Drag to look around."; } .hint { font-size: 0; } .hint::before { font-size: .95rem; } .hint > span { display: none !important; } }
 
+/* Sitting on one of their things (use: sit): the way back up, under their name, clear of the card */
+.stand { position: absolute; z-index: 6; left: 16px; top: 72px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: rgb(14 16 36 / .72); backdrop-filter: blur(10px); border: 1px solid rgb(255 255 255 / .18); color: #fff; font: 600 .95rem var(--font-body); cursor: pointer; }
+.stand:hover { background: rgb(30 34 70 / .82); }
+.stand[hidden] { display: none; }
+
 /* One of their things, tapped: what it is, in their words. A card at the bottom on a phone, at the
    side on a computer; × or Esc closes it, and so does walking somewhere else. */
 .thing { position: absolute; z-index: 6; right: 16px; top: 64px; width: min(340px, calc(100vw - 32px)); max-height: calc(100% - 96px); overflow: auto; box-sizing: border-box; padding: 18px 20px 16px; border-radius: 16px; background: rgb(14 16 36 / .82); backdrop-filter: blur(12px); border: 1px solid rgb(255 255 255 / .12); color: #e8eaf8; font: .95rem/1.45 var(--font-body); -webkit-user-select: text; user-select: text; }

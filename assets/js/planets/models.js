@@ -3,14 +3,17 @@
 // by the Planet models workflow) into assets/models/planets/, listed in its manifest.json under
 // "<slug>/<thing id>" with the words it was made from. Once it's here it takes the place of the
 // thing's simple shapes, which show until then, and still do if the words have changed since.
+// A stock thing (stock in its spec) gets the stock model, made once for every planet
+// ("stock/<name>", from the words in STOCK).
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { STOCK } from '../../../supabase/functions/_shared/planet.js';
 
 const BASE = new URL('../../models/planets/', import.meta.url);
 
 /** Loads the models made for this planet's things and swaps each in (things.swap); resolves to how many. */
 export async function loadModels(spec, things) {
-  const wanted = (spec.things || []).filter((t) => t.model);
+  const wanted = (spec.things || []).filter((t) => t.model || t.stock);
   if (!wanted.length) return 0;
   let made;
   try { made = await (await fetch(new URL('manifest.json', BASE))).json(); } catch { return 0; }
@@ -18,8 +21,9 @@ export async function loadModels(spec, things) {
   let n = 0;
   // one at a time, so the walk keeps drawing between them (each is parsed on the main thread)
   for (const t of wanted) {
-    const m = made[`${spec.slug}/${t.id}`];
-    if (!m || m.model !== t.model) continue;
+    const [key, words] = t.stock ? [`stock/${t.stock}`, STOCK[t.stock].model] : [`${spec.slug}/${t.id}`, t.model];
+    const m = made[key];
+    if (!m || m.model !== words) continue;
     try {
       things.swap(t, (await loader.loadAsync(new URL(m.file, BASE).href)).scene);
       n++;

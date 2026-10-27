@@ -6,8 +6,9 @@
 // gltf-transform into assets/models/planets/<slug>/<thing id>.glb and listed in
 // assets/models/planets/manifest.json under "<slug>/<thing id>" with the words and the style it
 // was made from. The planet (assets/js/planets/models.js) shows it in place of the thing's
-// shapes. The planets: the kit's example (Sam, in supabase/functions/planets/server.js) and each
-// spec in tools/models/planets/. Run by .github/workflows/planet-models.yml, which has
+// shapes. The planets: the kit's example (Sam, in supabase/functions/planets/server.js), the stock
+// things (STOCK in supabase/functions/_shared/planet.js: small things any planet can use, made
+// once, under "stock/<name>"), and each spec in tools/models/planets/. Run by .github/workflows/planet-models.yml, which has
 // MESHY_API_KEY:
 //
 //   MESHY_API_KEY=... node tools/planet-models.mjs [--redo slug/id,slug/id]
@@ -17,15 +18,18 @@
 // a planet for the first 10 friends).
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, statSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkPlanet } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, partsOf, STOCK } from '../supabase/functions/_shared/planet.js';
 import { EXAMPLE } from '../supabase/functions/planets/server.js';
 import { get, task, finished, balance, optimize, IMAGE_TO_3D, TEXT_TO_IMAGE } from './meshy.mjs';
 
 // the caps (Steve, Oct 27, 2026: "10 an onboarding for the first 10 people"): 14 models a planet,
 // about $10, for the first 10 friends' planets, then none until he says; 24 a run. The kit's example
-// and the test planets (test-…) aren't friends and don't count toward the 10.
+// the stock things (Steve approved about $6 for them, Oct 27) and the test planets (test-…) aren't friends
+// and don't count toward the 10.
 export const PER_PLANET = 14, PER_RUN = 24, FIRST_PLANETS = 10;
-const isFriend = (slug) => slug !== EXAMPLE.slug && !slug.startsWith('test-');
+const isFriend = (slug) => slug !== EXAMPLE.slug && slug !== 'stock' && !slug.startsWith('test-');
+// the stock things as a planet of their own, one of each, so their models are made like any planet's
+const STOCK_PLANET = { version: 1, slug: 'stock', who: { name: 'Stock' }, things: Object.entries(STOCK).map(([id, k], i) => ({ id, name: id, model: k.model, at: { bearing: i * 30 - 120, distance: 6 }, parts: partsOf({ stock: id }) })) };
 // the house style: change it and every model is made again
 export const STYLE_NAME = 'storybook';
 const STYLE = 'A storybook miniature: hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy, like a Tiny Glade or Little Prince illustration come to life';
@@ -37,7 +41,7 @@ const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/',
 /** every planet whose things are to be modelled */
 export function planets() {
   const files = existsSync(SPECS) ? readdirSync(SPECS).filter((f) => f.endsWith('.json')).sort() : [];
-  return [EXAMPLE, ...files.map((f) => JSON.parse(readFileSync(SPECS + f, 'utf8')))];
+  return [EXAMPLE, STOCK_PLANET, ...files.map((f) => JSON.parse(readFileSync(SPECS + f, 'utf8')))];
 }
 
 /** what's to be made: [{ key, slug, thing }], refusing a planet or a run over its cap */

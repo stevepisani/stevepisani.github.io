@@ -6,7 +6,7 @@
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES } from '../_shared/planet.js';
+import { checkPlanet, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -81,7 +81,7 @@ export const EXAMPLE = {
     {
       id: 'porch', name: 'The porch', note: 'Where the evenings go.', collection: 'porch', at: { bearing: 30, distance: 10 }, turn: -10,
       model: 'A small wooden front porch, built like a little open hut: a raised plank deck, four white posts holding up a corrugated tin roof, a white railing along the front, a porch lamp under the roof, and on the deck a red electric guitar leaning against a small black amplifier',
-      light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] },
+      light: { color: '#ffcf8a', strength: 0.7, at: [0, 2.6, 0.8] }, use: 'switch',
       parts: [
         { shape: 'box', size: [4, 0.3, 3], color: '#8a6a4a' },
         { shape: 'cylinder', size: [0.15, 2.6, 0.15], at: [1.8, 1.6, 1.3], color: '#e8e2d6', mirror: true },
@@ -95,6 +95,7 @@ export const EXAMPLE = {
         { shape: 'text', text: 'Live at 7', size: [2.6, 0.5, 0.1], at: [0, 3.35, 1.71], color: '#ff9a5c', finish: 'glow' },
       ],
     },
+    { id: 'bench', name: 'The bench', note: 'Best seat for the porch shows.', collection: 'porch', stock: 'bench', near: { of: 'porch', side: 'front', gap: 2 }, use: 'sit' },
   ],
 };
 
@@ -114,7 +115,9 @@ const KIT = {
     how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. Or set it beside a thing listed before it with near: { of: that thing\'s id, side: front, back, left or right (that thing\'s own sides, as it faces you; left and right sit a little forward), gap: metres between them, 0..10, default 0.5 } instead of at: code places it clear of the other and turned to face it, so a bench sits by the oven and a crash pad at the foot of the wall. Give near things no at. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
     parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall. Beyond the simple shapes, for real silhouettes: box with round 0..0.5 rounds its edges (a share of its smallest side); lathe turns a side profile round its up, profile [[out, up], ...] each 0..1 of its size, bottom to top, out 1 at the widest (a vase, a bottle, a bun, a lamp shade); extrude gives a flat outline depth, outline [[across, up], ...] each 0..1 of its size, going round (a guitar body, a heart, a leaf, a cactus, a state's shape); tube runs along a smooth path, path [[x, y, z], ...] each -0.5..0.5 of its size, thick its thickness in metres (a handle, a cable, a tonearm, a rail). Any part can repeat: { count 2..${LIMITS.repeat}, at [x, y, z] the step, turn [x, y, z] degrees a step about the foot } (piano keys, fence posts, petals round a stem), and mirror: true copies it to the other side, x for -x (a pair of wheels, wings, ears). Each copy counts as a part.`,
     light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
-    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Think in places, as in the real world: two or three little places, each one main thing at a bearing and distance with 2 to 5 things that belong with it set near it (an oven with its cooling table and a bench; a climbing wall with a crash pad; a van with a camp stove and chairs), at real sizes. A worn path runs from where you land to each place\'s main thing. One place close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 5 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
+    stock: `stock (${Object.keys(STOCK).join(', ')}): a small thing ready-made in the planet\'s style, free and shown at once, instead of model words; it needs no parts (give parts only to change its stand-in shape), and scale sizes it. Use stock for the everyday things round a place (somewhere to sit, a lamp, a crate, a fence) and spend model words on what is truly theirs.`,
+    use: `use (${USES.join(' or ')}): what happens when you walk up to it. sit: you sit on it, facing the way it faces (a bench, a chair, a sofa, steps, a swing; set near something, it faces that, so a bench near the oven looks at the oven). switch: its light goes on or off (a lamp, a porch light, a lantern; it needs a light). Without use, you walk up to it and see its card.`,
+    craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Think in places, as in the real world: two or three little places, each one main thing at a bearing and distance with 2 to 5 things that belong with it set near it (an oven with its cooling table and a bench; a climbing wall with a crash pad; a van with a camp stove and chairs), at real sizes. Leave room for the visitor: somewhere at each place to sit (use: sit) and take it in. A worn path runs from where you land to each place\'s main thing. One place close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 5 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
   },
   shape: {
     version: 1,
@@ -123,7 +126,7 @@ const KIT = {
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
     look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
-    things: `up to ${LIMITS.things}: [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, parts: [...], light }], ${LIMITS.allParts} parts in all`,
+    things: `up to ${LIMITS.things}: [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
   },
   sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who gives it its own address and may add to it by hand. A preview alone is never sent.',
   limits: LIMITS,

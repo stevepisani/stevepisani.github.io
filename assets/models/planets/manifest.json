@@ -97,5 +97,86 @@
     "file": "test-ines/bench.glb",
     "bytes": 636744,
     "made": "2026-10-27"
+  },
+  "stock/bench": {
+    "model": "A wooden garden bench with a slatted seat and a slatted back, painted pale green, on curled black iron legs and armrests",
+    "style": "storybook",
+    "picture": "01a17e91-5ae9-720c-b788-1245d7220686",
+    "model3d": "01a17e92-4cfe-7321-9ef9-e976ad6a4372",
+    "file": "stock/bench.glb",
+    "bytes": 689636,
+    "made": "2026-10-27"
+  },
+  "stock/chair": {
+    "model": "A wooden kitchen chair with a rush seat and a ladder back, painted soft blue, a little worn at the edges",
+    "style": "storybook",
+    "picture": "01a17e91-5ad1-7159-923c-2403561f6dec",
+    "model3d": "01a17e91-8503-7351-a73b-aaa81e9b72ae",
+    "file": "stock/chair.glb",
+    "bytes": 1032440,
+    "made": "2026-10-27"
+  },
+  "stock/table": {
+    "model": "A small wooden table with a scrubbed plank top and four sturdy turned legs",
+    "style": "storybook",
+    "picture": "01a17e91-5b16-72c9-8d8d-88242af58637",
+    "model3d": "01a17e91-84bd-7158-ac4d-22a165be52e5",
+    "file": "stock/table.glb",
+    "bytes": 552724,
+    "made": "2026-10-27"
+  },
+  "stock/lamp-post": {
+    "model": "An old black iron street lamp on a slim post, a four-sided glass lantern on top with a warm glowing bulb inside",
+    "style": "storybook",
+    "picture": "01a17e91-5b20-74d2-ac1a-26021ad258ee",
+    "model3d": "01a17e91-ac96-756d-8ea4-d27e932ec39a",
+    "file": "stock/lamp-post.glb",
+    "bytes": 655676,
+    "made": "2026-10-27"
+  },
+  "stock/crate": {
+    "model": "An empty wooden crate with slatted sides and rope handles",
+    "style": "storybook",
+    "picture": "01a17e95-751b-77f5-a6e2-1a0873c9a9b0",
+    "model3d": "01a17e95-9f23-707c-aa4b-c9349776d424",
+    "file": "stock/crate.glb",
+    "bytes": 712088,
+    "made": "2026-10-27"
+  },
+  "stock/sack": {
+    "model": "A plump burlap sack tied at the top with string, standing upright",
+    "style": "storybook",
+    "picture": "01a17e95-759e-735a-a596-5a5dcea68b28",
+    "model3d": "01a17e95-9efa-74ed-8e56-56a5e3c62520",
+    "file": "stock/sack.glb",
+    "bytes": 859076,
+    "made": "2026-10-27"
+  },
+  "stock/mailbox": {
+    "model": "A rounded rural mailbox on a wooden post, painted red, its little flag up",
+    "style": "storybook",
+    "picture": "01a17e95-75b6-7182-95a8-028a72241dbc",
+    "model3d": "01a17e95-9f24-7058-b17d-8683263c2a32",
+    "file": "stock/mailbox.glb",
+    "bytes": 556376,
+    "made": "2026-10-27"
+  },
+  "stock/planter": {
+    "model": "A round terracotta pot with a leafy green bush in it, dotted with small yellow flowers",
+    "style": "storybook",
+    "picture": "01a17e95-759d-7165-9848-81607385bd7d",
+    "model3d": "01a17e95-9ef1-76ca-99a2-820550260463",
+    "file": "stock/planter.glb",
+    "bytes": 1295312,
+    "made": "2026-10-27"
+  },
+  "stock/fence": {
+    "model": "A short straight run of white wooden picket fence, three posts with pointed pickets between them",
+    "style": "storybook",
+    "picture": "01a17ea2-77e1-75b1-b15a-f281ba17187a",
+    "model3d": "01a17ea2-a1fe-7101-ab5a-3af2fb96346d",
+    "file": "stock/fence.glb",
+    "bytes": 536484,
+    "made": "2026-10-27"
   }
 }

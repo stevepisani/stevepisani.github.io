@@ -6,9 +6,10 @@
 // test: Steve isn't told, and it's deleted a day later. Needs the network to reach
 // mcp.stevenpisani.com and stevenpisani.com.
 //
-//   node tools/planet-live.mjs [--url <connector>] [--shots <dir>] [--no-send] [--site _site]
-// --site serves stevenpisani.com from a local build instead, to try this script itself offline
-// (with a local connector: tools/planet-test.mjs covers the connector's logic).
+//   node tools/planet-live.mjs [--url <connector>] [--shots <dir>] [--no-send] [--site _site] [--local]
+// --site serves stevenpisani.com from a local build instead, to try this script itself offline;
+// --local asks this checkout's connector (supabase/functions/planets/server.js, in this process,
+// nothing sent) instead of the deployed one, to try a change to both before it's merged.
 import { mkdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { chromium } from './chromium.mjs';
@@ -16,7 +17,8 @@ import { chromium } from './chromium.mjs';
 const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); return i > 0 ? process.argv[i + 1] : fallback; };
 const URL_ = arg('url', 'https://mcp.stevenpisani.com/planets');
 const shots = arg('shots', null);
-const send = !process.argv.includes('--no-send');
+const local = process.argv.includes('--local');
+const send = !local && !process.argv.includes('--no-send');
 const site = arg('site', null);
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.woff2': 'font/woff2', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
 if (shots) mkdirSync(shots, { recursive: true });
@@ -26,7 +28,9 @@ const ok = (cond, what, detail) => {
   console.log(`  ${cond ? '✓' : '✗'} ${what}${cond || detail === undefined ? '' : `\n    got ${JSON.stringify(detail).slice(0, 600)}`}`);
   if (!cond) failed++;
 };
+const server = local && await import('../supabase/functions/planets/server.js');
 const rpc = async (method, params) => {
+  if (server) return server.rpc({ jsonrpc: '2.0', id: ++id, method, params }, { cardScript: async () => readFileSync(new URL('../assets/js/dist/planet-card.js', import.meta.url), 'utf8') });
   const res = await fetch(URL_, { method: 'POST', headers: { 'content-type': 'application/json', 'mcp-protocol-version': '2025-06-18' }, body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }) });
   if (!res.ok) throw new Error(`${method}: HTTP ${res.status}`);
   return res.json();
@@ -41,7 +45,7 @@ const PEOPLE = [
   { version: 1, slug: 'test-min', who: { name: 'Min' } },
 ];
 
-console.log(`The Planets connector at ${URL_}`);
+console.log(`The Planets connector ${local ? 'in this checkout' : `at ${URL_}`}`);
 const init = (await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'planet-live', version: '1' } })).result;
 ok(init?.serverInfo?.name === 'planets', `it says who it is (${init?.serverInfo?.title} ${init?.serverInfo?.version})`, init);
 const tools = (await rpc('tools/list')).result.tools.map((t) => t.name);
@@ -82,7 +86,8 @@ for (const spec of PEOPLE) {
       ok(moved, 'a tap on the ground walks there');
       // each of their things: turn to it, tap it, and its card says what it is
       for (const t of spec.things || []) {
-        await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape'); // closes the card, and gets up if they're sitting
+        await page.waitForFunction(() => !window.__planet.busy(), null, { timeout: 60000 });
         // from where they arrive, which every thing is placed to be seen from (walking round, one can hide another)
         await page.evaluate((id) => { const p = window.__planet; p.player.stop(); p.player.spawn(p.player.up.clone().set(0, 1, 0), p.spec.things.find((x) => x.id === id).center, 0); }, t.id);
         // the camera turns on the next frame drawn, which a slow machine takes a while over
@@ -94,6 +99,15 @@ for (const spec of PEOPLE) {
         if (at) await page.mouse.click(at.x, at.y);
         const card = await page.waitForFunction(() => !document.getElementById('thing').hidden && document.getElementById('thing-name').textContent, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => null);
         ok(card === t.name, `tap ${t.name}: its card`, { at, card });
+        // walking up and sitting take a few seconds, and far longer where frames come slowly (software WebGL)
+        if (t.use === 'sit') {
+          const sat = await page.waitForFunction((id) => window.__planet.seated() === id, t.id, { timeout: 60000 }).then(() => true, () => false);
+          ok(sat, `sat on ${t.name}`);
+        }
+        if (t.use === 'switch') {
+          const off = await page.waitForFunction((id) => window.__planet.spec.things.find((x) => x.id === id).lamp.intensity === 0, t.id, { timeout: 60000 }).then(() => true, () => false);
+          ok(off, `switched ${t.name}'s light off`);
+        }
         if (shots) { await page.waitForTimeout(2500); await page.screenshot({ path: `${shots}/${spec.slug}-${t.id}.png` }); }
       }
     }

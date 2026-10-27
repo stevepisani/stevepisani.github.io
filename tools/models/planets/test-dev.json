@@ -36,6 +36,7 @@
     },
     {
       "id": "van",
+      "use": "switch",
       "name": "The van",
       "note": "Home most weekends.",
       "collection": "gear",
@@ -72,6 +73,7 @@
     },
     {
       "id": "camp",
+      "use": "sit",
       "name": "Camp",
       "note": "A stove older than me.",
       "collection": "gear",

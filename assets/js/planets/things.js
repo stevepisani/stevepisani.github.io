@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RADIUS } from '../world/planet.js';
-import { placeThings } from '../../../supabase/functions/_shared/planet.js';
+import { placeThings, partsOf } from '../../../supabase/functions/_shared/planet.js';
 
 const DEG = Math.PI / 180;
 
@@ -132,7 +132,7 @@ export function buildThings(things = [], surface) {
     root.scale.setScalar(thing.scale || 1);
 
     const body = new THREE.Group();
-    for (const p of thing.parts) {
+    for (const p of partsOf(thing)) {
       const one = part(p);
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
@@ -167,6 +167,7 @@ export function buildThings(things = [], surface) {
       const light = new THREE.PointLight(thing.light.color || '#ffd9a0', 24 * (thing.light.strength ?? 0.6), 16, 1.4);
       light.position.set(...(thing.light.at || [0, 2, 0]));
       root.add(light);
+      thing.lamp = light; // a thing you can switch (use) turns this on and off
     }
     group.add(root);
     thing.reach = Math.min(6, reach * (thing.scale || 1));

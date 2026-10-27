@@ -10,14 +10,16 @@
 //     links: [{ id, label, note, href }],  the hub's menu; href https://, mailto: or a site path
 //     look: { theme, home, ground, sky },  theme from THEMES; home: a city, never an address;
 //                                          ground: { color, hills 0..1 }; sky: { color, light }
-//     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid, model,
+//     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid, model, stock, use,
 //                parts: [{ shape, size, at, turn, color, finish, spin, text, round, profile,
 //                          outline, path, thick, repeat, mirror }], light }],
 //                                          what stands on someone else's planet, composed by
 //                                          their own AI from simple shapes (SHAPES, FINISHES),
 //                                          in metres, placed from where you land; model: the
 //                                          thing in words, for a real 3D model (Meshy) that
-//                                          takes the parts' place once it's made
+//                                          takes the parts' place once it's made; stock: one
+//                                          of the ready models (STOCK) instead; use: what a
+//                                          tap does when you get there (USES)
 //     collections: { <id>: { title, items: [...] } | { title, src } },
 //                                          what matters to them: plain lists (items: text, or
 //                                          small objects), or a site path that serves the list
@@ -48,6 +50,24 @@ export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
 // where a thing can stand beside another (near): in front of it (the side it faces), behind it,
 // or to its left or right as it faces
 export const SIDES = ['front', 'back', 'left', 'right'];
+// what a thing does when you walk up to it: sit on it (facing the way it faces) or switch its light
+export const USES = ['sit', 'switch'];
+// Stock things, as a film set keeps stock props: small things every place uses, each a real model
+// made once in the house style (tools/planet-models.mjs makes them as the planet "stock"; Steve
+// approved the "kit", Oct 27, 2026), so any planet can have one free and at once. A thing with
+// stock needs no parts (a box its size stands in until the model loads) and no model words; size
+// is [width, height, depth] in metres, before scale.
+export const STOCK = {
+  bench: { size: [1.4, 0.85, 0.55], model: 'A wooden garden bench with a slatted seat and a slatted back, painted pale green, on curled black iron legs and armrests' },
+  chair: { size: [0.55, 0.9, 0.55], model: 'A wooden kitchen chair with a rush seat and a ladder back, painted soft blue, a little worn at the edges' },
+  table: { size: [1.2, 0.75, 0.8], model: 'A small wooden table with a scrubbed plank top and four sturdy turned legs' },
+  'lamp-post': { size: [0.5, 2.6, 0.5], model: 'An old black iron street lamp on a slim post, a four-sided glass lantern on top with a warm glowing bulb inside' },
+  crate: { size: [0.7, 0.5, 0.5], model: 'An empty wooden crate with slatted sides and rope handles' },
+  sack: { size: [0.5, 0.75, 0.4], model: 'A plump burlap sack tied at the top with string, standing upright' },
+  mailbox: { size: [0.45, 1.3, 0.4], model: 'A rounded rural mailbox on a wooden post, painted red, its little flag up' },
+  planter: { size: [0.8, 0.8, 0.8], model: 'A round terracotta pot with a leafy green bush in it, dotted with small yellow flowers' },
+  fence: { size: [2, 1, 0.15], model: 'A short straight run of white wooden picket fence, three posts with pointed pickets between them' },
+};
 
 export const LIMITS = {
   bytes: 64 * 1024, // the whole spec, as JSON
@@ -205,7 +225,7 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'parts', 'light']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light']);
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
@@ -233,8 +253,12 @@ export function checkPlanet(spec) {
     between(`${at}.turn`, t.turn, -180, 180);
     between(`${at}.scale`, t.scale, 0.25, 4);
     if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
+    if (t.use !== undefined && !USES.includes(t.use)) fail(`${at}.use`, `should be one of ${USES.join(', ')}`);
+    else if (t.use === 'switch' && t.light === undefined) fail(`${at}.use`, 'switch turns its light on and off, so it needs a light');
+    if (t.stock !== undefined && !Object.hasOwn(STOCK, t.stock)) fail(`${at}.stock`, `should be one of ${Object.keys(STOCK).join(', ')}`);
+    else if (t.stock !== undefined && t.model !== undefined) fail(`${at}.model`, 'a stock thing has its model already; give it model words or stock, not both');
     const ps = list(`${at}.parts`, t.parts, LIMITS.parts);
-    if (!ps.length) fail(`${at}.parts`, 'should have at least one part');
+    if (!ps.length && t.stock === undefined) fail(`${at}.parts`, 'should have at least one part');
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
       if (!isObj(p)) return fail(pat, 'should be an object');
@@ -424,10 +448,17 @@ export function planetParts(spec) {
 // these are things to look at, not errors; the preview tells the AI who made it (preview_planet).
 const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from the middle, in metres
 
+/** A thing's parts: its own, or for a stock thing without any, a box its size that stands in for its model. */
+export function partsOf(t) {
+  if (t.parts && t.parts.length) return t.parts;
+  const k = t.stock && STOCK[t.stock];
+  return k ? [{ shape: 'box', size: k.size, round: 0.15, color: '#8a7a68' }] : [];
+}
+
 /** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
 // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
 function partBoxes(t) {
-  return (t.parts || []).map((p) => {
+  return partsOf(t).map((p) => {
     // a turned part is measured as if it could face any way: turned about its up, its longest side
     // either way along the ground; tipped over, its longest side every way
     const [x, y, z] = p.size, [tx, ty, tz] = (p.turn || [0, 0, 0]).map((a) => a % 180 !== 0), s = t.scale || 1;
@@ -489,7 +520,7 @@ export function lookOver(spec) {
   const notes = [];
   const things = spec.things || [];
   const reach = new Map(), placed = placeThings(things);
-  const lit = things.some((t) => t.light || (t.parts || []).some((p) => p.finish === 'glow'));
+  const lit = things.some((t) => t.light || partsOf(t).some((p) => p.finish === 'glow'));
   things.forEach((t, i) => {
     const bs = partBoxes(t);
     if (!bs.length) return;
@@ -501,7 +532,7 @@ export function lookOver(spec) {
     // a part off the ground that touches no other part: it hangs in the air
     const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
     bs.forEach((b, j) => {
-      const p = t.parts[j];
+      const p = partsOf(t)[j];
       if (p.shape === 'text' || p.finish === 'glow' || b[2] < 0.05) return;
       const held = bs.some((o, k) => k !== j && near(o, b));
       if (!held) notes.push(`things[${i}].parts[${j}] (${p.shape}): touches nothing and hangs ${b[2].toFixed(2)} m above the ground; move it onto another part or the ground (at is its middle)`);

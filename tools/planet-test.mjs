@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -179,14 +179,25 @@ caught(place, (s) => { s.things[1].near.of = 'bench'; }, /^things\[1\]\.near\.of
 caught(place, (s) => { s.things[1].near.side = 'above'; }, /^things\[1\]\.near\.side:/, 'a side that isn\'t front, back, left or right');
 caught(place, (s) => { s.things[1].at = { bearing: 0, distance: 5 }; }, /^things\[1\]/, 'both at and near');
 caught(place, (s) => { delete s.things[1].near; }, /^things\[1\]/, 'neither at nor near');
+// what a thing does when you get there (use): sit on it, or switch its light
+ok(checkPlanet({ ...place, things: place.things.map((t) => ({ ...t, use: { oven: 'switch', bench: 'sit' }[t.id] })) }).length === 0, 'a bench to sit on and an oven whose light switches pass');
+caught(place, (s) => { s.things[2].use = 'ride'; }, /^things\[2\]\.use: should be one of sit, switch/, 'a use there\'s nothing for');
+caught(place, (s) => { s.things[2].use = 'switch'; }, /^things\[2\]\.use: switch .* needs a light/, 'switching a thing with no light');
 const sloppyShown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sloppy } })).result;
 ok(!sloppyShown.isError && /look these over/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview says what to look over, for the model to fix', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
 const { wanted, planets: modelled, PER_PLANET, PER_RUN, FIRST_PLANETS } = await import('./planet-models.mjs');
-ok(planets.EXAMPLE.things.every((t) => t.model) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models");
+ok(planets.EXAMPLE.things.every((t) => t.model || t.stock) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models, or stock");
+// stock things: ready-made, no parts or words needed, and their own models made once for every planet
+const stocked = { ...least, things: [{ id: 'seat', name: 'Seat', stock: 'bench', at: { bearing: 0, distance: 5 }, use: 'sit' }, { id: 'lamp', name: 'Lamp', stock: 'lamp-post', near: { of: 'seat', side: 'left' }, light: {}, use: 'switch' }] };
+ok(checkPlanet(stocked).length === 0 && lookOver(stocked).length === 0, 'a stock bench and lamp need no parts and nothing looked over', [checkPlanet(stocked), lookOver(stocked)]);
+caught(stocked, (s) => { s.things[0].stock = 'throne'; }, /^things\[0\]\.stock: should be one of bench/, 'stock there\'s no model for');
+caught(stocked, (s) => { s.things[0].model = 'A bench'; }, /^things\[0\]\.model: a stock thing/, 'stock and model words both');
+caught(stocked, (s) => { delete s.things[0].stock; }, /^things\[0\]\.parts: should have at least one part/, 'no stock and no parts');
 ok(errorsWith(planets.EXAMPLE, (s) => { s.things[0].model = 'x'.repeat(LIMITS.text + 1); }).some((e) => /^things\[0\]\.model/.test(e)), "a model's words have a cap");
 const toModel = wanted(modelled(), {});
 ok(toModel.length === modelled().reduce((n, p) => n + (p.things || []).filter((t) => t.model).length, 0) && toModel.length <= PER_RUN, 'every thing described is to be modelled, until it is', toModel.map((t) => t.key));
+ok(Object.keys(STOCK).every((k) => toModel.some((t) => t.key === `stock/${k}`)), 'each stock thing is modelled once, as the planet stock', toModel.map((t) => t.key));
 const many = { ...least, things: Array.from({ length: PER_PLANET + 1 }, (_, i) => ({ id: `t${i}`, name: `T${i}`, model: 'A chair', at: { bearing: i * 20 - 160, distance: 6 }, parts: [{ shape: 'box', size: [1, 1, 1] }] })) };
 let overCap = false;
 try { wanted([many], {}); } catch (e) { overCap = new RegExp(`more than ${PER_PLANET} a planet`).test(e.message); }

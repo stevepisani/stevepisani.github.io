@@ -121,25 +121,78 @@ async function start(spec) {
     }
     return best ? { thing: best } : hit ? { point: hit.point } : null;
   };
+
+  // What a thing does once you're there (use): sit on it, facing the way it faces, or switch its
+  // light. Sitting down and getting up are body motions from and to the walking view, never cuts
+  // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
+  const EYE = player.eye, SEATED = 1.15, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let seat = null, move = null;
+  const frontOf = (t) => new THREE.Vector3(0, 0, 1).applyQuaternion(t.root.quaternion);
+  // a body standing at `at`, facing along `dir` (the player's own -Z forward, +Y up)
+  const facing = (at, dir) => {
+    const up = at.clone().normalize(), back = dir.clone().addScaledVector(up, -dir.dot(up)).normalize().negate();
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(up, back), up, back));
+  };
+  const glide = (to, then) => {
+    player.stop();
+    move = { from: { pos: player.pos.clone(), quat: player.quat.clone(), eye: player.eye, pitch: player.pitch }, to, t: 0, dur: still ? 0 : 1.3, then };
+  };
+  function sit(t) {
+    const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
+    glide({ pos: at, quat: facing(at, f), eye: SEATED, pitch: -0.08 }, () => { seat = t; $('stand').hidden = false; });
+  }
+  function stand(then) {
+    if (!seat) return then && then();
+    const t = seat, at = player.clearOf(t.center.clone().addScaledVector(frontOf(t), t.reach + 0.5));
+    seat = null;
+    $('stand').hidden = true;
+    glide({ pos: at, quat: facing(at, player.forward()), eye: EYE }, then);
+  }
+  function flip(t) {
+    const on = t.lamp.intensity === 0;
+    t.lamp.userData.on ??= t.lamp.intensity;
+    t.lamp.intensity = on ? t.lamp.userData.on : 0;
+    // and whatever glows on it, as a lamp's bulb does
+    t.root.traverse((o) => {
+      const m = o.isMesh && o.material;
+      if (!m || !m.emissive || !m.emissive.getHex()) return;
+      m.userData.glow ??= m.emissiveIntensity;
+      m.emissiveIntensity = on ? m.userData.glow : 0;
+    });
+  }
+  $('stand').addEventListener('click', () => stand());
+  // a tap on one of their things: walk up to it and say what it is, then do what it does
+  function go(t) {
+    open(t);
+    // up to it from where you are (its front can face something close: a bench, the oven), and a
+    // seat takes you the last step
+    const near = t.center.clone().lerp(camera.position, Math.min(0.9, (t.reach + 1.4) / Math.max(1, t.center.distanceTo(camera.position))));
+    const there = () => {
+      if (t.use === 'sit') return sit(t);
+      player.face(t.center);
+      if (t.use === 'switch' && t.lamp) flip(t);
+    };
+    // stopped by something on the way but close (the van beside the camp chairs): close enough
+    player.walkTo(player.clearOf(near), { onArrive: there, onStuck: () => player.pos.distanceTo(t.center) < t.reach + 3 && there() });
+  }
+
+  function act(at) {
+    if (!walked) { walked = true; hint.classList.add('is-gone'); }
+    if (at.thing) return go(at.thing);
+    close();
+    const to = player.clearOf(at.point);
+    player.walkTo(to);
+    ring.position.copy(to).addScaledVector(to.clone().normalize(), 0.03);
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), to.clone().normalize());
+    ring.material.opacity = 0.8;
+  }
   bindInput(player, canvas, {
     onTap(x, y) {
       const at = aim(x, y);
-      if (!at) return;
-      if (at.thing) {
-        // a tap on one of their things: walk up to it, and say what it is
-        open(at.thing);
-        const near = at.thing.center.clone().lerp(camera.position, Math.min(0.9, (at.thing.reach + 1.4) / Math.max(1, at.thing.center.distanceTo(camera.position))));
-        player.walkTo(player.clearOf(near), { onArrive: () => player.face(at.thing.center) });
-        if (!walked) { walked = true; hint.classList.add('is-gone'); }
-        return;
-      }
-      close();
-      const to = player.clearOf(at.point);
-      player.walkTo(to);
-      ring.position.copy(to).addScaledVector(to.clone().normalize(), 0.03);
-      ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), to.clone().normalize());
-      ring.material.opacity = 0.8;
-      if (!walked) { walked = true; hint.classList.add('is-gone'); }
+      if (!at || move) return;
+      if (seat && at.thing === seat) return open(seat);
+      // seated, a tap elsewhere gets you up first, then goes there
+      stand(() => act(at));
     },
     onHover(x, y) { canvas.classList.toggle('is-pointing', x !== null && !!(aim(x, y) || {}).thing); },
     onKeyAction() {},
@@ -167,7 +220,7 @@ async function start(spec) {
   }
   function close() { card.hidden = true; }
   $('thing-close').addEventListener('click', close);
-  addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); stand(); } });
 
   // the site's own look (world/render.js): ambient occlusion on computers, glow that blooms
   const pipeline = createPipeline(renderer, scene, camera, { ...quality, N8AOPostPass: await aoIn, tone: ToneMappingMode.ACES_FILMIC, bloom: 0.6 });
@@ -182,10 +235,22 @@ async function start(spec) {
 
   let last = performance.now(), frames = 0;
   renderer.setAnimationLoop((now) => {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const real = Math.min(0.25, (now - last) / 1000), dt = Math.min(0.05, real);
     last = now;
     if (!TEST) time.value = now / 1000;
-    player.update(dt);
+    if (move) {
+      // sitting down or getting up: one smooth motion, easing in and out, by the clock (a slow
+      // phone draws fewer frames of it, never a slower one)
+      move.t += real;
+      const k = move.dur ? Math.min(1, move.t / move.dur) : 1, e = k * k * (3 - 2 * k);
+      player.pos.lerpVectors(move.from.pos, move.to.pos, e);
+      player.quat.slerpQuaternions(move.from.quat, move.to.quat, e);
+      player.eye = THREE.MathUtils.lerp(move.from.eye, move.to.eye, e);
+      if (move.to.pitch !== undefined) player.pitch = THREE.MathUtils.lerp(move.from.pitch, move.to.pitch, e);
+      if (k === 1) { const then = move.then; move = null; if (then) then(); }
+    } else if (seat) {
+      if (player.keys.x || player.keys.z) stand(); // a step gets you up
+    } else player.update(dt);
     things.update(now / 1000);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
@@ -241,5 +306,5 @@ async function start(spec) {
     const p = t && new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(camera);
     return p && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1 ? { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight } : null;
   };
-  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models };
+  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, seated: () => seat && seat.id, busy: () => !!move };
 }

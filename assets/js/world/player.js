@@ -81,10 +81,10 @@ export class Player {
    * Walk to a world point; stop within `arrive` metres and call onArrive. `via`: corners to walk
    * through on the way (round something in between), passed without slowing down.
    */
-  walkTo(point, { arrive = 0.35, onArrive, via = [] } = {}) {
+  walkTo(point, { arrive = 0.35, onArrive, onStuck, via = [] } = {}) {
     this.facing = null;
     const legs = [...via, point].map((p) => p.clone());
-    this.target = { point: legs[0], legs, arrive, onArrive };
+    this.target = { point: legs[0], legs, arrive, onArrive, onStuck };
     this._stuck = { t: this.clock, d: Infinity };
   }
 
@@ -137,7 +137,7 @@ export class Player {
         // give up if we stop making progress (walked into something)
         const now = this.clock;
         if (now - this._stuck.t > 0.9) {
-          if (this._stuck.d - dist < 0.15) this.target = null;
+          if (this._stuck.d - dist < 0.15) { const stuck = this.target.onStuck; this.target = null; stuck && stuck(dist); }
           this._stuck = { t: now, d: dist };
         }
       }
