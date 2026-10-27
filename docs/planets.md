@@ -212,7 +212,7 @@ its size and its words), made once in the house style as the planet `stock` (`st
 manifest; Steve approved about $6 for them, Oct 27). A thing says `stock: 'bench'` instead of model
 words and needs no parts: `partsOf` gives it a rounded box its size, which stands in until the
 model loads, for the layout, `lookOver` and taps alike. Any planet can have them, free and at once,
-so each planet's own models go on what's truly theirs. Sam's example has a stock bench to sit on.
+so each planet's own models go on what's truly theirs (all nine were made on Oct 27, 0.5 to 1.3 MB each). Sam's example has a stock bench to sit on.
 
 It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, with the
 `MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
