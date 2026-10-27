@@ -33,8 +33,9 @@ npm test                      # or --only desktop|phone|pages|nogl while iterati
 
 - Open it as a draft. Title says what a visitor (or Steve) gets; the body has what changed,
   how it was tested, and anything Steve has to do (a setting, a secret), stated exactly.
-- CI (`site.yml`: build, check, smoke test) must be green. A red smoke test is real until shown
-  otherwise: download the `smoke-failed` artifact, reproduce with `npm test -- --only <part>`,
+- CI (`site.yml`: build, check, the unit tests, the smoke test in six parallel jobs) must be green.
+  A red smoke test is real until shown otherwise: download that job's `smoke-failed-*` artifact,
+  reproduce with `node tools/smoke.mjs _site --only <its part>` (the job's name says which),
   fix the cause. Never skip or weaken a test to get green.
 - Supabase changes don't run on PRs. To try one before merging, run the Supabase workflow on the
   branch (`workflow_dispatch`) and test against the live project.
