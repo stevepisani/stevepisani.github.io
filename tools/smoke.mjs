@@ -324,7 +324,11 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     await page.goBack(); // and Back again gets you up
     await expectState(page, 'walk');
     step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
+  }
 
+  // part 3 is this (the telescope to the bottle) and the long walk further down: the parts are cut
+  // to take about the same time in CI, so they follow the order of the walk-through, not of the planet
+  if (parts.includes(3)) {
     // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
     // says what; › swings it to the next; Esc steps back
     await page.evaluate(() => window.__world.scope.go());
