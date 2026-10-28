@@ -6,7 +6,7 @@
 // the planet is driven through `window.__world` with `?test=1` and reduced motion.
 //
 //   npm run build && bundle exec jekyll build && npm test            (CI does this)
-//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|desktop-1|desktop-2|desktop-3|phone|pages|apps|planets|holiday|nogl, or several: pages,apps]
+//   node tools/smoke.mjs [_site] [--shots <dir>] [--only desktop|desktop-1…4|phone|pages|apps|planets|holiday|nogl, or several: pages,apps]
 //
 // --shots saves a screenshot at each step, for looking at what changed.
 import { chromium } from './chromium.mjs';
@@ -147,7 +147,7 @@ async function pages(page) {
 }
 
 // The planet, everything a visitor can do
-async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
+async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) {
   const t0 = Date.now();
   await page.goto(base + '/?test=1');
   await until(page, () => window.__sceneReady, null, 240000);
@@ -156,7 +156,7 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
 
   // a tap where a finger or the mouse would
   const tap = async (xy) => (phone ? page.touchscreen.tap(...xy) : page.mouse.click(...xy));
-  // in three parts, so CI can run them side by side (each loads the planet afresh)
+  // in four parts, so CI can run them side by side (each loads the planet afresh)
   if (parts.includes(1)) {
     // a section from the top bar opens as a panel, and closes
     if (phone) { await press(page, '#menu-btn'); await press(page, '#menu a[data-order="about"]'); }
@@ -324,7 +324,11 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
     await page.goBack(); // and Back again gets you up
     await expectState(page, 'walk');
     step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
+  }
 
+  // the parts are cut to take about the same time in CI (3 is the telescope to the bottle, 4 the
+  // long walk and the door), so each is a stretch of the walk-through, not a place on the planet
+  if (parts.includes(3)) {
     // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
     // says what; › swings it to the next; Esc steps back
     await page.evaluate(() => window.__world.scope.go());
@@ -528,7 +532,7 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
     step('tapped the middle of the bridge, walked out to it, looked down into the planet');
   }
 
-  if (parts.includes(3)) {
+  if (parts.includes(4)) {
     // a long walk: from where you land to the campfire on the far side of the planet, round
     // whatever's in between (route.js), without stopping short
     const far = await page.evaluate(() => {
@@ -542,42 +546,42 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3] } = {}) {
     const short = await page.evaluate(() => { const W = window.__world; return W.player.pos.distanceTo(W.interactables.find((i) => i.id === 'campfire').approach); });
     if (!(short < 0.6)) throw new Error(`the walk to the campfire stopped ${short.toFixed(1)} m short`);
     step(`walked ${far.metres} m from where you land to the campfire, round ${far.corners} corners`);
+  }
 
-    // the door past the telescope: walk up and step through it into the real place (the real
-    // splat, about a minute under software WebGL), look round, then step back out where you went
-    // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
-    // Last, because under software WebGL the kept place's context slows the planet afterwards
-    // (switching contexts costs there what it doesn't on a GPU).
-    if (!phone) {
-      const tick = { timeout: 300000, polling: 500 };
-      // a drag down tips the view up, on the planet as through the door (the same feel everywhere)
-      const lookUp = () => page.evaluate(() => { const c = window.__world.camera; const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(c.position.clone().normalize()); });
-      const before = await lookUp();
-      await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
-      await page.waitForTimeout(500);
-      if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
-      await page.evaluate(() => window.__world.goUse('door'));
-      await page.waitForFunction(() => window.__world.door.inside, null, tick);
-      if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
-      if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
-      const [yaw0, pitch0] = await page.evaluate(() => [window.__world.door.view.yaw, window.__world.door.view.pitch]);
-      await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 450, { steps: 4 }); await page.mouse.up();
-      await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
-      if (!(await page.evaluate(() => window.__world.door.view.pitch) > pitch0)) throw new Error('through the door a drag down should tip the view up, as on the planet');
-      if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
-      // out through the door back (behind where you came in): on the planet again, facing down the
-      // trail, away from the door, as you saw through it
-      await page.evaluate(() => window.__world.door.view.toDoorBack());
-      await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
-      if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
-      const away = await page.evaluate(() => { const W = window.__world, c = W.camera, d = W.interactables.find((i) => i.id === 'door'); const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(d.point.clone().sub(c.position).normalize()); });
-      if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
-      // the place is kept for next time, out of sight: one view of it, not drawn, not shown
-      if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
-      // the second door, behind the bar, onto a world made by Marble: there, and it goes somewhere
-      if (!(await page.evaluate(() => { const d = window.__world.interactables.find((i) => i.id === 'museum'); return d && d.place === 'museum' && d.verb === 'Step through'; }))) throw new Error('no door to the Art Museum behind the bar');
-      step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail; the door to the Art Museum is behind the bar');
-    }
+  // the door past the telescope: walk up and step through it into the real place (the real
+  // splat, about a minute under software WebGL), look round, then step back out where you went
+  // in. The planet stops drawing while you're through it, so wait by the clock, not by frames.
+  // Last, because under software WebGL the kept place's context slows the planet afterwards
+  // (switching contexts costs there what it doesn't on a GPU).
+  if (parts.includes(4) && !phone) {
+    const tick = { timeout: 300000, polling: 500 };
+    // a drag down tips the view up, on the planet as through the door (the same feel everywhere)
+    const lookUp = () => page.evaluate(() => { const c = window.__world.camera; const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(c.position.clone().normalize()); });
+    const before = await lookUp();
+    await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
+    await page.waitForTimeout(500);
+    if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
+    await page.evaluate(() => window.__world.goUse('door'));
+    await page.waitForFunction(() => window.__world.door.inside, null, tick);
+    if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");
+    if (!(await page.textContent('#portal-credit')).includes('CC BY 4.0') || await page.isHidden('#door-leave')) throw new Error('through the door: no credit for the scan, or no way back');
+    const [yaw0, pitch0] = await page.evaluate(() => [window.__world.door.view.yaw, window.__world.door.view.pitch]);
+    await page.mouse.move(640, 400); await page.mouse.down(); await page.mouse.move(540, 450, { steps: 4 }); await page.mouse.up();
+    await page.waitForFunction((y) => window.__world.door.view.yaw !== y, yaw0, tick);
+    if (!(await page.evaluate(() => window.__world.door.view.pitch) > pitch0)) throw new Error('through the door a drag down should tip the view up, as on the planet');
+    if (shotsDir) { const url = await page.evaluate(() => window.__world.door.view.snapshot()); writeFileSync(join(shotsDir, 'desktop-door.png'), Buffer.from(url.split(',')[1], 'base64')); }
+    // out through the door back (behind where you came in): on the planet again, facing down the
+    // trail, away from the door, as you saw through it
+    await page.evaluate(() => window.__world.door.view.toDoorBack());
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying && !document.querySelector('.portal-view.is-on'), null, tick);
+    if (await page.evaluate(() => location.hash)) throw new Error("stepping back out didn't take the door's history entry back off");
+    const away = await page.evaluate(() => { const W = window.__world, c = W.camera, d = W.interactables.find((i) => i.id === 'door'); const f = new c.position.constructor(0, 0, -1).applyQuaternion(c.quaternion); return f.dot(d.point.clone().sub(c.position).normalize()); });
+    if (away > -0.5) throw new Error(`out through the door back you should face away from the door (facing ${away.toFixed(2)})`);
+    // the place is kept for next time, out of sight: one view of it, not drawn, not shown
+    if (await page.evaluate(() => { const v = document.querySelectorAll('.portal-view'); return v.length !== 1 || v[0].style.display !== 'none'; })) throw new Error("the place isn't kept, out of sight, after stepping back out");
+    // the second door, behind the bar, onto a world made by Marble: there, and it goes somewhere
+    if (!(await page.evaluate(() => { const d = window.__world.interactables.find((i) => i.id === 'museum'); return d && d.place === 'museum' && d.verb === 'Step through'; }))) throw new Error('no door to the Art Museum behind the bar');
+    step('door: stepped through into the real place, looked round (a drag down looks up, as on the planet), and out through the door back, facing down the trail; the door to the Art Museum is behind the bar');
   }
 }
 
@@ -1870,8 +1874,8 @@ async function planetCard(page, shot, { phone = false } = {}) {
   step('with no WebGL2: the plain card (who it is for, their links, what they love) and "Walk around it" opens the planet');
 }
 
-// --only takes one part or several (a comma list); desktop-1, -2 and -3 are the desktop planet's
-// three parts on their own (CI runs each in its own job), never run unless asked for
+// --only takes one part or several (a comma list); desktop-1 to -4 are the desktop planet's
+// four parts on their own (CI runs each in its own job), never run unless asked for
 const want = (k) => (only ? only.split(',').includes(k) : !/-\d$/.test(k));
 if (want('pages')) await session('pages', { viewport: { width: 1280, height: 800 } }, pages);
 if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'Europe/Rome', permissions: ['clipboard-read', 'clipboard-write'] }, apps);
@@ -1881,7 +1885,7 @@ if (want('apps')) await session('card in chat', { viewport: { width: 440, height
 if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
-for (const n of [1, 2, 3]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
+for (const n of [1, 2, 3, 4]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
