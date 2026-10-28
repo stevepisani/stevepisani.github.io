@@ -51,8 +51,8 @@ npm test
 ```
 
 CI (`.github/workflows/site.yml`) runs build, check, the planet, wardrobe, trips and places tests and the smoke test on every PR, and on main
-deploys only once they pass. The tests that need no browser run beside the build, and the smoke test runs as six jobs side by side
-(the desktop planet in three parts, `--only desktop-1`, `-2`, `-3`, then phone, holiday, and the rest), so a run takes about 10 minutes, not 25. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
+deploys only once they pass. The tests that need no browser run beside the build, and the smoke test runs as seven jobs side by side
+(the desktop planet in four parts, `--only desktop-1` to `desktop-4`, then phone, holiday, and the rest), so a run takes about 6 minutes, not 25. Jekyll needs `LANG=C.UTF-8` to read the posts (the hook sets it).
 
 ## The JavaScript build
 

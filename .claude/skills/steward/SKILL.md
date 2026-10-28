@@ -33,7 +33,7 @@ npm test                      # or --only desktop|phone|pages|nogl while iterati
 
 - Open it as a draft. Title says what a visitor (or Steve) gets; the body has what changed,
   how it was tested, and anything Steve has to do (a setting, a secret), stated exactly.
-- CI (`site.yml`: build, check, the unit tests, the smoke test in six parallel jobs) must be green.
+- CI (`site.yml`: build, check, the unit tests, the smoke test in seven parallel jobs) must be green.
   A red smoke test is real until shown otherwise: download that job's `smoke-failed-*` artifact,
   reproduce with `node tools/smoke.mjs _site --only <its part>` (the job's name says which),
   fix the cause. Never skip or weaken a test to get green.

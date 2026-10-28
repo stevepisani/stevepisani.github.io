@@ -3,7 +3,7 @@
 # asset is there (tools/check-site.mjs). Beside the build, the tests that need no browser (the
 # planet specs, and the wardrobe, trips and places on the real schema in PGlite). Then the smoke
 # test drives the built site in a real browser (tools/smoke.mjs: every page, the planet on desktop
-# and phone, the private apps, friends' planets, the no-WebGL fallback), in six jobs side by side.
+# and phone, the private apps, friends' planets, the no-WebGL fallback), in seven jobs side by side.
 # Pull requests build and test; main also deploys, only once everything passes.
 # (Settings → Pages → Source is "GitHub Actions": Pages no longer builds the branch itself.)
 name: Site
@@ -67,16 +67,18 @@ jobs:
       - name: Places, on the real schema
         run: node tools/places-test.mjs
 
-  # the smoke test in parts side by side: the desktop planet alone is about 14 minutes in one go
+  # the smoke test in parts side by side: the desktop planet alone is about 14 minutes in one go,
+# so it's four parts (the last is the door)
   smoke:
     needs: build
-    # pinned: on ubuntu-latest's move to Ubuntu 26 (Oct 2026) `playwright install --with-deps` fails
+    # pinned: on ubuntu-latest's move to Ubuntu 26 (Oct 2026) `playwright install --with-deps` failed;
+    # 24.04 already has every library the headless shell needs, so it installs only the browser
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        part: [desktop-1, desktop-2, desktop-3, phone, holiday, 'pages,apps,planets,nogl']
+        part: [desktop-1, desktop-2, desktop-3, desktop-4, phone, holiday, 'pages,apps,planets,nogl']
     name: smoke (${{ matrix.part }})
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +86,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
+      - uses: actions/cache@v4 # the browser, until package-lock.json moves Playwright on
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-shell-${{ hashFiles('package-lock.json') }}
+      - run: npm ci --no-audit --no-fund && npx playwright install --only-shell chromium
       - uses: actions/download-artifact@v4
         with:
           name: github-pages
