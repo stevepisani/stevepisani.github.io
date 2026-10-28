@@ -326,8 +326,8 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     step(`hammock: lay down, leaned in on a shelf and stepped through it (${await page.evaluate(() => window.__world.stars)} stars), got up`);
   }
 
-  // part 3 is this (the telescope to the bottle) and the long walk further down: the parts are cut
-  // to take about the same time in CI, so they follow the order of the walk-through, not of the planet
+  // the parts are cut to take about the same time in CI (3 is the telescope to the bottle, 4 the
+  // long walk and the door), so each is a stretch of the walk-through, not a place on the planet
   if (parts.includes(3)) {
     // the telescope: bend to the eyepiece and the view opens on what it's pointed at, a card
     // says what; › swings it to the next; Esc steps back
@@ -532,7 +532,7 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     step('tapped the middle of the bridge, walked out to it, looked down into the planet');
   }
 
-  if (parts.includes(3)) {
+  if (parts.includes(4)) {
     // a long walk: from where you land to the campfire on the far side of the planet, round
     // whatever's in between (route.js), without stopping short
     const far = await page.evaluate(() => {
