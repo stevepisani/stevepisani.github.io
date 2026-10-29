@@ -271,7 +271,7 @@
       ],
       "series": "Go the F--k to Sleep",
       "seq": "1",
-      "genre": "Relationships, Parenting & Personal Development",
+      "genre": "Arts & Entertainment",
       "minutes": 6,
       "released": "2011-06-14",
       "cover": "https://m.media-amazon.com/images/I/513+vDG-eGL._SL500_.jpg",
@@ -1314,7 +1314,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Literature & Fiction",
+      "genre": "Science Fiction & Fantasy",
       "minutes": 387,
       "released": "2015-06-23",
       "cover": "https://m.media-amazon.com/images/I/51VTN3JIszL._SL500_.jpg",
@@ -1730,7 +1730,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -3723,7 +3723,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Literature & Fiction",
+      "genre": "Science Fiction & Fantasy",
       "minutes": 560,
       "released": "2009-08-13",
       "cover": "https://m.media-amazon.com/images/I/61o6OS4zZWL._SL500_.jpg",
@@ -3932,7 +3932,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Literature & Fiction",
+      "genre": "Mystery, Thriller & Suspense",
       "minutes": 970,
       "released": "2021-05-04",
       "cover": "https://m.media-amazon.com/images/I/51POf8gOyLL._SL500_.jpg",
@@ -5245,8 +5245,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "The Dune Sequence",
-      "seq": "12",
+      "series": "Dune",
+      "seq": "1",
       "genre": "Literature & Fiction",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5691,7 +5691,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Literature & Fiction",
+      "genre": "Mystery, Thriller & Suspense",
       "minutes": 537,
       "released": "2017-11-14",
       "cover": "https://m.media-amazon.com/images/I/51fisVXQNrL._SL500_.jpg",
@@ -5797,5 +5797,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-28"
+  "updated": "2026-10-29"
 }
