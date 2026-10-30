@@ -1065,6 +1065,8 @@ async function apps(page, shot) {
   await page.click('#ps-more');
   await until(page, () => document.getElementById('ps-qty').textContent === '4');
   await shot('pack-entry');
+  // the count shows before its PATCH is sent: wait for both saves, not only the screen
+  for (let i = 0; i < 40 && packPatches().length < 4; i++) await page.waitForTimeout(250);
   const sheetSaves = packPatches().slice(2).map((a) => JSON.stringify(a.body));
   if (sheetSaves.join() !== '{"bag_id":"b1"},{"qty":4}') throw new Error(`the entry's sheet sent ${sheetSaves}`);
   await page.click('#pack-sheet [data-close]');
