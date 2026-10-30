@@ -1,7 +1,7 @@
 // Trips in detail, tested against the real schema like the wardrobe (tools/wardrobe-db.mjs: every
 // migration in PGlite): travelers, packing entries, bags, transport, lodging, links, each day's
 // activities, get_trip whole and analyze_trip_packing, through SJPJr's tools as Steve. The
-// acceptance case is the real trip: London and Florence, autumn 2026, Steve, Lexi and Dominic.
+// acceptance case is a made-up family trip: London and Florence, autumn 2026, Steve, Lexi and Milo.
 // Then what older calls sent still works, nothing points at the wrong thing, and removing or
 // deleting takes only what it says; and days: what Steve wore and a line about each, through
 // get_today, log_day and get_history. Offline, a few seconds.
@@ -34,9 +34,9 @@ const shirtA = IDS.darkBrown, shirtB = IDS.darkGray, loafers = '33333333-3333-43
 const made = await tool('create_trip', {
   name: 'London + Florence 2026',
   legs: [{ place: 'London, United Kingdom', from: '2026-10-07', to: '2026-10-13' }, { place: 'Florence, Italy', from: '2026-10-13', to: '2026-11-13' }],
-  travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'lexi', name: 'Lexi', type: 'adult' }, { name: 'Dominic', type: 'child' }],
+  travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'lexi', name: 'Lexi', type: 'adult' }, { name: 'Milo', type: 'child' }],
 });
-ok(!made.error && made.travelers.map((x) => x.key).join() === 'steve,lexi,dominic' && made.travelers.every((x) => /^[0-9a-f-]{36}$/.test(x.id)), '1: a trip with three travelers, each with a key (made from the name when not given) and an id', made);
+ok(!made.error && made.travelers.map((x) => x.key).join() === 'steve,lexi,milo' && made.travelers.every((x) => /^[0-9a-f-]{36}$/.test(x.id)), '1: a trip with three travelers, each with a key (made from the name when not given) and an id', made);
 const T = made.id;
 await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01', to: '2026-11-02' }], travelers: [{ name: 'A', type: 'adult' }, { key: 'a', name: 'B', type: 'adult' }] }, /Two travelers/, '1: two travelers can\'t share a key');
 await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01', to: '2026-11-02' }], travelers: [{ name: 'Shared', type: 'adult' }] }, /shared/, '1: "shared" is no traveler\'s key');
@@ -44,23 +44,23 @@ await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01'
 
 // ---------- 2. Transport ----------
 const tr = await tool('add_transport', { trip_id: T, transport: [
-  { type: 'flight', carrier: 'British Airways', number: 'BA3279', origin: 'London City', origin_code: 'lcy', destination: 'Florence', destination_code: 'FLR', date: '2026-10-13', departure_time: '11:15', arrival_time: '14:25' },
-  { type: 'flight', carrier: 'British Airways', number: 'BA184', origin: 'Newark', origin_code: 'EWR', destination: 'Heathrow', destination_code: 'LHR', departure_time: '2026-10-06T21:00:00-04:00', arrival_time: '2026-10-07T09:05:00+01:00', confirmation: 'ABC123' },
+  { type: 'flight', carrier: 'British Airways', number: 'BA2741', origin: 'London City', origin_code: 'lcy', destination: 'Florence', destination_code: 'FLR', date: '2026-10-13', departure_time: '11:15', arrival_time: '14:25' },
+  { type: 'flight', carrier: 'British Airways', number: 'BA117', origin: 'Newark', origin_code: 'EWR', destination: 'Heathrow', destination_code: 'LHR', departure_time: '2026-10-06T21:00:00-04:00', arrival_time: '2026-10-07T09:05:00+01:00', confirmation: 'ABC123' },
   { type: 'transfer', origin: 'Heathrow', destination: 'South Kensington', date: '2026-10-07' },
 ] });
 ok(!tr.error && tr.transport.length === 3 && tr.transport.every((x) => x.id), '2: three journeys added, with ids', tr);
-const ba3279 = tr.transport.find((x) => x.number === 'BA3279'), ba184 = tr.transport.find((x) => x.number === 'BA184');
-ok(ba3279.departure_time === '2026-10-13T11:15' && ba3279.arrival_time === '2026-10-13T14:25' && ba3279.origin_code === 'LCY', '2: a local time stays local (no time zone made up), on its date; codes in capitals', ba3279);
-ok(ba184.date === '2026-10-06' && ba184.departure_time === '2026-10-06T21:00:00-04:00' && ba184.arrival_time === '2026-10-07T09:05:00+01:00', '2: the date comes from the departure; each time keeps its own UTC offset', ba184);
+const ba2741 = tr.transport.find((x) => x.number === 'BA2741'), ba117 = tr.transport.find((x) => x.number === 'BA117');
+ok(ba2741.departure_time === '2026-10-13T11:15' && ba2741.arrival_time === '2026-10-13T14:25' && ba2741.origin_code === 'LCY', '2: a local time stays local (no time zone made up), on its date; codes in capitals', ba2741);
+ok(ba117.date === '2026-10-06' && ba117.departure_time === '2026-10-06T21:00:00-04:00' && ba117.arrival_time === '2026-10-07T09:05:00+01:00', '2: the date comes from the departure; each time keeps its own UTC offset', ba117);
 await bad('add_transport', { trip_id: T, transport: [{ type: 'flight', origin: 'A', destination: 'B', departure_time: '2026-10-07T10:00:00+01:00', arrival_time: '2026-10-07T08:00:00+01:00' }] }, /before it departs/, '2: arriving before departing is refused');
 await bad('add_transport', { trip_id: T, transport: [{ type: 'flight', origin: 'A', destination: 'B', date: '2026-10-08', departure_time: '2026-10-07T10:00' }] }, /isn't on date/, '2: a departure on another day than its date is refused');
 await bad('add_transport', { trip_id: T, transport: [{ type: 'rocket', origin: 'A', destination: 'B', date: '2026-10-08' }] }, /flight, train/, '2: a type outside the list is refused, with the list');
 await bad('add_transport', { trip_id: T, transport: [{ type: 'train', origin: 'A', destination: 'B', date: '2026-10-08', departure_time: '10am' }] }, /ISO 8601/, '2: a time that isn\'t ISO 8601 is refused');
-const moved = await tool('update_transport', { id: ba3279.id, confirmation: 'XYZ9' });
+const moved = await tool('update_transport', { id: ba2741.id, confirmation: 'XYZ9' });
 ok(!moved.error && moved.confirmation === 'XYZ9' && moved.departure_time === '2026-10-13T11:15', '2: update_transport changes only what\'s given', moved);
 
 // ---------- 3. Lodging, and links ----------
-const lo = await tool('add_lodging', { trip_id: T, lodging: [{ name: 'St James House', place: 'London', address: '5 Cornwall Gardens, London SW7 4AJ', check_in: '2026-10-07', check_out: '2026-10-13' }] });
+const lo = await tool('add_lodging', { trip_id: T, lodging: [{ name: 'Linden House', place: 'London', address: '12 Example Gardens, London W1A 1AA', check_in: '2026-10-07', check_out: '2026-10-13' }] });
 ok(!lo.error && lo.lodging[0].id && lo.lodging[0].check_out === '2026-10-13', '3: lodging added', lo);
 await bad('add_lodging', { trip_id: T, lodging: [{ name: 'Backwards', check_in: '2026-10-13', check_out: '2026-10-07' }] }, /before check_in/, '3: a check-out before the check-in is refused');
 await bad('update_lodging', { id: lo.lodging[0].id, check_out: '2026-10-01' }, /before check_in/, '3: and so is a change that makes one');
@@ -76,14 +76,14 @@ const bags = await tool('add_trip_bags', { trip_id: T, bags: bagKeys.map((key) =
 ok(!bags.error && bags.bags.length === 8 && bags.bags.find((b) => b.key === 'steve_carry_on').traveler === 'steve', '4: eight bags, a carry-on each', bags);
 const bag = Object.fromEntries(bags.bags.map((b) => [b.key, b.id]));
 await bad('add_trip_bags', { trip_id: T, bags: [{ key: 'checked_1', label: 'Again' }] }, /already a bag "checked_1"/, '4: a bag key is unique on the trip');
-await bad('add_trip_bags', { trip_id: T, bags: [{ label: 'Nana bag', traveler: 'nana' }] }, /isn't on this trip.*steve, lexi, dominic/, '4: a bag for someone not on the trip is refused, with who is');
-ok((await tool('add_trip_bags', { trip_id: T, bags: [{ label: "Dominic's diaper bag", traveler: 'Dominic' }] })).bags[0].key === 'dominic_s_diaper_bag', '4: a key made from the label; a traveler by name');
+await bad('add_trip_bags', { trip_id: T, bags: [{ label: 'Nana bag', traveler: 'nana' }] }, /isn't on this trip.*steve, lexi, milo/, '4: a bag for someone not on the trip is refused, with who is');
+ok((await tool('add_trip_bags', { trip_id: T, bags: [{ label: "Milo's diaper bag", traveler: 'Milo' }] })).bags[0].key === 'milo_s_diaper_bag', '4: a key made from the label; a traveler by name');
 
 // ---------- 5–8. Packing: things for each traveler and everyone, garments, bags ----------
 const things = await tool('add_packing_items', { trip_id: T, items: [
-  { label: 'Diapers', traveler: 'dominic', category: 'baby', qty: 40, essential: true },
-  { label: 'Sleep sack', traveler: 'dominic', category: 'baby' },
-  { label: 'Stroller rain cover', traveler: 'dominic', category: 'baby', bag: 'stroller' },
+  { label: 'Diapers', traveler: 'milo', category: 'baby', qty: 40, essential: true },
+  { label: 'Sleep sack', traveler: 'milo', category: 'baby' },
+  { label: 'Stroller rain cover', traveler: 'milo', category: 'baby', bag: 'stroller' },
   { label: 'UK adapter', traveler: 'shared', category: 'electronics', qty: 2 },
   { label: 'Passports', traveler: 'shared', category: 'documents', essential: true, bag: 'steve_carry_on' },
   { label: 'Chargers', traveler: 'shared', category: 'electronics' },
@@ -92,7 +92,7 @@ const things = await tool('add_packing_items', { trip_id: T, items: [
 ok(!things.error && things.created.length === 7 && things.created.every((p) => p.status === 'needed' && p.id) && things.created.find((p) => p.label === 'Diapers').essential && things.created.find((p) => p.label === 'Passports').bag === 'steve_carry_on', '5: things that aren\'t garments, per traveler and shared, needed, in bags by key', things.created);
 const wear = await tool('add_packing_items', { trip_id: T, items: [{ item_id: shirtA, traveler: 'steve' }, { item_id: shirtB, traveler: 'steve' }, { item_id: pants, traveler: 'steve', qty: 2 }, { item_id: loafers, traveler: 'steve' }] });
 ok(!wear.error && wear.created.length === 4 && wear.created.filter((p) => p.category === 'clothing').length === 3 && wear.created.find((p) => p.item_id === loafers).category === 'shoes' && !wear.created.some((p) => p.label), '6: garments by id, the category from the wardrobe (shoes are shoes), nothing copied', wear.created);
-const again = await tool('add_packing_items', { trip_id: T, items: [{ label: 'diapers', traveler: 'dominic', qty: 50 }] });
+const again = await tool('add_packing_items', { trip_id: T, items: [{ label: 'diapers', traveler: 'milo', qty: 50 }] });
 ok(again.created.length === 0 && again.updated.length === 1 && again.updated[0].qty === 50 && (await q(`select count(*)::int as n from public.trip_packing where trip_id = $1 and lower(label) = 'diapers'`, [T]))[0].n === 1, '5: the same thing for the same traveler is updated, not added twice', again);
 await bad('add_packing_items', { trip_id: T, items: [{ label: 'Teddy', traveler: 'nana' }] }, /isn't on this trip/, '7: a traveler not on the trip is refused');
 await bad('add_packing_items', { trip_id: T, items: [{ label: 'Teddy', category: 'toys' }] }, /clothing, shoes/, '5: a category outside the list is refused, with the list');
@@ -135,16 +135,16 @@ await bad('plan_days', { trip_id: T, days: [{ date: '2026-12-01', occasion: 'x' 
 const g = await tool('get_trip', { id: T });
 ok(g.view === 'trip' && g.trip.id === T && g.trip.start === '2026-10-07' && g.trip.end === '2026-11-13', '11: the trip and its span', g.trip);
 ok(g.travelers.length === 3 && g.legs.length === 2 && g.legs.every((l) => l.weather?.summary), '11: travelers and legs with their weather', g.legs);
-ok(g.transport.map((x) => x.number || x.type).join() === 'BA184,transfer,BA3279', '11: transport in the order it happens', g.transport);
+ok(g.transport.map((x) => x.number || x.type).join() === 'BA117,transfer,BA2741', '11: transport in the order it happens', g.transport);
 ok(g.lodging.length === 1 && g.resources.length === 1 && g.bags.length === 9 && g.bags.find((b) => b.key === 'checked_1').entries === 3, '11: lodging, links, and bags with what\'s in them', g.bags);
 ok(g.days.find((d) => d.date === '2026-10-07').travel && g.days.find((d) => d.date === '2026-10-09').activities.length === 1 && g.days.find((d) => d.date === '2026-10-09').place === 'London', '11: days carry their place, activities, and whether they\'re travel days', g.days);
 ok(g.packing.summary.total_entries === 11 && g.packing.summary.packed === 1 && g.packing.summary.ready === 1 && g.packing.summary.to_buy === 1 && g.packing.summary.total_units === 50 + 1 + 1 + 2 + 1 + 1 + 1 + 1 + 1 + 2 + 1, '11: the packing list and its count', g.packing.summary);
 ok(g.packing.items.find((p) => p.id === P[shirtA]).bag === 'checked_1' && g.garments[shirtA].name && g.garments[pants].name === 'Navy chinos' && !JSON.stringify(g.packing.items).includes('Navy chinos'), '11: garments named once, in garments; entries point at them by id', g.packing.items);
-ok(/Travelers: Steve \(adult, key steve\)/.test(g.text) && /BA184.*departs 2026-10-06T21:00:00-04:00/.test(g.text) && /St James House, London: 2026-10-07 to 2026-10-13/.test(g.text) && /sightseeing \+ work\. 14:00–18:00 Work \(work\)/.test(g.text) && /50× Diapers \[needed, dominic, baby, essential; id /.test(g.text), '11: and the text says it all, with ids', g.text);
+ok(/Travelers: Steve \(adult, key steve\)/.test(g.text) && /BA117.*departs 2026-10-06T21:00:00-04:00/.test(g.text) && /Linden House, London: 2026-10-07 to 2026-10-13/.test(g.text) && /sightseeing \+ work\. 14:00–18:00 Work \(work\)/.test(g.text) && /50× Diapers \[needed, milo, baby, essential; id /.test(g.text), '11: and the text says it all, with ids', g.text);
 
 // ---------- 12. analyze_trip_packing: facts by fixed rules ----------
 let a = await tool('analyze_trip_packing', { trip_id: T });
-ok(a.summary.total_entries === 11 && a.summary.packed_entries === 1 && a.summary.needed_entries === 8 && a.by_traveler.dominic.entries === 2 && a.by_traveler.shared.entries === 5 && a.by_traveler.steve.entries === 4 && a.by_traveler.steve.packed === 1 && a.by_category.baby.entries === 3 && a.by_bag.checked_1.entries === 3 && a.by_bag.unassigned.entries === 6, '12: counts by status, traveler, category and bag', { s: a.summary, t: a.by_traveler, b: a.by_bag });
+ok(a.summary.total_entries === 11 && a.summary.packed_entries === 1 && a.summary.needed_entries === 8 && a.by_traveler.milo.entries === 2 && a.by_traveler.shared.entries === 5 && a.by_traveler.steve.entries === 4 && a.by_traveler.steve.packed === 1 && a.by_category.baby.entries === 3 && a.by_bag.checked_1.entries === 3 && a.by_bag.unassigned.entries === 6, '12: counts by status, traveler, category and bag', { s: a.summary, t: a.by_traveler, b: a.by_bag });
 const notPacked = a.wardrobe_analysis.planned_but_not_packed;
 ok(notPacked.some((x) => x.item_id === pants && x.status === 'needed' && x.on_list) && notPacked.some((x) => x.item_id === shirtB) && !notPacked.some((x) => x.item_id === shirtA), '12: planned garments not packed yet, with where they are', notPacked);
 ok(a.wardrobe_analysis.repeated_item_usage[0].item_id === pants && a.wardrobe_analysis.repeated_item_usage[0].count === 4, '12: the garment planned most, and how often', a.wardrobe_analysis.repeated_item_usage);
@@ -172,7 +172,7 @@ const g2 = await tool('get_trip', { id: T });
 ok(g2.garments[gone].missing && g2.garments[pants].retired && g2.packing.items.some((p) => p.item_id === gone), '11: get_trip keeps a deleted garment\'s entry and says it\'s gone, and marks a retired one', g2.garments);
 
 // ---------- Travelers changed: what still points at one who's gone is kept, and said ----------
-const less = await tool('update_trip', { id: T, travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'dominic', name: 'Dominic', type: 'child' }], laundry: { available: true, frequency_days: 4, notes: 'Washer in the Florence flat' } });
+const less = await tool('update_trip', { id: T, travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'milo', name: 'Milo', type: 'child' }], laundry: { available: true, frequency_days: 4, notes: 'Washer in the Florence flat' } });
 ok(less.travelers.find((x) => x.key === 'steve').id === made.travelers[0].id && /lexi/.test(less.text), 'update_trip: travelers replaced, each keeping its id; what still points at one who\'s gone is said', less.text);
 a = await tool('analyze_trip_packing', { trip_id: T });
 ok(has('unknown_traveler', (w) => w.bag_id === bag.lexi_carry_on) && has('unknown_traveler', (w) => w.packing_item_id), 'analyze: entries and bags for a traveler no longer on the trip are caught', a.warnings);
@@ -186,7 +186,7 @@ ok(!rm.error && rm.unassigned === 3 && (await q(`select count(*)::int as n from 
 const off = await tool('remove_packing_item', { packing_item_id: P[shirtB] });
 ok(!off.error && /still in the wardrobe/.test(off.text) && (await q(`select count(*)::int as n from public.wardrobe_items where id = $1 and deleted_at is null and not retired`, [shirtB]))[0].n === 1 && (await tool('get_trip', { id: T })).days.find((d) => d.date === '2026-10-12').items.includes(shirtB), 'remove_packing_item: only the entry; the garment and the days that plan it stay', off.text);
 await bad('remove_packing_item', { packing_item_id: P[shirtB] }, /no packing entry/, 'remove_packing_item: once');
-ok(!(await tool('remove_transport', { id: ba3279.id })).error && !(await tool('remove_lodging', { id: lo.lodging[0].id })).error && (await tool('get_trip', { id: T })).transport.length === 3, 'remove_transport and remove_lodging take that one alone');
+ok(!(await tool('remove_transport', { id: ba2741.id })).error && !(await tool('remove_lodging', { id: lo.lodging[0].id })).error && (await tool('get_trip', { id: T })).transport.length === 3, 'remove_transport and remove_lodging take that one alone');
 
 // ---------- 13. What older calls sent still works, unchanged ----------
 {
@@ -202,7 +202,7 @@ ok(!(await tool('remove_transport', { id: ba3279.id })).error && !(await tool('r
   ok(sp2.removed === 1 && rows2.length === 2 && rows2.find((r) => r.item_id === shirtA).status === 'packed' && rows2.find((r) => r.item_id === shirtA).id === rows[0].id && rows2.some((r) => r.label === 'Umbrella'), '13: set_packing replaces the list; what was on it keeps its id and status', rows2);
   const sp3 = await tool('set_packing', { trip_id: old.id, items: [{ label: 'Sunglasses', category: 'accessories', traveler: null }], mode: 'add' });
   ok(sp3.count === 3 && sp3.removed === 0, '13: mode add appends');
-  const rich = await tool('set_packing', { trip_id: T, items: [{ label: 'Diapers', traveler: 'dominic', status: 'ready', bag: 'stroller' }], mode: 'add' });
+  const rich = await tool('set_packing', { trip_id: T, items: [{ label: 'Diapers', traveler: 'milo', status: 'ready', bag: 'stroller' }], mode: 'add' });
   ok(rich.updated[0].status === 'ready' && rich.updated[0].bag === 'stroller', '13: set_packing takes the richer fields too', rich);
   const g3 = await tool('get_trip', { id: old.id });
   ok(g3.packing.items.length === 3 && !g3.travelers.length && !g3.bags.length && /Outfit: Soft Brushed Crew Neck/.test(g3.text), '13: an old-style trip reads whole', g3.text);

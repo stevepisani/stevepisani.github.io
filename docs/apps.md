@@ -400,7 +400,7 @@ wardrobe MCP server, signed in as him (below).
   times, which aren't known.
   - **Getting there, as boarding cards**: what it is (carrier and number, else the kind: Flight,
     Train, Transfer…, with its drawing) and its day; the two ends big (the codes, LCY → FLR, the
-    names under; with no code, the name before its first comma, "St James House"); the times there,
+    names under; with no code, the name before its first comma, "Linden House"); the times there,
     as given, never moved to another zone (an arrival on another day says which, under it); a
     countdown inside 48 hours ("Train to Paris in 3 h 20 min", moving each half minute; "On the
     way to Florence. Arrives in 1 h 10 min" once it's left), only for times stored with their UTC
@@ -624,8 +624,8 @@ sent.
   an entry or bag for someone not on the trip, transport outside the trip (a flight the day
   before the first leg is inside it), lodging outside the trip or overlapping. No advice: "bring a
   rain jacket" is the model's to say.
-- **Tests:** `tools/trips-test.mjs` (in `npm test` and CI) runs the real trip end to end (London
-  then Florence, Steve, Lexi and Dominic, BA184 and BA3279, St James House, eight bags), every
+- **Tests:** `tools/trips-test.mjs` (in `npm test` and CI) runs a made-up family trip end to end (London
+  then Florence, Steve, Lexi and Milo, BA117 and BA2741, Linden House, eight bags), every
   tool, older calls unchanged, references (a bag of another trip, someone else's trip), removing
   and deleting.
 
