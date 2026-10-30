@@ -50,7 +50,7 @@ const KINDS = [
       departure_time: { schema: N("ISO 8601, with the UTC offset where it's known: \"2026-10-13T11:15:00+01:00\"; without one it's local time there. \"HH:MM\" alone is on date."), check: (v, t, row) => time(v, "departure_time", row.date) },
       arrival_time: { schema: N("ISO 8601 as for departure_time, local to where it lands (give the date when it lands another day)."), check: (v, t, row) => time(v, "arrival_time", row.date) },
       carrier: { schema: N("\"British Airways\"."), check: (v) => str(v, 80, "carrier") },
-      number: { schema: N("Flight or train number: \"BA184\"."), check: (v) => str(v, 20, "number") },
+      number: { schema: N("Flight or train number: \"BA117\"."), check: (v) => str(v, 20, "number") },
       confirmation: { schema: N(), check: (v) => str(v, 80, "confirmation") },
       booking_url: { schema: N(), check: (v) => url(v, "booking_url") },
       notes: { schema: N(), check: (v) => str(v, 500, "notes") },
@@ -72,7 +72,7 @@ const KINDS = [
     add: "add_lodging", update: "update_lodging", remove: "remove_lodging",
     what: "where the travelers sleep: name, place, address, check-in and check-out dates",
     fields: {
-      name: { schema: S("\"St James House\"."), check: (v) => str(v, 200, "name", { required: v !== undefined }) },
+      name: { schema: S("\"Linden House\"."), check: (v) => str(v, 200, "name", { required: v !== undefined }) },
       place: { schema: N("The city: \"London\"."), check: (v) => str(v, 120, "place") },
       address: { schema: N(), check: (v) => str(v, 300, "address") },
       check_in: { schema: DATE, check: (v) => date(v, "check_in", { required: v !== undefined }) },

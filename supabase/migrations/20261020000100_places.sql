@@ -209,4 +209,3 @@ grant execute on function public.places_api_take(integer) to authenticated;
 -- Places is a section of SJPJr: Steve's
 alter table public.members drop constraint if exists members_sections_known;
 alter table public.members add constraint members_sections_known check (sections <@ '{today,closet,trips,places,recipes}');
-update public.members set sections = '{today,closet,trips,places,recipes}' where email = 'sjp543@gmail.com';

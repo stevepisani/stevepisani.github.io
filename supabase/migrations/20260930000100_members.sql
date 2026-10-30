@@ -6,8 +6,8 @@ create table if not exists public.members (
   added_at timestamptz not null default now()
 );
 alter table public.members enable row level security; -- no policies: read only through is_member()
-insert into public.members (email) values ('sjp543@gmail.com'), ('lexipisani@gmail.com')
-  on conflict do nothing;
+-- Who the members are is data, not code (the repo is public): tools/supabase.mjs writes them
+-- from the MEMBERS repo secret (docs/backend.md).
 
 create or replace function public.is_member() returns boolean
   language sql stable security definer set search_path = '' as $$

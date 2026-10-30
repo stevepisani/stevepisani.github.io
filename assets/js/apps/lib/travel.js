@@ -83,7 +83,7 @@ export function duration(min) {
   return out.replace(/ /g, '\u00a0'); // never broken across lines
 }
 
-// The short name of an end: its code (LHR), else the name before the first comma ("St James House")
+// The short name of an end: its code (LHR), else the name before the first comma ("Linden House")
 const shortName = (name, code) => code || (name || '').split(',')[0].trim();
 // Where a journey takes you, in a word: the trip's place it's in ("Florence Airport, Peretola" is Florence)
 const placeOf = (name, legs = []) => legs.map((l) => l.place).find((p) => p && (name || '').toLowerCase().includes(p.toLowerCase())) || shortName(name);

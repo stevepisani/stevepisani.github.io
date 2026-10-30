@@ -93,6 +93,12 @@ rather than leaving it in a chat.
 
 ## Waiting on Steve
 
+- **Personal details out of the public repo's history** (Steve chose this Oct 30 2026; the audit:
+  https://claude.ai/artifact/2UYqMXj1DdJGV1SvKjVpiy). The current files are clean: tests use a
+  made-up trip and family, and members' emails come from the `MEMBERS` secret. Left: one history
+  rewrite at a quiet moment with no PRs open (the 2020 résumé, members' emails, the trip details),
+  then Steve asks GitHub Support (github.com/contact, "Remove sensitive data") to purge old PR refs.
+
 - **My Tiny Planet's second planet:** who gets the first planet that isn't Steve's, and what they're into (Linear PRO-2300).
 - **A Google Maps key for places:** only needed for places a Takeout gives no coordinates for
   (saved lists, like "Want to go"). In the Google Cloud console (console.cloud.google.com): make
@@ -141,6 +147,9 @@ rather than leaving it in a chat.
 
 ## Done lately
 
+- Oct 2026: what's public on GitHub, audited. No real secret ever committed; the tests' trip and
+  family are made up now, and members' emails are a repo secret (`MEMBERS`), not in migrations.
+  Test data is always made up: never the real trip, family or addresses.
 - Oct 2026: a second door, behind the bar, onto the Rocky Steps of the Philadelphia Museum of Art:
   a world made by World Labs' Marble from two Wikimedia Commons photos (Dough4872, CC BY-SA 4.0),
   not scanned. The Marble workflow makes worlds from words or photos (`tools/marble-place.mjs`).

@@ -605,7 +605,7 @@ async function member(page, target, { email = 'member@example.com', me = { name:
   // the trip's own row lost its packing list to trip_packing, and has who's going and each day's plans
   const tripTable = JSON.parse(readFileSync(new URL('./fixtures/trips.json', import.meta.url))).map(({ packing, ...t }) => ({
     ...t, laundry: null,
-    travelers: [{ id: 'v1', key: 'steve', name: 'Steve', type: 'adult' }, { id: 'v2', key: 'lexi', name: 'Lexi', type: 'adult' }, { id: 'v3', key: 'dominic', name: 'Dominic', type: 'child' }],
+    travelers: [{ id: 'v1', key: 'steve', name: 'Steve', type: 'adult' }, { id: 'v2', key: 'lexi', name: 'Lexi', type: 'adult' }, { id: 'v3', key: 'milo', name: 'Milo', type: 'child' }],
     days: t.days.map((d) => (d.date === '2026-10-15' ? { ...d, activities: [{ id: 'a2', title: 'Dinner at Buca Mario', type: 'dining', start_time: '20:00' }, { id: 'a1', title: 'Uffizi', type: 'sightseeing', start_time: '09:30', end_time: '12:00' }] } : d)),
   }));
   const mine = { trip_id: 't1', owner: 'u1' };
@@ -614,7 +614,7 @@ async function member(page, target, { email = 'member@example.com', me = { name:
     trip_packing: [
       { id: 'p1', item_id: 'w1', category: 'clothing', traveler_key: 'steve', qty: 1, status: 'packed', bag_id: 'b1' },
       { id: 'p2', item_id: 'w2', category: 'clothing', traveler_key: 'steve', qty: 3, status: 'needed' },
-      { id: 'p3', label: 'Diapers', category: 'baby', traveler_key: 'dominic', qty: 1, status: 'to_buy', essential: true, notes: 'Size 4' },
+      { id: 'p3', label: 'Diapers', category: 'baby', traveler_key: 'milo', qty: 1, status: 'to_buy', essential: true, notes: 'Size 4' },
       { id: 'p4', label: 'Plug adapter', category: 'electronics', traveler_key: 'shared', qty: 2, status: 'ready', bag_id: 'b2' },
       { id: 'p5', label: 'Passports', category: 'documents', traveler_key: null, qty: 1, status: 'needed', essential: true },
       { id: 'p6', label: 'Sunscreen', category: 'toiletries', traveler_key: 'lexi', qty: 1, status: 'needed' },
@@ -622,12 +622,12 @@ async function member(page, target, { email = 'member@example.com', me = { name:
     ],
     trip_transport: [
       { id: 'g2', type: 'train', date: '2026-10-14', origin: 'London', destination: 'Florence', departure_time: '2026-10-14T07:01:00+01:00', arrival_time: '2026-10-14T19:30:00+02:00', carrier: 'Eurostar', number: '9010' },
-      { id: 'g1', type: 'flight', date: '2026-10-06', origin: 'Philadelphia', destination: 'London', origin_code: 'PHL', destination_code: 'LHR', departure_time: '2026-10-06T18:30:00-04:00', arrival_time: '2026-10-07T06:45:00+01:00', carrier: 'British Airways', number: 'BA 66', confirmation: 'XK7Q2B' },
-      { id: 'g3', type: 'train', date: '2026-10-16', origin: 'Firenze Santa Maria Novella', destination: 'Siena', departure_time: '2026-10-16T09:10:00+02:00', arrival_time: '2026-10-16T10:38:00+02:00', carrier: 'Trenitalia', number: 'R 3127', confirmation: 'PZ4K7M' },
+      { id: 'g1', type: 'flight', date: '2026-10-06', origin: 'Philadelphia', destination: 'London', origin_code: 'PHL', destination_code: 'LHR', departure_time: '2026-10-06T18:30:00-04:00', arrival_time: '2026-10-07T06:45:00+01:00', carrier: 'British Airways', number: 'BA 92', confirmation: 'TEST1A' },
+      { id: 'g3', type: 'train', date: '2026-10-16', origin: 'Firenze Santa Maria Novella', destination: 'Siena', departure_time: '2026-10-16T09:10:00+02:00', arrival_time: '2026-10-16T10:38:00+02:00', carrier: 'Trenitalia', number: 'R 3101', confirmation: 'TEST2B' },
     ],
     trip_lodging: [
       { id: 'l1', name: 'Hotel Bloomsbury', place: 'London', check_in: '2026-10-07', check_out: '2026-10-14' },
-      { id: 'l2', name: 'Florence Airbnb', place: 'Florence', address: 'Lungarno Acciaiuoli 4, 50123 Firenze', check_in: '2026-10-14', check_out: '2026-11-14', confirmation: 'HMQ3X9TZ', booking_url: 'https://www.airbnb.com/trips' },
+      { id: 'l2', name: 'Florence Airbnb', place: 'Florence', address: 'Via Esempio 1, 50100 Firenze', check_in: '2026-10-14', check_out: '2026-11-14', confirmation: 'TEST3STAY', booking_url: 'https://www.airbnb.com/trips' },
     ],
     trip_resources: [{ id: 'r1', type: 'insurance', label: 'Travel insurance', url: 'https://insurance.example/policy' }],
   };
@@ -999,18 +999,18 @@ async function apps(page, shot) {
   const meteo = asked.slice(meteoBefore).filter((a) => a.path.startsWith('open-meteo:api'));
   if (meteo.length !== 1 || !/weather_code/.test(meteo[0].path) || !/hourly=.*start_hour=2026-10-15T00:00&end_hour=2026-10-16T23:00/.test(meteo[0].path)) throw new Error(`one forecast request a leg that has forecast days (London's is over, Paris's beyond the forecast), with the hours of today and tomorrow: ${meteo.map((a) => a.path).join('\n')}`);
   const who = await page.locator('#trip-who .person').evaluateAll((ps) => ps.map((p) => [p.querySelector('.person__name').textContent, p.querySelector('.person__type')?.textContent].filter(Boolean).join(' ')));
-  if (who.join(', ') !== 'Steve, Lexi, Dominic child') throw new Error(`who's going: ${who}`);
+  if (who.join(', ') !== 'Steve, Lexi, Milo child') throw new Error(`who's going: ${who}`);
   if ((await page.textContent('#app-title')) !== 'Europe, autumn' || (await page.getAttribute('#app-back', 'href')) !== '#trips') throw new Error("the trip's title, or the way back to the trips, is wrong");
   // each planned day's outfit laid flat, its pieces opening the garments
   if ((await page.locator('#days .day').first().locator('.flatlay .flatlay__piece').count()) !== 2) throw new Error("a day's outfit isn't laid out");
   // getting there, as boarding cards in order: the ends (codes big, names under), the times as
   // given there (an arrival on another day says which), the reference; past ones have no Calendar
   const goes = (await page.locator('#trip-go .journey').allTextContents()).map(flatText);
-  if (goes.length !== 3 || !/^Flight: British Airways BA 66\s*Tue, Oct 6\s*PHL\s*Philadelphia\s*6:30 PM\s*to\s*LHR\s*London\s*6:45 AM\s*Wed, Oct 7.*Ref\s*XK7Q2B/.test(goes[0]) || !/^Train: Eurostar 9010.*London.*7:01 AM.*Florence.*7:30 PM/.test(goes[1]) || !/^Train: Trenitalia R 3127.*Firenze Santa Maria Novella.*9:10 AM.*Siena.*10:38 AM/.test(goes[2])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
+  if (goes.length !== 3 || !/^Flight: British Airways BA 92\s*Tue, Oct 6\s*PHL\s*Philadelphia\s*6:30 PM\s*to\s*LHR\s*London\s*6:45 AM\s*Wed, Oct 7.*Ref\s*TEST1A/.test(goes[0]) || !/^Train: Eurostar 9010.*London.*7:01 AM.*Florence.*7:30 PM/.test(goes[1]) || !/^Train: Trenitalia R 3101.*Firenze Santa Maria Novella.*9:10 AM.*Siena.*10:38 AM/.test(goes[2])) throw new Error(`getting there, in order, times as given: ${goes.join(' / ')}`);
   if (!(await page.locator('#trip-go .journey').first().evaluate((c) => c.classList.contains('is-past'))) || /Calendar/.test(goes[0]) || !/Add to Google Calendar/.test(goes[2])) throw new Error('a journey that has happened should look it, and not offer Calendar; one to come should');
   if (!/Hotel Bloomsbury.*London/.test(await page.textContent('#trip-stay')) || (await page.getAttribute('#trip-links a', 'href')) !== 'https://insurance.example/policy') throw new Error("the trip's lodging or links aren't shown");
   const stay = page.locator('#trip-stay .stay', { hasText: 'Florence Airbnb' });
-  if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Lungarno%20Acciaiuoli%204%2C%2050123%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
+  if (!/Oct 14 – .*Nov 14 · 31 nights · staying now/.test(flatText(await stay.textContent())) || (await stay.locator('.map-link').getAttribute('href')) !== 'https://maps.apple.com/?q=Florence%20Airbnb&address=Via%20Esempio%201%2C%2050100%20Firenze' || (await stay.locator('.map-link').getAttribute('target')) !== '_blank') throw new Error(`a stay: its dates and nights, its address opening Apple Maps: ${await stay.innerHTML()}`);
   if (!/09:30–12:00\s*Uffizi\s*sightseeing\s*20:00\s*Dinner at Buca Mario/.test(await page.textContent('#days'))) throw new Error(`a day's plans, in time order: ${await page.textContent('#days')}`);
   // a day that's been: what was worn (as planned) and its line, from what's logged
   const firstDay = page.locator('#days .day').first();
@@ -1148,13 +1148,13 @@ async function apps(page, shot) {
   const journey = page.locator('#today-view .journey--today');
   if ((await journey.count()) !== 1 || !(await journey.evaluate((j) => j.nextElementSibling?.classList.contains('today-card'))) || flatText(await journey.locator('.journey__soon').textContent()) !== 'Train to Siena in 22 h 10 min') throw new Error(`Today's next journey, above the day, counting down: ${await page.locator('#today-view').innerHTML().then((h) => h.slice(0, 400))}`);
   await journey.locator('.chip--ref').click();
-  await until(page, () => /Copied PZ4K7M/.test(document.getElementById('app-toast').textContent));
-  if ((await page.evaluate(() => navigator.clipboard.readText())) !== 'PZ4K7M') throw new Error("the reference wasn't copied");
+  await until(page, () => /Copied TEST2B/.test(document.getElementById('app-toast').textContent));
+  if ((await page.evaluate(() => navigator.clipboard.readText())) !== 'TEST2B') throw new Error("the reference wasn't copied");
   const cal = journey.locator('.chip', { hasText: 'Add to Google Calendar' });
   const calUrl = new URL(await cal.getAttribute('href')), calQ = Object.fromEntries(calUrl.searchParams);
-  if (calUrl.origin + calUrl.pathname !== 'https://calendar.google.com/calendar/render' || (await cal.getAttribute('target')) !== '_blank' || calQ.action !== 'TEMPLATE' || calQ.dates !== '20261016T071000Z/20261016T083800Z' || calQ.text !== 'Train to Siena (Trenitalia R 3127)' || calQ.location !== 'Firenze Santa Maria Novella' || !/Booking reference PZ4K7M/.test(calQ.details)) throw new Error(`Google Calendar gets the journey, its times in UTC: ${calUrl}`);
+  if (calUrl.origin + calUrl.pathname !== 'https://calendar.google.com/calendar/render' || (await cal.getAttribute('target')) !== '_blank' || calQ.action !== 'TEMPLATE' || calQ.dates !== '20261016T071000Z/20261016T083800Z' || calQ.text !== 'Train to Siena (Trenitalia R 3101)' || calQ.location !== 'Firenze Santa Maria Novella' || !/Booking reference TEST2B/.test(calQ.details)) throw new Error(`Google Calendar gets the journey, its times in UTC: ${calUrl}`);
   const tonight = page.locator('#today-view .stay--today');
-  if (!/^Tonight\s*Florence Airbnb\s*Check out Saturday/.test(flatText(await tonight.textContent())) || !/^https:\/\/maps\.apple\.com\/\?q=Florence%20Airbnb&address=Lungarno/.test(await tonight.locator('.map-link').getAttribute('href'))) throw new Error(`tonight's stay on Today: ${await tonight.textContent()}`);
+  if (!/^Tonight\s*Florence Airbnb\s*Check out Saturday/.test(flatText(await tonight.textContent())) || !/^https:\/\/maps\.apple\.com\/\?q=Florence%20Airbnb&address=Via%20Esempio/.test(await tonight.locator('.map-link').getAttribute('href'))) throw new Error(`tonight's stay on Today: ${await tonight.textContent()}`);
   if (flatText(await page.textContent('.home-away')) !== 'Florence 11:00 AM · Philadelphia 5:00 AM · €1 = $1.13') throw new Error(`home and away: ${await page.textContent('.home-away')}`);
   await page.click('.home-away__rate');
   if (flatText(await page.textContent('.home-away__rate')) !== '$1 = €0.89') throw new Error(`the rate, turned round: ${await page.textContent('.home-away__rate')}`);
@@ -1547,11 +1547,11 @@ async function card(page, shot) {
   step('filing: what it is and that it\'s a new colour, only the guesses up front, the tag\'s facts folded, then "Add to wardrobe" files it');
 
   // a trip: a glance (legs, who, next outfit, packing so far); Open trip for the days and packing, by who it's for
-  const t = (await call('create_trip', { name: 'Europe, autumn', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence', from: '2026-10-14', to: '2026-11-14' }], travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'dominic', name: 'Dominic', type: 'child' }] })).structuredContent;
+  const t = (await call('create_trip', { name: 'Europe, autumn', legs: [{ place: 'London', from: '2026-10-07', to: '2026-10-14' }, { place: 'Florence', from: '2026-10-14', to: '2026-11-14' }], travelers: [{ key: 'steve', name: 'Steve', type: 'adult' }, { key: 'milo', name: 'Milo', type: 'child' }] })).structuredContent;
   const ids = (await call('find_items', {})).structuredContent.items.map((i) => i.id);
   await call('plan_days', { trip_id: t.id, days: [{ date: '2026-10-08', items: ids.slice(0, 3), occasion: 'Tate Modern, then dinner' }, { date: '2026-10-15', items: ids.slice(2, 5), occasion: 'Uffizi', activities: [{ title: 'Uffizi', type: 'sightseeing', start_time: '10:00' }] }] });
   await call('set_packing', { trip_id: t.id, items: [...ids.slice(0, 4).map((item_id) => ({ item_id, traveler: 'steve' })), { label: 'Plug adapter', qty: 2, traveler: 'shared' }] });
-  await call('add_packing_items', { trip_id: t.id, items: [{ label: 'Sleep sack', traveler: 'dominic', category: 'baby' }] });
+  await call('add_packing_items', { trip_id: t.id, items: [{ label: 'Sleep sack', traveler: 'milo', category: 'baby' }] });
   await show({ id: t.id }, await call('get_trip', { id: t.id }));
   await frame.locator('.w-next .w-sq').first().waitFor();
   if ((await frame.locator('.w-next .w-sq').count()) !== 3 || !/0 of 6 packed/.test(await frame.locator('.w-count').textContent()) || (await frame.locator('.w-day').count())) throw new Error("the trip's glance: the next outfit and packing so far, no day list");
@@ -1559,7 +1559,7 @@ async function card(page, shot) {
   await frame.getByRole('button', { name: 'Packing list' }).click();
   await frame.locator('.w-pack input').first().check();
   await frame.locator('.w-count', { hasText: '1 of 6 packed' }).waitFor();
-  await frame.getByRole('button', { name: 'Dominic' }).click();
+  await frame.getByRole('button', { name: 'Milo' }).click();
   if ((await frame.locator('.w-pack li').count()) !== 1 || !/Sleep sack/.test(await frame.locator('.w-pack').textContent())) throw new Error('the packing list should narrow to one traveler');
   await frame.getByRole('button', { name: 'Everyone' }).click();
   if (!/Dark Brown/.test(await frame.locator('.w-pack').textContent())) throw new Error('the packing list should tell the same shirt in different colours apart');

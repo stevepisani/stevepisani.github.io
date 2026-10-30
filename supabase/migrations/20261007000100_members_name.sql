@@ -6,8 +6,7 @@ alter table public.members add column if not exists name text;
 alter table public.members add column if not exists sections text[] not null default '{recipes}';
 alter table public.members drop constraint if exists members_sections_known;
 alter table public.members add constraint members_sections_known check (sections <@ '{today,closet,trips,recipes}');
-update public.members set name = 'Steve', sections = '{today,closet,trips,recipes}' where email = 'sjp543@gmail.com';
-update public.members set name = 'Lexi', sections = '{recipes}' where email = 'lexipisani@gmail.com';
+-- Each member's name and sections come from the MEMBERS repo secret (tools/supabase.mjs).
 
 -- The signed-in member's own row, as the app needs it (null for anyone who isn't one). The table
 -- itself stays unreadable (no policies), like is_member().

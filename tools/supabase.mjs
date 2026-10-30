@@ -3,6 +3,8 @@
 //   - each migration in supabase/migrations/ not yet recorded in
 //     supabase_migrations.schema_migrations (the table the Supabase CLI uses, so the two agree),
 //     in name order, each in its own transaction;
+//   - the members (email, name, sections), from the MEMBERS repo secret when it's set: data, not
+//     code, since the repo is public; members not in it are left as they are;
 //   - JWT signing keys: an asymmetric one in use (below);
 //   - the auth settings in supabase/auth.json, and the emails in supabase/templates/ (each
 //     <name>.html is the auth config's mailer_templates_<name>_content: magic_link.html is the
@@ -45,6 +47,18 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
   const body = readFileSync(`${dir}/${file}`, 'utf8');
   await sql(`begin;\n${body}\n;insert into supabase_migrations.schema_migrations (version, name, statements)
     values (${quote(version)}, ${quote(name)}, array[${quote(body)}]);\ncommit;`);
+}
+
+// The members, from the MEMBERS secret: a JSON list of {email, name, sections}. Never printed.
+if (process.env.MEMBERS) {
+  const members = JSON.parse(process.env.MEMBERS);
+  console.log(`${dry ? 'would set' : 'setting'} ${members.length} members`);
+  if (!dry) {
+    for (const m of members) {
+      await sql(`insert into public.members (email, name, sections) values (${quote(m.email.toLowerCase())}, ${quote(m.name)}, array[${m.sections.map(quote).join(',')}]::text[])
+        on conflict (email) do update set name = excluded.name, sections = excluded.sections`);
+    }
+  }
 }
 
 // Asymmetric JWT signing keys, which the OAuth server needs (its ID tokens can't be HS256). Once:
