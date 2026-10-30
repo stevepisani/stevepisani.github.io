@@ -39,7 +39,7 @@ design: row-level security guards every table.
 - `functions/<name>/index.ts`: edge functions, Deno TypeScript. Type-check with
   `deno check --node-modules-dir=none supabase/functions/<name>/index.ts` (the flag keeps Deno from
   looking for the site's own `node_modules`).
-- `tools/supabase.mjs` applies the migrations, the JWT signing keys (one ES256 key in use, the old
+- `tools/supabase.mjs` applies the migrations, the members (from the `MEMBERS` secret, when set), the JWT signing keys (one ES256 key in use, the old
   secret still trusted), `auth.json`, the email templates and `realtime.json` through the Management API with
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
@@ -215,6 +215,10 @@ Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't r
   100 as a backstop to the cap in code (the steps are in `docs/roadmap.md`, "Waiting on Steve").
 - `CLOUDFLARE_API_TOKEN` (Cloudflare Pages: Edit) and `CLOUDFLARE_ACCOUNT_ID`: the MCP server's
   address, for `mcp-proxy.yml` (`docs/apps.md`).
+- `MEMBERS` (optional): who's a member of SJPJr, as JSON, `[{"email": "...", "name": "Steve",
+  "sections": ["today", "closet", "trips", "places", "recipes"]}, ...]`, written by
+  `tools/supabase.mjs`. The emails aren't in the repo because it's public. Set it only to add a
+  member or change one, or to rebuild the project from scratch; members already there stay.
 - `AUDIBLE_AUTH`: the Audible device registration, for `audible.yml` (above).
 - `GITHUB_TOKEN` (automatic): the Jekyll build's GitHub metadata, and the Audible sync's commit.
 
