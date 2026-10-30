@@ -1011,7 +1011,7 @@
       ],
       "series": "Hyperion",
       "seq": "1",
-      "genre": "Science Fiction & Fantasy",
+      "genre": "Literature & Fiction",
       "minutes": 1244,
       "released": "2008-12-22",
       "cover": "https://m.media-amazon.com/images/I/51RIKu29fRL._SL500_.jpg",
@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
-      "seq": "",
+      "series": "Captive's War",
+      "seq": "1.5",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -1730,7 +1730,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -4025,7 +4025,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Health & Wellness",
+      "genre": "History",
       "minutes": 314,
       "released": "2021-04-27",
       "cover": "https://m.media-amazon.com/images/I/51hwSCkCFiL._SL500_.jpg",
@@ -5245,8 +5245,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "Dune",
-      "seq": "1",
+      "series": "The Dune Sequence",
+      "seq": "12",
       "genre": "Literature & Fiction",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5797,5 +5797,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-10-29"
+  "updated": "2026-10-30"
 }
