@@ -26,6 +26,11 @@ art, blockouts, engine captures and measured behavior as different kinds of evid
 | Behavior | A visible response precedes optional explanatory details. Motion follows the visitor's request and respects reduced motion. | A short interaction capture, including a usable way back. |
 | Personalization | Suggest one appealing additive change immediately after reveal; preserve the existing world when chosen. | Before/after in the same view and a capture of the chosen edit. |
 
+Light the activity, not the whole world equally. Contrast a warm gathering place with cooler
+surroundings, and connect foreground, destination and secondary discoveries with terrain,
+planting and a readable approach. Review atmosphere at the actual first-reveal viewport;
+a wider camera that merely exposes empty ground does not improve composition.
+
 Film framing must survive freely moving visitors. No single-view façade, forced introductory
 flight or elaborate camera move should hide an unfinished place. Templates encode relationships
 and anchors without forcing every person into the same theme or belongings.
