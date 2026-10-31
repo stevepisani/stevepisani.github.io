@@ -118,7 +118,11 @@ sent are then finished by hand. The plan and what's next are in
   click, with Full screen and Open in browser (Steve, Oct 2026: the phone and the computer should
   be the same). The page tells the card how it's going (`tellCard` in `spec.js`: loading, from an
   inline script before the planet's script arrives, then ready or failed); a frame that says
-  nothing for 12 s was blocked by the app, and the card falls back. Once it's drawn, the page
+  nothing for 12 s was blocked by the app, and the card falls back. The loading message is sent
+  before the 3D bundle arrives, so a slow download gets time to finish; if the page still hasn't
+  drawn after 60 s, it falls back too. Ready cancels both deadlines. Messages must come from
+  its own preview frame and match the site's origin (or the host sandbox's opaque origin).
+  The card clears its timers and listener when replaced or torn down. Once it's drawn, the page
   sends the card a few views of itself (`looks()` in `planets/main.js`: from above where you land,
   then up to three things, each framed from the side it faces; 512 px JPEGs, drawn and read
   between two frames), and where the host takes pictures in the model's context

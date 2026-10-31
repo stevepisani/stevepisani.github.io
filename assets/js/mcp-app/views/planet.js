@@ -10,6 +10,7 @@
 import { app, button, caps, css, el, full, goFull, host, request, views } from '../card.js';
 
 const SILENT_MS = 12000; // a frame that hasn't said "loading" by now isn't going to
+const LOADING_MS = 60000; // a page that loaded but never draws still needs a way out
 
 const open = (url) => request('ui/open-link', { url }).catch(() => window.open(url, '_blank', 'noopener'));
 
@@ -48,7 +49,8 @@ views.planet = (data) => {
   const actions = el('div', 'w-actions'), threeD = gl;
   // in 3D here, it opens bigger in the browser; on the plain card, it's the only way to walk round it
   const walk = button('w-btn w-btn--primary', threeD ? 'Open in browser' : 'Walk around it', () => open(data.url));
-  const showPlain = () => { stage.replaceWith(head); plain(p, parts); walk.textContent = 'Walk around it'; };
+  let cleanup = () => {};
+  const showPlain = () => { cleanup(); stage.replaceWith(head); plain(p, parts); walk.textContent = 'Walk around it'; };
   actions.append(walk);
   if (threeD) {
     const frame = el('iframe', 'pl-frame');
@@ -57,21 +59,27 @@ views.planet = (data) => {
     stage.append(frame);
     let heard = false;
     const silent = setTimeout(() => { if (!heard) showPlain(); }, SILENT_MS);
+    const loading = setTimeout(showPlain, LOADING_MS);
+    const origin = new URL(data.url).origin;
     const listen = (e) => {
-      if (e.source !== frame.contentWindow || !e.data || !e.data.planet) return;
+      // Sandboxed MCP hosts can give every nested page an opaque origin. Accept that only
+      // from this exact child window; a normal page must also match the preview site's origin.
+      if (e.source !== frame.contentWindow || (e.origin !== 'null' && e.origin !== origin) || !e.data || !e.data.planet) return;
       heard = true;
-      if (e.data.planet === 'failed') { clearTimeout(silent); removeEventListener('message', listen); showPlain(); }
-      if (e.data.planet === 'ready') clearTimeout(silent);
+      if (e.data.planet === 'failed') showPlain();
+      if (e.data.planet === 'ready') { clearTimeout(silent); clearTimeout(loading); }
       if (e.data.planet === 'look' && caps.updateModelContext?.image && e.data.detail?.images?.length) {
         const { text, images } = e.data.detail;
         request('ui/update-model-context', { content: [{ type: 'text', text }, ...images.map((data) => ({ type: 'image', data, mimeType: 'image/jpeg' }))] }).catch(() => {});
       }
     };
+    cleanup = () => { clearTimeout(silent); clearTimeout(loading); removeEventListener('message', listen); };
     addEventListener('message', listen);
     app.append(stage);
     if ((host.availableDisplayModes || []).includes('fullscreen') && !full()) actions.prepend(button('w-btn', 'Full screen', () => goFull()));
   } else { app.append(head); plain(p, parts); }
   app.append(parts, actions);
+  return cleanup; // the shell calls it when a result replaces this view or the host tears it down
 };
 
 css(`
