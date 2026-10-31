@@ -1839,6 +1839,8 @@ async function composedPreview(page, shot) {
     await page.evaluate((id)=>{
       const w=window.__planet,t=w.spec.things.find((t)=>t.id===id),V=w.camera.position.constructor;
       w.player.spawn(new V(0,1,0),t.center,-0.18);
+      w.player.applyToCamera(performance.now()/1000);
+      w.camera.updateMatrixWorld(true);
     },id);
     // A string-light rig's box middle is behind the table; tap an actual visible bulb.
     const at=await page.waitForFunction((id)=>{
@@ -1860,6 +1862,8 @@ async function composedPreview(page, shot) {
     const w=window.__planet,t=w.spec.things.find(t=>t.id==='sky-scope'),V=w.camera.position.constructor;
     const at=t.root.localToWorld(new V(0,0,3.6)).normalize();
     w.player.spawn(at,t.center,-0.18);
+    w.player.applyToCamera(performance.now()/1000);
+    w.camera.updateMatrixWorld(true);
   });
   const scopeAt=await page.waitForFunction(()=>window.__planet.screenOf('sky-scope'),null,{timeout:20000}).then(h=>h.jsonValue());
   await page.mouse.click(scopeAt.x,scopeAt.y);
