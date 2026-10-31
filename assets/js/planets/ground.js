@@ -19,14 +19,24 @@ function seeded(slug) {
  * centre in a direction (for Player), `mesh` what's drawn and what a tap lands on.
  * `ground`: { color: '#rrggbb', hills: 0..1 } from a built planet (optional).
  */
-export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { high: false } } = {}) {
+export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, quality = { high: false } } = {}) {
   const rand = seeded(slug);
   const waves = Array.from({ length: 4 }, (_, i) => ({
     k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(2 + i * 1.7 + rand()),
     phase: rand() * Math.PI * 2,
     a: (0.5 / (i + 1)) * hills * 2,
   }));
-  const height = (dir) => waves.reduce((h, w) => h + w.a * Math.sin(dir.dot(w.k) + w.phase), 0);
+  const coastDir = coast && new THREE.Vector3(Math.sin(coast.bearing * Math.PI/180) * Math.sin(coast.distance/RADIUS), Math.cos(coast.distance/RADIUS), -Math.cos(coast.bearing * Math.PI/180) * Math.sin(coast.distance/RADIUS));
+  const shoreDistance = (dir) => coastDir ? Math.acos(THREE.MathUtils.clamp(dir.dot(coastDir),-1,1)) * RADIUS : Infinity;
+  const waterLevel = RADIUS - 0.24;
+  const height = (dir) => {
+    const natural = waves.reduce((h, w) => h + w.a * Math.sin(dir.dot(w.k) + w.phase), 0);
+    if (!coast) return natural;
+    // A continuous basin with a sandy lip, shared by mesh, props and walking. No blue disk
+    // sitting on top of the land, and no unsupported rim along the curved surface.
+    const basin = 1 - THREE.MathUtils.smoothstep(shoreDistance(dir), coast.radius - 0.8, coast.radius + 0.7);
+    return THREE.MathUtils.lerp(natural, -0.85, basin);
+  };
   const surface = (dir) => RADIUS + height(_d.copy(dir).normalize());
 
   const geo = new THREE.IcosahedronGeometry(RADIUS, quality.high ? 96 : 64);
@@ -35,6 +45,7 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
   // patches of a second, duller tone and of pale dust, at their own scales, so it isn't one flat colour
   const patches = Array.from({ length: 6 }, (_, i) => ({ k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(5 + i * 3 + rand() * 2), phase: rand() * Math.PI * 2 }));
   const patch = (dir, from) => patches.slice(from, from + 3).reduce((a, w) => a + Math.sin(dir.dot(w.k) + w.phase), 0) / 3;
+  const wet = new THREE.Color('#9b9d78');
   const dull = base.clone().offsetHSL(0.03, -0.12, -0.07), dust = base.clone().offsetHSL(-0.01, -0.15, 0.08);
   for (let i = 0; i < pos.count; i++) {
     d.fromBufferAttribute(pos, i).normalize();
@@ -42,6 +53,7 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
     pos.setXYZ(i, d.x * (RADIUS + h), d.y * (RADIUS + h), d.z * (RADIUS + h));
     // a little lighter on the tops, darker in the hollows, and a grain of noise so it reads as ground
     c.copy(base).lerp(dull, THREE.MathUtils.smoothstep(patch(d, 0), -0.1, 0.5) * 0.8).lerp(dust, THREE.MathUtils.smoothstep(patch(d, 3), 0.3, 0.8) * 0.6);
+    if (coast) c.lerp(wet, 1 - THREE.MathUtils.smoothstep(shoreDistance(d), coast.radius - 0.25, coast.radius + 0.8));
     c.multiplyScalar(0.8 + h * 0.4 + (rand() - 0.5) * 0.06);
     c.toArray(colors, i * 3);
   }
@@ -52,12 +64,12 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
   mesh.receiveShadow = true;
   // loose stones, so the ground reads as ground and you can see yourself walk: one instanced mesh,
   // sunk a little so none floats on a slope
-  const STONES = quality.high ? 3000 : 2000;
+  const STONES = coast ? 450 : quality.high ? 3000 : 2000;
   const stones = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: base.clone().multiplyScalar(0.7), roughness: 0.9, flatShading: true }), STONES);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
   for (let i = 0; i < STONES; i++) {
     d.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
-    const r = 0.03 + Math.pow(rand(), 4) * 0.35;
+    const r = coast ? 0.025 + rand() * 0.045 : 0.03 + Math.pow(rand(), 4) * 0.35;
     p.copy(d).multiplyScalar(surface(d) - r * 0.35);
     q.setFromEuler(new THREE.Euler(rand() * 6, rand() * 6, rand() * 6));
     m.compose(p, q, sc.set(r, r * (0.5 + rand() * 0.4), r * (0.7 + rand() * 0.5)));
@@ -65,6 +77,29 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, quality = { 
   }
   stones.receiveShadow = true;
   mesh.add(stones);
-  return { mesh, surface };
+  const colliders = [];
+  if (coast) {
+    // Curved water cap cut from a sphere, wholly inside the depressed basin. The opaque
+    // shallows grade to deep teal; thin wave arcs follow the same surface.
+    const center = coastDir.clone(), right = new THREE.Vector3(1,0,0).addScaledVector(center,-center.x).normalize(), ahead = new THREE.Vector3().crossVectors(center,right).normalize();
+    const vertices = [], shades = [], triangles = [], rings = 28, segments = 96;
+    const shallow = new THREE.Color('#75b8ac'), deep = new THREE.Color(coast.color || '#368e97');
+    const point = (r,a,level=waterLevel) => center.clone().multiplyScalar(Math.cos(r/RADIUS)).addScaledVector(right,Math.sin(r/RADIUS)*Math.cos(a)).addScaledVector(ahead,Math.sin(r/RADIUS)*Math.sin(a)).multiplyScalar(level);
+    for (let j=0;j<=rings;j++) for (let i=0;i<=segments;i++) {
+      const r = (coast.radius + 0.35)*j/rings, a=i/segments*Math.PI*2;
+      vertices.push(...point(r,a).toArray());
+      const c = deep.clone().lerp(shallow,THREE.MathUtils.smoothstep(j/rings,0.55,1));
+      c.multiplyScalar(0.98+0.02*Math.sin(a*12+j)); c.toArray(shades,shades.length);
+      if(j && i) { const k=j*(segments+1)+i; triangles.push(k,k-1,k-segments-1,k-1,k-segments-2,k-segments-1); }
+    }
+    const waterGeo = new THREE.BufferGeometry();
+    waterGeo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    waterGeo.setAttribute('color',new THREE.Float32BufferAttribute(shades,3)); waterGeo.setIndex(triangles); waterGeo.computeVertexNormals();
+    const water = new THREE.Mesh(waterGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.26,metalness:0.15,side:THREE.DoubleSide}));
+    water.name = 'lagoon-water'; mesh.add(water);
+    // A low broad collision circle keeps the current walking controller on dry sand.
+    colliders.push({center:coastDir.clone().multiplyScalar(waterLevel),radius:coast.radius-0.3});
+  }
+  return { mesh, surface, colliders, isWater: (dir) => coast && surface(dir) < waterLevel };
 }
 const _d = new THREE.Vector3();

@@ -30,6 +30,11 @@ rather than leaving it in a chat.
    (`docs/planets.md`, "Real models"); Sam, Inês and Dev are the first (Steve approved up to $10 a planet for the first 10 friends, Oct 27). Every model is in one house style, storybook miniature (Steve chose it Oct 27 from samples), drawn as a picture first. A planet is a few real little places joined by paths: a thing can be set `near` another, placed by code ([the plan](https://claude.ai/artifact/ERoYTRvyBR11PCJagYQtRM)). Things you can use: a bench to sit on, a light to switch (`use`). Stock things, made once in the house style for every planet (a bench, a chair, a lamp post, a fence and five more; Steve approved about $6, Oct 27). Next from the plan: models made while the chat waits.
    The card now hears that its page is loading before the 3D bundle arrives, so a slow preview
    survives the 12-second blocked-frame check; a page that never draws falls back after 60 seconds.
+   Semantic gathering/lookout scenes now compile into placed things and connected routes.
+   `prepare_planet` separates schema and geometry checks from the user-visible preview, with a
+   bounded correction pass and no claimed screenshot inspection or asset generation. The first
+   reveal should immediately offer one specific personal addition. Visual quality on unseen
+   input still needs the fresh-input benchmark and actual rendered acceptance.
    Next: models made live from the chat, so their own AI's words become the model in the preview. Then: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
@@ -285,3 +290,5 @@ rather than leaving it in a chat.
 - Sep 2026: fireflies (other visitors, live), the page counter, messages in bottles thrown into
   space; the AI bartender; Supabase as code; the profile README fed from the site; skipping
   stones, sound, the real moon and the ISS.
+
+Scene composition pilot (PRO-2293): gathering/lookout layouts, native lagoon, separate footprints, entrance routes, and a stable overview with tap-to-enter are implemented on the review branch. Preparation has no card and performs geometry checks only. Owner example and optional hammock edit are rehearsals; broad asset coverage, a rendered pre-reveal gate, phone performance acceptance and owner satisfaction are still open.

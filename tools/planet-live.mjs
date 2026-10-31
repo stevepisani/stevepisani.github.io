@@ -48,7 +48,7 @@ console.log(`The Planets connector ${local ? 'in this checkout' : `at ${URL_}`}`
 const init = (await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'planet-live', version: '1' } })).result;
 ok(init?.serverInfo?.name === 'planets', `it says who it is (${init?.serverInfo?.title} ${init?.serverInfo?.version})`, init);
 const tools = (await rpc('tools/list')).result.tools.map((t) => t.name);
-ok(['get_kit', 'preview_planet', 'send_planet'].every((t) => tools.includes(t)), `its tools: ${tools.join(', ')}`, tools);
+ok(['get_kit', 'prepare_planet', 'preview_planet', 'send_planet'].every((t) => tools.includes(t)), `its tools: ${tools.join(', ')}`, tools);
 const kit = (await tool('get_kit', {})).structuredContent;
 ok(kit?.example && kit.limits, 'get_kit: the kit, with an example', kit);
 const card = (await rpc('resources/read', { uri: 'ui://planets/preview.html' })).result?.contents?.[0];
@@ -78,7 +78,10 @@ if (site) await context.route('https://stevenpisani.com/**', (route) => {
 });
 for (const spec of PEOPLE) {
   console.log(`${spec.who.name} (${spec.slug})`);
-  const shown = await tool('preview_planet', { spec });
+  const prepared = await tool('prepare_planet', { spec });
+  const preparedSpec = prepared.structuredContent?.spec;
+  ok(!prepared.isError && prepared.structuredContent?.prepared && !prepared.structuredContent?.view && !prepared.structuredContent?.url && prepared.structuredContent?.diagnostics?.rendered === false && JSON.stringify(preparedSpec) === JSON.stringify(spec), 'prepared without a card, a URL or claimed rendering; the old flat spec is unchanged', prepared.content?.[0]?.text);
+  const shown = await tool('preview_planet', { spec: preparedSpec || spec });
   const url = shown.structuredContent?.url;
   ok(!shown.isError && url && shown.structuredContent.planet.name === spec.who.name, 'previewed: the card and its link', shown.content?.[0]?.text);
   if (url) {

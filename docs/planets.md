@@ -8,6 +8,72 @@ and things made of simple shapes, each tied to what they love in their words. Th
 sent are then finished by hand. The plan and what's next are in
 `docs/roadmap.md` (My Tiny Planet, Linear P-PRO-40); this file is how what's built works.
 
+## First-preview quality requirement
+
+After the interview, the first planet the person sees must already look coherent, personal and
+worth exploring. Repeated customer-directed fixes to basic shapes, placement or lighting are
+not the normal product flow. Later customization builds on a good first result.
+
+The default interaction has three beats: reveal a convincing first version; immediately suggest
+one specific, appealing change drawn from the person's answers; then, when they choose a change,
+apply it and show the updated planet. The suggestion should make the ease of editing tangible
+and help them make the world their own. Keep it optional and concrete, with the person free to
+choose another direction. Follow-up suggestions add delight or personal expression, rather than
+exposing unfinished basic work. The invitation is part of the first reveal, not something that
+waits for the person to discover the editing tools.
+
+Judge that first result from fresh interview inputs, with no per-example hand edits or rescue
+prompts: recognizable personal objects, a consistent palette and composition, objects grounded
+in the terrain, clear approaches, and an attractive populated arrival on desktop and portrait
+phone. Preserve each person's composition rather than filling every world with the same props.
+Prepared showcase models and eventual hand finishing do not prove this works for unseen inputs.
+
+Automatic checks and correction before presentation may help, within measured latency and cost
+limits. `prepare_planet` now compiles and checks without opening a card. It does not render or judge
+pictures. `preview_planet` immediately returns its card: inspecting that result is after reveal. The loading fix addresses
+reliability; it does not establish this visual-quality gate. Next: a fresh-input first-preview
+benchmark and generation/composition improvements measured against it. This requirement is not
+yet an implemented guarantee.
+
+The next experience pilot rehearses the creation and edit flow with the owner's original
+interview. Keep that input fixed, preserve the baseline and each reviewed revision, and record
+the person's actual feedback without inferring satisfaction from a successful render or test.
+A rehearsed, refined example is not a fresh-generation benchmark. Readiness for a friend test
+requires the owner's explicit satisfaction with the simulated reveal and edit experience; the
+friend's first attempt then supplies separate evidence for first-pass quality on unseen input.
+
+## Scene composer
+
+`planet-scenes.js` compiles 1–3 semantic `scenes` into ordinary `things`, explicit entrance
+`routes`, and an `arrival: overview` view. It removes scenes from the compiled result, so
+preparing the result again is idempotent. `prepare_planet` also returns the small original
+`design`, for later edits: change that design, then prepare it again. Never overlay it on the
+compiled things. Raw and compiled data pass the same validator and total geometry caps.
+
+There are two authored layouts for now: `gathering` (table, food, seats and warm lights) and
+`lookout` (a telescope, small ringed-planet sculpture, seat and lantern). Choose them when they
+fit the interview; this is not coverage for every person's world. `setting: tropical` adds
+shore palms, beach planting, sand and a native shallow lagoon. Optional `companion: {kind:
+cat, name?, color?, note?}` adds the reusable rounded cat only when the person mentioned one.
+The props are code-built miniatures, available immediately; they do not need Meshy downloads.
+They are a bounded starting library, not a replacement for finished hero models or proof of
+first-pass quality on unseen input. Existing custom things and cached models remain available.
+
+The opening is a stable elevated view of the assembled setting; the first tap brings the
+visitor down to walking height, then walks to the chosen thing. Dragging still looks around.
+`footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
+select foliage, but the box under its canopy no longer claims taps meant for another object.
+Scene routes join entrances, rather than drawing a separate trail to each plant. Footprints
+use oriented rectangles for overlap notes; those notes are approximate on curved ground.
+
+The coast depresses the actual ground continuously and draws a curved water cap inside it.
+Ground heights, prop feet and walking use the same surface; a collision boundary keeps the
+walking controller out of the lagoon. It is a shallow pond on the planet, not an ocean or a
+swimming feature. `scenes[0].extras: ["hammock"]` is one supported additive edit: a sitting
+hammock at the scene edge. Recompile the original design to add it without moving existing
+scene objects. The example rehearsal and browser tests check this reveal/edit path; owner
+satisfaction and an unseen-input friend pilot are still separate gates.
+
 ## The pieces
 
 - **The spec** (`supabase/functions/_shared/planet.js`): one small JSON per planet, and
@@ -77,7 +143,7 @@ sent are then finished by hand. The plan and what's next are in
   thing it stores is a planet someone sends to be built (below). Its instructions say to ask open questions and keep the answers in the person's own
   words, never to suggest a bar, a sign or anything as a default, and then to build them a few
   things that are unmistakably theirs, tied to what they love. `get_kit` offers who they are,
-  their links, what they love, the look and `things` (how to place and make them, and some craft:
+  their links, what they love, the look, semantic `scenes`, and `things` (how to place and make them, and some craft:
   scale, spread, light): none of Steve's planet's parts (Steve, Oct 2026). A spec passes the check with only `version`,
   `slug` and `who.name`, but the connector won't preview or send a planet that would land them on
   bare rock (`showsNothing` in `_shared/planet.js`): one with no things, one whose nearest thing is
@@ -88,15 +154,24 @@ sent are then finished by hand. The plan and what's next are in
   `launchPad`, which pass the check for his own spec but a friend's planet never draws), the
   likely reason; with something in view they're only a note, and empty ones are ignored. Each comes back as a mistake naming why, so their AI fixes it
   instead of showing an empty planet as done (Oct 31 2026: a test chat interviewed someone and
-  rendered a bare planet). Three tools, the first two read-only:
+  rendered a bare planet). Four tools, the first three read-only:
   - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example
     (Sam's, which `tools/planet-test.mjs` checks passes);
-  - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
-    model fixes it and tries again), packs it into a preview link, and shows the card. Its text
-    also says what a careful eye would fix (`lookOver` in `_shared/planet.js`): a part touching
+  - `prepare_planet(spec)`: checks raw scene intent, compiles it with `composePlanet`, then checks
+    the resulting flat spec and arrival geometry. It returns `{ prepared: true, spec, diagnostics }`
+    without a card or preview URL. Diagnostics contain geometry warnings, `rendered: false` and
+    `assetsGenerated: false`: this does not render screenshots, verify downloaded models or
+    generate assets. The agent reviews it once, makes at most two targeted corrections, then uses
+    the prepared spec for reveal. Passing these checks is not proof of visual quality;
+  - `preview_planet(spec)`: compiles and checks the spec (each mistake said back as `where: what`,
+    so the model fixes it and tries again), packs it into a preview link, and immediately shows the
+    card. Direct calls with scenes still work, but preparation should precede the first reveal.
+    Its text also reports geometry notes (`lookOver` in `_shared/planet.js`): a part touching
     nothing in mid-air, two things standing in each other, a thing under 40 cm or over 5 m long
-    (the ground falls away under it), a planet with nothing lit. Boxes are measured as if
-    nothing were turned, so these are notes for the model, never errors;
+    (the ground falls away under it), a planet with nothing lit. These are approximate notes,
+    never errors. The card may later supply pictures, but preparation does not inspect rendered
+    views before reveal. The first reveal includes one specific, optional additive change drawn
+    from the person's answers, rather than a generic request for changes or a repair prompt;
   - `send_planet(spec, note?, contact?)`: once the person has seen the preview and says to send
     it (the instructions say never without their go-ahead), checks the spec again and saves it,
     with anything they'd like Steve to know and how to reach them, both optional and in their
@@ -133,6 +208,16 @@ sent are then finished by hand. The plan and what's next are in
   (`frameDomains` for MCP Apps, `frame_domains` in ChatGPT's `openai/widgetCSP`).
 
 ## What a preview draws today
+
+Semantic scenes let the agent describe a place's meaning instead of its coordinates:
+`scenes: [{ id, name, kind, note?, collection?, setting?, companion? }]`, one to three scenes.
+Kinds are `gathering` and `lookout`; optional `setting: tropical` and
+`companion: { kind: cat, name?, color?, note? }` apply only when they belong to the person's answers.
+The composer resolves the arrival scene, supporting objects and connecting routes. Generated
+object IDs carry the scene prefix; a collision with custom `things` is refused. Compilation
+preserves existing custom objects, removes `scenes` and returns ordinary `things` and `routes`,
+so preparation can be repeated without duplicating them. Prepare, preview and send use the same
+compiler and validate the compiled result against the ordinary limits.
 
 Their ground (colour and hills) and sky (the nebula's colour and the starlight), their things
 (each as its real model where one has been made, see below, else as its shapes),

@@ -1808,6 +1808,63 @@ async function preview(page, shot) {
   step('an address with no planet in it says so');
 }
 
+// The semantic scene pipeline: preparation is not a visible reveal, then the real renderer
+// shows its assembled places. A single semantic edit preserves all existing props.
+async function composedPreview(page, shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-scenes.json',import.meta.url)));
+  const prepare=async(spec)=>(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec}}},{})).result;
+  const prepared=await prepare(input);
+  if(prepared.isError || prepared._meta || prepared.structuredContent.view) throw new Error('preparation should succeed without opening a card');
+  const spec=prepared.structuredContent.spec;
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(spec)}`);
+  await until(page,()=>window.__planet?.ready,null,240000);
+  await page.locator('#veil').waitFor({state:'hidden',timeout:20000});
+  const layout=await page.evaluate(()=>{
+    const w=window.__planet;
+    return {cat:w.screenOf('club-cat'),table:w.screenOf('club-table'),cove:w.screenOf('sky-scope'),eye:w.player.eye,water:!!w.ground.mesh.getObjectByName('lagoon-water'),wet:w.spec.things.filter((t)=>w.ground.isWater(t.center.clone().normalize())).map((t)=>t.id),metrics:w.metrics()};
+  });
+  if(!layout.cat || !layout.table || !layout.cove || layout.eye<2.5 || !layout.water || layout.wet.length) throw new Error(`scene arrival, shore or grounding: ${JSON.stringify(layout)}`);
+  await shot('scene-arrival');
+  await page.mouse.click(layout.cat.x,layout.cat.y);
+  await until(page,()=>!document.getElementById('thing').hidden,null,30000);
+  if(await page.locator('#thing-name').textContent()!=='Pumpkin') throw new Error('the palm canopy stole the cat tap');
+  await until(page,()=>window.__planet.player.eye<2 && !window.__planet.busy(),null,30000);
+  await page.keyboard.press('Escape');
+  step(`semantic scene reveal, native lagoon, dry prop feet, cat tap and continuous entry; ${layout.metrics.calls} draw calls`);
+  // Teleport only the test observer to each action, so this tests the action rather than a
+  // minute of walking under software rendering. The arrival transition above is real input.
+  for(const [id,action] of [['club-seat','sit'],['club-lights','switch']]) {
+    await page.evaluate((id)=>{
+      const w=window.__planet,t=w.spec.things.find((t)=>t.id===id),V=w.camera.position.constructor;
+      w.player.spawn(new V(0,1,0),t.center,-0.18);
+    },id);
+    // A string-light rig's box middle is behind the table; tap an actual visible bulb.
+    const at=await page.waitForFunction((id)=>{
+      const w=window.__planet,t=w.spec.things.find((t)=>t.id===id);
+      if(t.use!=='switch') return w.screenOf(id);
+      const p=t.lamp.position.clone().applyMatrix4(t.root.matrixWorld).project(w.camera);
+      return p.z<1 && Math.abs(p.x)<1 && Math.abs(p.y)<1 ? {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2}:null;
+    },id,{timeout:20000}).then(h=>h.jsonValue());
+    await page.mouse.click(at.x,at.y);
+    if(action==='sit') {
+      await until(page,()=>window.__planet.seated()==='club-seat',null,60000);
+      await page.locator('#stand').click();
+      await until(page,()=>!window.__planet.busy(),null,30000);
+    } else await until(page,()=>window.__planet.spec.things.find(t=>t.id==='club-lights').lamp.intensity===0,null,60000);
+    await page.keyboard.press('Escape');
+  }
+  input.scenes[0].extras=['hammock'];
+  const changed=await prepare(input), next=changed.structuredContent.spec;
+  if(next.things.length!==spec.things.length+1 || !spec.things.every(t=>JSON.stringify(t)===JSON.stringify(next.things.find(x=>x.id===t.id)))) throw new Error('the additive edit changed the existing scene');
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(next)}`);
+  await page.reload();
+  await until(page,()=>window.__planet?.ready,null,240000);
+  const added=await page.evaluate(()=>{const t=window.__planet.spec.things.find(t=>t.id==='club-hammock');return {present:!!t?.root,use:t?.use,wet:t && window.__planet.ground.isWater(t.center.clone().normalize())};});
+  if(!added?.present || added.use!=='sit' || added.wet) throw new Error('the hammock edit did not render');
+  await shot('scene-edited');
+  step('seating, lights and a semantic hammock edit work without repositioning the original scene');
+}
+
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
 // in a frame on a computer and in a phone's app alike, and a plain card where 3D can't run
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
@@ -1989,6 +2046,8 @@ if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, 
 for (const n of [1, 2, 3, 4]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
+if (want('planets') || want('scenes')) await session('composed scenes desktop', { viewport: { width: 1280, height: 800 } }, composedPreview);
+if (want('planets') || want('scenes')) await session('composed scenes phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, composedPreview);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);
