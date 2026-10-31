@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "slug": "test-scene-pilot",
+  "who": { "name": "Morgan" },
+  "collections": {
+    "supper": { "title": "Supper club", "items": ["Cooking for the neighborhood"] },
+    "sky": { "title": "Sky notebook", "items": ["Finding new constellations"] }
+  },
+  "scenes": [
+    { "id": "club", "name": "The supper club", "kind": "gathering", "setting": "tropical", "collection": "supper", "companion": { "kind": "cat", "name": "Pumpkin" } },
+    { "id": "sky", "name": "Sky notebook", "kind": "lookout", "collection": "sky" }
+  ]
+}

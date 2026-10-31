@@ -30,21 +30,24 @@ function wornTexture() {
  * (buildThings: each has its reach and root), `placed` is placeThings' answer, `surface(dir)` the
  * ground's height, `color` the ground's colour.
  */
-export function buildPaths(things, placed, surface, color = '#6b7082') {
-  const WIDTH = 0.9, positions = [], uvs = [], index = [];
+export function buildPaths(things, placed, surface, color = '#6b7082', routes) {
+  const WIDTH = 0.9, positions = [], uvs = [], colors = [], index = [];
   const map = (b, d) => [d * Math.sin(b * DEG), d * Math.cos(b * DEG)];
   const back = ([x, n]) => placeOnPlanet(Math.atan2(x, n) / DEG, Math.hypot(x, n));
-  for (const t of things) {
-    const at = t.at && placed.get(t.id);
+  const destinations = routes ? routes.map((r) => ({ at: r.to, start: r.from, reach: 0, endpoint: true })) : things.map((t) => ({ ...t, at: t.at && placed.get(t.id) }));
+  for (const t of destinations) {
+    const at = t.at;
     if (!at || at.distance < 3) continue;
     // to the front of it: the side it faces, a step clear of it
     const p = map(at.bearing, at.distance), l = Math.hypot(...p);
-    const f0 = [-p[0] / l, -p[1] / l], a = at.turn * DEG;
+    const f0 = [-p[0] / l, -p[1] / l], a = (at.turn || 0) * DEG;
     const front = [f0[0] * Math.cos(a) - f0[1] * Math.sin(a), f0[0] * Math.sin(a) + f0[1] * Math.cos(a)];
-    const end = [p[0] + front[0] * ((t.reach || 1) + 0.6), p[1] + front[1] * ((t.reach || 1) + 0.6)];
-    const start = map(at.bearing, 1.2);
+    const end = t.endpoint ? p : [p[0] + front[0] * ((t.reach || 1) + 0.6), p[1] + front[1] * ((t.reach || 1) + 0.6)];
+    const start = t.start ? map(t.start.bearing, t.start.distance) : map(at.bearing, 1.2);
     // a gentle bend, the same way each time for the same place, curving in to meet its front
-    const mid = [(start[0] + end[0]) / 2 + front[0] * 0.8, (start[1] + end[1]) / 2 + front[1] * 0.8];
+    const mid = t.endpoint
+      ? [end[0] + Math.sign(end[0] - start[0]) * 1.5, start[1]]
+      : [(start[0] + end[0]) / 2 + front[0] * 0.8, (start[1] + end[1]) / 2 + front[1] * 0.8];
     const N = Math.max(8, Math.ceil(Math.hypot(end[0] - start[0], end[1] - start[1]) * 3));
     const pts = [];
     for (let i = 0; i <= N; i++) {
@@ -63,6 +66,8 @@ export function buildPaths(things, placed, surface, color = '#6b7082') {
       for (const s of [-1, 1]) {
         positions.push(...pts[i].clone().addScaledVector(side, s).toArray());
         uvs.push(s < 0 ? 0 : 1, along / 3);
+        const u = i/(pts.length-1), fade = THREE.MathUtils.smoothstep(u,0,0.15)*THREE.MathUtils.smoothstep(1-u,0,0.15);
+        colors.push(1,1,1,fade);
       }
       if (i) index.push(base + 2 * i - 2, base + 2 * i - 1, base + 2 * i, base + 2 * i - 1, base + 2 * i + 1, base + 2 * i);
     }
@@ -71,11 +76,12 @@ export function buildPaths(things, placed, surface, color = '#6b7082') {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors,4));
   geo.setIndex(index);
   geo.computeVertexNormals();
-  const worn = new THREE.Color(color).lerp(new THREE.Color('#e3d3b6'), 0.35);
+  const worn = new THREE.Color(color).lerp(new THREE.Color('#e3d3b6'), 0.2);
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    color: worn, map: wornTexture(), transparent: true, depthWrite: false, roughness: 1, metalness: 0,
+    color: worn, vertexColors: true, map: wornTexture(), transparent: true, depthWrite: false, roughness: 1, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
   }));
   mesh.receiveShadow = true;

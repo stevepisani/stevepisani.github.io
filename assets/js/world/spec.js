@@ -3,7 +3,7 @@
 // preview page (/p/preview/, docs/planets.md) it's someone else's, packed into the address by the
 // Planets connector, and unpacked and checked here before anything draws; a friend's planet
 // (assets/js/planets/) reads it the same way.
-import { checkPlanet, unpackPlanet } from '../../../supabase/functions/_shared/planet.js';
+import { checkPlanet, unpackPlanet, composePlanet } from '../../../supabase/functions/_shared/planet.js';
 export { planetParts } from '../../../supabase/functions/_shared/planet.js'; // what Steve's places show
 
 const KEPT = 'planet-preview'; // the last good preview in this tab, for a reload after the # has moved on
@@ -20,7 +20,7 @@ export async function readSpec(root, data) {
   const errors = checkPlanet(spec);
   if (errors.length) return { errors };
   try { sessionStorage.setItem(KEPT, packed); } catch (e) { /* private mode: a reload needs the link again */ }
-  return { spec };
+  return { spec: composePlanet(spec) };
 }
 
 /** Tells the chat's card (assets/js/mcp-app/views/planet.js), if this page is in one, how it went. */

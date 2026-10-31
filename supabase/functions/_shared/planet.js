@@ -1,3 +1,5 @@
+import { sceneErrors, composePlanet } from './planet-scenes.js';
+export { composePlanet };
 // A planet spec: everything that makes a little planet someone's own, in one small JSON. Steve's is
 // built from _data/ by tools/planet.mjs; other people's will be written by their own AI through the
 // Planets connector (My Tiny Planet, Linear P-PRO-40). The same rules for the server and the
@@ -161,8 +163,9 @@ export function checkPlanet(spec) {
   };
 
   if (!isObj(spec)) return ['spec: should be an object'];
-  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad']);
+  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad', 'scenes', 'routes', 'arrival']);
   if (JSON.stringify(spec).length > LIMITS.bytes) fail('spec', `larger than ${LIMITS.bytes / 1024} KB`);
+  if (spec.arrival !== undefined && spec.arrival !== 'overview') fail('arrival', 'should be overview');
   if (spec.version !== 1) fail('version', 'should be 1');
   if (typeof spec.slug !== 'string' || !SLUG.test(spec.slug)) fail('slug', 'should be 2 to 32 of a-z, 0-9 and -, not starting or ending with -');
 
@@ -194,7 +197,19 @@ export function checkPlanet(spec) {
       const g = spec.look.ground, sky = spec.look.sky;
       if (g !== undefined) {
         if (!isObj(g)) fail('look.ground', 'should be an object');
-        else { only('look.ground', g, ['color', 'hills']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1); }
+        else { only('look.ground', g, ['color', 'hills', 'coast']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+          if (g.coast !== undefined) {
+            if (!isObj(g.coast)) fail('look.ground.coast', 'should be an object');
+            else {
+              only('look.ground.coast', g.coast, ['bearing', 'distance', 'radius', 'color']);
+              for (const [k,lo,hi] of [['bearing',-180,180],['distance',2,30],['radius',1,8]]) {
+                if (g.coast[k] === undefined) fail(`look.ground.coast.${k}`, 'missing');
+                between(`look.ground.coast.${k}`,g.coast[k],lo,hi);
+              }
+              color('look.ground.coast.color',g.coast.color);
+            }
+          }
+        }
       }
       if (sky !== undefined) {
         if (!isObj(sky)) fail('look.sky', 'should be an object');
@@ -225,12 +240,13 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint']);
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
     text(`${at}.note`, t.note, LIMITS.text);
     text(`${at}.model`, t.model, LIMITS.text);
+    if (t.footprint !== undefined && (!Array.isArray(t.footprint) || t.footprint.length !== 2 || !t.footprint.every((n) => typeof n === 'number' && n >= 0.05 && n <= 12))) fail(`${at}.footprint`, 'should be [width, depth], each 0.05 to 12 metres');
     known(`${at}.collection`, t.collection);
     // placed from where you land (at), or beside another thing placed before it (near)
     if ((t.at === undefined) === (t.near === undefined)) fail(`${at}.at`, 'should have at: { bearing, distance }, or near: { of, side, gap }, not both');
@@ -385,6 +401,26 @@ export function checkPlanet(spec) {
     }
   }
 
+  list('routes', spec.routes, 3).forEach((r, i) => {
+    const at = `routes[${i}]`;
+    if (!isObj(r)) return fail(at, 'should be an object');
+    only(at,r,['from','to']);
+    for (const k of ['from','to']) {
+      if (!isObj(r[k])) { fail(`${at}.${k}`, 'should be { bearing, distance }'); continue; }
+      only(`${at}.${k}`,r[k],['bearing','distance']);
+      if (r[k].bearing === undefined || r[k].distance === undefined) fail(`${at}.${k}`, 'missing bearing or distance');
+      between(`${at}.${k}.bearing`,r[k].bearing,-180,180);
+      between(`${at}.${k}.distance`,r[k].distance,0,60);
+    }
+  });
+  errors.push(...sceneErrors(spec));
+  // Generated geometry has the same caps as handwritten geometry; raw scene input cannot
+  // bypass the 24-thing / 400-part / 64 KB limits.
+  if (!errors.length && spec.scenes) {
+    const compiled = composePlanet(spec), ids = compiled.things.map((t)=>t.id);
+    if (new Set(ids).size !== ids.length) fail('scenes','a generated id collides with a custom thing; change the scene id');
+    else errors.push(...checkPlanet(compiled));
+  }
   return errors;
 }
 
@@ -523,6 +559,7 @@ const boxOf = (bs) => [Math.min(...bs.map((b) => b[0])), Math.max(...bs.map((b) 
 
 /** How far a thing reaches from its foot along the ground, in metres. */
 export function thingReach(t) {
+  if (t.footprint) return Math.max(...t.footprint) / 2 * (t.scale || 1);
   const bs = partBoxes(t);
   if (!bs.length) return 0;
   const all = boxOf(bs);
@@ -560,6 +597,17 @@ export function placeThings(things = []) {
   return placed;
 }
 
+// Separating axes on the local map: a table's long side is not its depth. Canopies and
+// unsupported lights are visual bounds, not solid ground footprints.
+function footprintsOverlap(a,b,placed) {
+  const rectangle = (t) => {
+    const p = placed.get(t.id), angle = (-p.bearing + p.turn) * DEG;
+    return {center:[Math.sin(p.bearing*DEG)*p.distance,Math.cos(p.bearing*DEG)*p.distance],axes:[[Math.cos(angle),Math.sin(angle)],[-Math.sin(angle),Math.cos(angle)]],half:t.footprint.map((n)=>n*(t.scale||1)/2)};
+  };
+  const ra=rectangle(a),rb=rectangle(b),delta=ra.center.map((v,i)=>v-rb.center[i]),dot=(x,y)=>x[0]*y[0]+x[1]*y[1];
+  return [...ra.axes,...rb.axes].every((axis)=>Math.abs(dot(delta,axis)) < ra.half.reduce((n,h,i)=>n+h*Math.abs(dot(ra.axes[i],axis)),0)+rb.half.reduce((n,h,i)=>n+h*Math.abs(dot(rb.axes[i],axis)),0)-0.08);
+}
+
 export function lookOver(spec) {
   const notes = [];
   const things = spec.things || [];
@@ -595,6 +643,11 @@ export function lookOver(spec) {
       const [a, b] = [where(things[i]), where(things[j])];
       if (!a || !b) continue;
       const apart = Math.acos(Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])) * GROUND_RADIUS;
+      if (things[i].solid === false || things[j].solid === false) continue;
+      if (things[i].footprint && things[j].footprint) {
+        if (footprintsOverlap(things[i], things[j], placed)) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ground footprints overlap; move one`);
+        continue;
+      }
       if (apart < (reach.get(things[i]) || 0) + (reach.get(things[j]) || 0) - 0.3) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ${apart.toFixed(1)} m apart, so they stand in each other; move one (its at, or its near's gap)`);
     }
   }

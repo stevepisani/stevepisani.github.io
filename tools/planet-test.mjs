@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, showsNothing, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingReach, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -141,15 +141,63 @@ const call = async (method, params) => planets.rpc({ jsonrpc: '2.0', id: 1, meth
 const init = (await call('initialize', { protocolVersion: '2025-06-18' })).result;
 ok(init.protocolVersion === '2025-06-18' && init.serverInfo.name === 'planets' && /get_kit/.test(init.instructions), 'it says who it is and how to use it');
 const tools = (await call('tools/list')).result.tools;
-ok(tools.map((t) => t.name).join() === 'get_kit,preview_planet,send_planet' && tools[0].annotations.readOnlyHint && tools[1].annotations.readOnlyHint && !tools[2].annotations.readOnlyHint && !tools[2].annotations.destructiveHint, 'three tools: two read-only, and send_planet, the one that saves something (and destroys nothing)');
+ok(tools.map((t) => t.name).join() === 'get_kit,prepare_planet,preview_planet,send_planet' && tools.slice(0, 3).every((t) => t.annotations.readOnlyHint) && !tools[3].annotations.readOnlyHint && !tools[3].annotations.destructiveHint, 'four tools: three read-only, and send_planet, the one that saves something (and destroys nothing)');
 ok(/never send it without their go-ahead/i.test(init.instructions), 'a planet is sent only when its person says so');
-ok(tools[1]._meta.ui.resourceUri === planets.APP_URI && tools[1]._meta['openai/outputTemplate'] === planets.APP_URI, 'preview_planet shows the card');
+ok(!tools[1]._meta.ui && !tools[1]._meta['openai/outputTemplate'] && tools[2]._meta.ui.resourceUri === planets.APP_URI && tools[2]._meta['openai/outputTemplate'] === planets.APP_URI, 'preparation opens no card; only preview_planet shows it');
+ok(/prepare_planet before the first reveal/.test(init.instructions) && /at most two targeted corrections/.test(init.instructions) && /one specific additive change/.test(init.instructions), 'instructions bound preparation and ask for one personal additive suggestion at reveal');
 const res = (await call('resources/read', { uri: planets.APP_URI })).result.contents[0];
 ok(res.mimeType === 'text/html;profile=mcp-app' && res.text.includes('window.card = 1') && !res.text.includes('// </script>'), "the card's page carries its script, and the script can't close the tag early");
 ok(res._meta.ui.csp.frameDomains.includes(new URL(PREVIEW_PAGE).origin) && res._meta['openai/widgetCSP'].frame_domains.includes(new URL(PREVIEW_PAGE).origin), 'the card may show the preview page in a frame, in both apps');
 const kit = (await call('tools/call', { name: 'get_kit', arguments: {} })).result;
 ok(checkPlanet(kit.structuredContent.example).length === 0 && kit.structuredContent.drawn_today.length >= 3, "get_kit: what's drawn today, and an example that passes", checkPlanet(kit.structuredContent.example));
-ok(['places', 'robot', 'telescope', 'launchPad'].every((k) => !(k in kit.structuredContent.shape) && !(k in kit.structuredContent.example)) && !kit.structuredContent.shape.who.sign && !/tiki|campfire|hammock/i.test(JSON.stringify(kit.structuredContent) + init.instructions), "get_kit offers nothing of Steve's planet: no places, robot, telescope, launch pad or sign");
+ok(['places', 'robot', 'telescope', 'launchPad'].every((k) => !(k in kit.structuredContent.shape) && !(k in kit.structuredContent.example)) && !kit.structuredContent.shape.who.sign && !/tiki|campfire/i.test(JSON.stringify(kit.structuredContent) + init.instructions), "get_kit offers no legacy homepage fields or copied bar/campfire defaults");
+const prepare = async (spec) => (await call('tools/call', { name: 'prepare_planet', arguments: { spec } })).result;
+ok(!(await prepare(kit.structuredContent.scene_example)).isError && kit.structuredContent.shape.scenes, 'the kit offers a semantic scene example that can be prepared');
+const preparedFlat = await prepare(samsOwn);
+ok(!preparedFlat.isError && preparedFlat.structuredContent.prepared && JSON.stringify(preparedFlat.structuredContent.spec) === JSON.stringify(samsOwn) && !preparedFlat.structuredContent.view && !preparedFlat.structuredContent.url && !preparedFlat._meta, 'preparation accepts old flat specs without changing or revealing them', preparedFlat);
+ok(preparedFlat.structuredContent.diagnostics.rendered === false && preparedFlat.structuredContent.diagnostics.assetsGenerated === false && /did not render screenshots, verify downloaded models or generate assets/.test(preparedFlat.content[0].text), 'preparation explicitly reports geometry checks, never claimed rendering or generation', preparedFlat.structuredContent);
+ok((await prepare({ ...samsOwn, slug: 'Not Valid' })).isError && (await prepare(least)).isError, 'preparation refuses invalid and bare planets before reveal');
+const sceneSpec = {
+  version: 1, slug: 'test-scenes', who: { name: 'Morgan' },
+  collections: { evenings: { title: 'Evenings', items: ['Sharing recipes and watching the sky'] } },
+  scenes: [
+    { id: 'supper', name: 'The evening table', kind: 'gathering', note: 'Recipes and long conversation.', collection: 'evenings', setting: 'tropical', companion: { kind: 'cat', name: 'Marmalade', color: '#d88136', note: 'Always nearby.' } },
+    { id: 'sky', name: 'Meteor watch', kind: 'lookout', note: 'A quiet place to watch the sky.', collection: 'evenings' },
+  ],
+};
+const sceneBefore = JSON.stringify(sceneSpec), preparedScene = await prepare(sceneSpec), compiled = preparedScene.structuredContent?.spec;
+ok(!preparedScene.isError && compiled && !('scenes' in compiled) && compiled.things.length > 2 && compiled.routes.length >= 1 && checkPlanet(compiled).length === 0, 'semantic scenes prepare into valid things and connecting routes', preparedScene);
+ok(JSON.stringify(sceneSpec) === sceneBefore && compiled.things.every((t) => /^(supper|sky)-/.test(t.id)), 'scene preparation preserves input and assigns scene-prefixed identities', compiled.things.map((t) => t.id));
+ok(JSON.stringify((await prepare(compiled)).structuredContent?.spec) === JSON.stringify(compiled), 'a prepared spec can be prepared again without duplicating scene objects');
+const revealedScene = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sceneSpec } })).result;
+ok(!revealedScene.isError && JSON.stringify(await unpackPlanet(revealedScene.structuredContent.url.split('#')[1])) === JSON.stringify(compiled), 'direct scene preview compiles the same spec as preparation before revealing');
+const badScene = clone(sceneSpec); badScene.scenes[0].kind = 'unavailable';
+const refusedScene = await prepare(badScene);
+ok(refusedScene.isError && /scenes/.test(refusedScene.content[0].text) && !refusedScene.structuredContent, 'raw scene errors are refused before composition', refusedScene);
+const collision = { ...sceneSpec, things: [{ ...clone(samsOwn.things[0]), id: compiled.things[0].id }] };
+ok((await prepare(collision)).isError, 'scene and custom-object identity collisions are refused');
+const tooMany = { ...sceneSpec, things: Array.from({ length: LIMITS.things }, (_, i) => ({ ...clone(samsOwn.things[0]), id: `extra-${i}` })) };
+ok((await prepare(tooMany)).isError, 'compiled scene geometry must obey the total thing cap too');
+const pilot = JSON.parse(readFileSync(new URL('./fixtures/planet-scenes.json', import.meta.url)));
+const baseline = composePlanet(pilot);
+ok(checkPlanet(pilot).length === 0 && lookOver(baseline).length === 0 && showsNothing(baseline).length === 0, 'authored scene layouts pass without corrective geometry notes');
+ok(baseline.arrival === 'overview' && baseline.routes.length === 2 && baseline.routes[1].from.bearing === baseline.routes[0].to.bearing && baseline.routes[1].from.distance === baseline.routes[0].to.distance, 'scene routes connect entrances, independently of decorative props');
+const catLookout = clone(pilot); catLookout.scenes = [{...pilot.scenes[1],companion:{kind:'cat',name:'Pumpkin'}}];
+ok(composePlanet(catLookout).things.some((t)=>t.name==='Pumpkin') && checkPlanet(catLookout).length===0,'lookout companions are rendered rather than silently discarded');
+const personalized = clone(pilot); personalized.scenes[0].extras = ['hammock'];
+const edited = composePlanet(personalized);
+ok(checkPlanet(edited).length === 0 && lookOver(edited).length === 0 && edited.things.length === baseline.things.length+1 && baseline.things.every((t)=>JSON.stringify(t)===JSON.stringify(edited.things.find((x)=>x.id===t.id))), 'one semantic edit adds a hammock without moving or changing existing scene objects');
+ok((await prepare(pilot)).structuredContent.design.scenes[0].id === 'club', 'preparation preserves the small editable design alongside its compiled result');
+caught(pilot,(s)=>{s.scenes[0].extras=['unavailable'];},/scenes.*extras/,'unsupported scene edits are refused');
+caught(baseline,(s)=>{s.things[0].footprint=[-1,1];},/footprint/,'ground footprints cannot have negative dimensions');
+caught(baseline,(s)=>{s.look.ground.coast.radius=100;},/coast.radius/,'shoreline geometry is bounded');
+caught(baseline,(s)=>{s.routes[0].from.distance=Infinity;},/routes/,'routes reject nonfinite endpoints');
+for (const change of [(s)=>{s.things={};},(s)=>{s.things=[null];},(s)=>{s.look='bad';}]) ok(errorsWith(pilot,change).length>0,'invalid raw scene fields return validation errors without throwing');
+const tree = baseline.things.find((t)=>t.id==='club-palm-0');
+ok(thingReach(tree)<0.3 && tree.parts.some((p)=>p.at[1]>3), 'palm ground clearance excludes its visual canopy');
+let sentScene = null;
+const sceneSend = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'send_planet', arguments: { spec: sceneSpec } } }, { send: async ({ spec }) => { sentScene = spec; return 'test-request'; } })).result;
+ok(!sceneSend.isError && JSON.stringify(sentScene) === JSON.stringify(compiled), 'sending semantic scenes stores the same prepared flat spec, without recompilation artifacts');
 const shown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: samsOwn } })).result;
 ok(!shown.isError && shown.structuredContent.view === 'planet' && shown.structuredContent.url.startsWith(`${PREVIEW_PAGE}#`) && shown.content[0].text.includes(shown.structuredContent.url), 'a preview: the card, and the link in the text for apps without cards', shown);
 ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(samsOwn), "the preview's link is the planet");
@@ -163,6 +211,8 @@ const sloppy = { ...least, things: [
   { id: 'c', name: 'Train', at: { bearing: 90, distance: 8 }, parts: [{ shape: 'box', size: [1, 1, 7] }] },
 ] };
 const seen = lookOver(sloppy);
+const preparedSloppy = await prepare(sloppy);
+ok(!preparedSloppy.isError && JSON.stringify(preparedSloppy.structuredContent.diagnostics.warnings) === JSON.stringify(seen) && !preparedSloppy.structuredContent.view, 'geometry warnings can be reviewed during preparation without revealing a card');
 for (const [re, what] of [[/^things\[0\]\.parts\[1\] \(sphere\): touches nothing/, 'a part hanging in the air'], [/^things\[1\] \(Pebble\): under 40 cm/, 'a thing too small to see'], [/^things\[2\] \(Train\): 7\.0 m long/, 'a thing too long for a round planet'], [/^things\[0\] \(Lamp\) and things\[1\] \(Pebble\): 0\.2 m apart/, 'two things in each other'], [/^things: nothing glows/, 'a planet with nothing lit']]) ok(seen.some((n) => re.test(n)), `looked over: ${what}`, seen);
 ok(seen.length === 5, 'looked over: nothing else', seen);
 const tipped = { ...least, things: [{ id: 'w', name: 'Wheel', at: { bearing: 0, distance: 5 }, light: {}, parts: [{ shape: 'cylinder', size: [0.6, 0.14, 0.6], at: [0, 0.3, 0], turn: [0, 0, 90] }] }] };
@@ -187,7 +237,7 @@ ok(checkPlanet({ ...place, things: place.things.map((t) => ({ ...t, use: { oven:
 caught(place, (s) => { s.things[2].use = 'ride'; }, /^things\[2\]\.use: should be one of sit, switch/, 'a use there\'s nothing for');
 caught(place, (s) => { s.things[2].use = 'switch'; }, /^things\[2\]\.use: switch .* needs a light/, 'switching a thing with no light');
 const sloppyShown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sloppy } })).result;
-ok(!sloppyShown.isError && /look these over/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview says what to look over, for the model to fix', sloppyShown.content[0].text);
+ok(!sloppyShown.isError && /card has already been revealed/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview reports geometry notes honestly after reveal', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
 const { wanted, planets: modelled, PER_PLANET, PER_RUN, FIRST_PLANETS } = await import('./planet-models.mjs');
 ok(planets.EXAMPLE.things.every((t) => t.model || t.stock) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models, or stock");

@@ -1,12 +1,13 @@
 // The Planets connector (My Tiny Planet, docs/planets.md), without the transport: anyone's ChatGPT
 // or Claude designs a little planet for the person it's talking with, from what they love, and
-// shows it in the chat. Three tools: get_kit (what a planet can hold, and how to write one),
+// shows it in the chat. Four tools: get_kit (what a planet can hold, and how to write one),
+// prepare_planet (composes and checks it without opening a card),
 // preview_planet (checks a spec and shows it in the card: their own planet, assets/js/planets/,
 // with the things their AI made for them from simple shapes; none of Steve's places) and send_planet (when they're
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, showsNothing, notDrawn, IN_VIEW, FIRST_VIEW, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
+import { checkPlanet, composePlanet, showsNothing, notDrawn, IN_VIEW, FIRST_VIEW, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -16,8 +17,9 @@ const INSTRUCTIONS = [
   'My Tiny Planet: design a little walkable planet for the person you are talking with, from what they love, and show it here.',
   'Call get_kit first: it says what a planet can hold and what is drawn today.',
   'Ask a few open questions about them and what they love, and put their answers in the spec in their own words. Nothing on a planet is copied from anyone else\'s, so never suggest a bar, a sign or anything else as a default.',
-  'Then build it for them: compose a few things (things) from simple shapes that are unmistakably theirs, from what they told you, in the colours and mood of their world (look.ground, look.sky). Make each one specific and a little delightful, with care for proportion: a thing they love, made big enough to walk up to. Tie each thing to a collection, so tapping it shows what they love in their own words.',
-  'Write the spec, then preview_planet. Look at what the preview says: it notes parts hanging in the air, things standing in each other and the like, and where the chat can show you pictures, the card sends you a few views of the planet as drawn. Fix what looks wrong and preview again before you show them; then tell them what you made and that they can walk up to each thing and tap it.',
+  'Build coherent places from their answers with scenes: choose gathering or lookout, give each its personal name, note and collection, and add a cat companion only if they mentioned one. The composer resolves the primary arrival, supporting objects and routes. Existing things still work for custom objects, but do not invent unsupported assets or features.',
+  'Call prepare_planet before the first reveal. It compiles scenes and returns a flat spec and geometry diagnostics without opening a card. Make at most two targeted corrections after that first preparation. Fix schema and arrival errors and meaningful warnings; geometric warnings can be approximate. Preparation does not render screenshots or generate assets, and passing it is not proof of visual quality. Never claim you inspected rendered views before any were actually available.',
+  'Then call preview_planet with the prepared spec to reveal the planet. The card may send rendered pictures back where the host supports them; only then can you inspect those pictures. Tell the person what you made, that they can walk up to things and tap them, and immediately offer one specific additive change drawn from their answers. Make it an appealing optional idea, not a generic question about wanting changes or an invitation to repair basic defects.',
   'Change it and preview again whenever they ask. A preview stores nothing: its link is the planet, so give them the link to keep.',
   'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who gives it its own address and may add to it by hand. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
   'A planet is public: never put a home address, phone number or anything private in it.',
@@ -103,15 +105,28 @@ export const EXAMPLE = {
 // the telescope, the launch pad) still pass checkPlanet, for his spec, but aren't offered here:
 // nothing on a friend's planet is copied from his (Steve, Oct 2026).
 const KIT = {
-  what: 'A planet is one JSON spec for a small walkable planet at night, 20 m across the middle (about 126 m round), made for its person from what they love. Only the planet\'s size is shared; nothing on it is copied from anyone else\'s. You build what stands on it (things) from simple shapes, and choose its ground and sky. You land on top, looking ahead; tap or click to walk, drag to look, tap a thing to walk up to it and see what it holds.',
+  what: 'A planet is one JSON spec for a small walkable planet at night, 40 m across the middle (about 126 m round), made for its person from what they love. Only the planet\'s size is shared; nothing on it is copied from anyone else\'s. You build what stands on it (things) from simple shapes, and choose its ground and sky. You land on top, looking ahead; tap or click to walk, drag to look, tap a thing to walk up to it and see what it holds.',
   drawn_today: [
     'who.name: the top bar',
     'look.home: the top bar ("A tiny planet in Austin"); a city, never an address',
-    'look.ground: { color, hills 0..1 }: the ground\'s colour (a rock, sand, grass, snow… colour) and how hilly it is; slug shapes the hills, so no two are the same',
+    'look.ground: { color, hills 0..1, coast? }: the ground\'s colour (a rock, sand, grass, snow… colour) and how hilly it is; slug shapes the hills, so no two are the same. Optional coast is a native shoreline, not a floating water prop; tropical scenes supply it.',
     'look.sky: { color, light }: the colour the nebula takes on, and the colour of the starlight on everything',
     'things: what stands on the planet, each made of parts; tapping one shows its name, note and collection',
+    'scenes: semantic gathering or lookout places compiled into things and routes before drawing; their names, notes and collections carry the person\'s meaning',
   ],
+  preparation: {
+    steps: ['Describe 1 to 3 scenes from the person\'s answers, with one clear primary arrival.', 'Call prepare_planet, review its diagnostics, and make at most two targeted corrections.', 'Call preview_planet with the returned spec to reveal it, then suggest one specific additive personal change.'],
+    limits: 'Preparation runs schema, composition and arrival-geometry checks. It does not render screenshots, verify downloaded models or generate assets. Do not claim a rendered view has been inspected until the host actually supplies one. A geometry check is not a visual-quality guarantee.',
+  },
+  scenes: {
+    how: 'Use 1 to 3 scenes, each { id, name, kind, note?, collection?, setting?, companion?, extras? }. kind is gathering or lookout. The composer places the first scene ahead where they land and later scenes to one side, connected by routes. Give meaning and roles rather than spatial coordinates. Compiled specs have ordinary things and routes instead of scenes; use that returned spec without adding scenes back.',
+    kinds: { gathering: 'A place to gather, eat or share something, with supporting seating and light.', lookout: 'A place to pause and look out, with supporting seating and light.' },
+    setting: 'Optional setting: tropical, when it belongs to the person\'s answers.',
+    extras: 'Optional [hammock] adds a sitting hammock at the gathering edge; keep the original scene design, change extras, and prepare again for this additive edit. Do not combine scenes with their compiled things.',
+    companion: 'Optional { kind: cat, name?, color?: #rrggbb, note? }, only when a cat belongs in this person\'s world.',
+  },
   things: {
+    footprint: 'Optional footprint: [width, depth], each 0.05 to 12 metres, describes ground contact separately from a broad visual canopy or light. The composer supplies it for scene objects. Keep it honest: it affects spacing and collision diagnostics, not the visible size of the object.',
     how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. Or set it beside a thing listed before it with near: { of: that thing\'s id, side: front, back, left or right (that thing\'s own sides, as it faces you; left and right sit a little forward), gap: metres between them, 0..10, default 0.5 } instead of at: code places it clear of the other and turned to face it, so a bench sits by the oven and a crash pad at the foot of the wall. Give near things no at. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
     parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall. Beyond the simple shapes, for real silhouettes: box with round 0..0.5 rounds its edges (a share of its smallest side); lathe turns a side profile round its up, profile [[out, up], ...] each 0..1 of its size, bottom to top, out 1 at the widest (a vase, a bottle, a bun, a lamp shade); extrude gives a flat outline depth, outline [[across, up], ...] each 0..1 of its size, going round (a guitar body, a heart, a leaf, a cactus, a state's shape); tube runs along a smooth path, path [[x, y, z], ...] each -0.5..0.5 of its size, thick its thickness in metres (a handle, a cable, a tonearm, a rail). Any part can repeat: { count 2..${LIMITS.repeat}, at [x, y, z] the step, turn [x, y, z] degrees a step about the foot } (piano keys, fence posts, petals round a stem), and mirror: true copies it to the other side, x for -x (a pair of wheels, wings, ears). Each copy counts as a part.`,
     light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
@@ -124,12 +139,22 @@ const KIT = {
     slug: 'a-z, 0-9 and -, 2 to 32 characters: the planet\'s name in its address',
     who: { name: `required, ${LIMITS.name} characters at most` },
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
-    look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
+    look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1', coast: 'optional { bearing: -180..180, distance: 2..30, radius: 1..8, color?: #rrggbb }; metres along the surface' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
-    things: `required: 1 to ${LIMITS.things}, at least one 3 to ${IN_VIEW} m from where they land and nearly straight ahead, bearing -${FIRST_VIEW} to ${FIRST_VIEW}, the first view on a phone held upright (a preview with none in that view is refused, as they'd see bare rock): [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
+    scenes: 'optional: 1 to 3 [{ id, name, kind: gathering or lookout, note?, collection?, setting?: tropical, companion?: { kind: cat, name?, color?: #rrggbb, note? } }]; compiled into placed things and routes',
+    routes: 'optional, up to 3 [{ from: { bearing, distance }, to: { bearing, distance } }]; normally supplied by the composer to connect scene entrances',
+    things: `optional with scenes, otherwise required: 1 to ${LIMITS.things}, at least one 3 to ${IN_VIEW} m from where they land and nearly straight ahead, bearing -${FIRST_VIEW} to ${FIRST_VIEW}, the first view on a phone held upright (a preview with none in that view is refused, as they'd see bare rock): [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light, footprint?: [width, depth] }], ${LIMITS.allParts} parts in all`,
   },
   sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who gives it its own address and may add to it by hand. A preview alone is never sent.',
   limits: LIMITS,
+  scene_example: {
+    version: 1, slug: 'morgan', who: { name: 'Morgan' },
+    collections: { evenings: { title: 'Evenings', items: ['Sharing recipes and watching meteor showers with friends'] } },
+    scenes: [
+      { id: 'supper', name: 'The evening table', kind: 'gathering', note: 'Recipes and long conversation.', collection: 'evenings' },
+      { id: 'sky', name: 'Meteor watch', kind: 'lookout', note: 'A quiet place to watch the sky.', collection: 'evenings' },
+    ],
+  },
   example: EXAMPLE,
 };
 
@@ -143,9 +168,17 @@ export const TOOLS = [
     _meta: { 'openai/toolInvocation/invoking': 'Opening the kit…', 'openai/toolInvocation/invoked': 'Kit open' },
   },
   {
+    name: 'prepare_planet',
+    title: 'Prepare a planet',
+    description: 'Compiles semantic scenes and checks the resulting planet without opening a card. Returns the prepared flat spec and geometry diagnostics. Does not render screenshots, verify downloaded models, generate assets or store anything. Use before the first preview.',
+    inputSchema: { type: 'object', properties: { spec: { type: 'object', description: 'The planet spec, with scenes or existing things (get_kit says what goes in one).' } }, required: ['spec'], additionalProperties: false },
+    annotations: read,
+    _meta: { 'openai/toolInvocation/invoking': 'Preparing the planet…', 'openai/toolInvocation/invoked': 'Planet prepared' },
+  },
+  {
     name: 'preview_planet',
     title: 'Preview a planet',
-    description: 'Checks a planet spec and shows it in the chat: the planet in 3D where the app can, else a plain card and a link. Returns the preview link, which is the planet itself (nothing is stored). If the spec has mistakes, says each one (where: what) so you can fix them and try again.',
+    description: 'Compiles and checks a planet spec, then reveals it in the chat: the planet in 3D where the app can, else a plain card and a link. Use prepare_planet first to check without revealing. Returns the preview link, which is the planet itself (nothing is stored). If the spec has mistakes, says each one (where: what) so you can fix them and try again.',
     inputSchema: { type: 'object', properties: { spec: { type: 'object', description: 'The planet spec (get_kit says what goes in one).' } }, required: ['spec'], additionalProperties: false },
     annotations: read,
     _meta: { ...showsCard, 'openai/toolInvocation/invoking': 'Building the planet…', 'openai/toolInvocation/invoked': 'Planet ready' },
@@ -174,12 +207,23 @@ export const planetPage = (slug) => `${SITE}/p/${slug}/`;
 
 async function call(name, args, ctx) {
   if (name === 'get_kit') return { text: JSON.stringify(KIT), data: KIT };
-  const spec = args.spec;
-  const errors = checkPlanet(spec);
-  if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and preview again:\n${errors.slice(0, 30).join('\n')}`);
+  const validate = (spec) => {
+    const errors = checkPlanet(spec);
+    if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and prepare again:\n${errors.slice(0, 30).join('\n')}`);
+  };
+  validate(args.spec); // raw scene intent must be checked before the compiler uses it
+  let spec;
+  try { spec = composePlanet(args.spec); }
+  catch (e) { throw new Invalid(`That scene could not be composed; fix it and prepare again:\n${e.message}`); }
+  validate(spec); // generated geometry must obey the same caps as hand-authored things
   // a planet that passes but would show them nothing is never shown or sent as if it were done
   const empty = showsNothing(spec);
-  if (empty.length) throw new Invalid(`That planet would show them nothing but bare rock; fix this and preview again:\n${empty.join('\n')}`);
+  if (empty.length) throw new Invalid(`That planet would show them nothing but bare rock; fix this and prepare again:\n${empty.join('\n')}`);
+  const notes = [...notDrawn(spec), ...lookOver(spec)];
+  if (name === 'prepare_planet') return {
+    text: `Prepared ${spec.who.name}'s planet. Schema and arrival-geometry checks passed. This did not render screenshots, verify downloaded models or generate assets.${notes.length ? `\nReview these geometry notes before revealing (they can be approximate):\n- ${notes.join('\n- ')}` : ''}\nUse the returned spec with preview_planet when ready to reveal it.`,
+    data: { prepared: true, spec, ...(args.spec.scenes ? { design: args.spec } : {}), diagnostics: { warnings: notes, rendered: false, assetsGenerated: false } },
+  };
   if (name === 'send_planet') {
     const text = (v, max, what) => {
       if (v == null || v === '') return null;
@@ -202,9 +246,8 @@ async function call(name, args, ctx) {
   // what the plain card shows: who it's for, their links, and a little of what they love
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
-  // what a careful eye would fix before they walk round it (lookOver): for the model, not for them
-  const notes = [...notDrawn(spec), ...lookOver(spec)];
-  const fix = notes.length ? `\n\nBefore you show them, look these over and fix what's really wrong, then preview again (boxes are measured as if nothing were turned, so a note can be off):\n- ${notes.join('\n- ')}` : '';
+  // Geometry notes are available during preparation; a preview has already revealed its card.
+  const fix = notes.length ? `\n\nGeometry notes (the card has already been revealed; use prepare_planet before the next reveal, and do not claim these notes are rendered inspection):\n- ${notes.join('\n- ')}` : '';
   return {
     text: `${spec.who.name}'s planet is ready to walk around, with ${spec.things.map((t) => t.name).join(', ')} on it. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
     data: { view: 'planet', url, planet },

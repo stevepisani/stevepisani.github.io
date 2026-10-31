@@ -42,6 +42,9 @@
   </div>
   <script type="application/json" id="planet-data">{% if page.planet %}{"spec": {{ page.planet | jsonify }}}{% else %}{}{% endif %}</script>
   <script>
+    // The card must hear from the page before the 3D bundle downloads or compiles. Otherwise
+    // a slow but working preview looks like a blocked frame and is removed after 12 seconds.
+    if (window.parent !== window) window.parent.postMessage({ planet: 'loading' }, '*');
     // The launch screen's sky, drawn before the planet's script arrives: a few hundred stars you
     // can drag round, at the same rate the planet turns you (player.js bindInput), so the first
     // frame picks up where you were looking (window.__veilLook, radians; main.js).
