@@ -229,9 +229,20 @@ const over = await preview(far);
 ok(far.things[1].stock in STOCK && checkPlanet(far).length === 0 && over.isError && /nearest is 2\d m .*over the horizon/.test(over.content[0].text), 'everything over the horizon: refused, they\'d land on bare rock', over.content[0].text);
 far.things[0].at = { bearing: 180, distance: 8 };
 const behind = await preview(far);
-ok(behind.isError && /none ahead/.test(behind.content[0].text), "everything behind where they land: refused, they'd see bare rock", behind.content[0].text);
-far.things[0].at = { bearing: -30, distance: 9 };
-ok(showsNothing(far).length === 0 && showsNothing(one).length === 0 && showsNothing(planets.EXAMPLE).length === 0, 'something within 10 m of where they land: shown', showsNothing(far));
+ok(behind.isError && /none in the first view/.test(behind.content[0].text), "everything behind where they land: refused, they'd see bare rock", behind.content[0].text);
+// the first view's edge, on a phone held upright (18.6° either side): a metre cube 9 m out
+const cube = (bearing, distance, more = {}) => ({ ...least, ...more, things: [{ id: 'cube', name: 'Cube', at: { bearing, distance }, parts: [{ shape: 'box', size: [1, 1, 1] }] }] });
+const edge = await preview(cube(30, 9));
+ok(edge.isError && /none in the first view/.test(edge.content[0].text), 'a metre cube at bearing 30, past the edge of a phone\'s first view: refused', edge.content[0].text);
+ok(showsNothing(cube(17, 9)).length === 0 && showsNothing(cube(-17, 9)).length === 0 && showsNothing(cube(20, 9)).length === 1, 'the same cube at bearing 17 shows (smoke.mjs sees it on a phone), at 20 it doesn\'t', [showsNothing(cube(17, 9)), showsNothing(cube(20, 9))]);
+ok(showsNothing(made).length === 0 && showsNothing(planets.EXAMPLE).length === 0 && showsNothing(far).length === 1, "Sam's things in view: shown", showsNothing(made));
+// Steve's planet's parts, empty or not, never make a planet with something in view bare: only named
+const withEmpty = await preview(cube(0, 4, { places: [], robot: {} }));
+ok(!withEmpty.isError && withEmpty.structuredContent?.planet && !/bare rock|places:|robot:|telescope:/.test(withEmpty.content[0].text), 'a cube in view with an empty places and robot: shown, nothing said of them', withEmpty.content[0].text);
+const mixed = await preview(cube(0, 4, { collections: sam.collections, places: [{ id: 'reading', kind: 'hammock' }] }));
+ok(!mixed.isError && mixed.structuredContent?.planet && /^- places: only Steve's own planet/m.test(mixed.content[0].text) && !/bare rock/.test(mixed.content[0].text), 'a cube in view and something in places: shown, with places named as not drawn', mixed.content[0].text);
+const emptyOnly = await preview({ ...least, places: [] });
+ok(emptyOnly.isError && /^things: none/m.test(emptyOnly.content[0].text) && !/places:/.test(emptyOnly.content[0].text), 'no things and an empty places: refused for the missing things alone', emptyOnly.content[0].text);
 ok(checkPlanet(sam).length === 0 && checkPlanet(steve).length === 0, "Steve's planet's parts still pass the check, for his own spec");
 ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
 ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');

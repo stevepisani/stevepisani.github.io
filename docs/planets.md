@@ -80,11 +80,13 @@ sent are then finished by hand. The plan and what's next are in
   their links, what they love, the look and `things` (how to place and make them, and some craft:
   scale, spread, light): none of Steve's planet's parts (Steve, Oct 2026). A spec passes the check with only `version`,
   `slug` and `who.name`, but the connector won't preview or send a planet that would land them on
-  bare rock (`showsNothing` in `_shared/planet.js`): one with no things, one that puts what they
-  love in Steve's planet's parts (`places`, `robot`, `telescope`, `launchPad`, which pass the
-  check for his own spec but a friend's planet never draws), one whose nearest thing is more
-  than 10 m out, over the horizon, or one with nothing within 30° of straight ahead (all behind or
-  beside where they land). Each comes back as a mistake naming why, so their AI fixes it
+  bare rock (`showsNothing` in `_shared/planet.js`): one with no things, one whose nearest thing is
+  more than 10 m out, over the horizon, or one with nothing in the first view: a thing counts
+  when it's within 10 m and reaches to within 15° of straight ahead (a phone held upright shows
+  18.6° either side; `tools/smoke.mjs` checks a cube at the edge really is on screen there). When
+  it refuses, it also names anything in Steve's planet's parts (`places`, `robot`, `telescope`,
+  `launchPad`, which pass the check for his own spec but a friend's planet never draws), the
+  likely reason; with something in view they're only a note, and empty ones are ignored. Each comes back as a mistake naming why, so their AI fixes it
   instead of showing an empty planet as done (Oct 31 2026: a test chat interviewed someone and
   rendered a bare planet). Three tools, the first two read-only:
   - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example

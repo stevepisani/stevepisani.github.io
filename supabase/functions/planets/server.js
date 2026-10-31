@@ -6,7 +6,7 @@
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, showsNothing, IN_VIEW, AHEAD, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
+import { checkPlanet, showsNothing, notDrawn, IN_VIEW, FIRST_VIEW, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -126,7 +126,7 @@ const KIT = {
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
     look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
-    things: `required: 1 to ${LIMITS.things}, at least one 3 to ${IN_VIEW} m from where they land and within ${AHEAD}° of straight ahead (a preview with none in that first view is refused, as they'd see bare rock): [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
+    things: `required: 1 to ${LIMITS.things}, at least one 3 to ${IN_VIEW} m from where they land and nearly straight ahead, bearing -${FIRST_VIEW} to ${FIRST_VIEW}, the first view on a phone held upright (a preview with none in that view is refused, as they'd see bare rock): [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
   },
   sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who gives it its own address and may add to it by hand. A preview alone is never sent.',
   limits: LIMITS,
@@ -203,7 +203,7 @@ async function call(name, args, ctx) {
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   // what a careful eye would fix before they walk round it (lookOver): for the model, not for them
-  const notes = lookOver(spec);
+  const notes = [...notDrawn(spec), ...lookOver(spec)];
   const fix = notes.length ? `\n\nBefore you show them, look these over and fix what's really wrong, then preview again (boxes are measured as if nothing were turned, so a note can be off):\n- ${notes.join('\n- ')}` : '';
   return {
     text: `${spec.who.name}'s planet is ready to walk around, with ${spec.things.map((t) => t.name).join(', ')} on it. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
