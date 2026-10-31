@@ -455,6 +455,33 @@ export function partsOf(t) {
   return k ? [{ shape: 'box', size: k.size, round: 0.15, color: '#8a7a68' }] : [];
 }
 
+// what a friend's planet can't draw: Steve's own planet's parts, which pass checkPlanet for his spec
+const STEVES_PARTS = ['places', 'robot', 'telescope', 'launchPad'];
+// in full view from where you land: the horizon is about 6 m off, a thing rises over it by 10 m;
+// and ahead of you, in the first view even on a phone held upright (bearing 0 is straight ahead)
+export const IN_VIEW = 10, AHEAD = 30;
+
+/**
+ * Why a friend's planet, from a spec that passed checkPlanet, would show nothing when they land
+ * on it: each "where: what", none when there's something to see. The connector won't preview or
+ * send such a planet, so their AI can't show them bare rock and call it done.
+ */
+export function showsNothing(spec) {
+  const why = [];
+  for (const k of STEVES_PARTS) {
+    if (spec[k] !== undefined) why.push(`${k}: only Steve's own planet has these, and a friend's planet doesn't draw them; make what's here into things instead (get_kit, things)`);
+  }
+  const things = spec.things || [];
+  if (!things.length) why.push("things: none, so they'd land on bare rock; make them a few things from what they love (get_kit, things)");
+  else {
+    const placed = [...placeThings(things).values()];
+    const nearest = Math.min(...placed.map((p) => p.distance));
+    if (nearest > IN_VIEW) why.push(`things: the nearest is ${nearest.toFixed(0)} m from where they land, over the horizon, so they'd land on bare rock; put the first place 3 to ${IN_VIEW} m out`);
+    else if (!placed.some((p) => p.distance <= IN_VIEW && Math.abs(p.bearing) <= AHEAD)) why.push(`things: none ahead of where they land (all ${IN_VIEW} m or less away are behind or beside them), so they'd see bare rock; put the first place within ${AHEAD}° of straight ahead (bearing -${AHEAD} to ${AHEAD})`);
+  }
+  return why;
+}
+
 /** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
 // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
 function partBoxes(t) {

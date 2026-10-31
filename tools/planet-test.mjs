@@ -7,7 +7,7 @@
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { checkPlanet, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
+import { checkPlanet, showsNothing, lookOver, placeThings, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 
@@ -51,6 +51,9 @@ caught(least, (s) => { s.version = 2; }, /^version: should be 1/, 'a version thi
 
 // things their AI made them, from simple shapes (assets/js/planets/things.js)
 const made = { ...least, look: { ground: { color: '#5b4a3c', hills: 0.4 }, sky: { color: '#3a5bd0', light: '#ffd8a8' } }, collections: { records: { title: 'Records', items: ['Kind of Blue'] } }, things: [{ id: 'deck', name: 'The turntable', collection: 'records', at: { bearing: -20, distance: 5 }, light: { color: '#ffcf8a', strength: 0.5 }, parts: [{ shape: 'box', size: [1.4, 0.5, 1.1], color: '#7a4a2a', finish: 'gloss' }, { shape: 'cylinder', size: [1, 0.04, 1], at: [0, 0.52, 0], spin: 200 }, { shape: 'text', text: 'Spin it', size: [2, 0.4, 0.1], at: [0, 1.2, 0], finish: 'glow' }] }] };
+// what the connector shows and sends: Sam's own (none of Steve's planet's parts), with a thing on it
+const { places: _p, robot: _r, telescope: _t, launchPad: _l, ...samsBasics } = sam;
+const samsOwn = { ...samsBasics, things: made.things }, one = made;
 ok(checkPlanet(made).length === 0, 'a planet with its own ground, sky and things passes', checkPlanet(made));
 caught(made, (s) => { s.things[0].parts[0].shape = 'teapot'; }, /^things\[0\]\.parts\[0\]\.shape: should be one of/, 'a shape the kit doesn\'t have');
 caught(made, (s) => { s.things[0].parts[0].size = [1, 50, 1]; }, /^things\[0\]\.parts\[0\]\.size:/, 'a part bigger than the planet allows');
@@ -147,13 +150,13 @@ ok(res._meta.ui.csp.frameDomains.includes(new URL(PREVIEW_PAGE).origin) && res._
 const kit = (await call('tools/call', { name: 'get_kit', arguments: {} })).result;
 ok(checkPlanet(kit.structuredContent.example).length === 0 && kit.structuredContent.drawn_today.length >= 3, "get_kit: what's drawn today, and an example that passes", checkPlanet(kit.structuredContent.example));
 ok(['places', 'robot', 'telescope', 'launchPad'].every((k) => !(k in kit.structuredContent.shape) && !(k in kit.structuredContent.example)) && !kit.structuredContent.shape.who.sign && !/tiki|campfire|hammock/i.test(JSON.stringify(kit.structuredContent) + init.instructions), "get_kit offers nothing of Steve's planet: no places, robot, telescope, launch pad or sign");
-const shown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: sam } })).result;
+const shown = (await call('tools/call', { name: 'preview_planet', arguments: { spec: samsOwn } })).result;
 ok(!shown.isError && shown.structuredContent.view === 'planet' && shown.structuredContent.url.startsWith(`${PREVIEW_PAGE}#`) && shown.content[0].text.includes(shown.structuredContent.url), 'a preview: the card, and the link in the text for apps without cards', shown);
-ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(sam), "the preview's link is the planet");
+ok(JSON.stringify(await unpackPlanet(shown.structuredContent.url.split('#')[1])) === JSON.stringify(samsOwn), "the preview's link is the planet");
 const card = shown.structuredContent.planet;
 ok(card.name === 'Sam' && card.home === 'Austin' && card.links.length === 2 && card.loves[0].title === 'Records I love' && card.loves[0].items.join() === 'Kind of Blue,Blue Train' && !('sign' in card) && !('board' in card), 'the plain card: who it is for, their links and what they love', card);
 // looking it over: what a careful eye would fix, said back with the preview
-ok(lookOver(sam).length === 0 && !/look these over/.test(shown.content[0].text), "Sam's example: nothing to look over", lookOver(sam));
+ok(lookOver(samsOwn).length === 0 && !/look these over/.test(shown.content[0].text), "Sam's: nothing to look over", lookOver(samsOwn));
 const sloppy = { ...least, things: [
   { id: 'a', name: 'Lamp', at: { bearing: 0, distance: 5 }, parts: [{ shape: 'box', size: [1, 1, 1] }, { shape: 'sphere', size: [0.3, 0.3, 0.3], at: [0, 2, 0] }] },
   { id: 'b', name: 'Pebble', at: { bearing: 2, distance: 5 }, parts: [{ shape: 'box', size: [0.2, 0.2, 0.2] }] },
@@ -212,8 +215,24 @@ ok(past, `models for the first ${FIRST_PLANETS} friends' planets only`);
 ok(wanted(Array.from({ length: FIRST_PLANETS }, (_, i) => friend(`new-${i}`)), {}).length === FIRST_PLANETS, `the first ${FIRST_PLANETS} are all modelled`);
 const wrong = (await call('tools/call', { name: 'preview_planet', arguments: { spec: { ...sam, who: { name: 'Sam', sign: 'Samantha Jones' }, slug: 'Sam' } } })).result;
 ok(wrong.isError && /2 mistakes/.test(wrong.content[0].text) && /who\.sign: longer than 12/.test(wrong.content[0].text) && /^slug:/m.test(wrong.content[0].text), 'a spec with mistakes: each one said back, to fix', wrong.content[0].text);
-const bare = (await call('tools/call', { name: 'preview_planet', arguments: { spec: least } })).result.structuredContent.planet;
-ok(bare.name === 'Sam' && bare.links.length === 0 && bare.loves.length === 0, 'a planet with nothing on it: just their name on its plain card', bare);
+// a planet that passes the check but would show them nothing is refused, never shown as done:
+// they'd land on bare rock (the planet page itself still draws one, for an old link)
+const preview = async (spec) => (await call('tools/call', { name: 'preview_planet', arguments: { spec } })).result;
+const bare = await preview(least);
+ok(bare.isError && !bare.structuredContent && /bare rock/.test(bare.content[0].text) && /^things: none/m.test(bare.content[0].text), 'a planet with no things: refused, to be given some', bare);
+const steves = await preview({ ...least, collections: sam.collections, places: [{ id: 'reading', kind: 'hammock' }] });
+ok(steves.isError && /^places: only Steve's own planet/m.test(steves.content[0].text) && /^things: none/m.test(steves.content[0].text), "what they love put in Steve's planet's places, which a friend's planet doesn't draw: refused, to be made into things", steves.content[0].text);
+ok(/^robot:/m.test(showsNothing(sam).join('\n')) && /^launchPad:/m.test(showsNothing(sam).join('\n')), "each of Steve's planet's parts is named", showsNothing(sam));
+const far = clone(one); far.things[0].at.distance = 30;
+far.things.push({ id: 'bench', name: 'Bench', stock: 'bench', near: { of: 'deck', side: 'front' } });
+const over = await preview(far);
+ok(far.things[1].stock in STOCK && checkPlanet(far).length === 0 && over.isError && /nearest is 2\d m .*over the horizon/.test(over.content[0].text), 'everything over the horizon: refused, they\'d land on bare rock', over.content[0].text);
+far.things[0].at = { bearing: 180, distance: 8 };
+const behind = await preview(far);
+ok(behind.isError && /none ahead/.test(behind.content[0].text), "everything behind where they land: refused, they'd see bare rock", behind.content[0].text);
+far.things[0].at = { bearing: -30, distance: 9 };
+ok(showsNothing(far).length === 0 && showsNothing(one).length === 0 && showsNothing(planets.EXAMPLE).length === 0, 'something within 10 m of where they land: shown', showsNothing(far));
+ok(checkPlanet(sam).length === 0 && checkPlanet(steve).length === 0, "Steve's planet's parts still pass the check, for his own spec");
 ok((await call('tools/call', { name: 'preview_planet', arguments: {} })).result.isError, 'no spec at all');
 ok((await call('tools/call', { name: 'delete_planet', arguments: {} })).error.code === -32602, 'a tool that isn\'t there');
 
@@ -227,22 +246,22 @@ await w.db.exec(migration);
 // the ctx index.ts builds on supabase-js, here on SQL
 const send = async ({ spec, note, contact }) => (await w.q('select public.planet_request_add($1::jsonb, $2, $3) as id', [JSON.stringify(spec), note, contact]))[0].id;
 const sendIt = async (args) => (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'send_planet', arguments: args } }, { send })).result;
-const sent = await sendIt({ spec: sam, note: '  Make the porch glow.  ', contact: 'sam@example.com' });
+const sent = await sendIt({ spec: samsOwn, note: '  Make the porch glow.  ', contact: 'sam@example.com' });
 ok(!sent.isError && sent.structuredContent.sent && sent.structuredContent.page === 'https://stevenpisani.com/p/sam/' && sent.content[0].text.includes(sent.structuredContent.page), 'sent: where it will be once it is built', sent);
 const saved = (await w.q('select * from public.planet_requests'))[0];
 ok(saved.slug === 'sam' && saved.name === 'Sam' && saved.spec.collections.records.items[0].name === 'Kind of Blue' && saved.note === 'Make the porch glow.' && saved.contact === 'sam@example.com' && saved.status === 'new', 'saved as sent: the spec, their note and how to reach them, waiting to be told', saved);
-ok((await sendIt({ spec: { ...sam, slug: 'Sam' } })).isError && (await w.q('select count(*)::int as n from public.planet_requests'))[0].n === 1, 'a spec with mistakes is never sent');
-ok((await sendIt({ spec: least, note: 'x'.repeat(1001) })).isError, 'nor a note past 1,000 characters');
-ok(!(await sendIt({ spec: least })).isError && (await w.q("select note, contact from public.planet_requests where slug = 'sam' order by id desc"))[0].contact === null, 'the note and contact are optional');
+ok((await sendIt({ spec: { ...samsOwn, slug: 'Sam' } })).isError && (await sendIt({ spec: least })).isError && (await w.q('select count(*)::int as n from public.planet_requests'))[0].n === 1, 'a spec with mistakes is never sent, nor one with nothing to see');
+ok((await sendIt({ spec: one, note: 'x'.repeat(1001) })).isError, 'nor a note past 1,000 characters');
+ok(!(await sendIt({ spec: one })).isError && (await w.q("select note, contact from public.planet_requests where slug = 'sam' order by id desc"))[0].contact === null, 'the note and contact are optional');
 await w.db.exec(`insert into public.planet_requests (slug, name, spec, at) select 'old-' || i, 'Old', '{}'::jsonb, now() - interval '2 days' from generate_series(1, 48) i`);
-const full = await sendIt({ spec: least });
+const full = await sendIt({ spec: one });
 ok(!full.isError && full.structuredContent.sent === false && /as many planets waiting/.test(full.content[0].text), '50 waiting to be built: the next one isn\'t sent, and they\'re told so', full);
 await w.db.exec(`update public.planet_requests set status = 'built' where slug like 'old-%'; insert into public.planet_requests (slug, name, spec) select 'day-' || i, 'Day', '{}'::jsonb from generate_series(1, 18) i`);
-ok((await sendIt({ spec: least })).structuredContent.sent === false, '20 in a day: the next one waits for tomorrow');
-const test = await sendIt({ spec: { ...least, slug: 'test-sam' } });
+ok((await sendIt({ spec: one })).structuredContent.sent === false, '20 in a day: the next one waits for tomorrow');
+const test = await sendIt({ spec: { ...one, slug: 'test-sam' } });
 ok(test.structuredContent.sent && test.structuredContent.test && /test/.test(test.content[0].text) && (await w.q("select status from public.planet_requests where slug = 'test-sam'"))[0].status === 'test', "a test planet (slug test-…) is saved as a test, past the real planets' caps, and says so", test);
 await w.db.exec(`insert into public.planet_requests (slug, name, spec, status) select 'test-' || i, 'T', '{}'::jsonb, 'test' from generate_series(1, 19) i`);
-ok((await sendIt({ spec: { ...least, slug: 'test-more' } })).structuredContent.sent === false, 'tests have their own 20 a day');
+ok((await sendIt({ spec: { ...one, slug: 'test-more' } })).structuredContent.sent === false, 'tests have their own 20 a day');
 const refused = async (role, sql, what) => {
   let error;
   try { await w.db.exec(`set role ${role}; ${sql}`); } catch (e) { error = e; } finally { await w.db.exec('reset role'); }
