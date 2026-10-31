@@ -75,13 +75,12 @@ function beachGarden() {
 }
 function hammock() {
   const ps = [-1.45,1.45].map((x)=>tube([0.5,2.5,0.2],[x,1.2,0],[[0,-0.5,0],[-Math.sign(x)*0.5,0.5,0]],0.13,P.wood));
-  // Five adjoining soft strips form a continuous sagging canvas. This is a sitting place,
-  // using the existing sit action rather than promising a separate lying animation.
-  for (let i=0;i<5;i++) {
-    const x=-0.8+i*0.4, y=0.65+0.45*(x/0.8)**2;
-    ps.push(box([0.48,0.07,0.9],[x,y,0],i%2?P.cream:P.teal,{turn:[0,0,x*36]}));
-  }
-  for (const sign of [-1,1]) ps.push(tube([0.65,1.15,0.1],[sign*1.03,1.55,0],[[sign*0.45,0.5,0],[-sign*0.4,-0.5,0]],0.035,P.cream));
+  // One continuous sagging canvas, rather than separate boards. The existing sit action
+  // treats this as a sitting hammock, without promising a separate lying animation.
+  const outline = [[0,1],[0.15,0.65],[0.32,0.3],[0.5,0.18],[0.68,0.3],[0.85,0.65],[1,1],[1,0.9],[0.85,0.52],[0.68,0.18],[0.5,0.06],[0.32,0.18],[0.15,0.52],[0,0.9]];
+  ps.push(shape('extrude',[2.4,1.15,0.85],[0,1.3,0],P.teal,{outline}));
+  ps.push(shape('extrude',[2.4,1.15,0.15],[0,1.312,0],P.cream,{outline}));
+  for (const sign of [-1,1]) ps.push(tube([0.1,0.6,0.1],[sign*1.2,2.16,0],[[0,0.5,0],[0,-0.5,0]],0.035,P.cream));
   return ps;
 }
 function telescope() {
