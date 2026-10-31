@@ -44,8 +44,11 @@ design: row-level security guards every table.
   `SUPABASE_ACCESS_TOKEN` (`--dry-run` previews).
 - `.github/workflows/supabase.yml`: on a merge to main that touches `supabase/`, it applies them,
   copies the `ANTHROPIC_API_KEY` and `GOOGLE_MAPS_API_KEY` repo secrets into the project's function secrets, and deploys
-  every function (Supabase CLI, `--use-api`, no Docker). To try a change before merging, run the
-  workflow on your branch (Actions → Supabase → Run workflow). Every hour it also asks the API for
+  every function (Supabase CLI, `--use-api`, no Docker). Run by hand on a branch (Actions →
+  Supabase → Run workflow), it does the same from that branch: a production deploy to the one live
+  project, not a preview. Before merging, test locally instead (`npm test`, and
+  `node tools/planet-live.mjs --local --site _site` for the Planets connector); the deploy on merge
+  and a live recheck afterwards are the production proof. Every hour it also asks the API for
   something, because free projects pause after a week without requests, makes the smaller copies of
   new wardrobe photos, for the MCP server and for the app (`tools/photo-copies.mjs`, `docs/apps.md`,
   "Photo sizes"), and empties the

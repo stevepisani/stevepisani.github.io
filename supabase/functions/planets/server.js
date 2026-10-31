@@ -6,7 +6,7 @@
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
 // Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
-import { checkPlanet, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
+import { checkPlanet, showsNothing, notDrawn, IN_VIEW, FIRST_VIEW, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
 export const PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
@@ -126,7 +126,7 @@ const KIT = {
     links: `up to ${LIMITS.links}: [{ id, label, note, href }]; id is a short id (a-z, 0-9, -)`,
     look: { home: 'a city', ground: { color: '#rrggbb', hills: '0..1' }, sky: { color: '#rrggbb', light: '#rrggbb' } },
     collections: `up to ${LIMITS.collections}: { <id>: { title, items: [text, or small objects with a name] } }`,
-    things: `up to ${LIMITS.things}: [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
+    things: `required: 1 to ${LIMITS.things}, at least one 3 to ${IN_VIEW} m from where they land and nearly straight ahead, bearing -${FIRST_VIEW} to ${FIRST_VIEW}, the first view on a phone held upright (a preview with none in that view is refused, as they'd see bare rock): [{ id, name, note, collection, at: { bearing, distance } or near: { of, side, gap }, turn, scale, solid, model or stock, use, parts: [...], light }], ${LIMITS.allParts} parts in all`,
   },
   sending: 'When they have seen the preview and say to send it, send_planet: it reaches Steve, who gives it its own address and may add to it by hand. A preview alone is never sent.',
   limits: LIMITS,
@@ -177,6 +177,9 @@ async function call(name, args, ctx) {
   const spec = args.spec;
   const errors = checkPlanet(spec);
   if (errors.length) throw new Invalid(`That spec has ${errors.length === 1 ? 'a mistake' : `${errors.length} mistakes`}; fix ${errors.length === 1 ? 'it' : 'them'} and preview again:\n${errors.slice(0, 30).join('\n')}`);
+  // a planet that passes but would show them nothing is never shown or sent as if it were done
+  const empty = showsNothing(spec);
+  if (empty.length) throw new Invalid(`That planet would show them nothing but bare rock; fix this and preview again:\n${empty.join('\n')}`);
   if (name === 'send_planet') {
     const text = (v, max, what) => {
       if (v == null || v === '') return null;
@@ -200,10 +203,10 @@ async function call(name, args, ctx) {
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   // what a careful eye would fix before they walk round it (lookOver): for the model, not for them
-  const notes = lookOver(spec);
+  const notes = [...notDrawn(spec), ...lookOver(spec)];
   const fix = notes.length ? `\n\nBefore you show them, look these over and fix what's really wrong, then preview again (boxes are measured as if nothing were turned, so a note can be off):\n- ${notes.join('\n- ')}` : '';
   return {
-    text: `${spec.who.name}'s planet is ready to walk around${(spec.things || []).length ? `, with ${spec.things.map((t) => t.name).join(', ')} on it` : ', bare for now: add things to it (get_kit, things) from what they love'}. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
+    text: `${spec.who.name}'s planet is ready to walk around, with ${spec.things.map((t) => t.name).join(', ')} on it. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
     data: { view: 'planet', url, planet },
   };
 }

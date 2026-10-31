@@ -42,7 +42,6 @@ const tool = async (name, args) => (await rpc('tools/call', { name, arguments: a
 // Planet models workflow makes Meshy models for
 const PEOPLE = [
   ...['test-ines', 'test-dev'].map((slug) => JSON.parse(readFileSync(new URL(`models/planets/${slug}.json`, import.meta.url), 'utf8'))),
-  { version: 1, slug: 'test-min', who: { name: 'Min' } },
 ];
 
 console.log(`The Planets connector ${local ? 'in this checkout' : `at ${URL_}`}`);
@@ -57,6 +56,17 @@ ok(card?.mimeType === 'text/html;profile=mcp-app' && !/<script src=/.test(card.t
 
 const wrong = await tool('preview_planet', { spec: { ...PEOPLE[0], slug: 'Not A Slug' } });
 ok(wrong.isError && /slug/.test(wrong.content[0].text), 'a spec with a mistake comes back to fix', wrong.content?.[0]?.text);
+// a planet that passes the check but would land them on bare rock comes back to fix, never as done
+const BARE = {
+  'only a name': { version: 1, slug: 'test-min', who: { name: 'Min' } },
+  "what they love in Steve's planet's places": { version: 1, slug: 'test-probe', who: { name: 'Fictional Guest' }, look: { home: 'Test City' }, collections: { books: { title: 'Favorite books', items: ['A fictional adventure'] } }, places: [{ id: 'reading', kind: 'hammock' }] },
+  'everything over the horizon': { ...PEOPLE[0], things: PEOPLE[0].things.map((t) => (t.at ? { ...t, at: { ...t.at, distance: 40 } } : t)) },
+  'everything behind where they land': { ...PEOPLE[0], things: PEOPLE[0].things.map((t) => (t.at ? { ...t, at: { bearing: 180, distance: 8 } } : t)) },
+};
+for (const [what, spec] of Object.entries(BARE)) {
+  const r = await tool('preview_planet', { spec });
+  ok(r.isError && /bare rock/.test(r.content[0].text) && !r.structuredContent, `bare rock refused: ${what}`, r.content?.[0]?.text);
+}
 
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
 const browser = await chromium.launch(proxy && !site ? { proxy: { server: proxy } } : {});

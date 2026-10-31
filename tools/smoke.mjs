@@ -1810,6 +1810,24 @@ async function preview(page, shot) {
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
 // in a frame on a computer and in a phone's app alike, and a plain card where 3D can't run
+// the first view on a phone held upright, the narrowest it opens on: what the connector counts as
+// in it (showsNothing) is really there. A metre cube 9 m out at bearing 17 is on screen as they
+// land; at bearing 30 it isn't, and the connector refuses a planet with only that.
+async function firstView(page, shot) {
+  const { showsNothing } = await import('../supabase/functions/_shared/planet.js');
+  const cube = (bearing) => ({ version: 1, slug: 'test-cube', who: { name: 'Cube' }, things: [{ id: 'cube', name: 'Cube', at: { bearing, distance: 9 }, parts: [{ shape: 'box', size: [1, 1, 1], color: '#ff7a2a' }] }] });
+  for (const [bearing, seen] of [[17, true], [-17, true], [30, false]]) {
+    await page.goto('about:blank'); // only the address's # changes: a fresh page each time
+    await page.goto(`${base}/p/preview/?test=1#${await packPlanet(cube(bearing))}`);
+    await until(page, () => window.__planet && window.__planet.ready, null, 240000);
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+    const at = await page.evaluate(() => window.__planet.screenOf('cube'));
+    if (!!at !== seen || (showsNothing(cube(bearing)).length === 0) !== seen) throw new Error(`a cube at bearing ${bearing} should ${seen ? '' : 'not '}be in a phone's first view, and the connector should agree: ${JSON.stringify({ at, refused: showsNothing(cube(bearing)) })}`);
+    await shot(`first-view-${bearing}`);
+  }
+  step("on a phone held upright, a cube the connector counts as in the first view is on screen as they land (bearing ±17), one it refuses isn't (bearing 30)");
+}
+
 async function planetCard(page, shot, { phone = false } = {}) {
   const ctx = { cardScript: async () => readFileSync(join(root, 'assets/js/dist/planet-card.js'), 'utf8') };
   const html = (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'resources/read', params: { uri: planets.APP_URI } }, ctx)).result.contents[0].text;
@@ -1892,6 +1910,7 @@ if (want('phone')) await session('phone planet', { viewport: { width: 390, heigh
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
+if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);
 if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
 
