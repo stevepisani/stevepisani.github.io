@@ -74,7 +74,13 @@ an explicitly imagined ringed-world sky; Step back, Escape or a walking key retu
 remain optional for those actions, rather than covering their response with a card. This is
 not live astronomy. The pavilion is open decoration, not a solid room or raised walking deck.
 
-The opening is a stable elevated view of the assembled setting; the first tap brings the
+Tropical gathering scenes use cool starlight, warmer light at the table and two low approach
+lanterns at a primary gathering place. Scene routes reuse the homepage’s hand-split flagstones, draped on the receiving
+planet’s own surface. The lagoon has an irregular wet margin, broken groups of shore stones
+and the same wind-ripple/sky-reflection treatment as the homepage. Its walking boundary
+conservatively encloses every lobe; some dry sand at its edge is deliberately kept clear.
+
+The opening is a stable elevated, slightly oblique view of the assembled setting; the first tap brings the
 visitor down to walking height, then walks to the chosen thing. Dragging still looks around.
 `footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
 select foliage, but the box under its canopy no longer claims taps meant for another object.

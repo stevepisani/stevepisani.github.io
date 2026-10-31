@@ -1,7 +1,7 @@
 // Reusable, bounded scene layouts. The model chooses meaning; the engine owns metre-level
 // assembly. These are authored miniature props, available immediately, without paid generation.
 const DEG = Math.PI / 180;
-const P = { wood: '#956647', edge: '#c18b5d', cream: '#fff1d3', teal: '#4c9694', leaf: '#458858', leafLight: '#6aa969', sand: '#d9bd88', warm: '#ffcf83', orange: '#d98a43' };
+const P = { wood: '#956647', edge: '#c18b5d', cream: '#fff1d3', teal: '#4c9694', leaf: '#458858', leafLight: '#6aa969', sand: '#c9b68e', warm: '#ffcf83', orange: '#d98a43' };
 const shape = (shape, size, at, color, more = {}) => ({ shape, size, at, color, ...more });
 const box = (size, at, color, more) => shape('box', size, at, color, { round: 0.15, ...more });
 const ball = (size, at, color, more) => shape('sphere', size, at, color, more);
@@ -163,7 +163,12 @@ export function composePlanet(spec) {
       add('table',s.name,0.45,0,table(),{footprint:[2.5,1.45],note:s.note,collection:s.collection});
       add('seat','A place at the table',-1.5,-0.05,seat(),{turn:90,footprint:[1.05,0.6],use:'sit'});
       add('bench','Room for friends',0.45,1.45,seat(),{footprint:[1.05,0.6],use:'sit'});
-      add('lights','Supper lights',0.45,1.9,garland(),{footprint:[3.9,0.18],solid:false,light:{color:P.warm,strength:0.35,at:[0,2.6,0]},use:'switch'});
+      add('lights','Supper lights',0.45,1.9,garland(),{footprint:[3.9,0.18],solid:false,light:{color:P.warm,strength:0.85,at:[0,2.6,0]},use:'switch'});
+      if (s.setting === 'tropical' && i === 0) for (const [j,x,n] of [[0,-1.65,-2.8],[1,1.75,-3.5]]) add(`path-lamp-${j}`,'A light along the way',x,n,[
+        shape('cylinder',[0.16,0.65,0.16],[0,0.3,0],'#b69569',{surface:'bamboo'}),
+        shape('cylinder',[0.32,0.12,0.32],[0,0.72,0],P.wood,{surface:'wood'}),
+        ball([0.23,0.25,0.23],[0,0.62,0],P.warm,{finish:'glow'}),
+      ],{footprint:[0.35,0.35],solid:false,light:{color:P.warm,strength:0.2,at:[0,0.65,0]}});
     } else {
       add('scope',s.name,0,0,telescope(),{footprint:[1.4,1.4],note:s.note,collection:s.collection,use:'look'});
       add('seat','Watch the stars',1.6,-0.25,seat(),{footprint:[1.05,0.6],use:'sit',turn:-40});
@@ -173,10 +178,10 @@ export function composePlanet(spec) {
     if (s.extras?.includes('hammock')) add('hammock','A hammock by the water',-5.2,2.3,hammock(),{footprint:[3,1],use:'sit',turn:20});
     if (s.setting === 'tropical') {
       for (const [j,x,n] of [[0,-3.65,1.8],[1,3.6,2.5]]) add(`palm-${j}`,'Shore palm',x,n,palm(),{footprint:[0.45,0.45],turn:j ? -15:15,craft:'palm'});
-      for (const [j,x,n] of [[0,-2.8,-1.3],[1,2.7,-0.6],[2,-3.1,-4.1],[3,3,-3.8]]) add(`garden-${j}`,'Shore planting',x,n,beachGarden(),{solid:false,footprint:[1.5,0.8],craft:'planting'});
+      for (const [j,x,n] of [[0,-2.6,0.3],[1,2.7,-0.6],[2,-2.4,-4.1],[3,3,-3.8]]) add(`garden-${j}`,'Shore planting',x,n,beachGarden(),{solid:false,footprint:[1.5,0.8],craft:'planting'});
       out.look ||= {};
       out.look.ground = { color:P.sand,hills:0.12,...out.look.ground,coast:{bearing:-62,distance:8,radius:4,color:'#368e97'} };
-      out.look.sky = {color:'#4d4383',light:'#ffe4be',...out.look.sky};
+      out.look.sky = {color:'#50426c',light:'#8396b5',...out.look.sky};
     }
   });
   return out;

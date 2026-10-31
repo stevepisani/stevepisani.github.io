@@ -6,6 +6,7 @@
 // always agree.
 import * as THREE from 'three';
 import { RADIUS } from '../world/planet.js';
+import { rippleWater } from '../world/water.js';
 
 // a number from 0 to 1 for each character of the slug, so the hills are the planet's own
 function seeded(slug) {
@@ -19,7 +20,7 @@ function seeded(slug) {
  * centre in a direction (for Player), `mesh` what's drawn and what a tap lands on.
  * `ground`: { color: '#rrggbb', hills: 0..1 } from a built planet (optional).
  */
-export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, quality = { high: false } } = {}) {
+export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, time = { value: 0 }, quality = { high: false } } = {}) {
   const rand = seeded(slug);
   const waves = Array.from({ length: 4 }, (_, i) => ({
     k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(2 + i * 1.7 + rand()),
@@ -27,7 +28,11 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, quali
     a: (0.5 / (i + 1)) * hills * 2,
   }));
   const coastDir = coast && new THREE.Vector3(Math.sin(coast.bearing * Math.PI/180) * Math.sin(coast.distance/RADIUS), Math.cos(coast.distance/RADIUS), -Math.cos(coast.bearing * Math.PI/180) * Math.sin(coast.distance/RADIUS));
-  const shoreDistance = (dir) => coastDir ? Math.acos(THREE.MathUtils.clamp(dir.dot(coastDir),-1,1)) * RADIUS : Infinity;
+  const right = coastDir && new THREE.Vector3(1,0,0).addScaledVector(coastDir,-coastDir.x).normalize();
+  const ahead = coastDir && new THREE.Vector3().crossVectors(coastDir,right).normalize();
+  // The same irregular radius drives the basin, wet margin and water cap. No circular blue sticker.
+  const reach = (a) => 1 + 0.1 * Math.sin(3*a + 1.1) + 0.06 * Math.sin(5*a + 2.3);
+  const shoreDistance = (dir) => coastDir ? Math.acos(THREE.MathUtils.clamp(dir.dot(coastDir),-1,1)) * RADIUS / reach(Math.atan2(dir.dot(ahead),dir.dot(right))) : Infinity;
   const waterLevel = RADIUS - 0.24;
   const height = (dir) => {
     const natural = waves.reduce((h, w) => h + w.a * Math.sin(dir.dot(w.k) + w.phase), 0);
@@ -81,12 +86,12 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, quali
   if (coast) {
     // Curved water cap cut from a sphere, wholly inside the depressed basin. The opaque
     // shallows grade to deep teal; thin wave arcs follow the same surface.
-    const center = coastDir.clone(), right = new THREE.Vector3(1,0,0).addScaledVector(center,-center.x).normalize(), ahead = new THREE.Vector3().crossVectors(center,right).normalize();
+    const center = coastDir.clone();
     const vertices = [], shades = [], triangles = [], rings = 28, segments = 96;
     const shallow = new THREE.Color('#75b8ac'), deep = new THREE.Color(coast.color || '#368e97');
     const point = (r,a,level=waterLevel) => center.clone().multiplyScalar(Math.cos(r/RADIUS)).addScaledVector(right,Math.sin(r/RADIUS)*Math.cos(a)).addScaledVector(ahead,Math.sin(r/RADIUS)*Math.sin(a)).multiplyScalar(level);
     for (let j=0;j<=rings;j++) for (let i=0;i<=segments;i++) {
-      const r = (coast.radius + 0.35)*j/rings, a=i/segments*Math.PI*2;
+      const a=i/segments*Math.PI*2, r = (coast.radius + 0.35)*reach(a)*j/rings;
       vertices.push(...point(r,a).toArray());
       const c = deep.clone().lerp(shallow,THREE.MathUtils.smoothstep(j/rings,0.55,1));
       c.multiplyScalar(0.98+0.02*Math.sin(a*12+j)); c.toArray(shades,shades.length);
@@ -95,11 +100,24 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, quali
     const waterGeo = new THREE.BufferGeometry();
     waterGeo.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
     waterGeo.setAttribute('color',new THREE.Float32BufferAttribute(shades,3)); waterGeo.setIndex(triangles); waterGeo.computeVertexNormals();
-    const water = new THREE.Mesh(waterGeo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.26,metalness:0.15,side:THREE.DoubleSide}));
+    const waterMaterial = rippleWater(new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.18,metalness:0,side:THREE.DoubleSide}), {time,center:point(0,0),tangent:right,bitangent:ahead,normal:center,sky:'#778dba'});
+    const water = new THREE.Mesh(waterGeo,waterMaterial);
     water.name = 'lagoon-water'; mesh.add(water);
-    // A low broad collision circle keeps the current walking controller on dry sand.
-    colliders.push({center:coastDir.clone().multiplyScalar(waterLevel),radius:coast.radius-0.3});
+    // Three broken groups of low stones connect sand and water; no uniform retaining ring.
+    const shoreRocks = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),new THREE.MeshStandardMaterial({color:'#93958c',roughness:0.95,flatShading:true}),30);
+    for(let i=0;i<30;i++) {
+      const a=[0.7,2.5,4.8][Math.floor(i/10)]+(rand()-0.5)*0.8;
+      d.copy(point((coast.radius+0.32+rand()*0.4)*reach(a),a)).normalize();
+      const size=0.12+rand()*0.22;
+      p.copy(d).multiplyScalar(surface(d)+size*0.05);
+      q.setFromUnitVectors(new THREE.Vector3(0,1,0),d);
+      m.compose(p,q,sc.set(size*(1+rand()),size*0.55,size));
+      shoreRocks.setMatrixAt(i,m);
+    }
+    shoreRocks.castShadow=shoreRocks.receiveShadow=true; mesh.add(shoreRocks);
+    // Conservatively enclose every lobe: a low broad collision circle keeps the current walking controller on dry sand.
+    colliders.push({center:coastDir.clone().multiplyScalar(waterLevel),radius:(coast.radius+0.35)*1.16});
   }
-  return { mesh, surface, colliders, isWater: (dir) => coast && surface(dir) < waterLevel };
+  return { mesh, surface, colliders, isWater: (dir) => !!coast && shoreDistance(dir) <= coast.radius + 0.35 && surface(dir) < waterLevel };
 }
 const _d = new THREE.Vector3();

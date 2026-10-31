@@ -2,11 +2,14 @@
 // passes; a small planet of someone else's passes; and each way a spec can go wrong is caught, with
 // where and what. Then what the world draws from a spec (planetParts), a spec packed into an address
 // and back, and the Planets connector (supabase/functions/planets/server.js): its tools, its card,
-// a preview, and a spec with mistakes said back. Offline, well under a second.
+// a preview, and a spec with mistakes said back. Offline, including analytic ground checks.
 //
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
+import { Vector3 } from 'three';
+import { buildGround } from '../assets/js/planets/ground.js';
+import { RADIUS } from '../assets/js/world/planet.js';
 import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingReach, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
@@ -181,6 +184,18 @@ ok((await prepare(tooMany)).isError, 'compiled scene geometry must obey the tota
 const pilot = JSON.parse(readFileSync(new URL('./fixtures/planet-scenes.json', import.meta.url)));
 const baseline = composePlanet(pilot);
 ok(checkPlanet(pilot).length === 0 && lookOver(baseline).length === 0 && showsNothing(baseline).length === 0, 'authored scene layouts pass without corrective geometry notes');
+// A changed shore must keep authored feet dry across terrain seeds, not only one screenshot.
+const wetAnchors = [];
+for (const slug of ['one','two','three','dusk-coast','garden','test-scenes']) {
+  const s = composePlanet({...pilot,slug}), ground = buildGround(slug,s.look.ground);
+  for (const t of s.things) {
+    const b=t.at.bearing*Math.PI/180,a=t.at.distance/RADIUS;
+    if (ground.isWater(new Vector3(Math.sin(b)*Math.sin(a),Math.cos(a),-Math.cos(b)*Math.sin(a)))) wetAnchors.push(`${slug}/${t.id}`);
+  }
+  ground.mesh.traverse(o=>{o.geometry?.dispose(); for(const m of (Array.isArray(o.material)?o.material:[o.material])) m?.dispose();});
+}
+ok(wetAnchors.length===0,'composed scene anchors stay on dry ground across six independent terrain seeds',wetAnchors);
+
 ok(baseline.arrival === 'overview' && baseline.routes.length === 2 && baseline.routes[1].from.bearing === baseline.routes[0].to.bearing && baseline.routes[1].from.distance === baseline.routes[0].to.distance, 'scene routes connect entrances, independently of decorative props');
 const catLookout = clone(pilot); catLookout.scenes = [{...pilot.scenes[1],companion:{kind:'cat',name:'Pumpkin'}}];
 ok(composePlanet(catLookout).things.some((t)=>t.name==='Pumpkin') && checkPlanet(catLookout).length===0,'lookout companions are rendered rather than silently discarded');

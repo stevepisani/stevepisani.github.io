@@ -80,7 +80,7 @@ async function start(spec) {
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
   scene.environmentIntensity = 0.2;
   pmrem.dispose();
-  const ground = buildGround(spec.slug, { quality, ...look.ground });
+  const ground = buildGround(spec.slug, { quality, time, ...look.ground });
   scene.add(ground.mesh);
   // what their AI made for them from what they love (things.js); none, and the planet is bare
   const things = buildThings(spec.things, ground.surface);
@@ -100,8 +100,8 @@ async function start(spec) {
   const UP = new THREE.Vector3(0, 1, 0);
   const overview = spec.arrival === 'overview';
   const walkingEye = player.eye;
-  if (overview) player.eye = 3.1;
-  player.spawn(overview ? placeOnPlanet(180, 1) : UP, new THREE.Vector3(0, ground.surface(UP), -10), overview ? -0.22 : -0.18); // the complete place, rather than a large empty foreground
+  if (overview) player.eye = 4.4;
+  player.spawn(overview ? placeOnPlanet(-153, 2.8) : UP, new THREE.Vector3(0.5, ground.surface(UP), -8), overview ? -0.38 : -0.18); // the complete place, rather than a large empty foreground
   player.look(window.__veilLook || 0, 0); // face where they looked while it loaded
   player.enabled = true;
 
