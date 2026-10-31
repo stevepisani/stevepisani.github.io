@@ -1808,6 +1808,63 @@ async function preview(page, shot) {
   step('an address with no planet in it says so');
 }
 
+// The semantic scene pipeline: preparation is not a visible reveal, then the real renderer
+// shows its assembled places. A single semantic edit preserves all existing props.
+async function composedPreview(page, shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-scenes.json',import.meta.url)));
+  const prepare=async(spec)=>(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec}}},{})).result;
+  const prepared=await prepare(input);
+  if(prepared.isError || prepared._meta || prepared.structuredContent.view) throw new Error('preparation should succeed without opening a card');
+  const spec=prepared.structuredContent.spec;
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(spec)}`);
+  await until(page,()=>window.__planet?.ready,null,240000);
+  await page.locator('#veil').waitFor({state:'hidden',timeout:20000});
+  const layout=await page.evaluate(()=>{
+    const w=window.__planet;
+    return {cat:w.screenOf('club-cat'),table:w.screenOf('club-table'),cove:w.screenOf('sky-scope'),eye:w.player.eye,water:!!w.ground.mesh.getObjectByName('lagoon-water'),wet:w.spec.things.filter((t)=>w.ground.isWater(t.center.clone().normalize())).map((t)=>t.id),metrics:w.metrics()};
+  });
+  if(!layout.cat || !layout.table || !layout.cove || layout.eye<2.5 || !layout.water || layout.wet.length) throw new Error(`scene arrival, shore or grounding: ${JSON.stringify(layout)}`);
+  await shot('scene-arrival');
+  await page.mouse.click(layout.cat.x,layout.cat.y);
+  await until(page,()=>!document.getElementById('thing').hidden,null,30000);
+  if(await page.locator('#thing-name').textContent()!=='Pumpkin') throw new Error('the palm canopy stole the cat tap');
+  await until(page,()=>window.__planet.player.eye<2 && !window.__planet.busy(),null,30000);
+  await page.keyboard.press('Escape');
+  step(`semantic scene reveal, native lagoon, dry prop feet, cat tap and continuous entry; ${layout.metrics.calls} draw calls`);
+  // Teleport only the test observer to each action, so this tests the action rather than a
+  // minute of walking under software rendering. The arrival transition above is real input.
+  for(const [id,action] of [['club-seat','sit'],['club-lights','switch']]) {
+    await page.evaluate((id)=>{
+      const w=window.__planet,t=w.spec.things.find((t)=>t.id===id),V=w.camera.position.constructor;
+      w.player.spawn(new V(0,1,0),t.center,-0.18);
+    },id);
+    // A string-light rig's box middle is behind the table; tap an actual visible bulb.
+    const at=await page.waitForFunction((id)=>{
+      const w=window.__planet,t=w.spec.things.find((t)=>t.id===id);
+      if(t.use!=='switch') return w.screenOf(id);
+      const p=t.lamp.position.clone().applyMatrix4(t.root.matrixWorld).project(w.camera);
+      return p.z<1 && Math.abs(p.x)<1 && Math.abs(p.y)<1 ? {x:(p.x+1)*innerWidth/2,y:(1-p.y)*innerHeight/2}:null;
+    },id,{timeout:20000}).then(h=>h.jsonValue());
+    await page.mouse.click(at.x,at.y);
+    if(action==='sit') {
+      await until(page,()=>window.__planet.seated()==='club-seat',null,60000);
+      await page.locator('#stand').click();
+      await until(page,()=>!window.__planet.busy(),null,30000);
+    } else await until(page,()=>window.__planet.spec.things.find(t=>t.id==='club-lights').lamp.intensity===0,null,60000);
+    await page.keyboard.press('Escape');
+  }
+  input.scenes[0].extras=['hammock'];
+  const changed=await prepare(input), next=changed.structuredContent.spec;
+  if(next.things.length!==spec.things.length+1 || !spec.things.every(t=>JSON.stringify(t)===JSON.stringify(next.things.find(x=>x.id===t.id)))) throw new Error('the additive edit changed the existing scene');
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(next)}`);
+  await page.reload();
+  await until(page,()=>window.__planet?.ready,null,240000);
+  const added=await page.evaluate(()=>{const t=window.__planet.spec.things.find(t=>t.id==='club-hammock');return {present:!!t?.root,use:t?.use,wet:t && window.__planet.ground.isWater(t.center.clone().normalize())};});
+  if(!added?.present || added.use!=='sit' || added.wet) throw new Error('the hammock edit did not render');
+  await shot('scene-edited');
+  step('seating, lights and a semantic hammock edit work without repositioning the original scene');
+}
+
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
 // in a frame on a computer and in a phone's app alike, and a plain card where 3D can't run
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
@@ -1845,6 +1902,8 @@ async function planetCard(page, shot, { phone = false } = {}) {
       const frame = document.getElementById('card');
       const hc = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'], locale: 'en-US', platform };
       const bridge = new AppBridge(null, { name: 'smoke-host', version: '1.0.0' }, { serverTools: {}, openLinks: {}, updateModelContext: { text: {}, image: {} } }, { hostContext: hc });
+      window.cardBridge = bridge;
+      window.cardResult = result;
       window.opened = [];
       window.context = null;
       bridge.onupdatemodelcontext = async (p) => { window.context = p; return {}; };
@@ -1856,7 +1915,7 @@ async function planetCard(page, shot, { phone = false } = {}) {
     };` }, bundle: true, write: false, format: 'iife', logLevel: 'error' })).outputFiles[0].text;
   await page.route(`${base}/__host`, (route) => route.fulfill({ contentType: 'text/html', body: `<!doctype html><meta name="viewport" content="width=device-width"><body style="margin:0;padding:12px;background:#f4f4f2"><div style="max-width:700px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden"><iframe id="card" sandbox="allow-scripts" style="display:block;width:100%;height:120px;border:0"></iframe></div><script>${host}</script>` }));
   const card = page.frameLocator('#card');
-  const show = async (platform) => { await page.goto(`${base}/__host`); await page.evaluate(([h, r, p]) => window.showCard(h, r, p), [html, result, platform]); };
+  const show = async (platform, markup = html) => { await page.goto(`${base}/__host`); await page.evaluate(([h, r, p]) => window.showCard(h, r, p), [markup, result, platform]); };
   // the planet itself, in the card: on a computer and in a phone's app alike
   await show(phone ? 'mobile' : 'desktop');
   await card.locator('.pl-frame').waitFor();
@@ -1881,6 +1940,85 @@ async function planetCard(page, shot, { phone = false } = {}) {
   const seen = await page.evaluate(() => window.context.content.map((c) => (c.type === 'image' ? `${c.mimeType}:${c.data.length}` : c.text)));
   if (!/^Sam's planet as drawn: 1\. from above.*The turntable.*The crate.*The porch/.test(seen[0]) || seen.length !== 5 || !seen.slice(1).every((x) => /^image\/jpeg:\d{4,}$/.test(x))) throw new Error(`the views sent to the model: ${JSON.stringify(seen).slice(0, 300)}`);
   step("a view from above and one of each thing go into the model's context, as pictures");
+  let cardFrame = await (await card.locator('#app').elementHandle()).ownerFrame();
+  await cardFrame.evaluate(() => {
+    const child = document.querySelector('.pl-frame').contentWindow;
+    dispatchEvent(new MessageEvent('message', { source: window, origin: 'https://stevenpisani.com', data: { planet: 'failed' } }));
+    dispatchEvent(new MessageEvent('message', { source: child, origin: 'https://example.com', data: { planet: 'failed' } }));
+  });
+  if (await card.locator('.pl-frame').count() !== 1) throw new Error('a message from another source or origin changed the preview');
+  step('messages from another window or origin cannot replace the preview');
+  // A slow download is not a blocked frame. Keep the real page and its early loading message,
+  // delay the real 3D bundle, and wait for it to draw; advance the clock, not wall time.
+  const trackResources = () => {
+    const listeners = new Set(), timers = new Set();
+    const add = window.addEventListener, remove = window.removeEventListener, later = window.setTimeout, clear = window.clearTimeout;
+    window.addEventListener = function (kind, fn, ...rest) { if (kind === 'message') listeners.add(fn); return add.call(this, kind, fn, ...rest); };
+    window.removeEventListener = function (kind, fn, ...rest) { if (kind === 'message') listeners.delete(fn); return remove.call(this, kind, fn, ...rest); };
+    window.setTimeout = function (fn, ms, ...args) { const id = later(() => { timers.delete(id); fn(...args); }, ms); timers.add(id); return id; };
+    window.clearTimeout = function (id) { timers.delete(id); return clear(id); };
+    window.cardResources = () => ({ listeners: listeners.size, timers: timers.size });
+  };
+  // Run after the virtual clock's init script, before the app creates its timers.
+  const trackedHtml = html.replace('<script>', `<script>(${trackResources.toString()})();</script><script>`);
+  await page.clock.install();
+  let startup = 'delayed';
+  await page.route('**/assets/js/dist/planets.js*', (route) => route.fulfill({ contentType: 'text/javascript', body: `
+    window.previewProbe = true;
+    ${startup === 'delayed' ? `await new Promise((resolve) => setTimeout(resolve, 13000));\n${readFileSync(join(root, 'assets/js/dist/planets.js'), 'utf8')}` : ''}
+  ` }));
+  const started = async () => {
+    await show('desktop', trackedHtml);
+    await card.locator('.pl-frame').waitFor();
+    const preview = await (await card.locator('.pl-frame').elementHandle()).contentFrame();
+    if (!preview) throw new Error('the delayed preview never opened');
+    await preview.waitForFunction(() => window.previewProbe);
+    return preview;
+  };
+  const delayed = await started();
+  await page.clock.fastForward(12500);
+  if (await card.locator('.pl-frame').count() !== 1) throw new Error('a preview still downloading after 12 seconds was mistaken for a blocked frame');
+  await page.clock.fastForward(1000); // ready at 13 seconds
+  await delayed.waitForFunction(() => window.__planet?.ready, null, { timeout: 240000 });
+  if ((await delayed.textContent('#topbar-name')) !== 'Sam') throw new Error('the delayed page never drew the expected planet');
+  await page.clock.fastForward(60000);
+  if (await card.locator('.pl-frame').count() !== 1) throw new Error('a ready preview was removed by the loading deadline');
+  step('a slow preview survives the blocked-frame deadline, and stays once ready');
+  startup = 'stalled';
+  await started();
+  cardFrame = await (await card.locator('#app').elementHandle()).ownerFrame();
+  const resources = () => cardFrame.evaluate(() => window.cardResources());
+  const before = await resources();
+  const previous = await card.locator('.pl-frame').elementHandle();
+  await page.evaluate(() => window.cardBridge.sendToolResult(window.cardResult));
+  await previous.waitForElementState('hidden');
+  await card.locator('.pl-frame').waitFor();
+  const replaced = await resources();
+  await page.evaluate(() => window.cardBridge.sendToolResult({ isError: true, content: [{ type: 'text', text: 'Test error' }] }));
+  await card.locator('#app:empty').waitFor({ state: 'attached' }); // an empty card is deliberately hidden
+  const errored = await resources();
+  await page.evaluate(() => window.cardBridge.sendToolResult(window.cardResult));
+  await card.locator('.pl-frame').waitFor();
+  await page.evaluate(() => window.cardBridge.teardownResource({}));
+  const torn = await resources();
+  if (before.listeners !== 2 || before.timers !== 2 || replaced.listeners !== 2 || replaced.timers !== 2 || errored.listeners !== 1 || errored.timers !== 0 || torn.listeners !== 1 || torn.timers !== 0) throw new Error(`preview resources leaked across replacement, error or teardown: ${JSON.stringify({ before, replaced, errored, torn })}`);
+  step('replacing, clearing or tearing down a preview clears its timers and message listener');
+  await started();
+  await page.clock.fastForward(12500);
+  if (await card.locator('.pl-frame').count() !== 1) throw new Error('a loading preview should get more time than a silent frame');
+  await page.clock.fastForward(60000);
+  await card.getByRole('button', { name: 'Walk around it' }).waitFor();
+  if (await card.locator('.pl-frame').count()) throw new Error('a preview that never draws should fall back');
+  await shot('card-stalled');
+  step('a page that loads but never draws falls back to the plain card');
+  for (const state of ['silent', 'failed']) {
+    await page.route(`${PREVIEW_PAGE}**`, (route) => route.fulfill({ contentType: 'text/html', body: state === 'failed' ? "<script>parent.postMessage({ planet: 'failed' }, '*')</script>" : '<p>Frame blocked</p>' }));
+    await show('desktop');
+    if (state === 'silent') { await card.locator('.pl-frame').waitFor(); await page.clock.fastForward(12500); }
+    await card.getByRole('button', { name: 'Walk around it' }).waitFor();
+    if (await card.locator('.pl-frame').count()) throw new Error(`a ${state} frame should fall back`);
+  }
+  step('silent and failed frames fall back, with a browser link');
   // where 3D can't run (here, no WebGL2), the plain card, and a way to walk round it in the browser
   await page.addInitScript(() => { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return kind === 'webgl2' ? null : get.call(this, kind, ...rest); }; });
   await show('desktop');
@@ -1908,6 +2046,8 @@ if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, 
 for (const n of [1, 2, 3, 4]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
+if (want('planets') || want('scenes')) await session('composed scenes desktop', { viewport: { width: 1280, height: 800 } }, composedPreview);
+if (want('planets') || want('scenes')) await session('composed scenes phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, composedPreview);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);

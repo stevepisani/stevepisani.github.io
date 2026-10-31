@@ -14,7 +14,7 @@ import { buildSpace } from '../world/sky.js';
 import { readSpec, tellCard } from '../world/spec.js';
 import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
-import { buildThings } from './things.js';
+import { buildThings, placeOnPlanet } from './things.js';
 import { loadModels } from './models.js';
 import { buildPaths } from './paths.js';
 
@@ -51,12 +51,13 @@ async function start(spec) {
   }
   say('Shaping the planet…');
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.info.autoReset = false;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(coarse ? 72 : 68, 1, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(coarse ? 72 : spec.arrival === 'overview' ? 54 : 68, 1, 0.05, 2000);
   const time = { value: 0 };
   const look = spec.look || {}, sky = look.sky || {};
   const space = buildSpace({ quality, uniforms: { time }, tint: sky.color });
@@ -83,7 +84,7 @@ async function start(spec) {
   const things = buildThings(spec.things, ground.surface);
   scene.add(things.group);
   // worn paths from where you land to each of their places (paths.js)
-  const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color);
+  const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);
   if ((spec.things || []).length) hint.dataset.things = '';
   // their real models, where they've been made (models.js), in place of the shapes as they come
@@ -93,9 +94,12 @@ async function start(spec) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
   scene.add(ring);
 
-  const player = new Player(camera, { colliders: things.colliders, surface: ground.surface });
+  const player = new Player(camera, { colliders: [...things.colliders, ...ground.colliders], surface: ground.surface });
   const UP = new THREE.Vector3(0, 1, 0);
-  player.spawn(UP, new THREE.Vector3(0, ground.surface(UP), -10), -0.18); // looking a little down: the ground is what's theirs
+  const overview = spec.arrival === 'overview';
+  const walkingEye = player.eye;
+  if (overview) player.eye = 3.1;
+  player.spawn(overview ? placeOnPlanet(180, 1) : UP, new THREE.Vector3(0, ground.surface(UP), -10), overview ? -0.5 : -0.18); // looking a little down: the ground is what's theirs
   player.look(window.__veilLook || 0, 0); // face where they looked while it loaded
   player.enabled = true;
 
@@ -119,14 +123,14 @@ async function start(spec) {
       const k = p && p.applyMatrix4(t.root.matrixWorld).distanceTo(ray.ray.origin);
       if (p && k < d) { d = k; best = t; }
     }
-    return best ? { thing: best } : hit ? { point: hit.point } : null;
+    return best ? { thing: best } : hit && !ground.isWater(hit.point.clone().normalize()) ? { point: hit.point } : null;
   };
 
   // What a thing does once you're there (use): sit on it, facing the way it faces, or switch its
   // light. Sitting down and getting up are body motions from and to the walking view, never cuts
   // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
-  const EYE = player.eye, SEATED = 1.15, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let seat = null, move = null;
+  const EYE = walkingEye, SEATED = 1.15, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let seat = null, move = null, arriving = overview;
   const frontOf = (t) => new THREE.Vector3(0, 0, 1).applyQuaternion(t.root.quaternion);
   // a body standing at `at`, facing along `dir` (the player's own -Z forward, +Y up)
   const facing = (at, dir) => {
@@ -192,6 +196,12 @@ async function start(spec) {
       if (!at || move) return;
       if (seat && at.thing === seat) return open(seat);
       // seated, a tap elsewhere gets you up first, then goes there
+      if (arriving) {
+        arriving = false;
+        // The first reveal is a stable view of the assembled place. Only the visitor's first
+        // tap brings them down to walking height; never a camera flight over the reveal.
+        return glide({ pos: player.pos.clone(), quat: player.quat.clone(), eye: EYE, pitch: -0.18 }, () => act(at));
+      }
       stand(() => act(at));
     },
     onHover(x, y) { canvas.classList.toggle('is-pointing', x !== null && !!(aim(x, y) || {}).thing); },
@@ -250,13 +260,17 @@ async function start(spec) {
       if (k === 1) { const then = move.then; move = null; if (then) then(); }
     } else if (seat) {
       if (player.keys.x || player.keys.z) stand(); // a step gets you up
-    } else player.update(dt);
+    } else {
+      if (arriving && (player.keys.x || player.keys.z)) { arriving = false; glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-0.18}); }
+      player.update(dt);
+    }
     things.update(now / 1000);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
     sun.target.position.copy(player.pos);
     sun.position.copy(player.pos).addScaledVector(SUN, 40);
     if (ring.material.opacity > 0) ring.material.opacity = player.target ? 0.8 : Math.max(0, ring.material.opacity - dt * 2);
+    renderer.info.reset();
     pipeline.render(dt);
     // the launch screen goes once the first frames are drawn (shaders compile there), never over a frozen scene
     if (++frames === 3) {
@@ -306,5 +320,5 @@ async function start(spec) {
     const p = t && new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(camera);
     return p && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1 ? { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight } : null;
   };
-  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, seated: () => seat && seat.id, busy: () => !!move };
+  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, seated: () => seat && seat.id, busy: () => !!move, metrics: () => ({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}) };
 }

@@ -24,7 +24,7 @@ export const request = (method, params) => new Promise((resolve, reject) => {
 });
 const notify = (method, params) => post({ method, params });
 export let host = {}, caps = {}, toolInput = null, ui = {};
-let root = null, current = null, stack = [];
+let root = null, current = null, stack = [], disposeView = () => {};
 window.addEventListener('message', (e) => {
   if (e.source !== window.parent) return;
   const m = e.data;
@@ -38,7 +38,12 @@ window.addEventListener('message', (e) => {
   else if (m.method === 'ui/notifications/tool-result') show(m.params);
   else if (m.method === 'ui/notifications/host-context-changed') context(m.params);
   else if (m.method === 'ui/notifications/tool-cancelled') say('Cancelled.');
-  else if (m.id != null) post({ id: m.id, result: {} }); // ping, teardown: nothing to tidy
+  else if (m.method === 'ui/resource-teardown') {
+    disposeView();
+    disposeView = () => {};
+    if (m.id != null) post({ id: m.id, result: {} });
+  }
+  else if (m.id != null) post({ id: m.id, result: {} }); // ping or an unsupported host request
 });
 function context(ctx = {}) {
   const was = host.displayMode;
@@ -126,16 +131,24 @@ export async function openItem(id, from) {
 
 // ---------- Views ----------
 function show(result) {
-  if (result?.isError || !result?.structuredContent) { app.textContent = ''; return; } // the text answer says it
+  if (result?.isError || !result?.structuredContent) {
+    disposeView();
+    disposeView = () => {};
+    app.textContent = ''; // the text answer says it
+    return;
+  }
   start(hydrate(result));
 }
 export function start(data) { root = data; stack = []; ui = {}; draw(data, false); }
 export function draw(data, keep = true) {
+  disposeView();
+  disposeView = () => {};
   if (keep && current) stack.push(current);
   current = data;
   app.textContent = '';
   document.documentElement.classList.toggle('is-full', full());
-  (views[data?.view] || (() => {}))(data);
+  const dispose = (views[data?.view] || (() => {}))(data);
+  if (typeof dispose === 'function') disposeView = dispose;
 }
 
 // ---------- The views, by name (views/*.js add theirs) ----------

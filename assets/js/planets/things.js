@@ -4,6 +4,7 @@
 // you land (a bearing and a distance along the ground) and faces you, or beside another thing
 // (near) and faces it; it stands upright on the ground, and turns if it's turned. Its parts are sized and placed in metres from its foot.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RADIUS } from '../world/planet.js';
 import { placeThings, partsOf } from '../../../supabase/functions/_shared/planet.js';
@@ -107,6 +108,34 @@ function part(p) {
   return mesh;
 }
 
+// Batch static opaque parts within each thing. Picking still identifies the whole thing,
+// while a palm's many leaves no longer need a separate draw each. Text, glass, mirrored
+// geometry and animated parts retain their original meshes/materials.
+function batchParts(body) {
+  body.updateMatrixWorld(true);
+  const groups = new Map();
+  body.traverse((o)=>{
+    if(!o.isMesh || o.userData.spin || o.material.transparent || o.material.map || o.matrixWorld.determinant()<0) return;
+    const m=o.material,key=[m.type,m.color?.getHex(),m.emissive?.getHex(),m.emissiveIntensity,m.roughness,m.metalness,m.side].join('/');
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(o);
+  });
+  for(const meshes of groups.values()) {
+    if(meshes.length<2) continue;
+    const geometries=meshes.map((m)=>{
+      const g=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone()).applyMatrix4(m.matrixWorld);
+      // RoundedBox has only the same position/normal/uv attributes as the other primitives.
+      return g;
+    });
+    const geometry=mergeGeometries(geometries,false);
+    geometries.forEach((g)=>g.dispose());
+    if(!geometry) continue;
+    const merged=new THREE.Mesh(geometry,meshes[0].material);
+    merged.castShadow=meshes[0].castShadow; merged.receiveShadow=true;
+    meshes.forEach((m)=>m.removeFromParent()); body.add(merged);
+  }
+}
+
 /**
  * Their things, from a spec that passed checkPlanet: { group, colliders, pickable, update(t) }.
  * `surface(dir)` is the ground's distance from the centre (ground.js), so everything stands on it.
@@ -149,6 +178,7 @@ export function buildThings(things = [], surface) {
       body.add(copies);
       if (p.mirror) { const m = copies.clone(); m.scale.x = -1; body.add(m); }
     }
+    batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
       o.userData.thing = thing; // a clone's userData is a copy: point every copy at the thing itself
@@ -159,9 +189,13 @@ export function buildThings(things = [], surface) {
     // (measured before it's placed, so in metres from its foot)
     const box = new THREE.Box3().setFromObject(body);
     thing.box = box;
-    thing.hull = box.clone(); // where a tap means it (main.js): its shapes now, its model once it's in
+    thing.hull = box.clone();
+    if (thing.footprint) {
+      thing.hull.min.set(-thing.footprint[0]/2, box.min.y, -thing.footprint[1]/2);
+      thing.hull.max.set(thing.footprint[0]/2, Math.min(box.max.y, 1.8), thing.footprint[1]/2);
+    } // where a tap means it (main.js): its shapes now, its model once it's in
     thing.body = body;
-    const reach = Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
+    const reach = thing.footprint ? Math.max(...thing.footprint) / 2 : Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
     root.add(body);
     if (thing.light) {
       const light = new THREE.PointLight(thing.light.color || '#ffd9a0', 24 * (thing.light.strength ?? 0.6), 16, 1.4);
