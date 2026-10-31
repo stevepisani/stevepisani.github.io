@@ -169,7 +169,7 @@ export function composePlanet(spec) {
       add('seat','Watch the stars',1.6,-0.25,seat(),{footprint:[1.05,0.6],use:'sit',turn:-40});
       add('lantern','Cove lantern',-1.25,-0.3,[box([0.32,0.5,0.32],[0,0.24,0],P.wood),ball([0.23,0.3,0.23],[0,0.36,0],P.warm,{finish:'glow'})],{footprint:[0.35,0.35],light:{color:P.warm,strength:0.12,at:[0,0.5,0]}});
     }
-    if (s.companion) add('cat',s.companion.name || 'Your cat',-1.25,-1.4,cat(s.companion.color),{footprint:[1.1,0.7],scale:0.48,craft:'cat',use:'greet',note:s.companion.note});
+    if (s.companion) add('cat',s.companion.name || 'Your cat',-0.9,-1.1,cat(s.companion.color),{footprint:[1.1,0.7],scale:0.48,craft:'cat',use:'greet',note:s.companion.note});
     if (s.extras?.includes('hammock')) add('hammock','A hammock by the water',-5.2,2.3,hammock(),{footprint:[3,1],use:'sit',turn:20});
     if (s.setting === 'tropical') {
       for (const [j,x,n] of [[0,-3.65,1.8],[1,3.6,2.5]]) add(`palm-${j}`,'Shore palm',x,n,palm(),{footprint:[0.45,0.45],turn:j ? -15:15,craft:'palm'});
