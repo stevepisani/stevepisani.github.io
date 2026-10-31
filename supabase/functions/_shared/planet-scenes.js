@@ -39,10 +39,28 @@ function cat(color = P.orange) {
   ];
   for (const x of [-0.16, 0, 0.16]) parts.push(ball([0.075, 0.21, 0.04], [x, 1.25, 0.31], '#9d633b', { turn: [0, 0, x * 80] }));
   for (const y of [0.42, 0.61, 0.8]) parts.push(ball([0.19, 0.065, 0.38], [-0.29, y, -0.015], '#ad6d3c'));
+  parts.forEach((p, i) => { if (p.at[1] >= 0.9) p.joint = 'head'; if (i === 16) p.joint = 'tail'; });
   return parts;
 }
+// A complete open structure: the roof stands on posts, with clear front and side entrances.
+// Furniture remains separate, so seats, companions and additions retain their own anchors.
+function pavilion() {
+  const ps = [];
+  for (const x of [-2.08, 2.08]) for (const z of [-1.55, 1.55]) {
+    ps.push(shape('cylinder', [0.17, 3.45, 0.17], [x, 1.46, z], '#ceb181', { surface: 'bamboo' }));
+    for (const y of [0.2, 2.65]) ps.push(shape('torus', [0.22, 0.22, 0.09], [x, y, z], '#9b794d', { turn: [90, 0, 0] }));
+  }
+  for (const z of [-1.55, 1.55]) {
+    ps.push(box([4.45, 0.16, 0.16], [0, 3.08, z], P.wood, { surface: 'wood' }));
+    for (const sign of [-1,1]) ps.push({...tube([2.2,1.35,0.15],[sign*1.1,3.75,z],[[-0.5,sign*0.5,0],[0.5,-sign*0.5,0]],0.15,P.wood),surface:'wood'});
+  }
+  for (const x of [-2.08, 2.08]) ps.push(box([0.16,0.16,3.4],[x,3.08,0],P.wood,{surface:'wood'}));
+  ps.push(shape('extrude',[4.9,1.5,3.85],[0,3.72,0],'#c6a26a',{surface:'thatch',outline:[[0,0],[0.5,1],[1,0],[0.96,0],[0.5,0.9],[0.04,0]]}));
+  ps.push(box([0.18,0.18,3.9],[0,4.43,0],P.wood,{surface:'wood'}));
+  return ps;
+}
 function table() {
-  const ps = [box([2.5, 0.14, 1.45], [0, 0.86, 0], P.wood), box([2.15, 0.025, 0.36], [0, 0.945, 0], P.teal)];
+  const ps = [box([2.5, 0.14, 1.45], [0, 0.86, 0], P.wood, {surface:'wood'}), box([2.15, 0.025, 0.36], [0, 0.945, 0], P.teal, {surface:'cloth'})];
   for (const x of [-0.97, 0.97]) for (const z of [-0.5, 0.5]) ps.push(box([0.14, 0.86, 0.14], [x, 0.4, z], P.wood));
   for (const x of [-0.75, 0, 0.75]) {
     ps.push(shape('cylinder', [0.42, 0.035, 0.42], [x, 0.96, 0.38], P.cream));
@@ -51,6 +69,7 @@ function table() {
   }
   ps.push(shape('lathe', [0.55, 0.16, 0.55], [0.1, 0.99, -0.26], P.cream, { profile: [[0, 0], [0.5, 0.1], [1, 0.8], [1, 1]] }));
   for (const [x,z] of [[0,-0.24],[0.2,-0.24],[0.1,-0.4]]) ps.push(ball([0.18, 0.18, 0.18], [x, 1.1, z], '#d69e47'));
+  for (const p of ps) if (p.color === P.wood) p.surface = 'wood';
   return ps;
 }
 function seat() {
@@ -140,20 +159,21 @@ export function composePlanet(spec) {
     previous = entrance;
     const add = (id,name,x,n,parts,extra={}) => out.things.push({ id: `${s.id}-${id}`, name, at: pos(cx+x,cn+n), parts, ...extra });
     if (s.kind === 'gathering') {
+      if (s.setting === 'tropical') add('pavilion','Supper pavilion',0.25,0.25,pavilion(),{footprint:[4.8,3.9],solid:false,turn:0});
       add('table',s.name,0.45,0,table(),{footprint:[2.5,1.45],note:s.note,collection:s.collection});
       add('seat','A place at the table',-1.5,-0.05,seat(),{turn:90,footprint:[1.05,0.6],use:'sit'});
       add('bench','Room for friends',0.45,1.45,seat(),{footprint:[1.05,0.6],use:'sit'});
       add('lights','Supper lights',0.45,1.9,garland(),{footprint:[3.9,0.18],solid:false,light:{color:P.warm,strength:0.35,at:[0,2.6,0]},use:'switch'});
     } else {
-      add('scope',s.name,0,0,telescope(),{footprint:[1.4,1.4],note:s.note,collection:s.collection});
+      add('scope',s.name,0,0,telescope(),{footprint:[1.4,1.4],note:s.note,collection:s.collection,use:'look'});
       add('seat','Watch the stars',1.6,-0.25,seat(),{footprint:[1.05,0.6],use:'sit',turn:-40});
       add('lantern','Cove lantern',-1.25,-0.3,[box([0.32,0.5,0.32],[0,0.24,0],P.wood),ball([0.23,0.3,0.23],[0,0.36,0],P.warm,{finish:'glow'})],{footprint:[0.35,0.35],light:{color:P.warm,strength:0.12,at:[0,0.5,0]}});
     }
-    if (s.companion) add('cat',s.companion.name || 'Your cat',-0.65,-2.1,cat(s.companion.color),{footprint:[0.7,0.6],note:s.companion.note});
+    if (s.companion) add('cat',s.companion.name || 'Your cat',-1.25,-1.4,cat(s.companion.color),{footprint:[1.1,0.7],scale:0.48,craft:'cat',use:'greet',note:s.companion.note});
     if (s.extras?.includes('hammock')) add('hammock','A hammock by the water',-5.2,2.3,hammock(),{footprint:[3,1],use:'sit',turn:20});
     if (s.setting === 'tropical') {
-      for (const [j,x,n] of [[0,-2.9,1.3],[1,3,2.2]]) add(`palm-${j}`,'Shore palm',x,n,palm(),{footprint:[0.45,0.45],turn:j ? -15:15});
-      for (const [j,x,n] of [[0,-2.6,0.7],[1,2.8,1.3]]) add(`garden-${j}`,'Beach flowers',x,n,beachGarden(),{solid:false,footprint:[1.5,0.8]});
+      for (const [j,x,n] of [[0,-3.65,1.8],[1,3.6,2.5]]) add(`palm-${j}`,'Shore palm',x,n,palm(),{footprint:[0.45,0.45],turn:j ? -15:15,craft:'palm'});
+      for (const [j,x,n] of [[0,-2.8,-1.3],[1,2.7,-0.6],[2,-3.1,-4.1],[3,3,-3.8]]) add(`garden-${j}`,'Shore planting',x,n,beachGarden(),{solid:false,footprint:[1.5,0.8],craft:'planting'});
       out.look ||= {};
       out.look.ground = { color:P.sand,hills:0.12,...out.look.ground,coast:{bearing:-62,distance:8,radius:4,color:'#368e97'} };
       out.look.sky = {color:'#4d4383',light:'#ffe4be',...out.look.sky};

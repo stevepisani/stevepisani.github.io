@@ -33,7 +33,7 @@ export async function finished(id, label, api = TEXT_TO_3D) {
   for (let t = 0; t < 180; t++) { // up to 30 minutes
     const j = await (await get(`${api}/${id}`, { headers: auth })).json();
     if (j.status === 'SUCCEEDED') return j;
-    if (j.status === 'FAILED' || j.status === 'CANCELED') throw new Error(`${label}: Meshy ${j.status}: ${j.task_error?.message || ''}`);
+    if (j.status === 'FAILED' || j.status === 'CANCELED') throw Object.assign(new Error(`${label}: Meshy ${j.status}: ${j.task_error?.message || ''}`), { status: j.status });
     await sleep(10000);
   }
   throw new Error(`${label}: Meshy took over 30 minutes`);

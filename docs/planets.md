@@ -10,6 +10,11 @@ sent are then finished by hand. The plan and what's next are in
 
 ## First-preview quality requirement
 
+The reusable research/design artifact is [planet-art-direction.md](planet-art-direction.md).
+Show, don't tell wherever possible: meaning appears in places and visible responses, with
+supporting details and accessible controls. Review changes with actual engine frames and action
+captures. Concept illustrations are treatments, not implementation evidence.
+
 After the interview, the first planet the person sees must already look coherent, personal and
 worth exploring. Repeated customer-directed fixes to basic shapes, placement or lighting are
 not the normal product flow. Later customization builds on a good first result.
@@ -58,6 +63,16 @@ cat, name?, color?, note?}` adds the reusable rounded cat only when the person m
 The props are code-built miniatures, available immediately; they do not need Meshy downloads.
 They are a bounded starting library, not a replacement for finished hero models or proof of
 first-pass quality on unseen input. Existing custom things and cached models remain available.
+
+A tropical gathering also has an open bamboo-and-thatch pavilion. Furniture stays separate for
+independent interaction. An opaque matte part can use `surface: wood|bamboo|thatch|cloth` for
+shared procedural texture craft. `craft: planting` uses instanced tropical leaf beds;
+`craft: palm` reuses the procedural palm; `craft: cat` keeps
+authored head/tail joints. No downloads or generation are needed. A cat's `use: greet` turns
+its head toward the visitor (a settled pose under reduced motion). A lookout's `use: look` opens
+an explicitly imagined ringed-world sky; Step back, Escape or a walking key returns. Details
+remain optional for those actions, rather than covering their response with a card. This is
+not live astronomy. The pavilion is open decoration, not a solid room or raised walking deck.
 
 The opening is a stable elevated view of the assembled setting; the first tap brings the
 visitor down to walking height, then walks to the chosen thing. Dragging still looks around.
@@ -299,7 +314,9 @@ white, no ground, no base, no text or logos), kept in `tools/models/planets/pict
 model from the picture (image-to-3D with PBR textures), made small with gltf-transform (meshopt,
 1024 px WebP textures) into `assets/models/planets/<slug>/<thing id>.glb`, listed in
 `assets/models/planets/manifest.json` under `<slug>/<thing id>` with the words and the style it
-was made from. Change the style and every model is made again.
+was made from. New generations record input/reference hashes and pinned settings. Complete legacy
+assets remain available until explicitly replaced; migration does not buy the library again.
+The generation/cache policy is in `tools/planet-model-cache.mjs`.
 The planet (`planets/models.js`) loads the manifest, and each model as it comes, one at a time,
 in place of the thing's shapes (`swap` in `things.js`): as big as fits in the room the shapes
 took (as tall, and as long along the ground), standing where they stood. The shapes show until
@@ -318,8 +335,11 @@ It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, wi
 `MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
 `tools/models/planets/` or the kit's example changes on a branch other than main, or by hand with
 `redo` (`slug/id`, comma-separated), and commits what it made to that branch (push again after,
-for the Site checks). Only what's missing is paid for; a task already started is picked up, not
-paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam), the stock things, and each spec in
+for the Site checks). Only what's missing is paid for; interrupted tasks resume their IDs. Only
+terminal failures clear the failed stage. Reference filenames include input identity; changed
+words cannot reuse a legacy slug/id picture. Mesh identity includes actual reference bytes and
+pinned settings. Accepted files remain intact while replacements are pending. `--dry-run` lists
+work without a key or API calls. The planets it makes models for: the kit's example (Sam), the stock things, and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
 when it's finished). Caps: 14 models a planet (about $10) for the first 10 friends' planets, then none until Steve says (Steve, Oct 27: "10 an onboarding for the first 10 people"; the example and `test-` planets don't count), 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
@@ -327,8 +347,9 @@ cliff, and the porch and cliff made again from clearer words) took about 3 minut
 that describe one object do best: the porch came out as a guitar and an amp until its words said
 it was built like a little open hut, with them on its deck.
 
-Next: models made from the chat itself, while they talk, so their own AI's words become the
-model in the preview.
+Next: accepted reusable assets and complete assemblies, proven in first-reveal and interaction
+captures. Bespoke generation stays outside the immediate path until measured quality, latency
+and cost justify it. The longer-term on-demand idea is not the current runtime.
 
 ## Costs and limits
 
