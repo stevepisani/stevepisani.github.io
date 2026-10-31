@@ -78,8 +78,17 @@ sent are then finished by hand. The plan and what's next are in
   words, never to suggest a bar, a sign or anything as a default, and then to build them a few
   things that are unmistakably theirs, tied to what they love. `get_kit` offers who they are,
   their links, what they love, the look and `things` (how to place and make them, and some craft:
-  scale, spread, light): none of Steve's planet's parts (Steve, Oct 2026). A spec needs only `version`, `slug` and
-  `who.name`. Three tools, the first two read-only:
+  scale, spread, light): none of Steve's planet's parts (Steve, Oct 2026). A spec passes the check with only `version`,
+  `slug` and `who.name`, but the connector won't preview or send a planet that would land them on
+  bare rock (`showsNothing` in `_shared/planet.js`): one with no things, one whose nearest thing is
+  more than 10 m out, over the horizon, or one with nothing in the first view: a thing counts
+  when it's within 10 m and reaches to within 15° of straight ahead (a phone held upright shows
+  18.6° either side; `tools/smoke.mjs` checks a cube at the edge really is on screen there). When
+  it refuses, it also names anything in Steve's planet's parts (`places`, `robot`, `telescope`,
+  `launchPad`, which pass the check for his own spec but a friend's planet never draws), the
+  likely reason; with something in view they're only a note, and empty ones are ignored. Each comes back as a mistake naming why, so their AI fixes it
+  instead of showing an empty planet as done (Oct 31 2026: a test chat interviewed someone and
+  rendered a bare planet). Three tools, the first two read-only:
   - `get_kit`: what a spec can hold, what's drawn from it today, the limits, and an example
     (Sam's, which `tools/planet-test.mjs` checks passes);
   - `preview_planet(spec)`: checks the spec (each mistake said back as `where: what`, so the
@@ -123,7 +132,8 @@ sent are then finished by hand. The plan and what's next are in
 
 Their ground (colour and hills) and sky (the nebula's colour and the starlight), their things
 (each as its real model where one has been made, see below, else as its shapes),
-and their name and home city in the top bar; with no things it's bare rock under the stars.
+and their name and home city in the top bar; with no things it's bare rock under the stars (only an old link can
+show one now: the connector refuses to make it).
 Their links show on the chat's plain card. A preview never writes anywhere; the page
 count counts it as one view of `/p/preview/` (the spec is after the `#`, so it never reaches a
 server).
@@ -154,9 +164,10 @@ are wanted.
 ## Testing the live connector
 
 `node tools/planet-live.mjs [--shots <dir>]` does what ChatGPT or Claude would, against the
-deployed connector at `mcp.stevenpisani.com/planets`, with three made-up people (a baker in
-Lisbon, a climber in Denver, and someone with only a name): it says hello, lists the tools, opens
-the kit and the card's page, sends back a spec with a mistake, previews each planet, opens its
+deployed connector at `mcp.stevenpisani.com/planets`, with two made-up people (a baker in
+Lisbon and a climber in Denver): it says hello, lists the tools, opens the kit and the card's page,
+sends back a spec with a mistake and four that would be bare rock (only a name, what they love in
+Steve's places, everything over the horizon, everything behind them), previews each planet, opens its
 preview page in headless Chromium and checks it draws, says whose it is and walks where you tap,
 taps each thing from where you land for its card (and sits on what's for sitting, switches what
 switches), then sends each one. Their slugs start with `test-`, and a planet whose slug does is saved as a

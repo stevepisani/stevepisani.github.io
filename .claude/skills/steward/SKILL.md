@@ -37,8 +37,12 @@ npm test                      # or --only desktop|phone|pages|nogl while iterati
   A red smoke test is real until shown otherwise: download that job's `smoke-failed-*` artifact,
   reproduce with `node tools/smoke.mjs _site --only <its part>` (the job's name says which),
   fix the cause. Never skip or weaken a test to get green.
-- Supabase changes don't run on PRs. To try one before merging, run the Supabase workflow on the
-  branch (`workflow_dispatch`) and test against the live project.
+- Supabase changes don't run on PRs, and there's no preview project. Running the Supabase workflow
+  on a branch (`workflow_dispatch`) is a production deploy: it applies that branch's migrations,
+  auth settings and functions to the one live project. Don't use it as a pre-merge test. Before
+  merging, test locally: the PGlite tests (`npm test`) and the connectors in this checkout
+  (`node tools/planet-live.mjs --local --site _site`). Production proof is the ordinary deploy on
+  merge, then a live recheck (e.g. `node tools/planet-live.mjs --no-send`).
 - Steve merges by saying so ("merge it"). Then: mark it ready, merge with the full 40-character
   head SHA as `expectedHeadSha`, stop watching it, and cancel any pending check-in.
 

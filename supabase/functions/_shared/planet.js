@@ -455,6 +455,50 @@ export function partsOf(t) {
   return k ? [{ shape: 'box', size: k.size, round: 0.15, color: '#8a7a68' }] : [];
 }
 
+// what a friend's planet can't draw: Steve's own planet's parts, which pass checkPlanet for his spec
+const STEVES_PARTS = ['places', 'robot', 'telescope', 'launchPad'];
+const DEG = Math.PI / 180;
+// in full view from where you land: the horizon is about 6 m off, a thing rises over it by 10 m
+export const IN_VIEW = 10;
+// the first view's half-width, in degrees either side of straight ahead (bearing 0), on the
+// narrowest screen it opens on: a phone held upright (assets/js/planets/main.js: 72° tall at
+// 390x844 is 18.6° either side), less a margin, so a thing shows more than its edge
+export const FIRST_VIEW = 15;
+
+/** Steve's planet's parts with something in them, which a friend's planet doesn't draw. */
+export function notDrawn(spec) {
+  const filled = (v) => v !== undefined && v !== null && v !== false && !(Array.isArray(v) && !v.length) && !(typeof v === 'object' && !Array.isArray(v) && !Object.keys(v).length);
+  return STEVES_PARTS.filter((k) => filled(spec[k])).map((k) => `${k}: only Steve's own planet has these, and a friend's planet doesn't draw them; make what's here into things instead (get_kit, things)`);
+}
+
+// how far a thing reaches either side of its foot, in metres (its parts, unturned)
+const halfWidth = (t) => (t.scale || 1) * Math.max(0.1, ...partsOf(t).map((p) => {
+  const [x = 0, , z = 0] = p.at || [], [w = 0, , d = 0] = p.size || [];
+  return Math.max(Math.abs(x) + w / 2, Math.abs(z) + d / 2);
+}));
+
+/**
+ * Why a friend's planet, from a spec that passed checkPlanet, would show nothing when they land
+ * on it: each "where: what", none when something is in the first view. Something is when a thing
+ * stands within IN_VIEW metres and reaches to within FIRST_VIEW degrees of straight ahead. The
+ * connector won't preview or send such a planet, so their AI can't show them bare rock and call
+ * it done; Steve's planet's parts are named then too, as the likely reason.
+ */
+export function showsNothing(spec) {
+  const why = [];
+  const things = spec.things || [];
+  if (!things.length) why.push("things: none, so they'd land on bare rock; make them a few things from what they love (get_kit, things)");
+  else {
+    const placed = placeThings(things);
+    const at = things.map((t) => ({ t, p: placed.get(t.id) })).filter((x) => x.p);
+    const nearest = Math.min(...at.map((x) => x.p.distance));
+    const seen = at.some(({ t, p }) => p.distance <= IN_VIEW && Math.abs(p.bearing) - Math.atan2(halfWidth(t), p.distance) / DEG <= FIRST_VIEW);
+    if (nearest > IN_VIEW) why.push(`things: the nearest is ${nearest.toFixed(0)} m from where they land, over the horizon, so they'd land on bare rock; put the first place 3 to ${IN_VIEW} m out`);
+    else if (!seen) why.push(`things: none in the first view (straight ahead, about ${FIRST_VIEW}° either side on a phone; everything within ${IN_VIEW} m is behind or beside them), so they'd see bare rock; put the first place nearly straight ahead (bearing -${FIRST_VIEW} to ${FIRST_VIEW})`);
+  }
+  return why.length ? [...notDrawn(spec), ...why] : why;
+}
+
 /** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
 // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
 function partBoxes(t) {
