@@ -190,6 +190,10 @@ ok(checkPlanet(edited).length === 0 && lookOver(edited).length === 0 && edited.t
 ok((await prepare(pilot)).structuredContent.design.scenes[0].id === 'club', 'preparation preserves the small editable design alongside its compiled result');
 caught(pilot,(s)=>{s.scenes[0].extras=['unavailable'];},/scenes.*extras/,'unsupported scene edits are refused');
 caught(baseline,(s)=>{s.things[0].footprint=[-1,1];},/footprint/,'ground footprints cannot have negative dimensions');
+caught(baseline,(s)=>{s.things[0].craft='unavailable';},/craft/,'authored craft is bounded');
+caught(baseline,(s)=>{s.things[0].parts[0].surface='unavailable';},/surface/,'surface craft is bounded');
+caught(baseline,(s)=>{s.things[0].parts[0].joint='head';},/joint/,'ordinary furniture cannot create character joints');
+caught(baseline,(s)=>{s.things[0].use='greet';},/use/,'greeting requires an authored character');
 caught(baseline,(s)=>{s.look.ground.coast.radius=100;},/coast.radius/,'shoreline geometry is bounded');
 caught(baseline,(s)=>{s.routes[0].from.distance=Infinity;},/routes/,'routes reject nonfinite endpoints');
 for (const change of [(s)=>{s.things={};},(s)=>{s.things=[null];},(s)=>{s.look='bad';}]) ok(errorsWith(pilot,change).length>0,'invalid raw scene fields return validation errors without throwing');
@@ -240,6 +244,7 @@ const sloppyShown = (await call('tools/call', { name: 'preview_planet', argument
 ok(!sloppyShown.isError && /card has already been revealed/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview reports geometry notes honestly after reveal', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
 const { wanted, planets: modelled, PER_PLANET, PER_RUN, FIRST_PLANETS } = await import('./planet-models.mjs');
+await import('./planet-model-cache-test.mjs');
 ok(planets.EXAMPLE.things.every((t) => t.model || t.stock) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models, or stock");
 // stock things: ready-made, no parts or words needed, and their own models made once for every planet
 const stocked = { ...least, things: [{ id: 'seat', name: 'Seat', stock: 'bench', at: { bearing: 0, distance: 5 }, use: 'sit' }, { id: 'lamp', name: 'Lamp', stock: 'lamp-post', near: { of: 'seat', side: 'left' }, light: {}, use: 'switch' }] };

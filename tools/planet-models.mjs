@@ -21,6 +21,8 @@ import { fileURLToPath } from 'node:url';
 import { checkPlanet, partsOf, STOCK } from '../supabase/functions/_shared/planet.js';
 import { EXAMPLE } from '../supabase/functions/planets/server.js';
 import { get, task, finished, balance, optimize, IMAGE_TO_3D, TEXT_TO_IMAGE } from './meshy.mjs';
+import { STYLE_NAME, MODEL_SETTINGS, digest, modelSource, currentModel, pendingModel, pictureName } from './planet-model-cache.mjs';
+export { STYLE_NAME } from './planet-model-cache.mjs';
 
 // the caps (Steve, Oct 27, 2026: "10 an onboarding for the first 10 people"): 14 models a planet,
 // about $10, for the first 10 friends' planets, then none until he says; 24 a run. The kit's example
@@ -30,10 +32,6 @@ export const PER_PLANET = 14, PER_RUN = 24, FIRST_PLANETS = 10;
 const isFriend = (slug) => slug !== EXAMPLE.slug && slug !== 'stock' && !slug.startsWith('test-');
 // the stock things as a planet of their own, one of each, so their models are made like any planet's
 const STOCK_PLANET = { version: 1, slug: 'stock', who: { name: 'Stock' }, things: Object.entries(STOCK).map(([id, k], i) => ({ id, name: id, model: k.model, at: { bearing: i * 30 - 120, distance: 6 }, parts: partsOf({ stock: id }) })) };
-// the house style: change it and every model is made again
-export const STYLE_NAME = 'storybook';
-const STYLE = 'A storybook miniature: hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy, like a Tiny Glade or Little Prince illustration come to life';
-const FRAME = 'One object alone on a plain white background, with no ground, no base, no plinth and no shadow under it, no text and no logos; seen from the front and a little above, three-quarter view, the whole object in frame';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/', SPECS = root + 'tools/models/planets/', PICTURES = SPECS + 'pictures/';
@@ -60,7 +58,8 @@ export function wanted(list, manifest, redo = new Set()) {
     }
     for (const thing of things) {
       const key = `${spec.slug}/${thing.id}`, had = manifest[key];
-      if (!redo.has(key) && had?.model === thing.model && had.style === STYLE_NAME && had.file && existsSync(OUT + had.file)) continue;
+      const resuming = had?.pending?.inputId === modelSource(thing.model).inputId;
+      if (!redo.has(key) && !resuming && currentModel(had, thing.model) && had.file && existsSync(OUT + had.file)) continue;
       todo.push({ key, slug: spec.slug, thing });
     }
   }
@@ -68,33 +67,45 @@ export function wanted(list, manifest, redo = new Set()) {
   return todo;
 }
 
-async function make({ key, slug, thing }, manifest, save, redo) {
-  // a record for these words in this style (started before, maybe by a run that stopped), or a new one
-  let rec = manifest[key];
-  if (!rec || rec.model !== thing.model || rec.style !== STYLE_NAME || redo.has(key)) rec = manifest[key] = { model: thing.model, style: STYLE_NAME };
-  // first the picture, in the house style
-  const picture = PICTURES + key.replace('/', '-') + '.png';
+export async function make({ key, slug, thing }, manifest, save, redo = new Set(), deps = {}) {
+  const api = { task, finished, get, optimize, ...deps };
+  const pictures = deps.pictures || PICTURES, output = deps.output || OUT, temp = deps.temp || TMP;
+  const rec = manifest[key] ||= {};
+  if (!rec.pending && (rec.picture || rec.model3d) && !rec.file) throw new Error(`${key}: an unfinished legacy task needs review before starting a replacement; its IDs were preserved`);
+  // Keep the accepted record/file intact while its replacement is pending or fails.
+  const pending = pendingModel(rec, thing.model, redo.has(key));
+  save();
+  const picture = pictures + pictureName(pending);
+  const wait = async (field, label, endpoint) => api.finished(pending[field], label, endpoint).catch((e) => {
+    // A timeout or network error is not a failed task: resume its ID next run.
+    if (['FAILED', 'CANCELED'].includes(e.status)) { delete pending[field]; save(); }
+    throw e;
+  });
   if (!existsSync(picture)) {
     // a picture already asked for is waited for, not paid for twice
-    if (!rec.picture) { rec.picture = await task({ ai_model: 'nano-banana-2', prompt: `${thing.model}. ${STYLE}. ${FRAME}.`.slice(0, 1000), aspect_ratio: '1:1' }, TEXT_TO_IMAGE); save(); }
-    const done = await finished(rec.picture, `${key} picture`, TEXT_TO_IMAGE).catch((e) => { delete rec.picture; save(); throw e; });
-    mkdirSync(PICTURES, { recursive: true });
-    writeFileSync(picture, Buffer.from(await (await get(done.image_urls[0])).arrayBuffer()));
-    delete rec.model3d;
+    if (!pending.picture) { pending.picture = await api.task(pending.pictureRequest, TEXT_TO_IMAGE); save(); }
+    const done = await wait('picture', `${key} picture`, TEXT_TO_IMAGE);
+    mkdirSync(pictures, { recursive: true });
+    writeFileSync(picture, Buffer.from(await (await api.get(done.image_urls[0])).arrayBuffer()));
   }
+  const bytes = readFileSync(picture), referenceId = digest(bytes);
+  const meshInput = digest(JSON.stringify({ referenceId, settings: MODEL_SETTINGS }));
+  if (pending.meshInput !== meshInput) { delete pending.model3d; pending.meshInput = meshInput; save(); }
   // then the model, from the picture
-  if (!rec.model3d) {
-    const image_url = 'data:image/png;base64,' + readFileSync(picture).toString('base64');
-    rec.model3d = await task({ image_url, ai_model: 'latest', topology: 'triangle', target_polycount: 30000, should_remesh: true, should_texture: true, enable_pbr: true }, IMAGE_TO_3D);
+  if (!pending.model3d) {
+    pending.model3d = await api.task({ image_url: 'data:image/png;base64,' + bytes.toString('base64'), ...MODEL_SETTINGS }, IMAGE_TO_3D);
     save();
   }
   // a task Meshy failed is forgotten, so the next run asks again rather than waiting on it forever
-  const done = await finished(rec.model3d, `${key} model`, IMAGE_TO_3D).catch((e) => { delete rec.model3d; save(); throw e; });
-  const raw = TMP + key.replace('/', '-') + '.glb', file = `${key}.glb`;
-  mkdirSync(OUT + slug, { recursive: true });
-  writeFileSync(raw, Buffer.from(await (await get(done.model_urls.glb)).arrayBuffer()));
-  optimize(raw, OUT + file, 1024);
-  Object.assign(rec, { file, bytes: statSync(OUT + file).size, made: new Date().toISOString().slice(0, 10) });
+  const done = await wait('model3d', `${key} model`, IMAGE_TO_3D);
+  const raw = temp + key.replace('/', '-') + '.glb', optimized = raw + '.optimized.glb';
+  mkdirSync(output + slug, { recursive: true }); mkdirSync(temp, { recursive: true });
+  writeFileSync(raw, Buffer.from(await (await api.get(done.model_urls.glb)).arrayBuffer()));
+  api.optimize(raw, optimized, 1024);
+  const result = readFileSync(optimized), file = `${key}-${digest(result).slice(0, 16)}.glb`;
+  if (!existsSync(output + file)) writeFileSync(output + file, result);
+  Object.assign(rec, { model: thing.model, style: STYLE_NAME, inputId: modelSource(thing.model).inputId, referenceId, settings: MODEL_SETTINGS, tasks:{picture:pending.picture,model:pending.model3d}, file, bytes: statSync(output + file).size, made: new Date().toISOString().slice(0, 10) });
+  delete rec.pending; delete rec.picture; delete rec.model3d;
   save();
   console.log(`${key}: ${(rec.bytes / 1024).toFixed(0)} KB`);
 }
@@ -105,8 +116,11 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const manifestFile = OUT + 'manifest.json';
   const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : {};
   const save = () => writeFileSync(manifestFile, JSON.stringify(manifest, null, 2) + '\n');
-  const redo = new Set((process.argv[process.argv.indexOf('--redo') + 1] || '').split(',').filter((x) => x.includes('/')));
+  const redoAt = process.argv.indexOf('--redo');
+  const redo = new Set((redoAt < 0 ? '' : process.argv[redoAt + 1] || '').split(',').filter((x) => x.includes('/')));
   const todo = wanted(planets(), manifest, redo);
+  if (process.argv.includes('--dry-run')) { console.log(`${todo.length} to make: ${todo.map((t) => t.key).join(', ') || 'nothing'}`); process.exit(0); }
+  if (!todo.length) { console.log('Nothing to make. Existing models are preserved.'); process.exit(0); }
   if (!process.env.MESHY_API_KEY) throw new Error('MESHY_API_KEY is not set: add it as a repo secret (Settings, Secrets and variables, Actions)');
   const before = await balance();
   console.log(`${todo.length} to make: ${todo.map((t) => t.key).join(', ') || 'nothing'}. Meshy credits: ${before ?? '?'}`);

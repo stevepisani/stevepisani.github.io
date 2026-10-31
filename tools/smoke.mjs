@@ -72,7 +72,7 @@ async function session(name, contextOptions, fn, launchArgs = browserArgs) {
   page.on('pageerror', (e) => errors.push(`page error: ${e.message}${e.stack ? `\n    ${e.stack.split('\n').slice(1, 6).map((l) => l.trim()).join('\n    ')}` : ''}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_FAILED|ERR_BLOCKED|WebSocket|Failed to load resource/.test(m.text())) errors.push(`console: ${m.text()}`); });
   let n = 0;
-  const shot = async (label) => { if (shotsDir) await page.screenshot({ path: join(shotsDir, `${name.split(' ')[0]}-${String(++n).padStart(2, '0')}-${label}.png`), timeout: 180000 }); };
+  const shot = async (label) => { if (shotsDir) await page.screenshot({ path: join(shotsDir, `${name.replace(/\W+/g,'-')}-${String(++n).padStart(2, '0')}-${label}.png`), timeout: 180000 }); };
   try {
     await fn(page, shot);
     if (errors.length) throw new Error(errors.join('\n'));
@@ -1826,8 +1826,10 @@ async function composedPreview(page, shot) {
   if(!layout.cat || !layout.table || !layout.cove || layout.eye<2.5 || !layout.water || layout.wet.length) throw new Error(`scene arrival, shore or grounding: ${JSON.stringify(layout)}`);
   await shot('scene-arrival');
   await page.mouse.click(layout.cat.x,layout.cat.y);
-  await until(page,()=>!document.getElementById('thing').hidden,null,30000);
-  if(await page.locator('#thing-name').textContent()!=='Pumpkin') throw new Error('the palm canopy stole the cat tap');
+  await until(page,()=>!!window.__planet.spec.things.find(t=>t.id==='club-cat').greeting,null,60000);
+  if(!(await page.locator('#thing').isHidden())) throw new Error('the cat response should be visible before explanatory details');
+  await page.locator('#details').click();
+  if(await page.locator('#thing-name').textContent()!=='Pumpkin') throw new Error('the cat details did not preserve its name');
   await until(page,()=>window.__planet.player.eye<2 && !window.__planet.busy(),null,30000);
   await page.keyboard.press('Escape');
   step(`semantic scene reveal, native lagoon, dry prop feet, cat tap and continuous entry; ${layout.metrics.calls} draw calls`);
@@ -1853,6 +1855,20 @@ async function composedPreview(page, shot) {
     } else await until(page,()=>window.__planet.spec.things.find(t=>t.id==='club-lights').lamp.intensity===0,null,60000);
     await page.keyboard.press('Escape');
   }
+  // Use the physical telescope from a nearby ground position; prove its visible sky and return.
+  await page.evaluate(()=>{
+    const w=window.__planet,t=w.spec.things.find(t=>t.id==='sky-scope'),V=w.camera.position.constructor;
+    const at=t.root.localToWorld(new V(0,0,3.6)).normalize();
+    w.player.spawn(at,t.center,-0.18);
+  });
+  const scopeAt=await page.waitForFunction(()=>window.__planet.screenOf('sky-scope'),null,{timeout:20000}).then(h=>h.jsonValue());
+  await page.mouse.click(scopeAt.x,scopeAt.y);
+  await until(page,()=>window.__planet.scoped()==='sky-scope' && !window.__planet.busy(),null,60000);
+  if(await page.locator('#scope-caption').isHidden() || await page.locator('#stand').textContent()!=='Step back') throw new Error('the telescope did not open its imagined sky');
+  await shot('scene-telescope');
+  await page.goBack();
+  await until(page,()=>!window.__planet.scoped() && !window.__planet.busy(),null,30000);
+  if(!(await page.locator('#scope-caption').isHidden())) throw new Error('leaving the telescope retained its view');
   input.scenes[0].extras=['hammock'];
   const changed=await prepare(input), next=changed.structuredContent.spec;
   if(next.things.length!==spec.things.length+1 || !spec.things.every(t=>JSON.stringify(t)===JSON.stringify(next.things.find(x=>x.id===t.id)))) throw new Error('the additive edit changed the existing scene');

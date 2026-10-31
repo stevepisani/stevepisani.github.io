@@ -35,7 +35,11 @@ rather than leaving it in a chat.
    bounded correction pass and no claimed screenshot inspection or asset generation. The first
    reveal should immediately offer one specific personal addition. Visual quality on unseen
    input still needs the fresh-input benchmark and actual rendered acceptance.
-   Next: models made live from the chat, so their own AI's words become the model in the preview. Then: try it in Claude and ChatGPT
+   The next prototype follows [the art-direction brief](planet-art-direction.md): complete
+   activity-based assemblies, shared tactile craft, visible companion/telescope responses,
+   actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets
+   support first reveal; bespoke live generation is deferred until measured quality, latency
+   and cost justify it. Then: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 

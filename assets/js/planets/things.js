@@ -8,8 +8,24 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RADIUS } from '../world/planet.js';
 import { placeThings, partsOf } from '../../../supabase/functions/_shared/planet.js';
+import { surface, woodSet, bambooSet, thatchSet, rattanSet } from '../world/materials.js';
+import { palm } from '../world/props.js';
+import { planting } from '../world/decor.js';
 
 const DEG = Math.PI / 180;
+const surfaces = new Map();
+function craftedMaterial(p) {
+  if (!p.surface) return material(p.color, p.finish);
+  const key = p.surface + '/' + p.color;
+  if (!surfaces.has(key)) {
+    const color = new THREE.Color(p.color || '#ffffff');
+    const set = { wood: () => woodSet(color.getHex()), bamboo: bambooSet, thatch: thatchSet, cloth: rattanSet }[p.surface]();
+    const m = surface(set, { color: p.surface === 'wood' ? '#ffffff' : color, bumpScale: 0.025, roughness: 0.88 });
+    m.userData.crafted = true;
+    surfaces.set(key, m);
+  }
+  return surfaces.get(key);
+}
 
 // one geometry per shape, unit-sized (1 m across, its centre at the middle), shared by every part
 const GEOMETRY = {
@@ -78,7 +94,7 @@ function part(p) {
     const height = Math.min(h, w / t.aspect);
     mesh.scale.set(height * t.aspect, height, 1);
   } else {
-    const m = material(p.color, p.finish);
+    const m = craftedMaterial(p);
     if (p.shape === 'box' && p.round) {
       mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, p.round * Math.min(w, h, d)), m);
     } else if (p.shape === 'tube') {
@@ -115,8 +131,9 @@ function batchParts(body) {
   body.updateMatrixWorld(true);
   const groups = new Map();
   body.traverse((o)=>{
-    if(!o.isMesh || o.userData.spin || o.material.transparent || o.material.map || o.matrixWorld.determinant()<0) return;
-    const m=o.material,key=[m.type,m.color?.getHex(),m.emissive?.getHex(),m.emissiveIntensity,m.roughness,m.metalness,m.side].join('/');
+    if(!o.isMesh || o.userData.spin || o.material.transparent || (o.material.map && !o.material.userData.crafted) || o.matrixWorld.determinant()<0) return;
+    for(let parent=o.parent;parent && parent!==body;parent=parent.parent) if(parent.userData.joint) return;
+    const m=o.material,key=[m.type,m.color?.getHex(),m.emissive?.getHex(),m.emissiveIntensity,m.roughness,m.metalness,m.side,m.map?.uuid,m.bumpMap?.uuid,m.bumpScale].join('/');
     if(!groups.has(key)) groups.set(key,[]);
     groups.get(key).push(o);
   });
@@ -142,7 +159,7 @@ function batchParts(body) {
  * A pickable mesh carries its thing in `userData.thing`.
  */
 export function buildThings(things = [], surface) {
-  const group = new THREE.Group(), colliders = [], pickable = [], spinning = [];
+  const group = new THREE.Group(), colliders = [], pickable = [], spinning = [], characters = [];
   const Y = new THREE.Vector3(0, 1, 0);
   // where each stands, from where you land or beside another thing (placeThings, in the spec's rules)
   const placed = placeThings(things);
@@ -161,7 +178,10 @@ export function buildThings(things = [], surface) {
     root.scale.setScalar(thing.scale || 1);
 
     const body = new THREE.Group();
-    for (const p of partsOf(thing)) {
+    const joints = {};
+    if (thing.craft === 'palm') body.add(palm({height:4.9,lean:0.22,seed:thing.id.length}));
+    if (thing.craft === 'planting') body.add(planting([[0,0,-0.06]],thing.id.length));
+    for (const p of ['palm','planting'].includes(thing.craft) ? [] : partsOf(thing)) {
       const one = part(p);
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
@@ -175,9 +195,21 @@ export function buildThings(things = [], surface) {
         step.add(i ? one.clone() : one);
         copies.add(step);
       }
-      body.add(copies);
-      if (p.mirror) { const m = copies.clone(); m.scale.x = -1; body.add(m); }
+      let parent = body;
+      if (p.joint) {
+        if (!joints[p.joint]) {
+          const joint = joints[p.joint] = new THREE.Group();
+          joint.userData.joint = p.joint;
+          joint.position.set(...(p.joint === 'head' ? [0, 0.98, 0] : [0.32, 0.4, -0.1]));
+          body.add(joint);
+        }
+        parent = joints[p.joint];
+        copies.position.sub(parent.position);
+      }
+      parent.add(copies);
+      if (p.mirror) { const m = copies.clone(); m.scale.x = -1; parent.add(m); }
     }
+    if (thing.craft === 'cat') { thing.joints = joints; characters.push(thing); }
     batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
@@ -192,7 +224,7 @@ export function buildThings(things = [], surface) {
     thing.hull = box.clone();
     if (thing.footprint) {
       thing.hull.min.set(-thing.footprint[0]/2, box.min.y, -thing.footprint[1]/2);
-      thing.hull.max.set(thing.footprint[0]/2, Math.min(box.max.y, 1.8), thing.footprint[1]/2);
+      thing.hull.max.set(thing.footprint[0]/2, thing.use === 'look' ? box.max.y : Math.min(box.max.y, 1.8), thing.footprint[1]/2);
     } // where a tap means it (main.js): its shapes now, its model once it's in
     thing.body = body;
     const reach = thing.footprint ? Math.max(...thing.footprint) / 2 : Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
@@ -237,7 +269,24 @@ export function buildThings(things = [], surface) {
       body.add(model);
     },
     // a spinning part turns about its own up, after its own turn
-    update(t) { for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed)); },
+    greet(thing, observer, reduced) {
+      if (!thing.joints?.head) return;
+      const at = thing.root.worldToLocal(observer.clone());
+      thing.greeting = { at:performance.now()/1000, yaw:THREE.MathUtils.clamp(Math.atan2(at.x,at.z),-0.7,0.7), reduced };
+      if (reduced) { thing.joints.head.rotation.y = thing.greeting.yaw; thing.joints.head.rotation.z=0.12; if(thing.joints.tail) thing.joints.tail.rotation.z=0.2; }
+    },
+    update(t) {
+      for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed));
+      for (const c of characters) {
+        const a=c.greeting;
+        if(!a || a.reduced) continue;
+        const k=THREE.MathUtils.clamp((t-a.at)/0.7,0,1), ease=k*k*(3-2*k);
+        c.joints.head.rotation.y=a.yaw*ease;
+        c.joints.head.rotation.x=-0.12*Math.sin(Math.min(1,(t-a.at)/2.8)*Math.PI);
+        c.joints.head.rotation.z=0.12*Math.sin(Math.min(1,(t-a.at)/2.8)*Math.PI);
+        if(c.joints.tail) c.joints.tail.rotation.z=0.2*Math.sin(Math.min(1,(t-a.at)/3)*Math.PI);
+      }
+    },
   };
 }
 const _q = new THREE.Quaternion();
