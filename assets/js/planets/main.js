@@ -101,8 +101,12 @@ async function start(spec) {
   const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);
   if ((spec.things || []).length) hint.dataset.things = '';
-  // their real models, where they've been made (models.js), in place of the shapes as they come
+  // Frame the finished available objects, not placeholders that change after the first reveal.
+  // New models still being made keep their shapes and arrive through the existing later path.
+  say('Putting the finishing touches in place…');
   const models = loadModels(spec, things);
+  try { await models; }
+  catch { return fail('The scene’s models could not load. Please reload to try again.', ['required model unavailable']); }
 
   // where a tap means to walk: a ring on the ground, fading as you arrive
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
@@ -128,7 +132,7 @@ async function start(spec) {
     ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     const hit = ray.intersectObject(ground.mesh, false)[0];
-    const best=pickThing(ray,spec.things||[],things.pickable,hit?hit.distance+.01:Infinity);
+    const best=pickThing(ray,spec.things||[],things.pickable,hit?hit.distance+.01:Infinity,seat?.id);
     return best ? { thing: best } : hit && !ground.isWater(hit.point.clone().normalize()) ? { point: hit.point } : null;
   };
 
@@ -166,7 +170,16 @@ async function start(spec) {
   };
   function sit(t) {
     const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
-    glide({ pos: at, quat: facing(at, f), eye: t.seatView?.eye ?? SEATED, pitch: t.seatView?.pitch ?? -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
+    const eye=t.seatView?.eye ?? SEATED,target=spec.things.find(a=>a.id===t.seatView?.toward);
+    let direction=f,pitch=t.seatView?.pitch ?? -.18;
+    if(target) {
+      target.root.updateWorldMatrix(true,true);
+      const up=at.clone().normalize(),to=new THREE.Box3().setFromObject(target.root).getCenter(new THREE.Vector3()).sub(at.clone().addScaledVector(up,eye));
+      if(to.clone().addScaledVector(up,-to.dot(up)).lengthSq()>1e-8) {
+        direction=to;pitch=THREE.MathUtils.clamp(Math.asin(to.clone().normalize().dot(up)),-1,.6);
+      }
+    }
+    glide({ pos: at, quat: facing(at, direction), eye, pitch }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
   }
   function stand(then) {
     detailButton.hidden=true;

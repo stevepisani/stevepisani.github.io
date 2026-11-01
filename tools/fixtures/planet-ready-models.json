@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "slug": "test-ready-library",
+  "who": { "name": "Rowan" },
+  "arrival": "overview",
+  "look": { "sky": { "period": "dusk" }, "ground": { "color": "#68745b", "cover": "grass", "hills": 0.1 } },
+  "setting": { "around": "bench", "edge": "windows", "shelter": "canopy", "planting": "woodland", "color": "#a99b87" },
+  "things": [
+    { "id": "bench", "name": "The evening bench", "stock": "bench", "at": { "bearing": 0, "distance": 6.5 }, "role": "focus", "use": "sit" },
+    { "id": "table", "name": "A table for company", "stock": "table", "near": { "of": "bench", "side": "front", "gap": 0.7 }, "role": "support" },
+    { "id": "left-chair", "name": "A seat for a friend", "stock": "chair", "near": { "of": "table", "side": "left", "gap": 0.35 }, "turn": 90, "role": "support", "use": "sit" },
+    { "id": "right-chair", "name": "Another seat", "stock": "chair", "near": { "of": "table", "side": "right", "gap": 0.35 }, "turn": -90, "role": "support", "use": "sit" },
+    { "id": "lamp", "name": "The evening light", "stock": "lamp-post", "near": { "of": "bench", "side": "right", "gap": 1.1 }, "role": "support", "use": "switch", "light": { "at": [0, 2.3, 0], "color": "#ffcc88", "strength": 0.45 } }
+  ]
+}

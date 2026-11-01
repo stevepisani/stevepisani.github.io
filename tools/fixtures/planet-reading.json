@@ -1,0 +1,12 @@
+{
+  "version": 1, "slug": "test-reading-family", "who": {"name": "Avery"}, "arrival": "overview",
+  "look": {"sky": {"period": "dusk", "color": "#82909c"}, "ground": {"color": "#64745b", "cover": "grass", "hills": 0.1}},
+  "setting": {"around": "chair", "edge": "windows", "shelter": "canopy", "planting": "woodland"},
+  "collections": {"reading": {"title": "Stories and field notes", "items": ["A favorite story", "Notes from the trail"]}},
+  "things": [
+    {"id": "chair", "name": "A chair for a quiet chapter", "stock": "reading-chair", "at": {"bearing": 0, "distance": 6}, "role": "focus", "use": "sit", "seatView": {"eye": 1.15, "toward": "books"}},
+    {"id": "table", "name": "Beside the chair", "stock": "side-table", "near": {"of": "chair", "side": "right", "gap": 0.12}, "role": "support"},
+    {"id": "books", "name": "Stories and field notes", "stock": "books", "on": {"of": "table", "at": [-0.17, -0.16]}, "solid": false, "role": "support", "collection": "reading"},
+    {"id": "lamp", "name": "Light for the next chapter", "stock": "table-lamp", "on": {"of": "table", "at": [0.17, 0.13]}, "solid": false, "role": "support", "use": "switch", "light": {"at": [0, 0.2, 0], "color": "#ffd49b", "strength": 0.02}}
+  ]
+}
