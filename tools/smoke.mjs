@@ -1825,6 +1825,8 @@ async function composedPreview(page, shot) {
   });
   if(!layout.cat || !layout.table || !layout.cove || layout.eye<2.5 || !layout.water || layout.wet.length) throw new Error(`scene arrival, shore or grounding: ${JSON.stringify(layout)}`);
   await shot('scene-arrival');
+  const catHit=await page.evaluate(at=>window.__planet.pickAt(at.x,at.y),layout.cat);
+  if(catHit!=='club-cat')throw new Error(`the greeting tap is obstructed by ${catHit||'ground'}`);
   await page.mouse.click(layout.cat.x,layout.cat.y);
   await until(page,()=>!!window.__planet.spec.things.find(t=>t.id==='club-cat').greeting,null,60000);
   if(!(await page.locator('#thing').isHidden())) throw new Error('the cat response should be visible before explanatory details');

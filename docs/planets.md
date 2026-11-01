@@ -89,7 +89,10 @@ and loading-screen drag.
 
 The opening searches stable surface positions clear of colliders, fits primary/nearby supporting
 bounds, and checks focus visibility with the same mesh/hull hit policy as real taps. Open silhouettes
-are checked at real surface samples as well as their potentially empty box centre. Remote
+are checked at real surface samples as well as their potentially empty box centre. A greeting
+companion also prefers a clear five-pixel tap patch around its body centre, rather than merely
+showing one fragment beside an occluding chair. This improves tap tolerance without enlarging
+the character or letting it steal another object’s hits. Remote
 scenery cannot shrink the hero. It respects the receiving aspect ratio and reframes an untouched
 opening on resize; deliberate looking is preserved. Very large/conflicting arrangements can
 still return a best-effort frame rather than a guarantee. Visibility and clear starting feet
