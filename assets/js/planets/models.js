@@ -52,11 +52,15 @@ async function whileMade(list, swap) {
   const until = Date.now() + ASK_FOR;
   while (keys.size && Date.now() < until) {
     if (!document.hidden) {
-      let now = {};
-      try { now = await (await fetch(`${MODELS_URL}?models=${[...new Set(keys.values())].join(',')}`)).json(); } catch { /* try again next time */ }
-      // nobody asked for these (a planet from an old link, or the cap): nothing will come
-      if (![...keys.values()].some((k) => now[k])) return;
-      for (const [t, k] of [...keys]) {
+      let now = null;
+      try {
+        const res = await fetch(`${MODELS_URL}?models=${[...new Set(keys.values())].join(',')}`);
+        if (res.ok) now = await res.json();
+      } catch { /* offline for a moment */ }
+      // a failed ask is tried again next time; an answer that knows none of them (a planet from an
+      // old link, or the cap) means nothing will come
+      if (now && ![...keys.values()].some((k) => now[k])) return;
+      if (now) for (const [t, k] of [...keys]) {
         if (now[k]?.status === 'failed') keys.delete(t);
         else if (now[k]?.status === 'done') { keys.delete(t); await swap(t, now[k].url); }
       }
