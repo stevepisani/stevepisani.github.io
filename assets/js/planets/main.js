@@ -13,6 +13,7 @@ import { Player, bindInput } from '../world/player.js';
 import { buildPlanetSky } from './sky.js';
 import { overviewFrame } from './overview.js';
 import { pickThing } from './picking.js';
+import { advanceWalking } from './motion.js';
 import { readSpec, tellCard } from '../world/spec.js';
 import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
@@ -304,7 +305,7 @@ async function start(spec) {
       if (player.keys.x || player.keys.z) stand(); // a step gets you up
     } else {
       if (arriving && (player.keys.x || player.keys.z)) { arriving = false; glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-0.18}); }
-      player.update(dt);
+      advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
     player.applyToCamera(now / 1000);
