@@ -6,6 +6,7 @@
 // always agree.
 import * as THREE from 'three';
 import { RADIUS } from '../world/planet.js';
+import { groundMaterial, addGrass } from './ground-surface.js';
 import { rippleWater } from '../world/water.js';
 
 // a number from 0 to 1 for each character of the slug, so the hills are the planet's own
@@ -20,7 +21,7 @@ function seeded(slug) {
  * centre in a direction (for Player), `mesh` what's drawn and what a tap lands on.
  * `ground`: { color: '#rrggbb', hills: 0..1 } from a built planet (optional).
  */
-export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, time = { value: 0 }, quality = { high: false } } = {}) {
+export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, cover, time = { value: 0 }, quality = { high: false } } = {}) {
   const rand = seeded(slug);
   const waves = Array.from({ length: 4 }, (_, i) => ({
     k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(2 + i * 1.7 + rand()),
@@ -64,12 +65,12 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, time 
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  const material = groundMaterial(cover);
   const mesh = new THREE.Mesh(geo, material);
   mesh.receiveShadow = true;
   // loose stones, so the ground reads as ground and you can see yourself walk: one instanced mesh,
   // sunk a little so none floats on a slope
-  const STONES = coast ? 450 : quality.high ? 3000 : 2000;
+  const STONES = cover==='snow'||cover==='paving'?0:cover==='sand'?400:cover==='grass'?600:coast?450:quality.high?3000:2000;
   const stones = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: base.clone().multiplyScalar(0.7), roughness: 0.9, flatShading: true }), STONES);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
   for (let i = 0; i < STONES; i++) {
@@ -118,6 +119,6 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, time 
     // Conservatively enclose every lobe: a low broad collision circle keeps the current walking controller on dry sand.
     colliders.push({center:coastDir.clone().multiplyScalar(waterLevel),radius:(coast.radius+0.35)*1.16});
   }
-  return { mesh, surface, colliders, isWater: (dir) => !!coast && shoreDistance(dir) <= coast.radius + 0.35 && surface(dir) < waterLevel };
+  return { mesh, surface, colliders, dress:things=>cover==='grass'&&addGrass(mesh,surface,rand,quality,things), isWater: (dir) => !!coast && shoreDistance(dir) <= coast.radius + 0.35 && surface(dir) < waterLevel };
 }
 const _d = new THREE.Vector3();

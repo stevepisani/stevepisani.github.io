@@ -1879,6 +1879,7 @@ async function composedPreview(page, shot) {
   await until(page,()=>!window.__planet.scoped() && !window.__planet.busy(),null,30000);
   if(!(await page.locator('#scope-caption').isHidden())) throw new Error('leaving the telescope retained its view');
   input.scenes[0].extras=['hammock'];
+  input.reveal='club-hammock';
   const changed=await prepare(input), next=changed.structuredContent.spec;
   if(next.things.length!==spec.things.length+1 || !spec.things.every(t=>JSON.stringify(t)===JSON.stringify(next.things.find(x=>x.id===t.id)))) throw new Error('the additive edit changed the existing scene');
   await page.goto(`${base}/p/preview/?test=1#${await packPlanet(next)}`);
@@ -1886,8 +1887,17 @@ async function composedPreview(page, shot) {
   await until(page,()=>window.__planet?.ready,null,240000);
   const added=await page.evaluate(()=>{const t=window.__planet.spec.things.find(t=>t.id==='club-hammock');return {present:!!t?.root,use:t?.use,wet:t && window.__planet.ground.isWater(t.center.clone().normalize())};});
   if(!added?.present || added.use!=='sit' || added.wet) throw new Error('the hammock edit did not render');
+  await page.locator('#veil').waitFor({state:'hidden',timeout:20000});
+  const featured=await page.evaluate(()=>window.__planet.opening().detail);
+  if(featured?.id!=='club-hammock'||!featured.meetsBudget)throw new Error(`the addition lacks a featured arrival: ${JSON.stringify(featured)}`);
   await shot('scene-edited');
+  await page.getByRole('button',{name:'Whole place',exact:true}).click();
+  await until(page,()=>!window.__planet.opening().detail);
+  if(!await page.evaluate(()=>window.__planet.opening().fits))throw new Error('the whole-place view no longer fits');
+  await page.getByRole('button',{name:'See addition',exact:true}).click();
+  await until(page,()=>window.__planet.opening().detail?.id==='club-hammock');
   step('seating, lights and a semantic hammock edit work without repositioning the original scene');
+  step('the addition has a featured arrival, with working whole-place and addition view controls');
 }
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet

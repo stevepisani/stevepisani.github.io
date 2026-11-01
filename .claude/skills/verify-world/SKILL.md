@@ -75,6 +75,10 @@ needlessly: one view is fine, a loop is not.
 
 ## Things that have bitten before
 
+- A sparse checkout may omit `assets/splats/` even when the ordinary models and images are
+  present. The homepage door needs both `sala-thai-lite.sog` and `sala-thai.sog` in the build.
+  Check those files before a full/desktop-4 smoke run; include the tracked splats in the checkout
+  and rebuild if missing. A successful generic link check does not validate these runtime URLs.
 - A mesh wound the wrong way is culled and vanishes: anything built from a tangent frame needs
   `side × up` in the right order (the walk-to ring, trail ribbons, flagstones).
 - Positions in camera space need `camera.updateMatrixWorld(true)` before projecting them in the

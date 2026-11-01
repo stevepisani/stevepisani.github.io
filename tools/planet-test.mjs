@@ -84,6 +84,9 @@ caught(shaped, (s) => { s.things = Array.from({ length: 2 }, (_, i) => ({ ...s.t
 caught(made, (s) => { s.things = Array.from({ length: 11 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(40).fill(s.things[0].parts[0]) })); }, /^things: more than 400 parts in all/, 'more parts than a planet allows');
 const daylight=clone(made);daylight.look.sky.period='day';daylight.look.sky.clouds='overcast';delete daylight.things[0].light;
 ok(checkPlanet(daylight).length===0 && !lookOver(daylight).some(n=>/nothing glows/.test(n)),'daylight needs no artificial lamp to avoid a dim-night warning');
+caught(daylight,s=>{s.look.ground.cover='city';},/look.ground.cover/,'surface choice is explicit and bounded');
+caught(made,s=>{s.things[0].parts[0].ground='yes';},/ground/,'support grounding needs a boolean');
+caught(made,s=>{s.things[0].parts[0].ground=true;s.things[0].parts[0].turn=[20,0,0];},/ground/,'tilted beams cannot be stretched into support feet');
 caught(daylight,s=>{s.look.sky.period='sunrise';},/look.sky.period/,'unsupported sky periods are refused');
 caught(daylight,s=>{s.look.sky.clouds='live-weather';},/look.sky.clouds/,'cloud cover cannot imply live weather');
 caught(made,s=>{s.things[0].role='most-important';},/role/,'composition roles are bounded');
@@ -365,6 +368,10 @@ ok((await w.q("update public.planet_requests set status = 'building' where slug 
 await w.db.exec('reset role');
 
 await import('./planet-overview-test.mjs');
+await import('./planet-craft-test.mjs');
+await import('./planet-scene-kit-test.mjs');
+await import('./planet-setting-test.mjs');
+await import('./planet-first-shot-test.mjs');
 await import('./planet-motion-test.mjs');
 // ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
 {

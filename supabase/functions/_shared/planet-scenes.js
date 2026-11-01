@@ -1,5 +1,6 @@
 // Reusable, bounded scene layouts. The model chooses meaning; the engine owns metre-level
 // assembly. These are authored miniature props, available immediately, without paid generation.
+import {easel,paintingTable,perchedBird,woodlandFloor,treeEnvelope} from './planet-painting.js';
 const DEG = Math.PI / 180;
 const P = { wood: '#956647', edge: '#c18b5d', cream: '#fff1d3', teal: '#4c9694', leaf: '#458858', leafLight: '#6aa969', sand: '#c9b68e', warm: '#ffcf83', orange: '#d98a43' };
 const shape = (shape, size, at, color, more = {}) => ({ shape, size, at, color, ...more });
@@ -44,10 +45,10 @@ function cat(color = P.orange) {
 }
 // A complete open structure: the roof stands on posts, with clear front and side entrances.
 // Furniture remains separate, so seats, companions and additions retain their own anchors.
-function pavilion() {
+function pavilion(woodland=false) {
   const ps = [];
   for (const x of [-2.08, 2.08]) for (const z of [-1.55, 1.55]) {
-    ps.push(shape('cylinder', [0.17, 3.45, 0.17], [x, 1.46, z], '#ceb181', { surface: 'bamboo' }));
+    ps.push(shape('cylinder', [0.17, 3.45, 0.17], [x, 1.46, z], '#ceb181', { surface: woodland?'wood':'bamboo',ground:true }));
     for (const y of [0.2, 2.65]) ps.push(shape('torus', [0.22, 0.22, 0.09], [x, y, z], '#9b794d', { turn: [90, 0, 0] }));
   }
   for (const z of [-1.55, 1.55]) {
@@ -55,13 +56,13 @@ function pavilion() {
     for (const sign of [-1,1]) ps.push({...tube([2.2,1.35,0.15],[sign*1.1,3.75,z],[[-0.5,sign*0.5,0],[0.5,-sign*0.5,0]],0.15,P.wood),surface:'wood'});
   }
   for (const x of [-2.08, 2.08]) ps.push(box([0.16,0.16,3.4],[x,3.08,0],P.wood,{surface:'wood'}));
-  ps.push(shape('extrude',[4.9,1.5,3.85],[0,3.72,0],'#c6a26a',{surface:'thatch',outline:[[0,0],[0.5,1],[1,0],[0.96,0],[0.5,0.9],[0.04,0]]}));
+  ps.push(shape('extrude',[4.9,1.5,3.85],[0,3.72,0],woodland?'#687d73':'#c6a26a',{surface:woodland?'cloth':'thatch',outline:[[0,0],[0.5,1],[1,0],[0.96,0],[0.5,0.9],[0.04,0]]}));
   ps.push(box([0.18,0.18,3.9],[0,4.43,0],P.wood,{surface:'wood'}));
   return ps;
 }
 function table() {
   const ps = [box([2.5, 0.14, 1.45], [0, 0.86, 0], P.wood, {surface:'wood'}), box([2.15, 0.025, 0.36], [0, 0.945, 0], P.teal, {surface:'cloth'})];
-  for (const x of [-0.97, 0.97]) for (const z of [-0.5, 0.5]) ps.push(box([0.14, 0.86, 0.14], [x, 0.4, z], P.wood));
+  for (const x of [-0.97, 0.97]) for (const z of [-0.5, 0.5]) ps.push(box([0.14, 0.86, 0.14], [x, 0.4, z], P.wood,{ground:true}));
   for (const x of [-0.75, 0, 0.75]) {
     ps.push(shape('cylinder', [0.42, 0.035, 0.42], [x, 0.96, 0.38], P.cream));
     ps.push(ball([0.25, 0.1, 0.23], [x, 1.025, 0.38], '#ce7b45'));
@@ -74,7 +75,7 @@ function table() {
 }
 function seat() {
   return [box([1.05, 0.12, 0.6], [0, 0.48, 0], P.wood), box([1.03, 0.1, 0.58], [0, 0.59, 0], P.teal), box([1.05, 0.52, 0.12], [0, 0.89, -0.26], P.wood),
-    ...[-0.38, 0.38].flatMap((x) => [-0.18, 0.18].map((z) => box([0.09, 0.5, 0.09], [x, 0.23, z], P.wood)))];
+    ...[-0.38, 0.38].flatMap((x) => [-0.18, 0.18].map((z) => box([0.09, 0.5, 0.09], [x, 0.23, z], P.wood,{ground:true})))];
 }
 function garland() {
   const ps = [-1.85,1.85].map((x) => shape('cylinder', [0.12, 3, 0.12], [x, 1.48, 0], P.wood));
@@ -125,11 +126,11 @@ export function sceneErrors(spec) {
     if (typeof s.id !== 'string' || !/^[a-z][a-z0-9-]{0,17}$/.test(s.id) || ids.has(s.id)) fail(`${at}.id`,'should be a unique short id (18 characters at most)');
     ids.add(s.id);
     if (typeof s.name !== 'string' || !s.name.trim() || s.name.length > 40) fail(`${at}.name`,'should be 1 to 40 characters');
-    if (!['gathering','lookout'].includes(s.kind)) fail(`${at}.kind`,'should be gathering or lookout');
-    if (s.setting !== undefined && s.setting !== 'tropical') fail(`${at}.setting`,'only tropical is available for now');
+    if (!['gathering','lookout','painting'].includes(s.kind)) fail(`${at}.kind`,'should be gathering, lookout or painting');
+    if (s.setting !== undefined && !['tropical','woodland'].includes(s.setting)) fail(`${at}.setting`,'should be tropical or woodland');
     if (s.note !== undefined && (typeof s.note !== 'string' || s.note.length > 600)) fail(`${at}.note`,'should be text up to 600 characters');
     if (s.collection !== undefined && !Object.hasOwn(spec.collections || {}, s.collection)) fail(`${at}.collection`,'no such collection');
-    if (s.extras !== undefined && (!Array.isArray(s.extras) || s.extras.length > 1 || s.extras.some((x)=>x !== 'hammock'))) fail(`${at}.extras`,'only ["hammock"] is supported for now');
+    if (s.extras !== undefined && (!Array.isArray(s.extras) || s.extras.length > 1 || s.extras.some((x)=>!['hammock','birdbath'].includes(x)))) fail(`${at}.extras`,'only hammock or birdbath is supported for now');
     if (s.companion !== undefined) {
       const c = s.companion;
       if (!obj(c)) return fail(`${at}.companion`,'should be an object');
@@ -157,9 +158,9 @@ export function composePlanet(spec) {
     const entrance = pos(cx, cn - 2.2);
     out.routes.push({ from: previous, to: entrance });
     previous = entrance;
-    const add = (id,name,x,n,parts,extra={}) => out.things.push({ id: `${s.id}-${id}`, name, at: pos(cx+x,cn+n), parts, role: ['table','cat','scope'].includes(id)?'focus':/^palm-|^garden-/.test(id)?'environment':'support', ...extra });
+    const add = (id,name,x,n,parts,extra={}) => out.things.push({ id: `${s.id}-${id}`, name, at: pos(cx+x,cn+n), parts, role: ['table','cat','scope','easel','bird'].includes(id)?'focus':/^palm-|^garden-|^tree-|^floor-/.test(id)?'environment':'support', ...extra });
     if (s.kind === 'gathering') {
-      if (s.setting === 'tropical') add('pavilion','Supper pavilion',0.25,0.25,pavilion(),{footprint:[4.8,3.9],solid:false,turn:0});
+      if (s.setting === 'tropical') add('pavilion','Supper pavilion',0.25,0.25,pavilion(),{footprint:[4.8,3.9],solid:false,turn:0,craft:'pavilion'});
       add('table',s.name,0.45,0,table(),{footprint:[2.5,1.45],note:s.note,collection:s.collection});
       add('seat','A place at the table',-1.5,-0.05,seat(),{turn:90,footprint:[1.05,0.6],use:'sit'});
       add('bench','Room for friends',0.45,1.45,seat(),{footprint:[1.05,0.6],use:'sit'});
@@ -169,16 +170,37 @@ export function composePlanet(spec) {
         shape('cylinder',[0.32,0.12,0.32],[0,0.72,0],P.wood,{surface:'wood'}),
         ball([0.23,0.25,0.23],[0,0.62,0],P.warm,{finish:'glow'}),
       ],{footprint:[0.35,0.35],solid:false,light:{color:P.warm,strength:0.2,at:[0,0.65,0]}});
+    } else if(s.kind === 'painting') {
+      add('easel',s.name,0,0,easel(),{footprint:[1.2,.4],craft:'easel',note:s.note,collection:s.collection});
+      add('supplies','Watercolours and brushes',1.6,-.3,paintingTable(),{footprint:[1.6,.7]});
+      add('seat','A place to paint',-.1,-1.45,seat(),{footprint:[1.05,.6],turn:180,use:'sit',seatView:{eye:1.25,pitch:.06}});
+      add('bird','A visitor on the branch',-1.8,-2.2,perchedBird(),{footprint:[.3,.3],craft:'bird',use:'greet'});
+      if(s.setting==='woodland')add('shelter','Shelter in the clearing',.2,.2,pavilion(true),{footprint:[4.8,3.9],solid:false,turn:0});
     } else {
       add('scope',s.name,0,0,telescope(),{footprint:[1.4,1.4],note:s.note,collection:s.collection,use:'look'});
       add('seat','Watch the stars',1.6,-0.25,seat(),{footprint:[1.05,0.6],use:'sit',turn:-40});
       add('lantern','Cove lantern',-1.25,-0.3,[box([0.32,0.5,0.32],[0,0.24,0],P.wood),ball([0.23,0.3,0.23],[0,0.36,0],P.warm,{finish:'glow'})],{footprint:[0.35,0.35],light:{color:P.warm,strength:0.12,at:[0,0.5,0]}});
     }
     if (s.companion) add('cat',s.companion.name || 'Your cat',-0.9,-1.1,cat(s.companion.color),{footprint:[1.1,0.7],scale:0.48,craft:'cat',use:'greet',note:s.companion.note});
-    if (s.extras?.includes('hammock')) add('hammock','A hammock by the water',-5.2,2.3,hammock(),{footprint:[3,1],use:'sit',turn:20});
+    if (s.extras?.includes('hammock')) add('hammock','A hammock beneath the palms',3.7,-3.5,hammock(),{footprint:[3,1],use:'sit',turn:20,role:'focus'});
+    if(s.extras?.includes('birdbath'))add('birdbath','A shallow bath for the birds',2.9,-1.5,[
+      shape('cylinder',[.16,.85,.16],[0,.4,0],'#b7b69c',{ground:true}),
+      shape('cylinder',[.5,.09,.5],[0,.035,0],'#b7b69c'),
+      shape('lathe',[.85,.22,.85],[0,.9,0],P.cream,{profile:[[0,0],[.2,0],[.7,.3],[1,.9],[.9,1],[.7,.5],[0,.3]]}),
+      shape('cylinder',[.65,.015,.65],[0,.97,0],'#7daca7',{finish:'gloss'}),
+    ],{footprint:[.5,.5],role:'focus'});
+    if (s.setting === 'woodland') {
+      for(const [j,x,n,scale] of [[0,-4.3,2.4,1.55],[1,4.4,2.9,1.65],[2,-2.7,5.5,1.5],[3,1.5,6.4,1.55],[4,-4.6,-3.4,1.2],[5,4.8,-2.6,1.25],[6,-5.8,6.8,1.4],[7,5.5,7.4,1.45],[8,-.5,8.8,1.6]])add(`tree-${j}`,'Birch at the clearing',x,n,treeEnvelope(),{craft:'birch',footprint:[.4,.4],scale});
+      for(const [j,x,n] of [[0,-3.2,-1.6],[1,3.4,-1.8],[2,-3.6,3.5],[3,3.8,4]])add(`floor-${j}`,'Ferns and mossy stones',x,n,woodlandFloor(),{craft:'woodland-floor',solid:false,footprint:[1.7,1]});
+      out.look ||= {};out.look.ground={color:'#66765a',hills:.12,cover:'grass',...out.look.ground};
+      out.look.sky={period:'day',clouds:'overcast',color:'#8caaa1',light:'#e4e5cf',...out.look.sky};
+    }
     if (s.setting === 'tropical') {
       for (const [j,x,n] of [[0,-3.65,1.8],[1,3.6,2.5]]) add(`palm-${j}`,'Shore palm',x,n,palm(),{footprint:[0.45,0.45],turn:j ? -15:15,craft:'palm'});
       for (const [j,x,n] of [[0,-2.6,0.3],[1,2.7,-0.6],[2,-2.4,-4.1],[3,3,-3.8]]) add(`garden-${j}`,'Shore planting',x,n,beachGarden(),{solid:false,footprint:[1.5,0.8],craft:'planting'});
+      // A second depth layer frames the approach without shrinking the activity's bounds.
+      for(const [j,x,n,scale] of [[2,-3.8,-6.2,.75],[3,5.4,-4.8,.8]])add(`palm-${j}`,'Palm beside the approach',x,n,palm(),{footprint:[.45,.45],craft:'palm',scale});
+      for(const [j,x,n] of [[0,4.1,-.5],[1,-3.2,4]])add(`rocks-${j}`,'Shore ferns and stones',x,n,woodlandFloor(),{craft:'woodland-floor',role:'environment',solid:false,footprint:[1.7,1]});
       out.look ||= {};
       out.look.ground = { color:P.sand,hills:0.12,...out.look.ground,coast:{bearing:-62,distance:8,radius:4,color:'#368e97'} };
       out.look.sky = {color:'#50426c',light:'#8396b5',...out.look.sky};

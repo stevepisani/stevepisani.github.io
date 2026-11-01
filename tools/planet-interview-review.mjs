@@ -17,11 +17,12 @@ export async function reviewInterviews({tool,site,shots,phase, arrivalsOnly=fals
     const spec=structuredClone(c.spec);
     if(phase!=='baseline') {
       spec.look.sky={...spec.look.sky,...c.requestedSky};
+      if(c.requestedCover)spec.look.ground.cover=c.requestedCover;
       spec.things.forEach(t=>{t.role=c.roles[t.id];});
     }
     const edited=structuredClone(spec);edited.things.push({...c.edit.thing,...(phase!=='baseline'?{role:'focus'}:{})});
     const p=await tool('prepare_planet',{spec}),e=await tool('prepare_planet',{spec:edited});
-    const item={id:c.id,intake:c.intake,inputHash:hash(c.spec),renderedSpecHash:hash(spec),geometryAndPlacementUnchanged:spec.things.every((t,i)=>{const copy={...t};delete copy.role;return JSON.stringify(copy)===JSON.stringify(c.spec.things[i]);}),roles:phase==='baseline'?null:c.roles,requestedSky:c.requestedSky,diagnostics:p.structuredContent?.diagnostics,edit:{suggestion:c.edit.suggestion,originalObjectsUnchanged:!!e.structuredContent?.spec && spec.things.every(t=>JSON.stringify(t)===JSON.stringify(e.structuredContent.spec.things.find(x=>x.id===t.id)))},views:[]};
+    const item={id:c.id,intake:c.intake,inputHash:hash(c.spec),renderedSpecHash:hash(spec),geometryAndPlacementUnchanged:spec.things.every((t,i)=>{const copy={...t};delete copy.role;return JSON.stringify(copy)===JSON.stringify(c.spec.things[i]);}),roles:phase==='baseline'?null:c.roles,requestedSky:c.requestedSky,requestedCover:c.requestedCover,diagnostics:p.structuredContent?.diagnostics,edit:{suggestion:c.edit.suggestion,originalObjectsUnchanged:!!e.structuredContent?.spec && spec.things.every(t=>JSON.stringify(t)===JSON.stringify(e.structuredContent.spec.things.find(x=>x.id===t.id)))},views:[]};
     report.cases.push(item);
     if(p.isError||e.isError) {item.error=[p.isError?p.content:null,e.isError?e.content:null];continue;}
     const shown=await tool('preview_planet',{spec:p.structuredContent.spec}),changed=await tool('preview_planet',{spec:e.structuredContent.spec});

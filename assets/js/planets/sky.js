@@ -7,13 +7,13 @@ import { RADIUS } from '../world/planet.js';
 export function buildPlanetSky(sky, quality, time) {
   const period=sky.period||'night',overcast=sky.clouds==='overcast';
   if(period==='night' && !overcast) return {group:buildSpace({quality,uniforms:{time},tint:sky.color}),key:sky.light||0xc8d6ff,keyStrength:2.2,fill:sky.light||0x9aa0b8,fillStrength:1.1,environment:.2};
-  const dusk=period==='dusk',night=period==='night';
+  const dawn=period==='dawn',dusk=period==='dusk',twilight=dawn||dusk,night=period==='night';
   const group=new THREE.Group(),up={value:new THREE.Vector3(0,1,0)};
-  const zenith=new THREE.Color(night?'#131b27':dusk?'#6b5b92':overcast?'#84999f':'#528fb9');
+  const zenith=new THREE.Color(night?'#131b27':dawn?'#526e9a':dusk?'#6b5b92':overcast?'#84999f':'#528fb9');
   if(sky.color) zenith.lerp(new THREE.Color(sky.color),.25);
   const dip={value:0};
   const material=new THREE.ShaderMaterial({
-    uniforms:{uUp:up,uDip:dip,uZenith:{value:zenith},uHorizon:{value:new THREE.Color(night?'#243342':dusk?'#e1a78c':overcast?'#bdc9c8':'#8ec8e1')},uCloud:{value:overcast?1:.2}},
+    uniforms:{uUp:up,uDip:dip,uZenith:{value:zenith},uHorizon:{value:new THREE.Color(night?'#243342':dawn?'#eac8a6':dusk?'#e1a78c':overcast?'#bdc9c8':'#8ec8e1')},uCloud:{value:overcast?1:.2}},
     side:THREE.BackSide,depthWrite:false,
     vertexShader:'varying vec3 vDir; void main(){vDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
     fragmentShader:`varying vec3 vDir; uniform vec3 uUp,uZenith,uHorizon;uniform float uCloud,uDip;
@@ -33,5 +33,5 @@ export function buildPlanetSky(sky, quality, time) {
     dip.value=-Math.sqrt(1-ratio*ratio); // the visible limb is below the tangent horizon on a tiny planet
   };
   group.add(dome);
-  return {group,key:sky.light||(night?'#98acc2':dusk?'#edc3b4':'#fff2dc'),keyStrength:night?.7:dusk?1.2:overcast?1.15:2.3,fill:night?'#8398b0':overcast?'#c9d6d8':dusk?'#aaa6c6':'#bcd7e7',fillStrength:night?.9:dusk?1.2:overcast?2:1.7,environment:night?.15:dusk?.25:.45};
+  return {group,key:sky.light||(night?'#98acc2':dawn?'#f4d6b5':dusk?'#edc3b4':'#fff2dc'),keyStrength:night?.7:twilight?1.2:overcast?1.15:2.3,fill:night?'#8398b0':overcast?'#c9d6d8':dawn?'#9daec6':dusk?'#aaa6c6':'#bcd7e7',fillStrength:night?.9:twilight?1.2:overcast?2:1.7,environment:night?.15:twilight?.25:.45};
 }

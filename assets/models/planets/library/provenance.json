@@ -1,0 +1,36 @@
+{
+  "author": "Quaternius",
+  "pack": "Ultimate Stylized Nature Pack",
+  "source": "https://quaternius.com/packs/ultimatestylizednature.html",
+  "downloadFolder": "https://drive.google.com/drive/folders/1-ob9Aade1RIM3A_XKoQAOG6XqF2IDAIC",
+  "license": "CC0-1.0",
+  "licenseFile": "Quaternius-LICENSE.txt",
+  "licenseNote": "The supplied license file says Ultimate Platformer Pack; wording preserved with line endings normalized. The linked nature-pack page also explicitly marks the assets CC0.",
+  "selected": "BirchTree_1",
+  "sourceHashes": {
+    "BirchTree_Bark_Normal.png": "e30ee9c7561742523340d5657056f8392bc0f944da5145f0af7690cd1d2e6a11",
+    "BirchTree_1.bin": "a1b14d1c82ebb8153991de4156b77ceaa1143d64469679147c0ee249c8b90b83",
+    "BirchTree_Bark.jpg": "f796f02e47bc5afddd17dc2385bbef53a352628ceb348deb1188ef04fe5deff9",
+    "BirchTree_Leaves.png": "8b674a02017d987f8ec0448bd2a52ad788d1235f91b7f00499b4ca071f8e69fe",
+    "BirchTree_1.gltf": "8dbf9fd8b6402bfffdbe370a8c4337e8dae27fa3da5fbacbfd4fae6482ad50fa",
+    "License.txt": "de990ef6fc68cffd7fd1ae342c4d0c823b541b8848d8f76bca5d3339f4de6f6e"
+  },
+  "output": {
+    "file": "birch.glb",
+    "sha256": "4fa4b72bfe6c0ce3016741efa748720a3ff0bab42eac704c1f33b0f9c797021d",
+    "bytes": 147792,
+    "heightMetres": 5.5,
+    "origin": "centre of actual lowest trunk vertices, not canopy bounds",
+    "up": "+Y",
+    "textureMax": 512,
+    "leaves": "alpha mask at 0.45",
+    "optimization": "meshopt, WebP, no geometry simplification",
+    "foliageTreatment": "Linear base-color factor [0.35, 0.72, 0.5, 1] for green woodland",
+    "footprintMetres": [
+      0.4,
+      0.4
+    ]
+  },
+  "rebuild": "node tools/planet-nature.mjs <source directory>",
+  "review": "Actual woodland scene on desktop and portrait; owner acceptance pending."
+}

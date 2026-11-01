@@ -644,7 +644,8 @@
         "forest-seat": "support",
         "forest-trees": "environment",
         "forest-birds": "focus"
-      }
+      },
+      "requestedCover": "grass"
     },
     {
       "id": "desert",
@@ -1366,7 +1367,8 @@
         "workbench": "support",
         "collie": "focus",
         "desert-rock": "environment"
-      }
+      },
+      "requestedCover": "sand"
     },
     {
       "id": "mountain",
@@ -2228,7 +2230,8 @@
         "baking-oven": "focus",
         "cabin": "support",
         "snow-pines": "environment"
-      }
+      },
+      "requestedCover": "snow"
     },
     {
       "id": "city",
@@ -3045,7 +3048,8 @@
         "studio-seat": "support",
         "roof-garden": "focus",
         "skyline": "environment"
-      }
+      },
+      "requestedCover": "paving"
     }
   ]
 }

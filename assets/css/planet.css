@@ -10,6 +10,9 @@
 .topbar__id { display: grid; gap: 1px; color: #fff; line-height: 1.2; text-shadow: 0 1px 12px rgb(0 0 0 / .6); }
 .topbar__id strong { font: 700 1.15rem var(--font-display); }
 .topbar__id span { font-size: .85rem; color: #c3c8e6; }
+.reveal-view { position:absolute; right:14px; top:14px; min-height:44px; padding:8px 14px; max-width:48%; border:1px solid rgb(255 255 255 / .25); border-radius:24px; background:rgb(14 16 36 / .8); color:#fff; font:600 .85rem var(--font-body); cursor:pointer; pointer-events:auto; }
+.reveal-view[hidden] { display:none; }
+.reveal-view:disabled { opacity:.5; cursor:default; }
 
 /* The launch screen: the night sky over the planet's horizon, where the first frame will have them.
    It takes drags (the stars move as the sky will); the bar's sheen is compositor-only, so it keeps

@@ -15,7 +15,9 @@ rather than leaving it in a chat.
    and the current two-layout library does not prove general first-reveal quality. The draft now
    includes role/bounds/visibility-based openings, day/dusk/cloud treatments, optional details
    after usable-world responses, and a frozen four-interview development review through
-   `planet-live --interviews`. This is engine evidence, not held-out model quality or owner acceptance. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
+   `planet-live --interviews`. A separate `planet-first-shot` runner now freezes the actual kit/instructions before intake, preserves raw initial outputs (including invalid ones), budgets two separate corrections, and uses the existing rendered preflight for actual arrival/action/edit evidence. Its synthetic same-session trials do not establish unseen input quality; an isolated designing host and independent interviews remain necessary. This is engine evidence, not held-out model quality or owner acceptance. The next craft pass
+   adds recognizable stock fallbacks, explicit curved-ground support feet and ground surface
+   treatments; the next draft adds a woodland painting/birdwatching kit, a required normalized CC0 birch, explicit rain, tropical depth layers and an offline rendered preflight. It captures real arrivals, actions, visible additions and fixed-camera asset comparisons; it is not a production visual-selection worker. Hero finishing, owner acceptance, physical-phone/embedded checks and independent fresh-input quality remain open. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
    unique to its person, and the only thing shared with his is the planet's size (no bar, sign,
    telescope, rocket or campfire); the first ten are built by hand, in a way that doesn't scale; a
    library of shared places comes only if it takes off. Done: the spec and its checks
@@ -42,6 +44,11 @@ rather than leaving it in a chat.
    bounded correction pass and no claimed screenshot inspection or asset generation. The first
    reveal should immediately offer one specific personal addition. Visual quality on unseen
    input still needs the fresh-input benchmark and actual rendered acceptance.
+   The current draft also separates custom activities from optional window/wall/railing and
+   accepted woodland setting layers. Edited arrivals can feature a personal addition with its
+   immediate anchor while preserving the original world; dawn has an explicit sky treatment.
+   Actual inline regression evidence and owner acceptance stay on PRO-2293. These controls
+   need fresh independent input evaluation after shared changes.
    The next prototype follows [the art-direction brief](planet-art-direction.md): complete
    activity-based assemblies, shared tactile craft, visible companion/telescope responses,
    actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets
