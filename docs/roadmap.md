@@ -10,7 +10,9 @@ rather than leaving it in a chat.
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
    their own, from what they love. The current draft also refines scene atmosphere with
    warm practical lights, a legible approach, irregular shores and shared water craft; visual
-   acceptance stays on PRO-2293. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
+   acceptance stays on PRO-2293. Evaluate shared improvements on unrelated held-out interviews
+   before further owner-example polishing; tropical dressing and atmosphere are conditional,
+   and the current two-layout library does not prove general first-reveal quality. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
    unique to its person, and the only thing shared with his is the planet's size (no bar, sign,
    telescope, rocket or campfire); the first ten are built by hand, in a way that doesn't scale; a
    library of shared places comes only if it takes off. Done: the spec and its checks

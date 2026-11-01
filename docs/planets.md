@@ -80,8 +80,11 @@ planet’s own surface. The lagoon has an irregular wet margin, broken groups of
 and the same wind-ripple/sky-reflection treatment as the homepage. Its walking boundary
 conservatively encloses every lobe; some dry sand at its edge is deliberately kept clear.
 
-The opening is a stable elevated, slightly oblique view of the assembled setting; the first tap brings the
-visitor down to walking height, then walks to the chosen thing. Dragging still looks around.
+Only `arrival: overview` uses the elevated, slightly oblique scene opening. Ordinary planets
+retain their original forward axis and loading-screen drag. The scene opening currently uses
+a fixed authored view, not a general bounds-driven framing system; broader composition coverage
+and held-out first-reveal evaluation remain open. The first scene tap brings the visitor down
+to walking height, then walks to the chosen thing. Dragging still looks around.
 `footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
 select foliage, but the box under its canopy no longer claims taps meant for another object.
 Scene routes join entrances, rather than drawing a separate trail to each plant. Footprints

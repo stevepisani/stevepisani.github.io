@@ -26,14 +26,38 @@ art, blockouts, engine captures and measured behavior as different kinds of evid
 | Behavior | A visible response precedes optional explanatory details. Motion follows the visitor's request and respects reduced motion. | A short interaction capture, including a usable way back. |
 | Personalization | Suggest one appealing additive change immediately after reveal; preserve the existing world when chosen. | Before/after in the same view and a capture of the chosen edit. |
 
-Light the activity, not the whole world equally. Contrast a warm gathering place with cooler
-surroundings, and connect foreground, destination and secondary discoveries with terrain,
+Light the activity, not the whole world equally. For a night gathering, contrast its warm
+practical lights with cooler surroundings, and connect foreground, destination and secondary discoveries with terrain,
 planting and a readable approach. Review atmosphere at the actual first-reveal viewport;
 a wider camera that merely exposes empty ground does not improve composition.
 
 Film framing must survive freely moving visitors. No single-view façade, forced introductory
 flight or elaborate camera move should hide an unfinished place. Templates encode relationships
 and anchors without forcing every person into the same theme or belongings.
+
+## Generalization is a release criterion
+
+Improve the reusable composition and asset system, then test a different person's world. Do not
+promote a successful owner rehearsal into a universal default. A tropical scene's palms, pavilion,
+shore, companions and night palette apply only when the interview supports them. Daylight, open
+landscapes and other emotional tones need their own coherent treatment; more enclosure is not a
+universal rule.
+
+The current composer supports gathering and lookout scenes and a tropical setting. Shared
+materials, water, paths and interaction craft are reusable; this small authored library does not
+establish coverage of unrelated interests. Unsupported needs are coverage gaps, not permission
+to replace the interview with a tropical dinner or astronomy scene.
+
+Before claiming general one-shot quality, use distinct held-out interviews spanning activities,
+settings, moods and companions. Freeze each input, render its first attempt on desktop and portrait
+phone, then show its first meaningful action and one personal addition. Record asset/scene gaps,
+input fidelity and visual feedback alongside failures. Fix the shared rule or accepted library,
+then rerun all cases without manual per-person rescue. Keep a separate unseen set after tuning;
+a regression suite that has been repeatedly polished is no longer unseen evidence.
+
+Opening views must fit the actual composed bounds and viewport. Shared camera changes must also
+preserve ordinary-planet framing and the loading-screen drag. Passing schema, geometry, terrain
+seed and browser checks remain separate from aesthetic acceptance.
 
 ## First reveal and assets
 
