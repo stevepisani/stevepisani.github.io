@@ -12,7 +12,7 @@
 // --site serves stevenpisani.com from a local build instead, to try this script itself offline;
 // --local asks this checkout's connector (supabase/functions/planets/server.js, in this process,
 // nothing sent) instead of the deployed one, to try a change to both before it's merged.
-import { mkdirSync, readFileSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { chromium } from './chromium.mjs';
 
@@ -26,6 +26,7 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 if (shots) mkdirSync(shots, { recursive: true });
 
 let failed = 0, id = 0;
+const tapProbes=[];
 const ok = (cond, what, detail) => {
   console.log(`  ${cond ? '✓' : '✗'} ${what}${cond || detail === undefined ? '' : `\n    got ${JSON.stringify(detail).slice(0, 600)}`}`);
   if (!cond) failed++;
@@ -118,6 +119,29 @@ for (const spec of PEOPLE) {
         // something small and close can be under the view: look down at it
         let at = await page.evaluate((id) => window.__planet.screenOf(id), t.id);
         if (!at) { await page.evaluate(() => window.__planet.player.look(0, 0.5)); await drawn(); at = await page.evaluate((id) => window.__planet.screenOf(id), t.id); }
+        // A campsite's centre can be air between chairs, behind the van. Retain that failed
+        // centre probe, then tap a real visible face; never count another thing's card as success.
+        const probe=await page.evaluate(({id,centre})=>{
+          const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor;
+          const centreHit=centre?w.pickAt(centre.x,centre.y):null;
+          if(centreHit===id)return {centre,centreHit,target:centre,kind:'centre'};
+          let target=null;
+          t.root.traverse(o=>{
+            if(!o.isMesh||target)return;
+            const p=o.geometry.attributes.position,index=o.geometry.index,count=index?index.count:p.count;
+            for(let k=0;k<8&&!target;k++) {
+              const start=3*Math.floor((count/3-1)*k/7),v=new V();
+              for(let j=0;j<3;j++)v.add(new V().fromBufferAttribute(p,index?index.getX(start+j):start+j));
+              const q=v.multiplyScalar(1/3).applyMatrix4(o.matrixWorld).project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;
+              if(q.z>0&&q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.95&&w.pickAt(x,y)===id)target={x,y};
+            }
+          });
+          return {centre,centreHit,target,kind:'visible-mesh-face'};
+        },{id:t.id,centre:at});
+        tapProbes.push({slug:spec.slug,id:t.id,...probe});
+        if(shots)writeFileSync(join(shots,'tap-probes.json'),JSON.stringify(tapProbes,null,2)+'\n');
+        if(probe.kind!=='centre')console.log(`  · ${t.name}: centre hit ${probe.centreHit||'ground'}; checking a visible mesh face separately`);
+        at=probe.target;
         if (at) await page.mouse.click(at.x, at.y);
         if(t.use) {await page.locator('#details').waitFor({state:'visible',timeout:60000});await page.locator('#details').click();} // usable things respond in the world before optional details
         const card = await page.waitForFunction(() => !document.getElementById('thing').hidden && document.getElementById('thing-name').textContent, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => null);

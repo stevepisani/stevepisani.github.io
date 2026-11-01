@@ -119,7 +119,8 @@ satisfaction and an unseen-input friend pilot are still separate gates.
 ## Settings for custom activities and edited reveals
 
 Custom activities can now use a top-level `setting: { around: <custom thing id>,
-edge?: wall|windows|railing, planting?: woodland, color?: "#rrggbb" }`. This is independent
+edge?: wall|windows|railing, planting?: woodland, shelter?: canopy,
+extras?: ["window-seat"], color?: "#rrggbb" }`. This is independent
 of the authored activity library: it supplies short grounded backdrop bays, low side returns
 and/or five accepted birches with four fern/stone beds. It adds no hobby, companion, weather,
 season or time of day. These are open non-solid setting edges, not full rooms or physical
@@ -134,9 +135,27 @@ replace them, and the same object/part/byte caps apply. The setting frame follow
 position and orientation; an addition does not resize or move that frame. A compiled spec stays
 idempotent. No new asset service, library dependency or generation job is needed.
 
+Window bays have recessed timber panels, deep sills, mullions and cornice trim. Explicit
+`shelter: canopy` adds an open 6.75 × 5.55 m pitched timber canopy around the same fixed frame,
+with rafters, a continuous roof shell and four independently terrain-fitted feet. Use it for a
+sheltered activity without an existing roof, roughly 4 m wide and 3 m deep. It is non-solid
+dressing, not a watertight room or collision enclosure; it neither stops rain nor adds furniture,
+lights or biography. Walking heights stay on the existing terrain. Its roof participates in
+whole-place framing; its arrival and nearby additions use a lower approach below the eaves.
+Inspect actual rendered arrivals and reverse views, not only bounds/visibility counters.
+
+When `edge: windows` is present, `extras: ["window-seat"]` adds one cushioned usable seat beneath
+the right-hand window, beside and facing the activity. It does not reposition existing objects or structure.
+For its reveal, use `<first 15 characters of around>-setting-seat`. This offers a place to pause
+when the interview supports it; it is not a promise of scenery outside a room. The first-shot
+runner supports `edit.settingExtra: { kind: "window-seat" }` as an alternative to `edit.thing` or
+`edit.sceneExtra`. Its existing first-output preservation and bounded-correction rules still apply.
+
 For an accepted addition, append its thing and set `reveal: <new thing id>` with
 `arrival: overview`. An authored extra uses its generated ID, e.g. `studio-birdbath`.
-The edited arrival features that object with its nearby `near.of` anchor; unrelated activities
+The edited arrival features that object with its nearby `near.of` anchor; optional thing
+`frameWith: <earlier thing id>` names context independently of absolute `at` placement. This
+changes framing only, not positions; the context still needs to be nearby. Unrelated activities
 no longer expand its framing bounds. It searches clear surface positions around the addition,
 checking actual mesh samples and a minimum projected size. The viewpoint can change; original
 object positions and the rest of the world do not. There is no forced introductory flight.
@@ -181,6 +200,14 @@ custom parts still take precedence. Failed or delayed downloads no longer erase 
 cues, but this does not establish that every fallback meets the owner's visual bar. These parts
 live in `_shared/planet-stock.js`, through the existing `partsOf` path, without another asset
 service or generation job. Static opaque parts retain the existing batching.
+
+Crafted surface bump shading falls back to the geometric normal when the projected bump
+gradient is degenerate. A grazing wood bevel previously produced NaN HDR pixels which bloom
+spread into a black card, despite ready/draw counters reporting success. The fallback retains
+ordinary bump and color grain, leaves the shared homepage pipeline alone, and is exercised by a
+sheltered development scene at 700×440 and 366×440. `?test=1` exposes current-frame capture for
+pixel verification; normal previews do not expose that capture helper. This is a regression
+check for visible output, not an aesthetic score or a physical-phone performance measurement.
 
 ## Repeatable interview development review
 
@@ -434,7 +461,7 @@ switches), then sends each one. Their slugs start with `test-`, and a planet who
 test (`status = 'test'`, `20261026000200_planet_request_tests.sql`): it has its own 20 a day and
 never takes a real planet's place, Steve is never told, and the hourly job deletes it a day
 later. Check what was saved in Supabase (`select slug, status, note from planet_requests where
-status = 'test'`). `--no-send` stops before sending; `--site _site` serves the site from a local build, and
+status = 'test'`). The live runner retains each object’s centre-hit result in `tap-probes.json` when `--shots` is used. If the centre is air behind another object, it separately tests a visible mesh face and still requires that object’s details and action. A passing action does not imply that the original centre is unobstructed. `--no-send` stops before sending; `--site _site` serves the site from a local build, and
 `--local` asks this checkout's connector in the same process (nothing is sent), so `--local
 --site _site` tries a change to both before it's merged.
 
