@@ -128,6 +128,28 @@ cat acknowledges and the telescope looks; the separate details button can then o
 name/note/collection. This does not add riding, baking, animal rigs or musical performance.
 Wood parts map grain in part metres rather than stretching a whole tile over every little board.
 
+## Grounded props and surface cues
+
+`look.ground.cover` can explicitly select `grass|sand|snow|paving`. These are shared material
+cues, not a scene theme or a promise of weather. They preserve the analytic terrain and walking
+heights. Grass adds bounded instanced tufts outside solid usable things; sand reduces loose
+stones, and snow/paving omit them. Material detail uses metre-scale triplanar projection rather
+than stretching one tile across a planet. Legacy ground stays unchanged when cover is absent.
+
+An individual upright box/cylinder part can use `ground: true` for a support foot. The renderer
+fits its bottom to the same curved terrain as walking, preserving the top joint. Use it on
+separate legs/posts; it cannot repeat, mirror, spin, tilt around x/z or belong to an animated
+joint. This fits primitive supports, not arbitrary downloaded GLB legs, room collision or a
+whole structure's validity. Preparation warnings remain approximate and still need review.
+
+The existing nine stock types now have recognizable local fallback parts rather than a single
+brown box: seats have backs/legs, lamps a lantern, crates an open slatted body, and so on.
+The accepted model files, words, cache identities and generation caps are unchanged. Explicit
+custom parts still take precedence. Failed or delayed downloads no longer erase all silhouette
+cues, but this does not establish that every fallback meets the owner's visual bar. These parts
+live in `_shared/planet-stock.js`, through the existing `partsOf` path, without another asset
+service or generation job. Static opaque parts retain the existing batching.
+
 ## Repeatable interview development review
 
 Use the existing connector runner, offline and without sends:

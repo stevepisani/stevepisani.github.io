@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { fitGroundSupport } from './ground-support.js';
 import { RADIUS } from '../world/planet.js';
 import { placeThings, partsOf } from '../../../supabase/functions/_shared/planet.js';
 import { surface, woodSet, bambooSet, thatchSet, rattanSet } from '../world/materials.js';
@@ -199,6 +200,7 @@ export function buildThings(things = [], surface) {
     if (thing.craft === 'planting') body.add(planting([[0,0,-0.06]],thing.id.length));
     for (const p of ['palm','planting'].includes(thing.craft) ? [] : partsOf(thing)) {
       const one = part(p);
+      if(p.ground)fitGroundSupport(one,root,surface);
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
       const n = p.repeat ? p.repeat.count : 1;

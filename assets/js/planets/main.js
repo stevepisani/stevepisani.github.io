@@ -88,6 +88,7 @@ async function start(spec) {
   // what their AI made for them from what they love (things.js); none, and the planet is bare
   const things = buildThings(spec.things, ground.surface);
   scene.add(things.group);
+  ground.dress(spec.things||[]);
   // worn paths from where you land to each of their places (paths.js)
   const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);

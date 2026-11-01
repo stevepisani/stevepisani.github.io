@@ -1,3 +1,4 @@
+import { stockParts } from './planet-stock.js';
 import { sceneErrors, composePlanet } from './planet-scenes.js';
 export { composePlanet };
 // A planet spec: everything that makes a little planet someone's own, in one small JSON. Steve's is
@@ -58,7 +59,7 @@ export const SURFACES = ['wood', 'bamboo', 'thatch', 'cloth'];
 // Stock things, as a film set keeps stock props: small things every place uses, each a real model
 // made once in the house style (tools/planet-models.mjs makes them as the planet "stock"; Steve
 // approved the "kit", Oct 27, 2026), so any planet can have one free and at once. A thing with
-// stock needs no parts (a box its size stands in until the model loads) and no model words; size
+// stock needs no parts (recognizable parts stand in until the model loads) and no model words; size
 // is [width, height, depth] in metres, before scale.
 export const STOCK = {
   bench: { size: [1.4, 0.85, 0.55], model: 'A wooden garden bench with a slatted seat and a slatted back, painted pale green, on curled black iron legs and armrests' },
@@ -198,7 +199,8 @@ export function checkPlanet(spec) {
       const g = spec.look.ground, sky = spec.look.sky;
       if (g !== undefined) {
         if (!isObj(g)) fail('look.ground', 'should be an object');
-        else { only('look.ground', g, ['color', 'hills', 'coast']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+        else { only('look.ground', g, ['color', 'hills', 'coast', 'cover']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+          if(g.cover!==undefined && !['grass','sand','snow','paving'].includes(g.cover))fail('look.ground.cover','should be grass, sand, snow or paving');
           if (g.coast !== undefined) {
             if (!isObj(g.coast)) fail('look.ground.coast', 'should be an object');
             else {
@@ -285,7 +287,9 @@ export function checkPlanet(spec) {
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
       if (!isObj(p)) return fail(pat, 'should be an object');
-      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint']);
+      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint', 'ground']);
+      if(p.ground!==undefined && typeof p.ground!=='boolean')fail(`${pat}.ground`,'should be true or false');
+      if(p.ground && (!['box','cylinder'].includes(p.shape) || p.repeat || p.mirror || p.spin || p.joint || p.turn?.[0] || p.turn?.[2]))fail(`${pat}.ground`,'only an upright, unanimated box or cylinder can meet the ground');
       if (p.surface !== undefined && !SURFACES.includes(p.surface)) fail(`${pat}.surface`, `should be one of ${SURFACES.join(', ')}`);
       if (p.joint !== undefined && (t.craft !== 'cat' || !['head', 'tail'].includes(p.joint))) fail(`${pat}.joint`, 'only a cat has head or tail joints');
       if (p.surface && (p.shape === 'text' || p.finish && p.finish !== 'matte')) fail(`${pat}.surface`, 'a surface needs an opaque matte part');
@@ -498,7 +502,7 @@ const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from 
 export function partsOf(t) {
   if (t.parts && t.parts.length) return t.parts;
   const k = t.stock && STOCK[t.stock];
-  return k ? [{ shape: 'box', size: k.size, round: 0.15, color: '#8a7a68' }] : [];
+  return k ? stockParts(t.stock,k.size) : [];
 }
 
 // what a friend's planet can't draw: Steve's own planet's parts, which pass checkPlanet for his spec

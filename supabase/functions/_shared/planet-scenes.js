@@ -47,7 +47,7 @@ function cat(color = P.orange) {
 function pavilion() {
   const ps = [];
   for (const x of [-2.08, 2.08]) for (const z of [-1.55, 1.55]) {
-    ps.push(shape('cylinder', [0.17, 3.45, 0.17], [x, 1.46, z], '#ceb181', { surface: 'bamboo' }));
+    ps.push(shape('cylinder', [0.17, 3.45, 0.17], [x, 1.46, z], '#ceb181', { surface: 'bamboo',ground:true }));
     for (const y of [0.2, 2.65]) ps.push(shape('torus', [0.22, 0.22, 0.09], [x, y, z], '#9b794d', { turn: [90, 0, 0] }));
   }
   for (const z of [-1.55, 1.55]) {
@@ -61,7 +61,7 @@ function pavilion() {
 }
 function table() {
   const ps = [box([2.5, 0.14, 1.45], [0, 0.86, 0], P.wood, {surface:'wood'}), box([2.15, 0.025, 0.36], [0, 0.945, 0], P.teal, {surface:'cloth'})];
-  for (const x of [-0.97, 0.97]) for (const z of [-0.5, 0.5]) ps.push(box([0.14, 0.86, 0.14], [x, 0.4, z], P.wood));
+  for (const x of [-0.97, 0.97]) for (const z of [-0.5, 0.5]) ps.push(box([0.14, 0.86, 0.14], [x, 0.4, z], P.wood,{ground:true}));
   for (const x of [-0.75, 0, 0.75]) {
     ps.push(shape('cylinder', [0.42, 0.035, 0.42], [x, 0.96, 0.38], P.cream));
     ps.push(ball([0.25, 0.1, 0.23], [x, 1.025, 0.38], '#ce7b45'));
@@ -74,7 +74,7 @@ function table() {
 }
 function seat() {
   return [box([1.05, 0.12, 0.6], [0, 0.48, 0], P.wood), box([1.03, 0.1, 0.58], [0, 0.59, 0], P.teal), box([1.05, 0.52, 0.12], [0, 0.89, -0.26], P.wood),
-    ...[-0.38, 0.38].flatMap((x) => [-0.18, 0.18].map((z) => box([0.09, 0.5, 0.09], [x, 0.23, z], P.wood)))];
+    ...[-0.38, 0.38].flatMap((x) => [-0.18, 0.18].map((z) => box([0.09, 0.5, 0.09], [x, 0.23, z], P.wood,{ground:true})))];
 }
 function garland() {
   const ps = [-1.85,1.85].map((x) => shape('cylinder', [0.12, 3, 0.12], [x, 1.48, 0], P.wood));
