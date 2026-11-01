@@ -1828,7 +1828,10 @@ async function composedPreview(page, shot) {
   const catHit=await page.evaluate(at=>window.__planet.pickAt(at.x,at.y),layout.cat);
   if(catHit!=='club-cat')throw new Error(`the greeting tap is obstructed by ${catHit||'ground'}`);
   await page.mouse.click(layout.cat.x,layout.cat.y);
-  await until(page,()=>!!window.__planet.spec.things.find(t=>t.id==='club-cat').greeting,null,60000);
+  await until(page,()=>!!window.__planet.spec.things.find(t=>t.id==='club-cat').greeting,null,60000).catch(async()=>{
+    const state=await page.evaluate(()=>{const w=window.__planet,t=w.spec.things.find(t=>t.id==='club-cat');return{pos:w.player.pos.toArray(),camera:w.camera.position.toArray(),eye:w.player.eye,target:w.player.target?.point.toArray(),clock:w.player.clock,stuck:w.player._stuck,cat:t.center.toArray(),distance:w.player.pos.distanceTo(t.center),reach:t.reach,joints:Object.keys(t.joints||{}),busy:w.busy(),details:!document.getElementById('details').hidden,card:document.getElementById('thing-name').textContent};});
+    throw new Error(`greeting did not complete: ${JSON.stringify(state)}`);
+  });
   if(!(await page.locator('#thing').isHidden())) throw new Error('the cat response should be visible before explanatory details');
   await page.locator('#details').click();
   if(await page.locator('#thing-name').textContent()!=='Pumpkin') throw new Error('the cat details did not preserve its name');
