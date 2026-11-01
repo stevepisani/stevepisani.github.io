@@ -15,7 +15,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   for (const t of things) {
     // An edited reveal features the addition with its immediate anchor, rather than expanding
     // the union of every nearby interest until the original place becomes a distant speck.
-    if(featured && t.id!==featured.near?.of)continue;
+    if(featured && t.id!==(featured.frameWith||featured.near?.of))continue;
     if (t===primary || !t.root || t.center.distanceTo(primary.center)>5.5 || t.role==='environment' || (!t.role && t.solid===false && !t.use)) continue;
     const b=new THREE.Box3().setFromObject(t.root), size=b.getSize(new THREE.Vector3());
     // A narrow trunk's broad canopy is environmental framing, rather than a huge solid hero.
@@ -35,6 +35,9 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   for(const t of things)t.root?.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();pickable.push(o);}});
   const focus=things.filter(t=>ids.includes(t.id) && (t.role==='focus'||(!t.role&&['greet','look'].includes(t.use))||t===primary));
   const caster=new THREE.Raycaster();
+  // An authored canopy is meant to be seen into. A high overview can technically expose a
+  // seat through a sliver while filling the card with roof; use a human-height approach here.
+  const sheltered=things.some(t=>t.craft==='canopy'&&t.center.distanceTo(primary.center)<5.5);
   const samples=new Map();
   for(const t of focus) {
     const points=[new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3())];
@@ -72,7 +75,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   for(const dir of candidates) {
     const foot=dir.clone().multiplyScalar(surface(dir));
     if(colliders.some(c=>foot.distanceTo(c.center)<c.radius+BODY+.1)) continue;
-    const eye=THREE.MathUtils.clamp(size.y*.7+2,2.8,7);
+    const eye=sheltered?1.8:THREE.MathUtils.clamp(size.y*.7+2,2.8,7);
     probe.position.copy(foot).addScaledVector(dir,eye);probe.up.copy(dir);probe.lookAt(target);probe.updateMatrixWorld(true);
     const projected=corners.map(p=>p.clone().project(probe));
     const fits=projected.every(p=>Math.abs(p.x)<.83 && p.y<.8 && p.y>-.76 && p.z>0 && p.z<1);

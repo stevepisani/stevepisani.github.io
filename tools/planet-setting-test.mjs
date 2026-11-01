@@ -34,4 +34,20 @@ while(full.things.length<LIMITS.things)full.things.push({...structuredClone(base
 assert(checkPlanet(full).some(e=>e.includes('more than')),'settings must share the existing object budget');
 const named=structuredClone(base);named.things[0].id='an-unusually-long-activity-id';named.setting={around:named.things[0].id,edge:'windows'};
 assert.deepEqual(checkPlanet(named),[],'valid anchor IDs must not produce overlong generated IDs');
+for(const turn of [-120,0,65]) {
+  const design=structuredClone(base);design.things[0].turn=turn;design.things[0].at.distance=9;
+  design.setting={around:'loom',edge:'windows',shelter:'canopy'};
+  const original=composePlanet(design),edited=structuredClone(design);
+  edited.setting.extras=['window-seat'];edited.reveal='loom-setting-seat';
+  assert.deepEqual(checkPlanet(edited),[],'generated setting additions must be valid reveal targets');
+  const result=composePlanet(edited),seat=result.things.find(t=>t.id===edited.reveal);
+  assert.equal(seat.use,'sit');assert.equal(seat.frameWith,'loom');
+  assert(original.things.every(t=>JSON.stringify(t)===JSON.stringify(result.things.find(n=>n.id===t.id))),'a window-seat edit cannot change existing activity, windows or roof');
+  assert.deepEqual(composePlanet(result),result,'a prepared shelter edit must remain idempotent');
+  assert(original.things.find(t=>t.id==='loom-setting-canopy').parts.filter(p=>p.ground).length>=4,'each canopy foot is independently grounded');
+}
+for(const setting of [{around:'loom',shelter:'castle'},{around:'loom',edge:'wall',extras:['window-seat']},{around:'loom',edge:'windows',extras:['window-seat','window-seat']},{around:'loom',edge:'windows',extras:'window-seat'}])assert(checkPlanet({...base,setting}).length);
+assert(checkPlanet({...base,things:[{...base.things[0],frameWith:'loom'}]}).some(e=>e.includes('frameWith')),'framing context cannot refer to itself or a missing object');
+const context={...structuredClone(base),things:[...structuredClone(base.things),{id:'small-addition',name:'A small addition',at:{bearing:0,distance:5},frameWith:'loom',parts:[{shape:'box',size:[.5,.5,.5]}]}]};
+assert.deepEqual(checkPlanet(context),[],'absolute placement and framing context are independent');
 console.log('Settings: independent activity/atmosphere, valid geometry, stable edits, malformed input, ID collisions and shared budgets passed.');

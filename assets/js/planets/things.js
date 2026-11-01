@@ -23,6 +23,17 @@ function craftedMaterial(p) {
     const color = new THREE.Color(p.color || '#ffffff');
     const set = { wood: () => woodSet(color.getHex()), bamboo: bambooSet, thatch: thatchSet, cloth: rattanSet }[p.surface]();
     const m = surface(set, { color: p.surface === 'wood' ? '#ffffff' : color, bumpScale: 0.025, roughness: 0.88 });
+    // A grazing, sub-pixel bevel can have a degenerate projected bump gradient. Normalizing
+    // that zero/invalid vector produces NaN HDR pixels, which bloom spreads over the card.
+    // Retain the geometric normal there; preserve ordinary texture/bump shading elsewhere.
+    m.onBeforeCompile=shader=>{
+      const bump=THREE.ShaderChunk.bumpmap_pars_fragment.replace(
+        'return normalize( abs( fDet ) * surf_norm - vGrad );',
+        'vec3 bumped = abs( fDet ) * surf_norm - vGrad; float length2 = dot( bumped, bumped ); return length2 > 1e-10 ? bumped * inversesqrt( length2 ) : surf_norm;'
+      );
+      shader.fragmentShader=shader.fragmentShader.replace('#include <bumpmap_pars_fragment>',bump);
+    };
+    m.customProgramCacheKey=()=>'planet-safe-bump-v1';
     m.userData.crafted = true;
     surfaces.set(key, m);
   }

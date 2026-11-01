@@ -36,6 +36,11 @@ try {
   await assert.rejects(()=>renderAttempt({run,id:'quiet',attempt:3}),/Preparation failed/);
   assert(!existsSync(join(run,'cases/quiet/attempt-3/render')));
   assert.throws(()=>additiveDesign({...output,edit:{...output.edit,sceneExtra:{id:'s',kind:'hammock'}}}),/exactly one/);
+  const windowStudy=structuredClone(output);windowStudy.spec.setting={around:'seat',edge:'windows'};windowStudy.edit={suggestion:'Add a place to pause by the window.',settingExtra:{kind:'window-seat'}};
+  assert.equal(additiveDesign(windowStudy).reveal,'seat-setting-seat');
+  assert.deepEqual(windowStudy.spec.setting,{around:'seat',edge:'windows'},'preparing a setting edit cannot mutate the original design');
+  assert.throws(()=>additiveDesign({...output,edit:windowStudy.edit}),/existing windows/);
+  assert.throws(()=>additiveDesign({...windowStudy,edit:{...windowStudy.edit,thing:output.edit.thing}}),/exactly one/);
   const raw=readFileSync(join(run,'cases/quiet/interview.txt'));writeFileSync(join(run,'cases/quiet/interview.txt'),'changed');
   await assert.rejects(()=>submit('try replacing intake'),/interview bytes changed/);writeFileSync(join(run,'cases/quiet/interview.txt'),raw);
   const initial=join(run,'cases/quiet/attempt-1/candidate.json');writeFileSync(initial,'replacement');

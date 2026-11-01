@@ -44,11 +44,17 @@ rather than leaving it in a chat.
    bounded correction pass and no claimed screenshot inspection or asset generation. The first
    reveal should immediately offer one specific personal addition. Visual quality on unseen
    input still needs the fresh-input benchmark and actual rendered acceptance.
-   The current draft also separates custom activities from optional window/wall/railing and
+   Merged in #151: separate custom activities from optional window/wall/railing and
    accepted woodland setting layers. Edited arrivals can feature a personal addition with its
    immediate anchor while preserving the original world; dawn has an explicit sky treatment.
    Actual inline regression evidence and owner acceptance stay on PRO-2293. These controls
    need fresh independent input evaluation after shared changes.
+   The next quality pass deepens the window craft, adds an explicit open timber canopy and
+   a usable side-window-seat addition, and fixes invalid bump normals which could black out
+   bloom despite a ready scene. The authored weaving study checks real card pixels, visible
+   additions and sit/return, not independent model quality. Next gaps remain finished personal
+   object silhouettes, genuinely inhabited settings, an unseen first-shot round and physical-phone
+   validation. Do not infer owner acceptance from these checks or grow the catalog as a substitute.
    The next prototype follows [the art-direction brief](planet-art-direction.md): complete
    activity-based assemblies, shared tactile craft, visible companion/telescope responses,
    actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets

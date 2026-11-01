@@ -250,8 +250,9 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView']);
-    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith']);
+    if(t.frameWith!==undefined && (typeof t.frameWith!=='string'||!thingIds.has(t.frameWith)))fail(`${at}.frameWith`,'should name a thing listed before this one');
+    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
@@ -438,7 +439,7 @@ export function checkPlanet(spec) {
   });
   errors.push(...sceneErrors(spec));
   errors.push(...settingErrors(spec));
-  if(!errors.length && spec.reveal!==undefined && (typeof spec.reveal!=='string'||!composeScenes(spec).things?.some(t=>t.id===spec.reveal)))fail('reveal','should name a thing to feature in an overview arrival');
+  if(!errors.length && spec.reveal!==undefined && (typeof spec.reveal!=='string'||!composePlanet(spec).things?.some(t=>t.id===spec.reveal)))fail('reveal','should name a thing to feature in an overview arrival');
   // Generated geometry has the same caps as handwritten geometry; raw scene input cannot
   // bypass the 24-thing / 400-part / 64 KB limits.
   if (!errors.length && (spec.scenes||spec.setting)) {
@@ -645,8 +646,8 @@ export function lookOver(spec) {
     const wide = Math.max(all[1] - all[0], all[5] - all[4]), tall = all[3] - all[2];
     if (wide < 0.4 && tall < 0.4) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
     // the ground falls away by length² / 8R under something straight: 15 cm at 5 m
-    // Known trees have a narrow grounded trunk; their broad crown does not touch the terrain.
-    if (wide > 5 && !['birch','palm'].includes(t.craft)) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);
+    // Known trees have grounded trunks; the authored canopy has four terrain-fitted feet.
+    if (wide > 5 && !['birch','palm','canopy'].includes(t.craft)) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);
     // a part off the ground that touches no other part: it hangs in the air
     const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
     bs.forEach((b, j) => {

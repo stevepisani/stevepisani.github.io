@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "slug": "test-sheltered-weaving",
+  "who": {
+    "name": "Weaving study"
+  },
+  "arrival": "overview",
+  "look": {
+    "ground": {
+      "cover": "grass",
+      "color": "#647c60",
+      "hills": 0.1
+    },
+    "sky": {
+      "period": "dusk",
+      "color": "#8b9fae",
+      "light": "#e3d7bc"
+    }
+  },
+  "things": [
+    {
+      "id": "loom",
+      "name": "A weaving frame",
+      "at": {
+        "bearing": 0,
+        "distance": 6.5
+      },
+      "role": "focus",
+      "footprint": [
+        1.8,
+        0.5
+      ],
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            2.2,
+            0.2
+          ],
+          "at": [
+            -0.8,
+            1.08,
+            0
+          ],
+          "color": "#9a6e49",
+          "round": 0.1,
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            2.2,
+            0.2
+          ],
+          "at": [
+            0.8,
+            1.08,
+            0
+          ],
+          "color": "#9a6e49",
+          "round": 0.1,
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.7,
+            0.14,
+            0.2
+          ],
+          "at": [
+            0,
+            0.45,
+            0
+          ],
+          "color": "#9a6e49",
+          "round": 0.1,
+          "surface": "wood"
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.7,
+            0.14,
+            0.2
+          ],
+          "at": [
+            0,
+            2,
+            0
+          ],
+          "color": "#9a6e49",
+          "round": 0.1,
+          "surface": "wood"
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.4,
+            0.04,
+            0.05
+          ],
+          "at": [
+            -0.65,
+            1.25,
+            0.02
+          ],
+          "color": "#f7e1b3",
+          "round": 0.1,
+          "repeat": {
+            "count": 10,
+            "at": [
+              0.145,
+              0,
+              0
+            ]
+          },
+          "turn": [
+            0,
+            0,
+            90
+          ]
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.25,
+            0.38,
+            0.08
+          ],
+          "at": [
+            0,
+            0.92,
+            0.04
+          ],
+          "color": "#b36a5e",
+          "round": 0.1,
+          "surface": "cloth"
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.25,
+            0.14,
+            0.09
+          ],
+          "at": [
+            0,
+            1.15,
+            0.04
+          ],
+          "color": "#688e8a",
+          "round": 0.1,
+          "surface": "cloth"
+        },
+        {
+          "shape": "box",
+          "size": [
+            1.25,
+            0.1,
+            0.09
+          ],
+          "at": [
+            0,
+            1.28,
+            0.04
+          ],
+          "color": "#e7bb66",
+          "round": 0.1,
+          "surface": "cloth"
+        }
+      ],
+      "light": {
+        "color": "#ffdca0",
+        "strength": 0.8,
+        "at": [
+          0,
+          2.7,
+          0.3
+        ]
+      }
+    },
+    {
+      "id": "chair",
+      "name": "A seat at the loom",
+      "near": {
+        "of": "loom",
+        "side": "front",
+        "gap": 0.75
+      },
+      "turn": 180,
+      "stock": "chair",
+      "use": "sit",
+      "role": "support"
+    }
+  ],
+  "setting": {
+    "around": "loom",
+    "edge": "windows",
+    "shelter": "canopy",
+    "color": "#b2b89e"
+  }
+}

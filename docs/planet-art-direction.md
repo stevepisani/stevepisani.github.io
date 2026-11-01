@@ -139,3 +139,15 @@ actual card at 700×440 and 366×440: projected size and visible mesh samples ar
 not recognition scores. A changed viewpoint is explicit; stable world layout is a separate
 contract. Keep frozen blind inputs as regressions; adopting new setting controls is a feature
 study, not a fresh one-shot result.
+
+Custom sheltered activities now have an explicit timber canopy and deeper window-bay craft,
+independent of hobby and planting. A side-window seat is a usable additive option; it must not
+move the existing architecture or require changing the activity to reach it. A low approach
+looks beneath the canopy rather than filling the card with roof. These remain open assemblies
+with terrain walking, not complete furnished rooms. Personal-object identity, inhabited detail
+and fresh interview coverage remain separate gaps. The weaving fixture is authored development
+evidence, not a new person's first generation or proof of the owner's quality bar.
+
+Check actual canvas pixels as well as readiness and geometry: a degenerate textured normal can
+poison HDR bloom even when draw calls and mesh visibility are valid. Keep the failed capture and
+the fixed same-view evidence. A technical black-frame regression passing does not establish delight.

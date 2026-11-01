@@ -47,6 +47,10 @@ assert(greetingFrame.tappable.includes(companion.id),'a visible companion should
 const anchor=make('tall activity',2.5,2.5,[0,19,-6]);
 const keepsake=make('new keepsake',.45,.65,[0,18.4,-8.4]);keepsake.near={of:anchor.id};
 const unrelated=make('other nearby activity',7,3,[4,19,-7]);
+const absoluteAddition=make('absolute addition',.55,.7,[2,19,-6]);absoluteAddition.frameWith=anchor.id;
+const absoluteFrame=overviewFrame([anchor,unrelated,absoluteAddition],{aspect:700/440,fov:54,height:440,surface:()=>RADIUS,focusId:absoluteAddition.id});
+assert(absoluteFrame.ids.includes(anchor.id),'an absolutely placed addition can keep its explicitly named activity in frame');
+assert(!absoluteFrame.ids.includes(unrelated.id),'explicit context does not pull in other nearby activities');
 for(const [width,height] of [[366,440],[700,440]]) {
   const editedFrame=overviewFrame([anchor,unrelated,keepsake],{aspect:width/height,fov:width<400?72:54,height,surface:()=>RADIUS,focusId:keepsake.id});
   assert(editedFrame.fits && editedFrame.detail?.meetsBudget,'a small obscured addition needs a visible, sufficiently large featured view');
