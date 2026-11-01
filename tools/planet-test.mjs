@@ -395,6 +395,11 @@ shown = await previewWith(kiosk);
 ok(JSON.stringify(shown.structuredContent.models) === JSON.stringify({ making: ['t1'], made: ['t0'], over: [] }) && paid() === 4, 'previewed again: the made one is made, the failed one asked for again', shown.structuredContent.models);
 await w.db.exec("update public.planet_models set at = now() - interval '2 hours', checked = now() - interval '1 minute' where key = '" + k1 + "'");
 ok((await modelsNow([k1], m))[k1].status === 'failed', 'one taking over an hour is given up on');
+const paidRows = async () => (await w.q('select count(*)::int as n from public.planet_models_paid'))[0].n;
+const p0 = await paidRows();
+ok(p0 === 3, 'each time one is paid for is counted, a retry included', p0);
+shown = await previewWith(kiosk);
+ok(shown.structuredContent.models.over.includes('t1') && paid() === 4 && await paidRows() === 3, 'words that failed twice are not paid for a third time', shown.structuredContent.models);
 
 // the caps: the month's, and the planet's
 const before = paid();
@@ -404,15 +409,16 @@ const many = withModels('max', Array.from({ length: CHAT_PER_PLANET + 2 }, (_, i
 many.things = many.things.slice(0, LIMITS.things);
 shown = await previewWith(many);
 ok(shown.structuredContent.models.making.length === Math.min(CHAT_PER_PLANET, many.things.length - 1) && shown.structuredContent.models.over.length === many.things.length - 1 - CHAT_PER_PLANET && /no room left for real models/.test(shown.content[0].text), `${CHAT_PER_PLANET} a planet, then its shapes stay`, shown.structuredContent.models);
-const left = MODELS_A_MONTH - (await w.q("select count(*)::int as n from public.planet_models where at >= date_trunc('month', now())"))[0].n;
-await w.db.exec(`insert into public.planet_models (key, words, slug, status) select md5('month' || i), 'x', 'month-' || i, 'done' from generate_series(1, ${left}) i`);
+const left = MODELS_A_MONTH - (await w.q("select count(*)::int as n from public.planet_models_paid where at >= date_trunc('month', now())"))[0].n;
+await w.db.exec(`insert into public.planet_models_paid (key, slug) select md5('month' || i), 'month-' || i from generate_series(1, ${left}) i`);
 shown = await previewWith(withModels('nia', ['harp']));
 ok(shown.structuredContent.models.over[0] === 't0' && shown.structuredContent.models.making.length === 0, `${MODELS_A_MONTH} a month in all`, shown.structuredContent.models);
-await w.db.exec("update public.planet_models set at = now() - interval '40 days' where slug like 'month-%'");
+await w.db.exec("update public.planet_models_paid set at = now() - interval '40 days' where slug like 'month-%'");
 ok((await previewWith(withModels('nia', ['harp']))).structuredContent.models.making[0] === 't0', 'a new month, new room');
 ok(!(await previewWith(kiosk, {})).structuredContent.models && !/Real models/.test((await previewWith(kiosk, {})).content[0].text), 'without Meshy (no key), a preview is as it was');
 ok(!(await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'prepare_planet', arguments: { spec: withModels('ola', ['oar']) } } }, { models: m })).result.isError && (await w.q("select count(*)::int as n from public.planet_models where slug = 'ola'"))[0].n === 0, 'preparing starts nothing: only a preview does');
 await refused('anon', 'select * from public.planet_models', 'signed out, nobody reads planet_models');
+await refused('anon', 'select * from public.planet_models_paid', 'nor what was paid for');
 await refused('anon', `select public.planet_models_claim('x', array['${'a'.repeat(32)}'], array['w'], 999, 999)`, 'nor claims a model round the caps');
 await refused('authenticated', `select public.planet_model_turn('${k0}')`, 'nor moves one on, signed in');
 

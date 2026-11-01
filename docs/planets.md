@@ -348,7 +348,8 @@ manifest) isn't asked for. Each is a row in `public.planet_models` (private; the
 and writes it with the service role). A card can only follow what a preview started. Test planets
 (slug `test-…`) never ask. The caps are in SQL (`planet_models_claim`, the only way a row is
 added): 30 a month in all, about $20, and 14 for any one planet (Steve, Nov 1, 2026), each
-counting what was paid for, failed or not. Past either, the things stay as their shapes and the
+counting every time Meshy was asked to start one (`public.planet_models_paid`, one row each), a
+retry after a failure included; words that failed twice aren't tried again. Past either, the things stay as their shapes and the
 preview says so. Without the `MESHY_API_KEY` function secret (the Supabase workflow copies the
 repo secret in), nothing is asked for and a preview is as it was.
 
