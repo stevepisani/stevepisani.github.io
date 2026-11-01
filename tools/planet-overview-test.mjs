@@ -43,5 +43,15 @@ companion.root.children[0].scale.z=.5;
 const post=make('foreground post',.12,1.4,[-.4,19,-4.8],'support');post.root.children[0].scale.z=.12;
 const greetingFrame=overviewFrame([activity,companion,post],{aspect:1.6,fov:54,height:800,surface:()=>RADIUS});
 assert(greetingFrame.tappable.includes(companion.id),'a visible companion should have a clear, tolerant greeting target');
+// An addition behind a tall activity needs another surface view, not a wider group photo.
+const anchor=make('tall activity',2.5,2.5,[0,19,-6]);
+const keepsake=make('new keepsake',.45,.65,[0,18.4,-8.4]);keepsake.near={of:anchor.id};
+const unrelated=make('other nearby activity',7,3,[4,19,-7]);
+for(const [width,height] of [[366,440],[700,440]]) {
+  const editedFrame=overviewFrame([anchor,unrelated,keepsake],{aspect:width/height,fov:width<400?72:54,height,surface:()=>RADIUS,focusId:keepsake.id});
+  assert(editedFrame.fits && editedFrame.detail?.meetsBudget,'a small obscured addition needs a visible, sufficiently large featured view');
+  assert(editedFrame.ids.includes(anchor.id),'keep the addition’s immediate anchor in context');
+  assert(!editedFrame.ids.includes(unrelated.id),'unrelated nearby activities must not shrink the edited reveal');
+}
 for(const root of objects)root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 console.log('Overview: portrait/landscape bounds, environmental invariance, personal addition, open silhouettes, tolerant greeting targets and arrival clearance passed.');

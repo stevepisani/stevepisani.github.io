@@ -6,12 +6,16 @@ import { BODY } from '../world/player.js';
 import { pickThing } from './picking.js';
 const UP = new THREE.Vector3(0,1,0);
 
-export function overviewFrame(things, { aspect, fov, surface, colliders = [], height = 720 }) {
+export function overviewFrame(things, { aspect, fov, surface, colliders = [], height = 720, focusId = null }) {
   for(const t of things)t.root?.updateWorldMatrix(true,true);
-  const primary = things.find(t=>t.root && t.role==='focus') || things.find(t=>t.root && t.solid!==false) || things.find(t=>t.root);
+  const featured=things.find(t=>t.root && t.id===focusId);
+  const primary = featured || things.find(t=>t.root && t.role==='focus') || things.find(t=>t.root && t.solid!==false) || things.find(t=>t.root);
   if (!primary) return null;
   const bounds = new THREE.Box3().setFromObject(primary.root), ids = [primary.id];
   for (const t of things) {
+    // An edited reveal features the addition with its immediate anchor, rather than expanding
+    // the union of every nearby interest until the original place becomes a distant speck.
+    if(featured && t.id!==featured.near?.of)continue;
     if (t===primary || !t.root || t.center.distanceTo(primary.center)>5.5 || t.role==='environment' || (!t.role && t.solid===false && !t.use)) continue;
     const b=new THREE.Box3().setFromObject(t.root), size=b.getSize(new THREE.Vector3());
     // A narrow trunk's broad canopy is environmental framing, rather than a huge solid hero.
@@ -48,10 +52,24 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     samples.set(t.id,points);
   }
   let best=null,bestScore=-1,fallback={dir:UP.clone(),target,eye:3,pitch:-.3,bounds,ids,fits:false,visible:[]};
+  const candidates=[];
   // Search stable walking-surface positions, not a free-floating orbital camera or a flight.
-  for(let b=start;b<=14;b+=.2) for(const angle of [.45,-.45,0,.9,-.9]) {
+  if(featured) {
+    const normal=primary.center.clone().normalize(),front=new THREE.Vector3(0,0,1).transformDirection(primary.root.matrixWorld);
+    front.addScaledVector(normal,-front.dot(normal)).normalize();
+    if(!front.lengthSq())front.set(0,0,1);
+    const right=new THREE.Vector3().crossVectors(normal,front).normalize();
+    // Prefer the authored front (+z), then lateral views. A rear view can expose a mesh while
+    // hiding its identifying face; do not choose it just because it fits one step closer.
+    for(const angle of [0,.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4,1.8,-1.8,2.2,-2.2,Math.PI])for(let distance=2;distance<=13;distance+=.35) {
+      const tangent=front.clone().multiplyScalar(Math.cos(angle)).addScaledVector(right,Math.sin(angle));
+      candidates.push(normal.clone().multiplyScalar(Math.cos(distance/RADIUS)).addScaledVector(tangent,Math.sin(distance/RADIUS)).normalize());
+    }
+  } else for(let b=start;b<=14;b+=.2)for(const angle of [.45,-.45,0,.9,-.9]) {
     const back=toward.clone().negate().addScaledVector(side,angle).normalize();
-    const dir=UP.clone().multiplyScalar(Math.cos(b/RADIUS)).addScaledVector(back,Math.sin(b/RADIUS)).normalize();
+    candidates.push(UP.clone().multiplyScalar(Math.cos(b/RADIUS)).addScaledVector(back,Math.sin(b/RADIUS)).normalize());
+  }
+  for(const dir of candidates) {
     const foot=dir.clone().multiplyScalar(surface(dir));
     if(colliders.some(c=>foot.distanceTo(c.center)<c.radius+BODY+.1)) continue;
     const eye=THREE.MathUtils.clamp(size.y*.7+2,2.8,7);
@@ -77,10 +95,23 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
         return pickThing(caster,things,pickable)?.id===t.id;
       });
     });
-    const score=visible.filter(Boolean).length+tappable.length*2;
-    const frame={dir,target,eye,pitch,bounds,ids,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id)};
+    let detail=null;
+    if(featured) {
+      const points=samples.get(featured.id),shown=points.filter(point=>{
+        const p=point.clone().project(probe);
+        if(Math.abs(p.x)>.9||Math.abs(p.y)>.85||p.z<0||p.z>1)return false;
+        caster.set(probe.position,point.clone().sub(probe.position).normalize());
+        return pickThing(caster,things,pickable)?.id===featured.id;
+      }).length/points.length;
+      const box=new THREE.Box3().setFromObject(featured.root),ps=[];
+      for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])ps.push(new THREE.Vector3(x,y,z).project(probe));
+      const pixels=(Math.max(...ps.map(p=>p.y))-Math.min(...ps.map(p=>p.y)))*height/2;
+      detail={id:featured.id,visibleFraction:shown,heightPixels:pixels,meetsBudget:shown>=.55&&pixels>=32};
+    }
+    const score=visible.filter(Boolean).length+tappable.length*2+(detail?detail.visibleFraction*4+Math.min(1,detail.heightPixels/64):0);
+    const frame={dir,target,eye,pitch,bounds,ids,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id),...(detail?{detail}:{})};
     if(score>bestScore){best=frame;bestScore=score;}
-    if(visible.every(Boolean) && tappable.length===greetings.length)return frame;
+    if(visible.every(Boolean) && tappable.length===greetings.length && (!detail||detail.meetsBudget))return frame;
   }
   return best||fallback;
 }

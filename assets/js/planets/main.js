@@ -18,9 +18,10 @@ import { readSpec, tellCard } from '../world/spec.js';
 import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
 import { buildThings } from './things.js';
-import { loadModels } from './models.js';
+import { loadModels, loadSceneAssets } from './models.js';
 import { buildPaths } from './paths.js';
 import { buildStargazing } from './stargazing.js';
+import { makeRain } from './rain.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('planet'), canvas = $('planet-canvas'), veil = $('veil'), status = $('veil-status'), hint = $('hint'), card = $('thing');
@@ -61,10 +62,14 @@ async function start(spec) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(coarse ? 72 : spec.arrival === 'overview' ? 54 : 68, 1, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(coarse ? 72 : spec.arrival === 'overview'||spec.reveal ? 54 : 68, 1, 0.05, 2000);
   const time = { value: 0 };
   const look = spec.look || {}, sky = look.sky || {};
   const atmosphere = buildPlanetSky(sky,quality,time), space = atmosphere.group;
+  if(sky.weather==='rain') {
+    scene.fog=new THREE.FogExp2(atmosphere.fill,.027);
+    scene.add(makeRain(time,matchMedia('(prefers-reduced-motion: reduce)').matches));
+  }
   space.traverse(o=>o.layers.enable(2)); // the telescope sees sky, not foreground fronds or its own barrel
   scene.add(space);
   // cool starlight from one side and a little from all round, so the ground reads at night
@@ -86,8 +91,12 @@ async function start(spec) {
   const ground = buildGround(spec.slug, { quality, time, ...look.ground });
   scene.add(ground.mesh);
   // what their AI made for them from what they love (things.js); none, and the planet is bare
-  const things = buildThings(spec.things, ground.surface);
+  let library;
+  try { say('Planting the scene…');library=await loadSceneAssets(spec); }
+  catch { return fail('The scene’s trees could not load. Please reload to try again.', ['required scene asset unavailable']); }
+  const things = buildThings(spec.things, ground.surface, library);
   scene.add(things.group);
+  ground.dress(spec.things||[]);
   // worn paths from where you land to each of their places (paths.js)
   const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);
@@ -101,12 +110,12 @@ async function start(spec) {
 
   const player = new Player(camera, { colliders: [...things.colliders, ...ground.colliders], surface: ground.surface });
   const UP = new THREE.Vector3(0, 1, 0);
-  const overview = spec.arrival === 'overview';
+  const overview = spec.arrival === 'overview'||!!spec.reveal;
   const walkingEye = player.eye;
-  let opening = null, openingUntouched = true;
-  function frameOpening() {
-    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders]});
-    if(opening){player.eye=opening.eye;player.spawn(opening.dir,opening.target,opening.pitch);player.look(window.__veilLook||0,0);}
+  let opening = null, openingUntouched = true, revealFocus=spec.reveal;
+  function frameOpening(loadingLook=true) {
+    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders],focusId:revealFocus});
+    if(opening){player.eye=opening.eye;player.spawn(opening.dir,opening.target,opening.pitch);if(loadingLook)player.look(window.__veilLook||0,0);}
   }
   if (overview) frameOpening();
   else player.spawn(UP,new THREE.Vector3(0,ground.surface(UP),-10),-.18);
@@ -128,6 +137,16 @@ async function start(spec) {
   // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
   const EYE = walkingEye, SEATED = 1.3, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let seat = null, move = null, arriving = overview, scope = null, detail = null;
+  const revealView=$('reveal-view');
+  if(spec.reveal) {
+    revealView.hidden=false;
+    revealView.addEventListener('click',()=>{
+      if(move||seat||scope)return;
+      player.stop();close();revealFocus=revealFocus?null:spec.reveal;
+      arriving=true;openingUntouched=true;frameOpening(false);
+      revealView.textContent=revealFocus?'Whole place':'See addition';
+    });
+  }
   let stargazing, scopeHistory=false;
   const scopeFov=()=>Math.max(18,2*Math.atan(Math.tan(9*Math.PI/180)/Math.min(1,camera.aspect))*180/Math.PI);
   const detailButton = $('details');
@@ -147,7 +166,7 @@ async function start(spec) {
   };
   function sit(t) {
     const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
-    glide({ pos: at, quat: facing(at, f), eye: SEATED, pitch: -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
+    glide({ pos: at, quat: facing(at, f), eye: t.seatView?.eye ?? SEATED, pitch: t.seatView?.pitch ?? -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
   }
   function stand(then) {
     detailButton.hidden=true;
@@ -308,6 +327,7 @@ async function start(spec) {
       advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
+    if(spec.reveal)revealView.disabled=!!(move||seat||scope);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
     sun.target.position.copy(player.pos);

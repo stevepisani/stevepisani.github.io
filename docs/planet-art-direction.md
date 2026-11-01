@@ -43,7 +43,7 @@ shore, companions and night palette apply only when the interview supports them.
 landscapes and other emotional tones need their own coherent treatment; more enclosure is not a
 universal rule.
 
-The current composer supports gathering and lookout scenes and a tropical setting. Shared
+The current composer supports gathering, lookout and painting scenes, with conditional tropical and woodland settings. Custom activities can independently request open wall/window/railing edges and accepted birch woodland around an anchor; these are bounded setting layers, not complete buildings or universal coverage. Shared
 materials, water, paths and interaction craft are reusable; this small authored library does not
 establish coverage of unrelated interests. Unsupported needs are coverage gaps, not permission
 to replace the interview with a tropical dinner or astronomy scene.
@@ -54,6 +54,12 @@ phone, then show its first meaningful action and one personal addition. Record a
 input fidelity and visual feedback alongside failures. Fix the shared rule or accepted library,
 then rerun all cases without manual per-person rescue. Keep a separate unseen set after tuning;
 a regression suite that has been repeatedly polished is no longer unseen evidence.
+
+Freeze the real kit/instructions and renderer with `tools/planet-first-shot.mjs` before adding
+evaluation interviews. Save each raw model output before preparation, retain invalid first
+attempts and record bounded corrections separately. A same-session synthetic trial is useful
+development evidence, but it does not establish an isolated host or an independent person's
+first result. The tool's coverage metadata is the generator's disclosure, not a fidelity judge.
 
 Opening views must fit the actual composed bounds and viewport. Importance (focus, support,
 environment) is separate from collision. Keep nearby personal additions in the framing intent,
@@ -111,3 +117,25 @@ derived from the craft, not external guarantees of generated-scene quality.
 Tooling sources were checked in October 2026. Recheck availability and prices before generation.
 Current API features do not establish quality on a particular asset; compare providers only
 against fixed accepted inputs.
+
+
+## Current quality development
+
+The first two development places are a tropical gathering and a woodland painting/birdwatching
+clearing. They use distinct setting layers and usable actions, rather than applying tropical
+dressing universally. The woodland's accepted CC0 tree is normalized, bounded and ready before
+reveal; its imported foliage receives a recorded green treatment. Rain is explicit and respects
+reduced motion. A visible bath/hammock addition must preserve the existing scene.
+
+Use `tools/planet-scene-review.mjs` for actual local arrivals, fixed-camera asset comparisons,
+action and edit evidence before proposing a release. This is the local preflight foundation;
+production visual selection/hosting and independent fresh-input quality remain open. Validate
+owner preference before growing the catalog or paying for a provider comparison. Do not label
+these repeatedly tuned development studies as general one-shot acceptance.
+
+For edited reveals, preserve world data and feature the addition with its immediate anchor using
+`reveal`. Do not shrink the whole world merely to include every unrelated object. Inspect the
+actual card at 700×440 and 366×440: projected size and visible mesh samples are technical checks,
+not recognition scores. A changed viewpoint is explicit; stable world layout is a separate
+contract. Keep frozen blind inputs as regressions; adopting new setting controls is a feature
+study, not a fresh one-shot result.

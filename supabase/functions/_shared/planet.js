@@ -1,5 +1,10 @@
-import { sceneErrors, composePlanet } from './planet-scenes.js';
-export { composePlanet };
+import { stockParts } from './planet-stock.js';
+import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
+import { settingErrors, composeSetting } from './planet-setting.js';
+export function composePlanet(spec) {
+  const scenes=composeScenes(spec);
+  return composeSetting(scenes,placeThings(scenes.things));
+}
 // A planet spec: everything that makes a little planet someone's own, in one small JSON. Steve's is
 // built from _data/ by tools/planet.mjs; other people's will be written by their own AI through the
 // Planets connector (My Tiny Planet, Linear P-PRO-40). The same rules for the server and the
@@ -58,7 +63,7 @@ export const SURFACES = ['wood', 'bamboo', 'thatch', 'cloth'];
 // Stock things, as a film set keeps stock props: small things every place uses, each a real model
 // made once in the house style (tools/planet-models.mjs makes them as the planet "stock"; Steve
 // approved the "kit", Oct 27, 2026), so any planet can have one free and at once. A thing with
-// stock needs no parts (a box its size stands in until the model loads) and no model words; size
+// stock needs no parts (recognizable parts stand in until the model loads) and no model words; size
 // is [width, height, depth] in metres, before scale.
 export const STOCK = {
   bench: { size: [1.4, 0.85, 0.55], model: 'A wooden garden bench with a slatted seat and a slatted back, painted pale green, on curled black iron legs and armrests' },
@@ -164,7 +169,7 @@ export function checkPlanet(spec) {
   };
 
   if (!isObj(spec)) return ['spec: should be an object'];
-  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad', 'scenes', 'routes', 'arrival']);
+  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad', 'scenes', 'setting', 'routes', 'arrival', 'reveal']);
   if (JSON.stringify(spec).length > LIMITS.bytes) fail('spec', `larger than ${LIMITS.bytes / 1024} KB`);
   if (spec.arrival !== undefined && spec.arrival !== 'overview') fail('arrival', 'should be overview');
   if (spec.version !== 1) fail('version', 'should be 1');
@@ -198,7 +203,8 @@ export function checkPlanet(spec) {
       const g = spec.look.ground, sky = spec.look.sky;
       if (g !== undefined) {
         if (!isObj(g)) fail('look.ground', 'should be an object');
-        else { only('look.ground', g, ['color', 'hills', 'coast']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+        else { only('look.ground', g, ['color', 'hills', 'coast', 'cover']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+          if(g.cover!==undefined && !['grass','sand','snow','paving'].includes(g.cover))fail('look.ground.cover','should be grass, sand, snow or paving');
           if (g.coast !== undefined) {
             if (!isObj(g.coast)) fail('look.ground.coast', 'should be an object');
             else {
@@ -214,8 +220,9 @@ export function checkPlanet(spec) {
       }
       if (sky !== undefined) {
         if (!isObj(sky)) fail('look.sky', 'should be an object');
-        else { only('look.sky', sky, ['color', 'light', 'period', 'clouds']); color('look.sky.color', sky.color); color('look.sky.light', sky.light);
-          if(sky.period!==undefined && !['day','dusk','night'].includes(sky.period)) fail('look.sky.period','should be day, dusk or night');
+        else { only('look.sky', sky, ['color', 'light', 'period', 'clouds', 'weather']); if(sky.weather!==undefined && !['clear','rain'].includes(sky.weather))fail('look.sky.weather','should be clear or rain');
+          color('look.sky.color', sky.color); color('look.sky.light', sky.light);
+          if(sky.period!==undefined && !['day','dawn','dusk','night'].includes(sky.period)) fail('look.sky.period','should be day, dawn, dusk or night');
           if(sky.clouds!==undefined && !['clear','overcast'].includes(sky.clouds)) fail('look.sky.clouds','should be clear or overcast'); }
       }
     }
@@ -243,8 +250,8 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role']);
-    if (t.craft !== undefined && !['palm', 'cat', 'planting'].includes(t.craft)) fail(`${at}.craft`, 'should be palm, cat or planting');
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView']);
+    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
@@ -273,10 +280,14 @@ export function checkPlanet(spec) {
     between(`${at}.turn`, t.turn, -180, 180);
     between(`${at}.scale`, t.scale, 0.25, 4);
     if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
+    if(t.seatView!==undefined) {
+      if(!isObj(t.seatView)||t.use!=='sit')fail(`${at}.seatView`,'needs a sit action and an object');
+      else {only(`${at}.seatView`,t.seatView,['eye','pitch']);between(`${at}.seatView.eye`,t.seatView.eye,.8,1.6);between(`${at}.seatView.pitch`,t.seatView.pitch,-.5,.3);}
+    }
     if(t.role!==undefined && !['focus','support','environment'].includes(t.role)) fail(`${at}.role`,'should be focus, support or environment');
     if (t.use !== undefined && !USES.includes(t.use)) fail(`${at}.use`, `should be one of ${USES.join(', ')}`);
     else if (t.use === 'switch' && t.light === undefined) fail(`${at}.use`, 'switch turns its light on and off, so it needs a light');
-    if (t.use === 'greet' && t.craft !== 'cat') fail(`${at}.use`, 'greet needs a cat character');
+    if (t.use === 'greet' && !['cat','bird'].includes(t.craft)) fail(`${at}.use`, 'greet needs an authored cat or bird');
     if (t.craft && (t.model || t.stock)) fail(`${at}.craft`, 'authored craft cannot be replaced by a static model');
     if (t.stock !== undefined && !Object.hasOwn(STOCK, t.stock)) fail(`${at}.stock`, `should be one of ${Object.keys(STOCK).join(', ')}`);
     else if (t.stock !== undefined && t.model !== undefined) fail(`${at}.model`, 'a stock thing has its model already; give it model words or stock, not both');
@@ -285,9 +296,11 @@ export function checkPlanet(spec) {
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
       if (!isObj(p)) return fail(pat, 'should be an object');
-      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint']);
+      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint', 'ground']);
+      if(p.ground!==undefined && typeof p.ground!=='boolean')fail(`${pat}.ground`,'should be true or false');
+      if(p.ground && (!['box','cylinder'].includes(p.shape) || p.repeat || p.mirror || p.spin || p.joint || p.turn?.[0] || p.turn?.[2]))fail(`${pat}.ground`,'only an upright, unanimated box or cylinder can meet the ground');
       if (p.surface !== undefined && !SURFACES.includes(p.surface)) fail(`${pat}.surface`, `should be one of ${SURFACES.join(', ')}`);
-      if (p.joint !== undefined && (t.craft !== 'cat' || !['head', 'tail'].includes(p.joint))) fail(`${pat}.joint`, 'only a cat has head or tail joints');
+      if (p.joint !== undefined && (!['cat','bird'].includes(t.craft) || !['head', 'tail'].includes(p.joint))) fail(`${pat}.joint`, 'only an authored character has head or tail joints');
       if (p.surface && (p.shape === 'text' || p.finish && p.finish !== 'matte')) fail(`${pat}.surface`, 'a surface needs an opaque matte part');
       // a repeated or mirrored part counts once for each copy it makes
       const copies = (isObj(p.repeat) && Number.isInteger(p.repeat.count) ? p.repeat.count : 1) * (p.mirror === true ? 2 : 1);
@@ -424,11 +437,13 @@ export function checkPlanet(spec) {
     }
   });
   errors.push(...sceneErrors(spec));
+  errors.push(...settingErrors(spec));
+  if(!errors.length && spec.reveal!==undefined && (typeof spec.reveal!=='string'||!composeScenes(spec).things?.some(t=>t.id===spec.reveal)))fail('reveal','should name a thing to feature in an overview arrival');
   // Generated geometry has the same caps as handwritten geometry; raw scene input cannot
   // bypass the 24-thing / 400-part / 64 KB limits.
-  if (!errors.length && spec.scenes) {
+  if (!errors.length && (spec.scenes||spec.setting)) {
     const compiled = composePlanet(spec), ids = compiled.things.map((t)=>t.id);
-    if (new Set(ids).size !== ids.length) fail('scenes','a generated id collides with a custom thing; change the scene id');
+    if (new Set(ids).size !== ids.length) fail(spec.setting?'setting':'scenes','a generated id collides with a custom thing; change the setting anchor or scene id');
     else errors.push(...checkPlanet(compiled));
   }
   return errors;
@@ -498,7 +513,7 @@ const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from 
 export function partsOf(t) {
   if (t.parts && t.parts.length) return t.parts;
   const k = t.stock && STOCK[t.stock];
-  return k ? [{ shape: 'box', size: k.size, round: 0.15, color: '#8a7a68' }] : [];
+  return k ? stockParts(t.stock,k.size) : [];
 }
 
 // what a friend's planet can't draw: Steve's own planet's parts, which pass checkPlanet for his spec
@@ -630,7 +645,8 @@ export function lookOver(spec) {
     const wide = Math.max(all[1] - all[0], all[5] - all[4]), tall = all[3] - all[2];
     if (wide < 0.4 && tall < 0.4) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
     // the ground falls away by length² / 8R under something straight: 15 cm at 5 m
-    if (wide > 5) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);
+    // Known trees have a narrow grounded trunk; their broad crown does not touch the terrain.
+    if (wide > 5 && !['birch','palm'].includes(t.craft)) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);
     // a part off the ground that touches no other part: it hangs in the air
     const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
     bs.forEach((b, j) => {

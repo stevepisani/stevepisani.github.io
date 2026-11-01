@@ -55,20 +55,22 @@ preparing the result again is idempotent. `prepare_planet` also returns the smal
 `design`, for later edits: change that design, then prepare it again. Never overlay it on the
 compiled things. Raw and compiled data pass the same validator and total geometry caps.
 
-There are two authored layouts for now: `gathering` (table, food, seats and warm lights) and
+There are three authored layouts for now: `gathering` (table, food, seats and warm lights) and
 `lookout` (a telescope, small ringed-planet sculpture, seat and lantern). Choose them when they
 fit the interview; this is not coverage for every person's world. `setting: tropical` adds
 shore palms, beach planting, sand and a native shallow lagoon. Optional `companion: {kind:
 cat, name?, color?, note?}` adds the reusable rounded cat only when the person mentioned one.
-The props are code-built miniatures, available immediately; they do not need Meshy downloads.
+A `painting` scene provides a watercolour easel, supplies, a usable seat and a bird that turns toward a greeting. `setting: woodland` adds a shelter, layered birches and ferns. The one CC0 Quaternius birch (148 KB, 512 px WebP textures, 4,596 triangles) is shared across the scene and loaded before reveal. Its foot is normalized to the origin at a declared 5.5 m height. Source/license and changes live in `assets/models/planets/library/`; `tools/planet-nature.mjs` reproduces its offline import. A failed required load shows a reload message instead of revealing a primitive substitute.
+
+The other props are code-built miniatures, available immediately; they do not need Meshy downloads.
 They are a bounded starting library, not a replacement for finished hero models or proof of
 first-pass quality on unseen input. Existing custom things and cached models remain available.
 
 A tropical gathering also has an open bamboo-and-thatch pavilion. Furniture stays separate for
 independent interaction. An opaque matte part can use `surface: wood|bamboo|thatch|cloth` for
 shared procedural texture craft. `craft: planting` uses instanced tropical leaf beds;
-`craft: palm` reuses the procedural palm; `craft: cat` keeps
-authored head/tail joints. No downloads or generation are needed. A cat's `use: greet` turns
+`craft: palm` reuses the procedural palm; `craft: cat` and `craft: bird` keep
+authored head/tail joints. These companions need no downloads or generation. A cat's `use: greet` turns
 its head toward the visitor (a settled pose under reduced motion). A lookout's `use: look` opens
 an explicitly imagined ringed-world sky; Step back, Escape or a walking key returns. Details
 remain optional for those actions, rather than covering their response with a card. This is
@@ -114,19 +116,71 @@ hammock at the scene edge. Recompile the original design to add it without movin
 scene objects. The example rehearsal and browser tests check this reveal/edit path; owner
 satisfaction and an unseen-input friend pilot are still separate gates.
 
+## Settings for custom activities and edited reveals
+
+Custom activities can now use a top-level `setting: { around: <custom thing id>,
+edge?: wall|windows|railing, planting?: woodland, color?: "#rrggbb" }`. This is independent
+of the authored activity library: it supplies short grounded backdrop bays, low side returns
+and/or five accepted birches with four fern/stone beds. It adds no hobby, companion, weather,
+season or time of day. These are open non-solid setting edges, not full rooms or physical
+barriers. They suit a compact activity roughly four metres wide; inspect surrounding furniture
+for visual conflicts. Leave setting absent when the person wants openness. Do not duplicate an
+authored scene's existing dressing. The woodland asset is birch, not species-accurate beech.
+
+Preparation resolves the anchor through the existing placement code, compiles into ordinary
+bounded things, and removes setting intent from the prepared spec. The returned original design
+includes setting intent for later edits. Existing objects remain unchanged, generated IDs cannot
+replace them, and the same object/part/byte caps apply. The setting frame follows its anchor's
+position and orientation; an addition does not resize or move that frame. A compiled spec stays
+idempotent. No new asset service, library dependency or generation job is needed.
+
+For an accepted addition, append its thing and set `reveal: <new thing id>` with
+`arrival: overview`. An authored extra uses its generated ID, e.g. `studio-birdbath`.
+The edited arrival features that object with its nearby `near.of` anchor; unrelated activities
+no longer expand its framing bounds. It searches clear surface positions around the addition,
+checking actual mesh samples and a minimum projected size. The viewpoint can change; original
+object positions and the rest of the world do not. There is no forced introductory flight.
+A visible patch or pixel threshold does not certify recognizable identity or aesthetic quality;
+large conflicting arrangements still need rendered inspection and may yield a best-effort view.
+The edited view provides “Whole place” and “See addition” controls, disabled while seated,
+using the telescope or in a transition. They change the view without a forced flight. The first-attempt
+runner uses this same reveal field for its scripted additive edit.
+
 ## Atmosphere and visible responses
 
-`look.sky.period` is `day|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
-Day/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
-with the horizon fitted to the tiny planet's visible limb. Clear legacy nights retain their
+`look.sky.period` is `day|dawn|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
+Day/dawn/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
+with dawn using a cool upper sky and warm horizon. The horizon is fitted to the tiny planet's visible limb. Clear legacy nights retain their
 nebula/stars. `color` tints the chosen sky treatment; `light` colours the directional light.
 These controls are art direction, not live weather or an astronomical clock. They do not imply
-rain, snow, weather audio or a matching environment asset library.
+snow or weather audio. Explicit `look.sky.weather: rain` adds bounded local rain streaks and haze. Rain stays static under reduced motion; it is never inferred from woodland alone. Defaults without weather remain unchanged.
 
 All usable things respond in the world before optional details. Seats sit, lights switch, the
-cat acknowledges and the telescope looks; the separate details button can then open the object's
+cat/bird acknowledges and the telescope looks; the separate details button can then open the object's
 name/note/collection. This does not add riding, baking, animal rigs or musical performance.
 Wood parts map grain in part metres rather than stretching a whole tile over every little board.
+
+## Grounded props and surface cues
+
+`look.ground.cover` can explicitly select `grass|sand|snow|paving`. These are shared material
+cues, not a scene theme or a promise of weather. They preserve the analytic terrain and walking
+heights. Grass adds bounded instanced tufts outside solid usable things; sand reduces loose
+stones, and snow/paving omit them. Material detail uses metre-scale triplanar projection rather
+than stretching one tile across a planet. Legacy ground stays unchanged when cover is absent.
+
+An individual upright box/cylinder part can use `ground: true` for a support foot. The renderer
+fits its bottom to the same curved terrain as walking, preserving the top joint. Use it on
+separate legs/posts; it cannot repeat, mirror, spin, tilt around x/z or belong to an animated
+joint. This fits primitive supports, not arbitrary downloaded GLB legs, room collision or a
+whole structure's validity. Preparation warnings remain approximate and still need review.
+
+The existing nine stock types now have recognizable local fallback parts rather than a single
+brown box: seats have backs/legs, lamps a lantern, crates an open slatted body, and so on.
+The accepted model files, words, cache identities and generation caps are unchanged. Explicit
+custom parts still take precedence. Failed or delayed downloads no longer erase all silhouette
+cues, but this does not establish that every fallback meets the owner's visual bar. These parts
+live in `_shared/planet-stock.js`, through the existing `partsOf` path, without another asset
+service or generation job. Static opaque parts retain the existing batching.
 
 ## Repeatable interview development review
 
@@ -151,6 +205,45 @@ and build. `--arrivals-only` captures first reveals without claiming actions or 
 The review records aesthetic/interaction gaps rather than passing them as universal quality.
 No generation, external API or send calls are part of this review mode. Separate fresh interviews
 and owner judgment remain necessary after tuning this set.
+
+## First-attempt creation evidence
+
+`tools/planet-first-shot.mjs` freezes the actual connector instructions, kit, creation prompt,
+source fingerprints and built renderer **before** interviews are added. It does not generate
+designs or call a model API. Give its `generation-input.txt` to the designing host, then submit
+that host's original JSON before inspecting preparation diagnostics or rendered views:
+
+```sh
+node tools/planet-first-shot.mjs freeze --out /private/run --site _site
+node tools/planet-first-shot.mjs intake --run /private/run --id case-a --input /private/interview.txt --provenance synthetic-development
+node tools/planet-first-shot.mjs submit --run /private/run --id case-a --candidate /private/first-output.json --generator 'host/model and context exposure'
+node tools/planet-first-shot.mjs render --run /private/run --id case-a --attempt 1
+```
+
+The generation input specifies an envelope: raw `spec`, a supported `firstAction` thing ID,
+the generator's `coverage` disclosure, and one `edit` with a concrete suggestion and either a
+new `thing` or `sceneExtra: {id, kind}`. Coverage disclosure is not an independent fidelity
+assessment. Production hosts receive the same `first_reveal` checklist in the kit; it asks for
+an activity, readable personal detail, supported action, coherent relationships and honest gaps.
+
+Submit saves the original bytes before parsing or preparing, including invalid JSON. Two later
+corrections are allowed, each with a declared reason; they have separate numbered artifacts.
+Changed input, candidate, code or renderer bytes are refused. Render records actual desktop and
+portrait arrivals, a real tap/walk/action, and an additive edit through the existing preflight.
+It refuses to overwrite previous render evidence. A failed first attempt remains a failure even
+if a later correction succeeds. Inspect attempt 1, not only the last valid design.
+
+Keep runs and real interviews outside the public repo. `independent-interview` provenance and
+generator context are declarations: the tool cannot prove that the host was isolated, that the
+interview was unseen or that the generator's self-assessment is accurate. Same-session synthetic
+trials are development evidence, never held-out acceptance. Generation latency/cost remain
+unknown unless measured by the designing host; render/preparation timings are separate. There
+are no paid jobs, network calls, sends or automatic aesthetic scores. `technicalReady` means
+only that the captured browser/action/edit checks passed; aesthetic acceptance stays null.
+This local benchmark is not a hosted pre-reveal worker or an implemented one-shot guarantee.
+
+Keep the tuned examples as references/regressions. Judge fresh outputs without per-person hand
+edits, fix shared rules/assets, then reserve different unseen interviews for acceptance.
 
 ## The pieces
 
@@ -448,3 +541,33 @@ it. A finished friend's planet still goes to `tools/models/planets/` for the wor
 Meshy, for a planet's real models: about $0.70 a model, at most 14 a planet for the first 10 friends (above), and those made while the chat waits at most 30 a month, about $20 (above). Otherwise
 no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).
+
+
+## Rendered development preflight
+
+`node tools/planet-scene-review.mjs --design <json> --baseline <json> --out <dir>
+--action <id> --extra hammock|birdbath` uses the existing local prepare/preview path and built
+site. It blocks all external requests and supplies no model-generation context. The original
+owner design can stay outside the public repository; `tools/fixtures/planet-woodland.json` is a
+synthetic development design derived from the existing forest intake, not unseen evaluation.
+
+It saves actual desktop/portrait arrivals, a first action reached by a real tap/walk, reverse
+views, an additive edit and a primitive/accepted-tree comparison. Fixed-camera images reuse
+the final arrival pose and are labeled QA observers, separate from actual arrivals. It checks
+visible mesh targets for additions, original-object preservation and missing-required-asset
+recovery. Reports include input and renderer hashes, errors and render statistics. It does not
+choose an aesthetic winner, prove physical-phone speed or implement a production rendering
+worker: `prepare_planet` still truthfully reports no rendered inspection.
+
+`extras: [birdbath]` adds a shallow bath at the clearing edge; `[hammock]` adds a sitting hammock
+beneath the palms. Both preserve existing object identities/geometry and mark the addition as
+focus so its visible surface participates in opening selection. Instance-aware batching retains
+fringe instances rather than collapsing their source geometry to a single strand.
+
+
+The painting's paper uses a seeded code-painted watercolour texture, rather than raised geometry
+or a woven-material stand-in. It is generic scenery, never claimed as the person's own work.
+A sit action can declare `seatView: {eye?, pitch?}` (eye 0.8–1.6 m, pitch −0.5–0.3 radians).
+The painting seat uses it to frame the canvas; ordinary seats retain their existing defaults.
+The review turns in place before finding a seat after a greeting, then uses a real tap and walk;
+that controller look is recorded explicitly rather than described as an unchanged arrival view.

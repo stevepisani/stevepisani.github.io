@@ -14,6 +14,21 @@ import { STOCK } from '../../../supabase/functions/_shared/planet.js';
 import { modelKey, MODELS_URL } from '../../../supabase/functions/_shared/planet-models.js';
 
 const BASE = new URL('../../models/planets/', import.meta.url);
+const loader = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+
+// Accepted library assets are part of the first reveal, rather than a later replacement.
+// Fetch/parse each once even when several trees share it. Unknown names are never URLs.
+export async function loadSceneAssets(spec) {
+  const library=new Map();
+  if((spec.things||[]).some(t=>t.craft==='birch')) {
+    const res=await fetch(new URL('library/birch.glb',BASE),{signal:AbortSignal.timeout(15000)});
+    if(!res.ok)throw Error('Accepted birch unavailable');
+    const tree=(await loader().parseAsync(await res.arrayBuffer(),BASE.href)).scene;
+    tree.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true;});
+    library.set('birch',tree);
+  }
+  return library;
+}
 
 // how often to ask about models being made, and for how long (they take about 3 to 5 minutes)
 const ASK_EVERY = 10_000, ASK_FOR = 12 * 60_000;
@@ -27,9 +42,9 @@ export async function loadModels(spec, things) {
   if (!wanted.length) return 0;
   let made = {};
   try { made = await (await fetch(new URL('manifest.json', BASE))).json(); } catch { /* none here: maybe some are being made */ }
-  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const gltf = loader();
   const swap = async (t, url) => {
-    try { things.swap(t, (await loader.loadAsync(url)).scene); return true; } catch (e) { console.warn(`${t.id}: its model didn't load`, e); return false; }
+    try { things.swap(t, (await gltf.loadAsync(url)).scene); return true; } catch (e) { console.warn(`${t.id}: its model didn't load`, e); return false; }
   };
   let n = 0;
   const later = [];
