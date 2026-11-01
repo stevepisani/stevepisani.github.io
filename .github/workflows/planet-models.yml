@@ -9,7 +9,7 @@ name: Planet models
 on:
   push:
     branches-ignore: [main]
-    paths: [tools/models/planets/**, tools/planet-models.mjs, supabase/functions/planets/server.js, supabase/functions/_shared/planet.js]
+    paths: [tools/models/planets/**, tools/planet-models.mjs, tools/planet-model-cache.mjs, supabase/functions/planets/server.js, supabase/functions/_shared/planet.js]
   workflow_dispatch:
     inputs:
       redo:

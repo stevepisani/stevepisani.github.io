@@ -7,6 +7,8 @@
 // mcp.stevenpisani.com and stevenpisani.com.
 //
 //   node tools/planet-live.mjs [--url <connector>] [--shots <dir>] [--no-send] [--site _site] [--local]
+// --interviews --phase <name> --local --site _site --shots <dir> captures the frozen synthetic
+// interview stress set (first reveals, actions and additive edits), offline and without sends.
 // --site serves stevenpisani.com from a local build instead, to try this script itself offline;
 // --local asks this checkout's connector (supabase/functions/planets/server.js, in this process,
 // nothing sent) instead of the deployed one, to try a change to both before it's merged.
@@ -68,6 +70,13 @@ for (const [what, spec] of Object.entries(BARE)) {
   ok(r.isError && /bare rock/.test(r.content[0].text) && !r.structuredContent, `bare rock refused: ${what}`, r.content?.[0]?.text);
 }
 
+if (process.argv.includes('--interviews')) {
+  if (!local || !site || !shots) throw new Error('--interviews requires --local --site and --shots; it never sends');
+  const { reviewInterviews } = await import('./planet-interview-review.mjs');
+  await reviewInterviews({ tool, site, shots, phase: arg('phase', 'baseline'), arrivalsOnly:process.argv.includes('--arrivals-only'), onlyCases:arg('cases',null)?.split(',') });
+  process.exit(failed ? 1 : 0);
+}
+
 const proxy = process.env.HTTPS_PROXY || process.env.https_proxy;
 const browser = await chromium.launch(proxy && !site ? { proxy: { server: proxy } } : {});
 const context = await browser.newContext({ viewport: { width: 1000, height: 640 } });
@@ -110,6 +119,7 @@ for (const spec of PEOPLE) {
         let at = await page.evaluate((id) => window.__planet.screenOf(id), t.id);
         if (!at) { await page.evaluate(() => window.__planet.player.look(0, 0.5)); await drawn(); at = await page.evaluate((id) => window.__planet.screenOf(id), t.id); }
         if (at) await page.mouse.click(at.x, at.y);
+        if(t.use) {await page.locator('#details').waitFor({state:'visible',timeout:60000});await page.locator('#details').click();} // usable things respond in the world before optional details
         const card = await page.waitForFunction(() => !document.getElementById('thing').hidden && document.getElementById('thing-name').textContent, null, { timeout: 5000 }).then((h) => h.jsonValue(), () => null);
         ok(card === t.name, `tap ${t.name}: its card`, { at, card });
         // walking up and sitting take a few seconds, and far longer where frames come slowly (software WebGL)

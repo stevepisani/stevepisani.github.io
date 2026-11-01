@@ -2,11 +2,14 @@
 // passes; a small planet of someone else's passes; and each way a spec can go wrong is caught, with
 // where and what. Then what the world draws from a spec (planetParts), a spec packed into an address
 // and back, and the Planets connector (supabase/functions/planets/server.js): its tools, its card,
-// a preview, and a spec with mistakes said back. Offline, well under a second.
+// a preview, and a spec with mistakes said back. Offline, including analytic ground checks.
 //
 //   node tools/planet-test.mjs
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
+import { Vector3 } from 'three';
+import { buildGround } from '../assets/js/planets/ground.js';
+import { RADIUS } from '../assets/js/world/planet.js';
 import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingReach, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
@@ -79,6 +82,11 @@ caught(shaped, (s) => { s.things[0].parts[0].profile = [[0, 0], [1, 1]]; }, /^th
 caught(shaped, (s) => { s.things[0].parts[6].repeat.count = 100; }, /^things\[0\]\.parts\[6\]\.repeat\.count: should be a whole number from 2 to 24/, 'too many copies');
 caught(shaped, (s) => { s.things = Array.from({ length: 2 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(10).fill({ shape: 'box', size: [1, 1, 1], repeat: { count: 24 } }) })); }, /^things: more than 400 parts in all/, 'repeats count toward the planet\'s parts');
 caught(made, (s) => { s.things = Array.from({ length: 11 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(40).fill(s.things[0].parts[0]) })); }, /^things: more than 400 parts in all/, 'more parts than a planet allows');
+const daylight=clone(made);daylight.look.sky.period='day';daylight.look.sky.clouds='overcast';delete daylight.things[0].light;
+ok(checkPlanet(daylight).length===0 && !lookOver(daylight).some(n=>/nothing glows/.test(n)),'daylight needs no artificial lamp to avoid a dim-night warning');
+caught(daylight,s=>{s.look.sky.period='sunrise';},/look.sky.period/,'unsupported sky periods are refused');
+caught(daylight,s=>{s.look.sky.clouds='live-weather';},/look.sky.clouds/,'cloud cover cannot imply live weather');
+caught(made,s=>{s.things[0].role='most-important';},/role/,'composition roles are bounded');
 caught(made, (s) => { s.look.ground.color = 'brown'; }, /^look\.ground\.color: should be a colour/, 'a colour that isn\'t #rrggbb');
 for (const slug of ['', 'a', 'Sam', '-sam', 'sam-', 'sam steve', 'x'.repeat(33), 7]) caught(least, (s) => { s.slug = slug; }, /^slug:/, `a bad slug: ${JSON.stringify(slug)}`);
 caught(least, (s) => { delete s.who; }, /^who: missing/, 'no who');
@@ -142,6 +150,7 @@ const init = (await call('initialize', { protocolVersion: '2025-06-18' })).resul
 ok(init.protocolVersion === '2025-06-18' && init.serverInfo.name === 'planets' && /get_kit/.test(init.instructions), 'it says who it is and how to use it');
 const tools = (await call('tools/list')).result.tools;
 ok(tools.map((t) => t.name).join() === 'get_kit,prepare_planet,preview_planet,send_planet' && tools.slice(0, 3).every((t) => t.annotations.readOnlyHint) && !tools[3].annotations.readOnlyHint && !tools[3].annotations.destructiveHint, 'four tools: three read-only, and send_planet, the one that saves something (and destroys nothing)');
+ok(/only when those activities fit/.test(init.instructions) && /do not turn unrelated interests/.test(init.instructions),'creation instructions preserve unrelated interests instead of forcing the scene library');
 ok(/never send it without their go-ahead/i.test(init.instructions), 'a planet is sent only when its person says so');
 ok(!tools[1]._meta.ui && !tools[1]._meta['openai/outputTemplate'] && tools[2]._meta.ui.resourceUri === planets.APP_URI && tools[2]._meta['openai/outputTemplate'] === planets.APP_URI, 'preparation opens no card; only preview_planet shows it');
 ok(/prepare_planet before the first reveal/.test(init.instructions) && /at most two targeted corrections/.test(init.instructions) && /one specific additive change/.test(init.instructions), 'instructions bound preparation and ask for one personal additive suggestion at reveal');
@@ -181,6 +190,18 @@ ok((await prepare(tooMany)).isError, 'compiled scene geometry must obey the tota
 const pilot = JSON.parse(readFileSync(new URL('./fixtures/planet-scenes.json', import.meta.url)));
 const baseline = composePlanet(pilot);
 ok(checkPlanet(pilot).length === 0 && lookOver(baseline).length === 0 && showsNothing(baseline).length === 0, 'authored scene layouts pass without corrective geometry notes');
+// A changed shore must keep authored feet dry across terrain seeds, not only one screenshot.
+const wetAnchors = [];
+for (const slug of ['one','two','three','dusk-coast','garden','test-scenes']) {
+  const s = composePlanet({...pilot,slug}), ground = buildGround(slug,s.look.ground);
+  for (const t of s.things) {
+    const b=t.at.bearing*Math.PI/180,a=t.at.distance/RADIUS;
+    if (ground.isWater(new Vector3(Math.sin(b)*Math.sin(a),Math.cos(a),-Math.cos(b)*Math.sin(a)))) wetAnchors.push(`${slug}/${t.id}`);
+  }
+  ground.mesh.traverse(o=>{o.geometry?.dispose(); for(const m of (Array.isArray(o.material)?o.material:[o.material])) m?.dispose();});
+}
+ok(wetAnchors.length===0,'composed scene anchors stay on dry ground across six independent terrain seeds',wetAnchors);
+
 ok(baseline.arrival === 'overview' && baseline.routes.length === 2 && baseline.routes[1].from.bearing === baseline.routes[0].to.bearing && baseline.routes[1].from.distance === baseline.routes[0].to.distance, 'scene routes connect entrances, independently of decorative props');
 const catLookout = clone(pilot); catLookout.scenes = [{...pilot.scenes[1],companion:{kind:'cat',name:'Pumpkin'}}];
 ok(composePlanet(catLookout).things.some((t)=>t.name==='Pumpkin') && checkPlanet(catLookout).length===0,'lookout companions are rendered rather than silently discarded');
@@ -190,6 +211,10 @@ ok(checkPlanet(edited).length === 0 && lookOver(edited).length === 0 && edited.t
 ok((await prepare(pilot)).structuredContent.design.scenes[0].id === 'club', 'preparation preserves the small editable design alongside its compiled result');
 caught(pilot,(s)=>{s.scenes[0].extras=['unavailable'];},/scenes.*extras/,'unsupported scene edits are refused');
 caught(baseline,(s)=>{s.things[0].footprint=[-1,1];},/footprint/,'ground footprints cannot have negative dimensions');
+caught(baseline,(s)=>{s.things[0].craft='unavailable';},/craft/,'authored craft is bounded');
+caught(baseline,(s)=>{s.things[0].parts[0].surface='unavailable';},/surface/,'surface craft is bounded');
+caught(baseline,(s)=>{s.things[0].parts[0].joint='head';},/joint/,'ordinary furniture cannot create character joints');
+caught(baseline,(s)=>{s.things[0].use='greet';},/use/,'greeting requires an authored character');
 caught(baseline,(s)=>{s.look.ground.coast.radius=100;},/coast.radius/,'shoreline geometry is bounded');
 caught(baseline,(s)=>{s.routes[0].from.distance=Infinity;},/routes/,'routes reject nonfinite endpoints');
 for (const change of [(s)=>{s.things={};},(s)=>{s.things=[null];},(s)=>{s.look='bad';}]) ok(errorsWith(pilot,change).length>0,'invalid raw scene fields return validation errors without throwing');
@@ -240,6 +265,7 @@ const sloppyShown = (await call('tools/call', { name: 'preview_planet', argument
 ok(!sloppyShown.isError && /card has already been revealed/.test(sloppyShown.content[0].text) && sloppyShown.content[0].text.includes('Pebble'), 'the preview reports geometry notes honestly after reveal', sloppyShown.content[0].text);
 // a thing in words, for its real model (tools/planet-models.mjs): checked, and capped per planet and per run
 const { wanted, planets: modelled, PER_PLANET, PER_RUN, FIRST_PLANETS } = await import('./planet-models.mjs');
+await import('./planet-model-cache-test.mjs');
 ok(planets.EXAMPLE.things.every((t) => t.model || t.stock) && checkPlanet(planets.EXAMPLE).length === 0, "the kit's example: its things are described for their models, or stock");
 // stock things: ready-made, no parts or words needed, and their own models made once for every planet
 const stocked = { ...least, things: [{ id: 'seat', name: 'Seat', stock: 'bench', at: { bearing: 0, distance: 5 }, use: 'sit' }, { id: 'lamp', name: 'Lamp', stock: 'lamp-post', near: { of: 'seat', side: 'left' }, light: {}, use: 'switch' }] };
@@ -338,6 +364,8 @@ await w.db.exec(`set request.jwt.claims = '{"sub":"11111111-1111-4111-8111-11111
 ok((await w.q("update public.planet_requests set status = 'building' where slug = 'sam' returning id")).length === 2, 'Steve reads them and marks what he is building');
 await w.db.exec('reset role');
 
+await import('./planet-overview-test.mjs');
+await import('./planet-motion-test.mjs');
 // ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
 {
 const { modelsNow, MODELS_A_MONTH, PER_PLANET: CHAT_PER_PLANET } = await import('../supabase/functions/planets/models.js');
