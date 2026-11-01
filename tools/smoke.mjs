@@ -1889,6 +1889,28 @@ async function composedPreview(page, shot) {
 
 // The Planets connector's card, the way ChatGPT and Claude show it (as card(), below): the planet
 // in a frame on a computer and in a phone's app alike, and a plain card where 3D can't run
+// a model made while the chat waits (supabase/functions/planets/models.js): the planet asks the
+// connector how it's coming, by its words' key, and swaps it in once it's made; here the connector
+// is made up and says it's made at once, at the stock crate's file
+async function chatModel(page, shot) {
+  const { modelKey } = await import('../supabase/functions/_shared/planet-models.js');
+  const words = 'A small hand-built wooden kiosk painted teal, its paint worn at the edges';
+  const key = await modelKey(words);
+  const asked = [];
+  await page.route('https://mcp.stevenpisani.com/planets?models=*', (route) => {
+    asked.push(new URL(route.request().url()).searchParams.get('models'));
+    route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ [key]: { status: 'done', url: `${base}/assets/models/planets/stock/crate.glb` } }) });
+  });
+  const spec = { version: 1, slug: 'kai', who: { name: 'Kai' }, things: [{ id: 'kiosk', name: 'The kiosk', at: { bearing: 0, distance: 5 }, model: words, parts: [{ shape: 'box', size: [1.5, 2, 1.5], color: '#33aaaa' }] }] };
+  await page.goto(`${base}/p/preview/?test=1#${await packPlanet(spec)}`);
+  await until(page, () => window.__planet && window.__planet.ready, null, 240000);
+  await until(page, () => window.__planet.spec.things[0].real, null, 60000);
+  if (asked[0] !== key) throw new Error(`the planet should ask after its model by its words' key: ${JSON.stringify(asked)}`);
+  await page.waitForTimeout(800);
+  await shot('chat-model');
+  step("a model made while the chat waits: asked after by its words' key, and swapped in for the shapes once it's made");
+}
+
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
 // in it (showsNothing) is really there. A metre cube 9 m out at bearing 17 is on screen as they
 // land; at bearing 30 it isn't, and the connector refuses a planet with only that.
@@ -2072,6 +2094,7 @@ if (want('planets') || want('scenes')) await session('composed scenes desktop', 
 if (want('planets') || want('scenes')) await session('composed scenes phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, composedPreview);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
+if (want('planets')) await session('planets chat model', { viewport: { width: 1000, height: 700 } }, chatModel);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);
 if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);
