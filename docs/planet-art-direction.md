@@ -92,6 +92,8 @@ table while inheriting its orientation/scale, with bounded fit and overlap valid
 height guesses, compound-person defaults or new paid requests are needed. Neutral front/back
 and real arrival/action/addition reviews remain development evidence; the owner's visual bar,
 broader personal heroes and fresh independent first-attempt quality are still open.
+A sit can explicitly face a named activity (`seatView.toward`) using its actual bounds. A
+successful seated state alone is insufficient: the review must show the activity from that view.
 
 Reuse generic material textures, palms, planting, terrain and rendering techniques already in
 the engine. Preserve the storybook miniature style. Do not copy another person's architecture,

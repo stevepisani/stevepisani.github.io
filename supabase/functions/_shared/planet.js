@@ -295,7 +295,10 @@ export function checkPlanet(spec) {
     if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
     if(t.seatView!==undefined) {
       if(!isObj(t.seatView)||t.use!=='sit')fail(`${at}.seatView`,'needs a sit action and an object');
-      else {only(`${at}.seatView`,t.seatView,['eye','pitch']);between(`${at}.seatView.eye`,t.seatView.eye,.8,1.6);between(`${at}.seatView.pitch`,t.seatView.pitch,-.5,.3);}
+      else {
+        only(`${at}.seatView`,t.seatView,['eye','pitch','toward']);between(`${at}.seatView.eye`,t.seatView.eye,.8,1.6);between(`${at}.seatView.pitch`,t.seatView.pitch,-.5,.3);
+        if(t.seatView.toward!==undefined&&(typeof t.seatView.toward!=='string'||!t.seatView.toward||t.seatView.pitch!==undefined))fail(`${at}.seatView.toward`,'name an activity target instead of an absolute pitch');
+      }
     }
     if(t.role!==undefined && !['focus','support','environment'].includes(t.role)) fail(`${at}.role`,'should be focus, support or environment');
     if (t.use !== undefined && !USES.includes(t.use)) fail(`${at}.use`, `should be one of ${USES.join(', ')}`);
@@ -364,6 +367,7 @@ export function checkPlanet(spec) {
   if(!errors.length) {
     const mounted=[];
     for(const [i,t] of (spec.things||[]).entries()) {
+      if(t.seatView?.toward && (t.seatView.toward===t.id||!thingIds.has(t.seatView.toward)))fail(`things[${i}].seatView.toward`,'should name another thing in this planet');
       if(t.near && spec.things.find(a=>a.id===t.near.of)?.on)fail(`things[${i}].near.of`,'ground placement needs a ground anchor, not a tabletop prop');
       if(!t.on)continue;
       const anchor=spec.things.find(a=>a.id===t.on.of),support=STOCK[anchor.stock].support,bounds=tabletopBounds(t);

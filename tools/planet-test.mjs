@@ -370,6 +370,7 @@ await w.db.exec('reset role');
 await import('./planet-overview-test.mjs');
 await import('./planet-craft-test.mjs');
 await import('./planet-library-test.mjs');
+await import('./planet-picking-test.mjs');
 await import('./planet-scene-kit-test.mjs');
 await import('./planet-setting-test.mjs');
 await import('./planet-first-shot-test.mjs');

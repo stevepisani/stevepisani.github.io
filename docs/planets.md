@@ -508,7 +508,14 @@ For example, put books at `[-0.17,-0.16]`, the lamp at `[0.17,0.13]`, and an opt
 at `[-0.17,0.14]`. Parent position, orientation and scale carry them together. After the real
 table loads, its actual top settles the props regardless of asset completion order; flat
 tabletop props do not receive the ground-curvature sink. A mounted prop's reveal keeps its table
-as context. The original scene and props remain unchanged when a book is added.
+as context. The original scene and props remain unchanged when a book is added. A sit action can use
+`seatView: {eye:1.15,toward:"books"}` to face a named activity using its actual loaded bounds.
+The target may be listed later, must be another thing in the planet, and replaces an absolute
+`pitch`. The usual continuous entry and stand-up remain. This prevents a technically successful
+sit from ending with an empty-horizon view; the reading test requires visible table/book faces
+and an actual seated book tap that opens its collection. Occupied seats retain real mesh
+occlusion while their broad picking hull stops claiming visibly empty space above the armrests.
+Standing gap picks and walking collision bounds are unchanged.
 
 The source family has rounded, simple silhouettes; it is not a universal personal-hero library
 or an unseen-interview quality result. `tools/fixtures/planet-reading.json` is an authored study.

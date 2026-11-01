@@ -17,6 +17,10 @@ for(const scale of [.5,1,2])for(const turn of [-75,0,90]) {
 }
 const bad=(change,match)=>{const spec=structuredClone(fixture);change(spec);assert(checkPlanet(spec).some(e=>match.test(e)),JSON.stringify(checkPlanet(spec)));};
 bad(s=>s.things[2].on.of='chair',/declared flat support/);
+bad(s=>s.things[0].seatView.toward='missing',/another thing/);
+bad(s=>s.things[0].seatView.toward='',/activity target/);
+bad(s=>s.things[0].seatView.toward='chair',/another thing/);
+bad(s=>s.things[0].seatView.pitch=-.1,/instead of an absolute pitch/);
 bad(s=>s.things[2].on.of='books',/earlier/);
 bad(s=>s.things[2].on.at=[.4,0],/whole prop/);
 bad(s=>s.things[2].on.at=[0,0,1],/needs \[x, z\]/);

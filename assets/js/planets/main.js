@@ -132,7 +132,7 @@ async function start(spec) {
     ndc.set((x / innerWidth) * 2 - 1, -(y / innerHeight) * 2 + 1);
     ray.setFromCamera(ndc, camera);
     const hit = ray.intersectObject(ground.mesh, false)[0];
-    const best=pickThing(ray,spec.things||[],things.pickable,hit?hit.distance+.01:Infinity);
+    const best=pickThing(ray,spec.things||[],things.pickable,hit?hit.distance+.01:Infinity,seat?.id);
     return best ? { thing: best } : hit && !ground.isWater(hit.point.clone().normalize()) ? { point: hit.point } : null;
   };
 
@@ -170,7 +170,16 @@ async function start(spec) {
   };
   function sit(t) {
     const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
-    glide({ pos: at, quat: facing(at, f), eye: t.seatView?.eye ?? SEATED, pitch: t.seatView?.pitch ?? -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
+    const eye=t.seatView?.eye ?? SEATED,target=spec.things.find(a=>a.id===t.seatView?.toward);
+    let direction=f,pitch=t.seatView?.pitch ?? -.18;
+    if(target) {
+      target.root.updateWorldMatrix(true,true);
+      const up=at.clone().normalize(),to=new THREE.Box3().setFromObject(target.root).getCenter(new THREE.Vector3()).sub(at.clone().addScaledVector(up,eye));
+      if(to.clone().addScaledVector(up,-to.dot(up)).lengthSq()>1e-8) {
+        direction=to;pitch=THREE.MathUtils.clamp(Math.asin(to.clone().normalize().dot(up)),-1,.6);
+      }
+    }
+    glide({ pos: at, quat: facing(at, direction), eye, pitch }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
   }
   function stand(then) {
     detailButton.hidden=true;
