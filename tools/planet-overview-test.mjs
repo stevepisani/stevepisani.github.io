@@ -26,6 +26,20 @@ for(const [w,h] of [[1,2],[5,4],[3,7]])for(const aspect of [390/844,1280/720]) {
 const focus=make('main',2,2,[0,19,-6]),addition=make('personal addition',.6,1,[2,19,-6]);
 const frame=overviewFrame([focus,addition],{aspect:390/844,fov:72,surface:()=>RADIUS});
 assert(frame.ids.includes(addition.id),'a nearby personal addition participates in the opening frame');fits(frame,390/844,72);
+// The roof is a frame around the useful furniture, not an object that must fit in full.
+// Changing its overhang must not move the first activity farther down the curved horizon.
+for(const aspect of [366/440,700/440]) {
+  const bench=make('sheltered bench',1.4,.85,[0,19,-6]);
+  const roof=make('canopy',6.4,.12,[0,19,-6],'support');roof.craft='canopy';roof.solid=false;
+  roof.root.children[0].position.y=3.2;
+  const small=overviewFrame([bench,roof],{aspect,fov:72,surface:()=>RADIUS});
+  roof.root.children[0].scale.x=1.5;
+  const large=overviewFrame([bench,roof],{aspect,fov:72,surface:()=>RADIUS});
+  assert(!small.ids.includes(roof.id),'shelter architecture must not enlarge the activity union');
+  assert(small.dir.distanceTo(large.dir)<1e-8,'roof overhang must not shrink the first activity');
+  assert.equal(small.eye,1.8,'the sheltered approach remains below the roof');
+  fits(small,aspect,72);
+}
 const feet=frame.dir.clone().multiplyScalar(RADIUS),collider={center:feet,radius:.5};
 const clear=overviewFrame([focus,addition],{aspect:390/844,fov:72,surface:()=>RADIUS,colliders:[collider]});
 assert(clear.dir.clone().multiplyScalar(RADIUS).distanceTo(collider.center)>.8,'arrival feet must clear nearby solids');

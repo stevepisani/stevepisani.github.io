@@ -292,7 +292,9 @@ export function buildThings(things = [], surface, library = new Map()) {
       for (let i = spinning.length; i--;) if (had.has(spinning[i].mesh)) spinning.splice(i, 1);
       body.clear();
       const m = new THREE.Box3().setFromObject(model), ms = m.getSize(new THREE.Vector3()), bs = box.getSize(new THREE.Vector3());
-      const s = Math.min(bs.y / ms.y, Math.max(bs.x, bs.z) / Math.max(ms.x, ms.z));
+      // Every axis must fit: a long narrow model must not protrude across the neighboring
+      // activity just because the original envelope's other ground axis was longer.
+      const s = Math.min(...['x','y','z'].filter(a=>ms[a]>1e-6).map(a=>bs[a]/ms[a]));
       model.scale.setScalar(s);
       const mid = box.getCenter(new THREE.Vector3()), mm = m.getCenter(new THREE.Vector3());
       // a little into the ground: the planet curves away under anything long (a sag of L²/8R)

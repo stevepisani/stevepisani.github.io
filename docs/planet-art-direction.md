@@ -76,6 +76,15 @@ A successful generation job, valid GLB or geometry check cannot certify visual q
 hero assets must be ready before they are promised as finished. A fallback must meet the bar
 on its own; a later swap cannot rescue an inadequate first impression.
 
+Ready stock and matching cached custom models now load before reveal and before the receiving
+viewport's overview is chosen. Repeated props share the source download, not their transforms.
+The batch has a 15-second deadline and a clear reload failure instead of revealing advertised-ready
+models as placeholders. All three placement-envelope axes constrain uniform model size. A canopy
+frames the activity; fitting its entire roof must not force small furniture into the distance. This
+closes a delivery gap for existing assets; it does not add an accepted hero family or establish
+quality for unfamiliar interviews. Next content work should expand the accepted finished library
+after neutral and scene review, then use a newly frozen kit for independent first-attempt evidence.
+
 Reuse generic material textures, palms, planting, terrain and rendering techniques already in
 the engine. Preserve the storybook miniature style. Do not copy another person's architecture,
 signs, collections or biography as a default.

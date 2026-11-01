@@ -101,8 +101,12 @@ async function start(spec) {
   const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);
   if ((spec.things || []).length) hint.dataset.things = '';
-  // their real models, where they've been made (models.js), in place of the shapes as they come
+  // Frame the finished available objects, not placeholders that change after the first reveal.
+  // New models still being made keep their shapes and arrive through the existing later path.
+  say('Putting the finishing touches in place…');
   const models = loadModels(spec, things);
+  try { await models; }
+  catch { return fail('The scene’s models could not load. Please reload to try again.', ['required model unavailable']); }
 
   // where a tap means to walk: a ring on the ground, fading as you arrive
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));

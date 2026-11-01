@@ -1924,6 +1924,56 @@ async function chatModel(page, shot) {
   step("a model made while the chat waits: asked after by its words' key, and swapped in for the shapes once it's made");
 }
 
+// Finished furniture must be in the actual first frame, even over a slow connection. This is
+// an authored library study, not an unseen interview or evidence of aesthetic acceptance.
+async function readyModels(page, shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-ready-models.json',import.meta.url)));
+  const prepared=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:input}}},{})).result;
+  if(prepared.isError)throw Error(prepared.content[0].text);
+  const url=`${base}/p/preview/?test=1#${await packPlanet(prepared.structuredContent.spec)}`;
+  let release,requested=false,chairRequests=0;
+  const held=new Promise(r=>{release=r;});
+  await page.route('**/assets/models/planets/stock/*.glb',async route=>{
+    if(route.request().url().endsWith('/chair.glb'))chairRequests++;
+    if(route.request().url().endsWith('/bench.glb')){requested=true;await held;}
+    await route.continue();
+  });
+  await page.goto(url);
+  await until(page,()=>/finishing touches/.test(document.getElementById('veil-status').textContent));
+  for(let i=0;i<100&&!requested;i++)await page.waitForTimeout(50);
+  if(!requested)throw Error('the ready model was never requested');
+  if(await page.evaluate(()=>window.__planet?.ready||document.getElementById('veil').classList.contains('is-gone')))throw Error('placeholder furniture was revealed before the ready model arrived');
+  await shot('waiting-for-finished-furniture');release();
+  await until(page,()=>window.__planet?.ready,null,240000);
+  await page.locator('#veil').waitFor({state:'hidden'});
+  const first=await page.evaluate(()=>{
+    const w=window.__planet;
+    return {real:w.spec.things.filter(t=>t.real).map(t=>t.id),fits:w.opening().fits,chairs:w.spec.things.filter(t=>t.stock==='chair').map(t=>t.body.children[0].uuid),contained:w.spec.things.filter(t=>t.real).every(t=>{const V=w.camera.position.constructor,a=t.box.getSize(new V()),b=t.hull.getSize(new V());return ['x','y','z'].every(k=>b[k]<=a[k]+1e-5);})};
+  });
+  if(first.real.length!==5||!first.fits||!first.contained||new Set(first.chairs).size!==2||chairRequests!==1)throw Error(`finished first reveal, contained geometry, independent chair clones and one source request: ${JSON.stringify({...first,chairRequests})}`);
+  await shot('finished-first-reveal');
+  step('the first reveal waits for all five ready models; two chairs share one fetch but have independent transforms; finished geometry fits');
+
+  await page.unroute('**/assets/models/planets/stock/*.glb');
+  await page.route('**/assets/models/planets/stock/bench.glb',route=>route.fulfill({status:404}));
+  await page.reload();
+  await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');
+  if(await page.evaluate(()=>window.__planet?.ready)||!await page.locator('#veil-status').textContent().then(t=>/models.*reload/i.test(t)))throw Error('a missing ready model revealed placeholders instead of a reload message');
+  await shot('missing-ready-model');
+  step('an unavailable ready model gives a reload message instead of an unfinished first reveal');
+  await page.unroute('**/assets/models/planets/stock/bench.glb');
+  let finish;
+  const stalled=new Promise(r=>{finish=r;});
+  await page.route('**/assets/models/planets/stock/bench.glb',async route=>{await stalled;await route.continue().catch(()=>{});});
+  await page.clock.install();await page.reload();
+  await until(page,()=>/finishing touches/.test(document.getElementById('veil-status').textContent));
+  await page.clock.fastForward(15001);
+  await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');
+  finish();await page.waitForTimeout(200);
+  if(await page.evaluate(()=>window.__planet?.ready))throw Error('a late model revived a timed-out first reveal');
+  step('the initial model batch times out within one 15-second budget, and late completion cannot reveal it');
+}
+
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
 // in it (showsNothing) is really there. A metre cube 9 m out at bearing 17 is on screen as they
 // land; at bearing 30 it isn't, and the connector refuses a planet with only that.
@@ -2157,6 +2207,8 @@ if (want('planets') || want('scenes')) await session('composed scenes phone', { 
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('planets')) await session('planets chat model', { viewport: { width: 1000, height: 700 } }, chatModel);
+if (want('planets') || want('models')) await session('ready models card', { viewport: { width: 700, height: 440 } }, readyModels);
+if (want('planets') || want('models')) await session('ready models phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readyModels);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);
 if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

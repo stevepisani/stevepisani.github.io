@@ -500,19 +500,36 @@ model from the picture (image-to-3D with PBR textures), made small with gltf-tra
 was made from. New generations record input/reference hashes and pinned settings. Complete legacy
 assets remain available until explicitly replaced; migration does not buy the library again.
 The generation/cache policy is in `tools/planet-model-cache.mjs`.
-The planet (`planets/models.js`) loads the manifest, and each model as it comes, one at a time,
-in place of the thing's shapes (`swap` in `things.js`): as big as fits in the room the shapes
-took (as tall, and as long along the ground), standing where they stood. The shapes show until
-then, and still do if the words have changed since. The pictures sent back to the AI wait for the
-models.
+The planet (`planets/models.js`) loads matching, already-made models **before the first reveal
+and overview framing**, in place of their shapes (`swap` in `things.js`). The initial model batch
+has one 15-second fetch/decode deadline, at most three concurrent sources, and one fetch/parse per
+file even when furniture repeats. Each instance has its own transform. A missing advertised-ready
+stock model, failed matching file, or timeout keeps the loading screen with a reload message;
+it does not silently reveal unfinished substitutes. This is separate from the required birch load.
+The host card allows up to 60 seconds for a frame that has announced loading; phone/network
+latency acceptance remains unmeasured.
+
+Uniform scaling fits **every axis** of the original placement envelope, rather than only the
+longer ground axis, so a narrow model cannot protrude across a neighbor's activity. New custom
+models without a matching manifest entry retain their authored shapes and the existing background
+generation/polling path. Those shapes must still meet the first-reveal bar. Loading available stock
+does not start generation, spend money, change accepted cache identities, or prove visual acceptance.
+Sheltered overview framing fits the activity beneath a canopy rather than its entire roof;
+the roof can form the card's edges without pushing small useful furniture down the curved horizon.
 
 Stock things, as a film set keeps stock props: nine small things every place uses (bench, chair,
 table, lamp post, crate, sack, mailbox, planter, fence; `STOCK` in `_shared/planet.js`, each with
 its size and its words), made once in the house style as the planet `stock` (`stock/<name>` in the
 manifest; Steve approved about $6 for them, Oct 27). A thing says `stock: 'bench'` instead of model
-words and needs no parts: `partsOf` gives it a rounded box its size, which stands in until the
-model loads, for the layout, `lookOver` and taps alike. Any planet can have them, free and at once,
+words and needs no parts: `partsOf` supplies recognizable local geometry for layout and offline
+diagnostics; the ready model is present before reveal. Any planet can use them without generation,
 so each planet's own models go on what's truly theirs (all nine were made on Oct 27, 0.5 to 1.3 MB each). Sam's example has a stock bench to sit on.
+
+`node tools/smoke.mjs _site --only models --shots <dir>` checks actual 700×440 and 366×440
+first views with a held download, shared chair source/independent instances, finished framing,
+missing-file failure and the bounded timeout. `--only planets` also retains the later-generation
+replacement and ordinary preview/action regressions. `tools/fixtures/planet-ready-models.json`
+is an authored library study, not a fresh interview or a new quality score.
 
 It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, with the
 `MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
