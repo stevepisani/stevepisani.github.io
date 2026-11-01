@@ -235,6 +235,7 @@ export function buildThings(things = [], surface) {
         pickable.push(o);
       });
       body.add(model);
+      thing.real = true; // its real model is in
     },
     // a spinning part turns about its own up, after its own turn
     update(t) { for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed)); },
