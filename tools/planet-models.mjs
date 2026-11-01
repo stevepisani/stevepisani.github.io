@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { checkPlanet, partsOf, STOCK } from '../supabase/functions/_shared/planet.js';
 import { EXAMPLE } from '../supabase/functions/planets/server.js';
 import { get, task, finished, balance, optimize, IMAGE_TO_3D, TEXT_TO_IMAGE } from './meshy.mjs';
+import { STYLE_NAME, pictureTask, modelTask } from '../supabase/functions/_shared/planet-models.js';
 
 // the caps (Steve, Oct 27, 2026: "10 an onboarding for the first 10 people"): 14 models a planet,
 // about $10, for the first 10 friends' planets, then none until he says; 24 a run. The kit's example
@@ -30,10 +31,9 @@ export const PER_PLANET = 14, PER_RUN = 24, FIRST_PLANETS = 10;
 const isFriend = (slug) => slug !== EXAMPLE.slug && slug !== 'stock' && !slug.startsWith('test-');
 // the stock things as a planet of their own, one of each, so their models are made like any planet's
 const STOCK_PLANET = { version: 1, slug: 'stock', who: { name: 'Stock' }, things: Object.entries(STOCK).map(([id, k], i) => ({ id, name: id, model: k.model, at: { bearing: i * 30 - 120, distance: 6 }, parts: partsOf({ stock: id }) })) };
-// the house style: change it and every model is made again
-export const STYLE_NAME = 'storybook';
-const STYLE = 'A storybook miniature: hand-painted textures, soft rounded forms, gentle exaggerated proportions, warm and cosy, like a Tiny Glade or Little Prince illustration come to life';
-const FRAME = 'One object alone on a plain white background, with no ground, no base, no plinth and no shadow under it, no text and no logos; seen from the front and a little above, three-quarter view, the whole object in frame';
+// the house style (STYLE_NAME and the words Meshy is asked with) is in _shared/planet-models.js,
+// shared with the models made while the chat waits: change it and every model is made again
+export { STYLE_NAME };
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/', SPECS = root + 'tools/models/planets/', PICTURES = SPECS + 'pictures/';
@@ -76,7 +76,7 @@ async function make({ key, slug, thing }, manifest, save, redo) {
   const picture = PICTURES + key.replace('/', '-') + '.png';
   if (!existsSync(picture)) {
     // a picture already asked for is waited for, not paid for twice
-    if (!rec.picture) { rec.picture = await task({ ai_model: 'nano-banana-2', prompt: `${thing.model}. ${STYLE}. ${FRAME}.`.slice(0, 1000), aspect_ratio: '1:1' }, TEXT_TO_IMAGE); save(); }
+    if (!rec.picture) { rec.picture = await task(pictureTask(thing.model), TEXT_TO_IMAGE); save(); }
     const done = await finished(rec.picture, `${key} picture`, TEXT_TO_IMAGE).catch((e) => { delete rec.picture; save(); throw e; });
     mkdirSync(PICTURES, { recursive: true });
     writeFileSync(picture, Buffer.from(await (await get(done.image_urls[0])).arrayBuffer()));
@@ -85,7 +85,7 @@ async function make({ key, slug, thing }, manifest, save, redo) {
   // then the model, from the picture
   if (!rec.model3d) {
     const image_url = 'data:image/png;base64,' + readFileSync(picture).toString('base64');
-    rec.model3d = await task({ image_url, ai_model: 'latest', topology: 'triangle', target_polycount: 30000, should_remesh: true, should_texture: true, enable_pbr: true }, IMAGE_TO_3D);
+    rec.model3d = await task(modelTask(image_url), IMAGE_TO_3D);
     save();
   }
   // a task Meshy failed is forgotten, so the next run asks again rather than waiting on it forever

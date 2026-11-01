@@ -327,11 +327,38 @@ cliff, and the porch and cliff made again from clearer words) took about 3 minut
 that describe one object do best: the porch came out as a guitar and an amp until its words said
 it was built like a little open hut, with them on its deck.
 
-Next: models made from the chat itself, while they talk, so their own AI's words become the
-model in the preview.
+### Made while the chat waits
+
+A friend's own words become their models in the chat itself (Steve chose this, Nov 1, 2026).
+`preview_planet` starts a model for each thing described in `model` words that has none yet
+(`supabase/functions/planets/models.js`), in the same house style and the same two steps (the
+style's words and what Meshy is asked are in `_shared/planet-models.js`, shared with the
+workflow). Nothing waits on Meshy: the preview asks for the pictures and answers at once, saying
+which models are being made. The planet in the card shows the shapes, and asks the connector how
+those models are coming (`GET mcp.stevenpisani.com/planets?models=<key>,…`, every 10 s while it's
+open, for 12 minutes at most). Each ask moves them on a step, at most once every 8 s however many
+ask (`planet_model_turn`): a picture made becomes a model from it; a model made is copied into the
+public bucket `planet-models` and its address given back, and the planet swaps it in. One takes
+about 3 to 5 minutes; one Meshy fails, or that takes over an hour, is said failed, and the next
+preview asks again.
+
+A model is known by its key, its words hashed with the style (`modelKey`): the same words make the
+same model on any planet, so it's paid for once, and a model the workflow already made (the site's
+manifest) isn't asked for. Each is a row in `public.planet_models` (private; the connector reads
+and writes it with the service role). A card can only follow what a preview started. Test planets
+(slug `test-…`) never ask. The caps are in SQL (`planet_models_claim`, the only way a row is
+added): 30 a month in all, about $20, and 14 for any one planet (Steve, Nov 1, 2026), each
+counting every time Meshy was asked to start one (`public.planet_models_paid`, one row each), a
+retry after a failure included; words that failed twice aren't tried again. Past either, the things stay as their shapes and the
+preview says so. Without the `MESHY_API_KEY` function secret (the Supabase workflow copies the
+repo secret in), nothing is asked for and a preview is as it was.
+
+Meshy's file is a few megabytes; the hourly Supabase job makes a small copy beside it
+(`tools/planet-model-copies.mjs`: meshopt, WebP textures at most 1024 px) and points the row at
+it. A finished friend's planet still goes to `tools/models/planets/` for the workflow, as before.
 
 ## Costs and limits
 
-Meshy, for a planet's real models: about $0.70 a model, at most 14 a planet for the first 10 friends (above). Otherwise
+Meshy, for a planet's real models: about $0.70 a model, at most 14 a planet for the first 10 friends (above), and those made while the chat waits at most 30 a month, about $20 (above). Otherwise
 no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).

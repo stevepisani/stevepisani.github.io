@@ -5,8 +5,10 @@
 // preview_planet (checks a spec and shows it in the card: their own planet, assets/js/planets/,
 // with the things their AI made for them from simple shapes; none of Steve's places) and send_planet (when they're
 // happy with it, saves it for Steve to build: ctx.send, public.planet_requests, capped there).
-// Nobody signs in, and a preview stores nothing: its address is the planet (packPlanet). index.ts
+// Nobody signs in, and a preview stores no planet: its address is the planet (packPlanet); what it
+// starts is the real models its things are described for, while they talk (models.js, capped). index.ts
 // serves it; it's plain JavaScript so tools/planet-test.mjs can run it in Node.
+import { startModels, PER_PLANET } from './models.js';
 import { checkPlanet, composePlanet, showsNothing, notDrawn, IN_VIEW, FIRST_VIEW, lookOver, packPlanet, line, PREVIEW_PAGE, LIMITS, SHAPES, FINISHES, USES, STOCK } from '../_shared/planet.js';
 
 export const SITE = 'https://stevenpisani.com';
@@ -20,7 +22,7 @@ const INSTRUCTIONS = [
   'Build coherent places from their answers with scenes: choose gathering or lookout, give each its personal name, note and collection, and add a cat companion only if they mentioned one. The composer resolves the primary arrival, supporting objects and routes. Existing things still work for custom objects, but do not invent unsupported assets or features.',
   'Call prepare_planet before the first reveal. It compiles scenes and returns a flat spec and geometry diagnostics without opening a card. Make at most two targeted corrections after that first preparation. Fix schema and arrival errors and meaningful warnings; geometric warnings can be approximate. Preparation does not render screenshots or generate assets, and passing it is not proof of visual quality. Never claim you inspected rendered views before any were actually available.',
   'Then call preview_planet with the prepared spec to reveal the planet. The card may send rendered pictures back where the host supports them; only then can you inspect those pictures. Tell the person what you made, that they can walk up to things and tap them, and immediately offer one specific additive change drawn from their answers. Make it an appealing optional idea, not a generic question about wanting changes or an invitation to repair basic defects.',
-  'Change it and preview again whenever they ask. A preview stores nothing: its link is the planet, so give them the link to keep.',
+  'Change it and preview again whenever they ask. A preview stores no planet: its link is the planet, so give them the link to keep. Things described in model words get real models made while you talk, which the card swaps in as they come; say so.',
   'When they are happy with it and say to send it, send_planet: that is what reaches Steve, who gives it its own address and may add to it by hand. Ask first whether there is anything they would like him to know, and how he can reach them when it is built (only if they want to say). Never send it without their go-ahead.',
   'A planet is public: never put a home address, phone number or anything private in it.',
 ].join(' ');
@@ -130,6 +132,7 @@ const KIT = {
     how: 'Each thing is one object made of up to 40 parts. Place it with at: { bearing, distance }: bearing in degrees from straight ahead where you land (-180..180, + is to the right), distance in metres along the ground (2..60): the planet is so small that the horizon is about 6 m away, so 3..10 is in full view from where you land, and further things rise over the horizon as you walk toward them (63 is the far side). It stands upright and faces where you land; turn (degrees) turns it. Or set it beside a thing listed before it with near: { of: that thing\'s id, side: front, back, left or right (that thing\'s own sides, as it faces you; left and right sit a little forward), gap: metres between them, 0..10, default 0.5 } instead of at: code places it clear of the other and turned to face it, so a bench sits by the oven and a crash pad at the foot of the wall. Give near things no at. scale (0.25..4) scales the whole thing. solid: false lets you walk through it.',
     parts: `Each part: shape (${SHAPES.join(', ')}), size [width, height, depth] in metres, at [x, y, z] its centre in metres from the thing\'s foot (x to its right, y up, z toward you; default: standing on the ground at the foot), turn [x, y, z] in degrees, color "#rrggbb", finish (${FINISHES.join(', ')}; glow is lit from inside), spin (degrees a second, about its own up). A text part is a flat panel of their words (text), facing you, as wide as size[0] at most and size[1] tall. Beyond the simple shapes, for real silhouettes: box with round 0..0.5 rounds its edges (a share of its smallest side); lathe turns a side profile round its up, profile [[out, up], ...] each 0..1 of its size, bottom to top, out 1 at the widest (a vase, a bottle, a bun, a lamp shade); extrude gives a flat outline depth, outline [[across, up], ...] each 0..1 of its size, going round (a guitar body, a heart, a leaf, a cactus, a state's shape); tube runs along a smooth path, path [[x, y, z], ...] each -0.5..0.5 of its size, thick its thickness in metres (a handle, a cable, a tonearm, a rail). Any part can repeat: { count 2..${LIMITS.repeat}, at [x, y, z] the step, turn [x, y, z] degrees a step about the foot } (piano keys, fence posts, petals round a stem), and mirror: true copies it to the other side, x for -x (a pair of wheels, wings, ears). Each copy counts as a part.`,
     light: 'light: { color, strength 0..1, at [x, y, z] }: the thing casts warm or coloured light round it, at most 8 lit things a planet.',
+    model: `model: up to 600 characters of words for a real 3D model of the thing, made in the planet's one house style (a storybook miniature) while you talk: the preview starts it, the card shows the thing's shapes and swaps the model in when it's ready, about 3 to 5 minutes later, so the parts still matter as its stand-in and for its size. Describe one object, the real one from their answers: what it is, its make or era, materials and colours, a sign of use, what makes it theirs (a 1960s walnut record player with a blue-label record on it, not "a music corner"). No words on it, no logos, no ground or base. Only on the things that are truly theirs, at most ${PER_PLANET} a planet; the same words always make the same model, so keep them unchanged between previews unless the thing itself changes. Stock things need none.`,
     stock: `stock (${Object.keys(STOCK).join(', ')}): a small thing ready-made in the planet\'s style, free and shown at once, instead of model words; it needs no parts (give parts only to change its stand-in shape), and scale sizes it. Use stock for the everyday things round a place (somewhere to sit, a lamp, a crate, a fence) and spend model words on what is truly theirs.`,
     use: `use (${USES.join(' or ')}): what happens when you walk up to it. sit: you sit on it, facing the way it faces (a bench, a chair, a sofa, steps, a swing; set near something, it faces that, so a bench near the oven looks at the oven). switch: its light goes on or off (a lamp, a porch light, a lantern; it needs a light). Without use, you walk up to it and see its card.`,
     craft: 'A person is 1.7 m tall; make what they love big enough to read from 10 m (a record player can be a metre wide). Think in places, as in the real world: two or three little places, each one main thing at a bearing and distance with 2 to 5 things that belong with it set near it (an oven with its cooling table and a bench; a climbing wall with a crash pad; a van with a camp stove and chairs), at real sizes. Leave room for the visitor: somewhere at each place to sit (use: sit) and take it in. A worn path runs from where you land to each place\'s main thing. One place close by, and something worth walking to further off. Model the silhouette first, then the details that make it theirs: a guitar is an extruded body and a box neck, a coffee cup a lathe with a tube handle, a bike two tori and tubes. Round the edges of boxes that aren\'t meant to be sharp. Sit parts on or into each other, never floating: a part\'s at is its centre, so a 0.4 m tall part on a 0.5 m tall base sits at y 0.7. The ground curves: something longer than about 5 m lifts off at its ends, so keep long things shorter or let them stand on legs. Use glow and lights for warmth against the night.',
@@ -241,16 +244,23 @@ async function call(name, args, ctx) {
       data: { sent: true, page },
     };
   }
-  // preview_planet
+  // preview_planet: the real models their things need start now (models.js), and come into the card as they're made
   const url = `${PREVIEW_PAGE}#${await packPlanet(spec)}`;
+  const models = await (ctx.models ? startModels(spec, ctx.models).catch((e) => { console.error(e); return null; }) : null);
+  const named = (ids) => ids.map((id) => spec.things.find((t) => t.id === id).name).join(', ');
+  const making = !models ? '' : [
+    models.making.length ? ` Real models of ${named(models.making)} are being made in the planet's style; the card shows their shapes until each is ready, about 3 to 5 minutes, and swaps it in, so they can walk around meanwhile.` : '',
+    models.over.length ? ` There's no room left for real models of ${named(models.over)} (the month's or the planet's cap), so they stay as their shapes.` : '',
+    models.test ? ' Test planets (slug test-…) get no real models.' : '',
+  ].join('');
   // what the plain card shows: who it's for, their links, and a little of what they love
   const loves = Object.values(spec.collections || {}).filter((c) => Array.isArray(c.items)).slice(0, 4).map((c) => ({ title: c.title, items: c.items.slice(0, 6).map(line).filter(Boolean) }));
   const planet = { name: spec.who.name, home: spec.look?.home || null, links: (spec.links || []).map(({ label, note, href }) => ({ label, note, href })), loves };
   // Geometry notes are available during preparation; a preview has already revealed its card.
   const fix = notes.length ? `\n\nGeometry notes (the card has already been revealed; use prepare_planet before the next reveal, and do not claim these notes are rendered inspection):\n- ${notes.join('\n- ')}` : '';
   return {
-    text: `${spec.who.name}'s planet is ready to walk around, with ${spec.things.map((t) => t.name).join(', ')} on it. It's shown in the card; to keep it or share it, here's its link (the link is the planet, nothing is stored): ${url}${fix}`,
-    data: { view: 'planet', url, planet },
+    text: `${spec.who.name}'s planet is ready to walk around, with ${spec.things.map((t) => t.name).join(', ')} on it.${making} It's shown in the card; to keep it or share it, here's its link (the link is the planet): ${url}${fix}`,
+    data: { view: 'planet', url, planet, ...(models ? { models: { making: models.making, made: models.made, over: models.over, ...(models.test ? { test: true } : {}) } } : {}) },
   };
 }
 
