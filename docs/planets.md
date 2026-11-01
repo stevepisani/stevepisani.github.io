@@ -10,6 +10,11 @@ sent are then finished by hand. The plan and what's next are in
 
 ## First-preview quality requirement
 
+The reusable research/design artifact is [planet-art-direction.md](planet-art-direction.md).
+Show, don't tell wherever possible: meaning appears in places and visible responses, with
+supporting details and accessible controls. Review changes with actual engine frames and action
+captures. Concept illustrations are treatments, not implementation evidence.
+
 After the interview, the first planet the person sees must already look coherent, personal and
 worth exploring. Repeated customer-directed fixes to basic shapes, placement or lighting are
 not the normal product flow. Later customization builds on a good first result.
@@ -59,8 +64,43 @@ The props are code-built miniatures, available immediately; they do not need Mes
 They are a bounded starting library, not a replacement for finished hero models or proof of
 first-pass quality on unseen input. Existing custom things and cached models remain available.
 
-The opening is a stable elevated view of the assembled setting; the first tap brings the
-visitor down to walking height, then walks to the chosen thing. Dragging still looks around.
+A tropical gathering also has an open bamboo-and-thatch pavilion. Furniture stays separate for
+independent interaction. An opaque matte part can use `surface: wood|bamboo|thatch|cloth` for
+shared procedural texture craft. `craft: planting` uses instanced tropical leaf beds;
+`craft: palm` reuses the procedural palm; `craft: cat` keeps
+authored head/tail joints. No downloads or generation are needed. A cat's `use: greet` turns
+its head toward the visitor (a settled pose under reduced motion). A lookout's `use: look` opens
+an explicitly imagined ringed-world sky; Step back, Escape or a walking key returns. Details
+remain optional for those actions, rather than covering their response with a card. This is
+not live astronomy. The pavilion is open decoration, not a solid room or raised walking deck.
+
+Tropical gathering scenes use cool starlight, warmer light at the table and two low approach
+lanterns at a primary gathering place. Scene routes reuse the homepage’s hand-split flagstones, draped on the receiving
+planet’s own surface. The lagoon has an irregular wet margin, broken groups of shore stones
+and the same wind-ripple/sky-reflection treatment as the homepage. Its walking boundary
+conservatively encloses every lobe; some dry sand at its edge is deliberately kept clear.
+
+`arrival: overview` frames the actual primary activity for the current viewport. Optional
+thing `role: focus|support|environment` separates composition importance from collision. Put the
+main activity first (or mark it focus), nearby usable furniture and shelter as support, and
+scenery as environment. Personal additions can be focus without becoming solid. The composer
+supplies roles for its authored scenes. Ordinary previews retain their validated forward axis
+and loading-screen drag.
+
+The opening searches stable surface positions clear of colliders, fits primary/nearby supporting
+bounds, and checks focus visibility with the same mesh/hull hit policy as real taps. Open silhouettes
+are checked at real surface samples as well as their potentially empty box centre. A greeting
+companion also prefers a clear five-pixel tap patch around its body centre, rather than merely
+showing one fragment beside an occluding chair. This improves tap tolerance without enlarging
+the character or letting it steal another object’s hits. Remote
+scenery cannot shrink the hero. It respects the receiving aspect ratio and reframes an untouched
+opening on resize; deliberate looking is preserved. Very large/conflicting arrangements can
+still return a best-effort frame rather than a guarantee. Visibility and clear starting feet
+are not a complete walking-route proof. The first tap lowers the visitor to walking height. Walking consumes elapsed frame time in
+bounded 50 ms physics steps (at most 250 ms per frame), so slower rendering does not discard
+most of the approach time. Entering a seat/lens transition stops further walking steps. This
+keeps collision steps small; it does not establish physical-phone frame rate or comfort.
+
 `footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
 select foliage, but the box under its canopy no longer claims taps meant for another object.
 Scene routes join entrances, rather than drawing a separate trail to each plant. Footprints
@@ -73,6 +113,44 @@ swimming feature. `scenes[0].extras: ["hammock"]` is one supported additive edit
 hammock at the scene edge. Recompile the original design to add it without moving existing
 scene objects. The example rehearsal and browser tests check this reveal/edit path; owner
 satisfaction and an unseen-input friend pilot are still separate gates.
+
+## Atmosphere and visible responses
+
+`look.sky.period` is `day|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
+Day/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
+with the horizon fitted to the tiny planet's visible limb. Clear legacy nights retain their
+nebula/stars. `color` tints the chosen sky treatment; `light` colours the directional light.
+These controls are art direction, not live weather or an astronomical clock. They do not imply
+rain, snow, weather audio or a matching environment asset library.
+
+All usable things respond in the world before optional details. Seats sit, lights switch, the
+cat acknowledges and the telescope looks; the separate details button can then open the object's
+name/note/collection. This does not add riding, baking, animal rigs or musical performance.
+Wood parts map grain in part metres rather than stretching a whole tile over every little board.
+
+## Repeatable interview development review
+
+Use the existing connector runner, offline and without sends:
+
+```sh
+node tools/planet-live.mjs --interviews --phase review --local --site _site --shots /path/to/review
+```
+
+The fixture `tools/fixtures/planet-interviews.json` contains four clearly synthetic intakes and
+agent-authored first designs (forest art, desert cycling, mountain reading/baking, city music).
+It is a development stress set, not independent model generations or held-out acceptance data.
+Frozen meshes, placements and names stay unchanged in the shared-renderer comparison; new
+period/cloud and importance metadata are translated from the same intakes. It records input
+hashes, renderer bundle hash, actual desktop/phone frames, first-action state changes and one
+additive edit. The old centre-tap probe is retained; when occluded, a visible control is also
+clicked in a fresh preview, reported explicitly as a separate first-reveal probe.
+
+`--phase` names an evidence folder; it does not restore old renderer code. `baseline` omits the
+new atmosphere/importance metadata. Reproducing a historical renderer requires that checkout
+and build. `--arrivals-only` captures first reveals without claiming actions or edits were run.
+The review records aesthetic/interaction gaps rather than passing them as universal quality.
+No generation, external API or send calls are part of this review mode. Separate fresh interviews
+and owner judgment remain necessary after tuning this set.
 
 ## The pieces
 
@@ -299,7 +377,9 @@ white, no ground, no base, no text or logos), kept in `tools/models/planets/pict
 model from the picture (image-to-3D with PBR textures), made small with gltf-transform (meshopt,
 1024 px WebP textures) into `assets/models/planets/<slug>/<thing id>.glb`, listed in
 `assets/models/planets/manifest.json` under `<slug>/<thing id>` with the words and the style it
-was made from. Change the style and every model is made again.
+was made from. New generations record input/reference hashes and pinned settings. Complete legacy
+assets remain available until explicitly replaced; migration does not buy the library again.
+The generation/cache policy is in `tools/planet-model-cache.mjs`.
 The planet (`planets/models.js`) loads the manifest, and each model as it comes, one at a time,
 in place of the thing's shapes (`swap` in `things.js`): as big as fits in the room the shapes
 took (as tall, and as long along the ground), standing where they stood. The shapes show until
@@ -318,8 +398,11 @@ It runs in the Planet models workflow (`.github/workflows/planet-models.yml`, wi
 `MESHY_API_KEY` repo secret; the sandbox can't reach Meshy) whenever a spec in
 `tools/models/planets/` or the kit's example changes on a branch other than main, or by hand with
 `redo` (`slug/id`, comma-separated), and commits what it made to that branch (push again after,
-for the Site checks). Only what's missing is paid for; a task already started is picked up, not
-paid for twice, and one Meshy failed is forgotten so the next run asks again. The planets it makes models for: the kit's example (Sam), the stock things, and each spec in
+for the Site checks). Only what's missing is paid for; interrupted tasks resume their IDs. Only
+terminal failures clear the failed stage. Reference filenames include input identity; changed
+words cannot reuse a legacy slug/id picture. Mesh identity includes actual reference bytes and
+pinned settings. Accepted files remain intact while replacements are pending. `--dry-run` lists
+work without a key or API calls. The planets it makes models for: the kit's example (Sam), the stock things, and each spec in
 `tools/models/planets/` (the live test's Inês and Dev are there; a friend's planet goes there
 when it's finished). Caps: 14 models a planet (about $10) for the first 10 friends' planets, then none until Steve says (Steve, Oct 27: "10 an onboarding for the first 10 people"; the example and `test-` planets don't count), 24 a run, about $0.70 a model.
 The first nine (Oct 26: Sam's turntable and porch, Inês's oven, tram and bun, Dev's van and
@@ -327,13 +410,16 @@ cliff, and the porch and cliff made again from clearer words) took about 3 minut
 that describe one object do best: the porch came out as a guitar and an amp until its words said
 it was built like a little open hut, with them on its deck.
 
+First reveal must remain convincing with available geometry: a model arriving minutes later
+cannot rescue an inadequate opening. Reuse accepted assets where possible.
+
 ### Made while the chat waits
 
 A friend's own words become their models in the chat itself (Steve chose this, Nov 1, 2026).
 `preview_planet` starts a model for each thing described in `model` words that has none yet
 (`supabase/functions/planets/models.js`), in the same house style and the same two steps (the
-style's words and what Meshy is asked are in `_shared/planet-models.js`, shared with the
-workflow). Nothing waits on Meshy: the preview asks for the pictures and answers at once, saying
+style's words and picture request are in `_shared/planet-models.js`, shared with the
+workflow; the offline workflow retains its pinned geometry settings and reference-byte cache). Nothing waits on Meshy: the preview asks for the pictures and answers at once, saying
 which models are being made. The planet in the card shows the shapes, and asks the connector how
 those models are coming (`GET mcp.stevenpisani.com/planets?models=<key>,…`, every 10 s while it's
 open, for 12 minutes at most). Each ask moves them on a step, at most once every 8 s however many

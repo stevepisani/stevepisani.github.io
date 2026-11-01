@@ -168,13 +168,13 @@ function layout() {
  * terrain: its top stands a couple of centimetres proud, its bevelled edge meets the ground,
  * and its sides run down into it. `stones` is [{ up, side, r, stretch, turn, tone, outline }].
  */
-function flagstones(stones) {
+export function flagstones(stones, surface = surfaceRadius) {
   const pos = [], col = [], uv = [];
   const base = new THREE.Color(PALETTE.basalt).lerp(new THREE.Color(PALETTE.stone), 0.55), c = new THREE.Color();
   const d = new THREE.Vector3();
   for (const st of stones) {
     const soft = st.outline, n = soft.length;
-    const vert = (lx, lz, y) => { const { x, z } = slabDir(st, lx, lz, d); return { p: onGround(d, y, new THREE.Vector3()), u: x * 1.1, v: z * 1.1 }; };
+    const vert = (lx, lz, y) => { const { x, z } = slabDir(st, lx, lz, d); return { p: d.clone().multiplyScalar(surface(d) + y), u: x * 1.1, v: z * 1.1 }; };
     const ring = (k, y) => soft.map((r, i) => { const a = (i / n) * Math.PI * 2; return vert(Math.cos(a) * r * k, Math.sin(a) * r * k, y); });
     const centre = vert(0, 0, 0.045);
     const top = ring(0.86, 0.036), bevel = ring(1, 0.012), foot = ring(1.04, -0.09);

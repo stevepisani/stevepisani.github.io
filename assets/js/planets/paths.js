@@ -4,6 +4,7 @@
 // trodden ground, laid on the ground's own surface along a gentle curve; all in one mesh.
 import * as THREE from 'three';
 import { placeOnPlanet } from './things.js';
+import { flagstones } from '../world/paths.js';
 
 const DEG = Math.PI / 180;
 
@@ -31,7 +32,7 @@ function wornTexture() {
  * ground's height, `color` the ground's colour.
  */
 export function buildPaths(things, placed, surface, color = '#6b7082', routes) {
-  const WIDTH = 0.9, positions = [], uvs = [], colors = [], index = [];
+  const WIDTH = 0.9, positions = [], uvs = [], colors = [], index = [], steps = [];
   const map = (b, d) => [d * Math.sin(b * DEG), d * Math.cos(b * DEG)];
   const back = ([x, n]) => placeOnPlanet(Math.atan2(x, n) / DEG, Math.hypot(x, n));
   const destinations = routes ? routes.map((r) => ({ at: r.to, start: r.from, reach: 0, endpoint: true })) : things.map((t) => ({ ...t, at: t.at && placed.get(t.id) }));
@@ -55,6 +56,13 @@ export function buildPaths(things, placed, surface, color = '#6b7082', routes) {
       const q = [v * v * start[0] + 2 * v * u * mid[0] + u * u * end[0], v * v * start[1] + 2 * v * u * mid[1] + u * u * end[1]];
       const dir = back(q);
       pts.push(dir.multiplyScalar(surface(dir) + 0.03));
+    }
+    // Sparse hand-split slabs make the route legible without paving the whole beach.
+    // Reuse the homepage's bevelled, terrain-draped stones with this planet's own surface.
+    if (routes) for (let i = 3; i < pts.length - 2; i += 4) {
+      const up = pts[i].clone().normalize(), ahead = pts[i+1].clone().sub(pts[i-1]).normalize();
+      const side = new THREE.Vector3().crossVectors(ahead,up).normalize();
+      steps.push({up,side,r:0.29,stretch:1.2,turn:Math.sin(i)*0.22,tone:0.93+0.08*Math.sin(i*2),outline:[1,0.91,1.04,0.86,1,0.93,0.89]});
     }
     const base = positions.length / 3;
     let along = 0;
@@ -84,6 +92,7 @@ export function buildPaths(things, placed, surface, color = '#6b7082', routes) {
     color: worn, vertexColors: true, map: wornTexture(), transparent: true, depthWrite: false, roughness: 1, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, side: THREE.DoubleSide,
   }));
+  if (steps.length) mesh.add(flagstones(steps, surface));
   mesh.receiveShadow = true;
   mesh.renderOrder = 1;
   return mesh;

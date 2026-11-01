@@ -8,7 +8,14 @@ rather than leaving it in a chat.
 
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
-   their own, from what they love. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
+   their own, from what they love. The current draft also refines scene atmosphere with
+   warm practical lights, a legible approach, irregular shores and shared water craft; visual
+   acceptance stays on PRO-2293. Evaluate shared improvements on unrelated held-out interviews
+   before further owner-example polishing; tropical dressing and atmosphere are conditional,
+   and the current two-layout library does not prove general first-reveal quality. The draft now
+   includes role/bounds/visibility-based openings, day/dusk/cloud treatments, optional details
+   after usable-world responses, and a frozen four-interview development review through
+   `planet-live --interviews`. This is engine evidence, not held-out model quality or owner acceptance. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
    unique to its person, and the only thing shared with his is the planet's size (no bar, sign,
    telescope, rocket or campfire); the first ten are built by hand, in a way that doesn't scale; a
    library of shared places comes only if it takes off. Done: the spec and its checks
@@ -35,7 +42,11 @@ rather than leaving it in a chat.
    bounded correction pass and no claimed screenshot inspection or asset generation. The first
    reveal should immediately offer one specific personal addition. Visual quality on unseen
    input still needs the fresh-input benchmark and actual rendered acceptance.
-   Next: models made live from the chat, so their own AI's words become the model in the preview. Then: try it in Claude and ChatGPT
+   The next prototype follows [the art-direction brief](planet-art-direction.md): complete
+   activity-based assemblies, shared tactile craft, visible companion/telescope responses,
+   actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets
+   support first reveal; capped models can now arrive while the chat continues (PR #150), but
+   delayed replacements cannot rescue an inadequate opening. Measured quality/latency remain open. Then: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 
