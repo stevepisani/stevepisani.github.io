@@ -338,4 +338,84 @@ await w.db.exec(`set request.jwt.claims = '{"sub":"11111111-1111-4111-8111-11111
 ok((await w.q("update public.planet_requests set status = 'building' where slug = 'sam' returning id")).length === 2, 'Steve reads them and marks what he is building');
 await w.db.exec('reset role');
 
+// ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
+{
+const { modelsNow, MODELS_A_MONTH, PER_PLANET: CHAT_PER_PLANET } = await import('../supabase/functions/planets/models.js');
+const { modelKey, STYLE } = await import('../supabase/functions/_shared/planet-models.js');
+await w.db.exec(`grant all on public.planet_models to anon, authenticated;`).catch(() => {});
+await w.db.exec(readFileSync(new URL('../supabase/migrations/20261101000100_planet_models.sql', import.meta.url), 'utf8'));
+// Meshy, made up: every task it's asked for, and how each is going (set by the test)
+const meshy = { asked: [], tasks: new Map(), n: 0 };
+const bucket = new Map();
+const m = {
+  claim: async (slug, keys, words) => (await w.q('select public.planet_models_claim($1, $2, $3, $4, $5) as k', [slug, keys, words, MODELS_A_MONTH, CHAT_PER_PLANET]))[0].k,
+  rows: async (keys) => keys.length ? w.q('select * from public.planet_models where key = any($1)', [keys]) : [],
+  turn: async (key, every) => (await w.q('select * from public.planet_model_turn($1, $2)', [key, every]))[0] || null,
+  set: async (key, patch) => { const cols = Object.keys(patch); await w.q(`update public.planet_models set ${cols.map((c, i) => `${c} = $${i + 2}`).join(', ')} where key = $1`, [key, ...cols.map((c) => patch[c])]); },
+  meshy: async (method, url, body) => {
+    meshy.asked.push({ method, url, body });
+    if (method === 'POST') { const id = `t${++meshy.n}`; meshy.tasks.set(id, { status: 'IN_PROGRESS' }); return { result: id }; }
+    return meshy.tasks.get(url.split('/').pop());
+  },
+  download: async (url) => new TextEncoder().encode(`glb from ${url}`),
+  put: async (file, bytes) => { bucket.set(file, bytes); },
+  url: (file) => `https://example.supabase.co/storage/v1/object/public/planet-models/${file}`,
+  inManifest: async (slug, id, words) => slug === 'sam' && id === 'turntable' && words === planets.EXAMPLE.things[0].model,
+};
+const paid = () => meshy.asked.filter((a) => a.method === 'POST').length;
+const words = (w2) => `A hand-built wooden ${w2}, painted teal, its paint worn at the edges`;
+const withModels = (slug, names) => ({ ...made, slug, things: [made.things[0], ...names.map((n, i) => ({ id: `t${i}`, name: n, at: { bearing: 20 + i * 8, distance: 6 }, model: words(n), parts: [{ shape: 'box', size: [1, 1, 1] }] }))] });
+const previewWith = async (spec, ctx = { models: m }) => (await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'preview_planet', arguments: { spec } } }, ctx)).result;
+
+const kiosk = withModels('kai', ['kiosk', 'canoe']);
+const k0 = await modelKey(words('kiosk')), k1 = await modelKey(words('canoe'));
+ok(k0 !== k1 && /^[0-9a-f]{32}$/.test(k0) && k0 === await modelKey(words('kiosk')), "a model's key: the same words, the same key");
+let shown = await previewWith(kiosk);
+ok(!shown.isError && JSON.stringify(shown.structuredContent.models) === JSON.stringify({ making: ['t0', 't1'], made: [], over: [] }) && /Real models of kiosk, canoe are being made/.test(shown.content[0].text), 'a preview starts the models its things are described for, and says so', shown.structuredContent.models);
+ok(paid() === 2 && meshy.asked.every((a) => a.url.endsWith('/text-to-image') && a.body.prompt.includes(STYLE) && a.body.prompt.startsWith('A hand-built wooden')), 'each starts with a picture in the house style', meshy.asked);
+ok((await w.q("select count(*)::int as n from public.planet_models where status = 'picture'"))[0].n === 2, 'each is followed in planet_models');
+shown = await previewWith(kiosk);
+ok(paid() === 2 && shown.structuredContent.models.making.length === 2, 'previewed again: nothing paid for twice');
+ok(paid() === 2 && (await previewWith({ ...kiosk, slug: 'lee' })).structuredContent.models.making.length === 2, 'the same words on another planet: the same models, not paid for again');
+const due = () => w.db.exec("update public.planet_models set checked = now() - interval '1 minute'");
+await due();
+let now = await modelsNow([k0, k1, 'nope', k0], m);
+ok(Object.keys(now).length === 2 && now[k0].status === 'making' && paid() === 2 && meshy.asked.length === 4, 'a card asks how they are coming: Meshy is asked once about each; a key that isn\'t one is ignored', now);
+await modelsNow([k0, k1], m);
+ok(meshy.asked.length === 4, 'asked again at once, Meshy is not: once every few seconds, however many cards ask');
+meshy.tasks.set('t1', { status: 'SUCCEEDED', image_urls: ['https://assets.meshy.ai/picture-1.png'] });
+meshy.tasks.set('t2', { status: 'FAILED', task_error: { message: 'no' } });
+await due(); now = await modelsNow([k0, k1], m);
+const toModel = meshy.asked.find((a) => a.url.endsWith('/image-to-3d'));
+ok(now[k0].status === 'making' && toModel?.body.image_url === 'https://assets.meshy.ai/picture-1.png' && toModel.body.enable_pbr && now[k1].status === 'failed', 'a picture made becomes a model from it; one Meshy failed is said so', now);
+meshy.tasks.set('t3', { status: 'SUCCEEDED', model_urls: { glb: 'https://assets.meshy.ai/model-3.glb' } });
+await due(); now = await modelsNow([k0, k1], m);
+ok(now[k0].status === 'done' && now[k0].url.endsWith(`/planet-models/${k0}.glb`) && new TextDecoder().decode(bucket.get(`${k0}.glb`)) === 'glb from https://assets.meshy.ai/model-3.glb', 'a model made goes in the bucket, and its address is said', now);
+shown = await previewWith(kiosk);
+ok(JSON.stringify(shown.structuredContent.models) === JSON.stringify({ making: ['t1'], made: ['t0'], over: [] }) && paid() === 4, 'previewed again: the made one is made, the failed one asked for again', shown.structuredContent.models);
+await w.db.exec("update public.planet_models set at = now() - interval '2 hours', checked = now() - interval '1 minute' where key = '" + k1 + "'");
+ok((await modelsNow([k1], m))[k1].status === 'failed', 'one taking over an hour is given up on');
+
+// the caps: the month's, and the planet's
+const before = paid();
+ok((await previewWith({ ...made, slug: 'test-kai', things: kiosk.things })).structuredContent.models.test && paid() === before && / Test planets/.test((await previewWith({ ...made, slug: 'test-kai', things: kiosk.things })).content[0].text), 'a test planet never asks Meshy');
+ok((await previewWith(planets.EXAMPLE)).structuredContent.models.made.includes('turntable'), "a model the workflow made (the site's manifest) isn't asked for");
+const many = withModels('max', Array.from({ length: CHAT_PER_PLANET + 2 }, (_, i) => `drum ${i}`));
+many.things = many.things.slice(0, LIMITS.things);
+shown = await previewWith(many);
+ok(shown.structuredContent.models.making.length === Math.min(CHAT_PER_PLANET, many.things.length - 1) && shown.structuredContent.models.over.length === many.things.length - 1 - CHAT_PER_PLANET && /no room left for real models/.test(shown.content[0].text), `${CHAT_PER_PLANET} a planet, then its shapes stay`, shown.structuredContent.models);
+const left = MODELS_A_MONTH - (await w.q("select count(*)::int as n from public.planet_models where at >= date_trunc('month', now())"))[0].n;
+await w.db.exec(`insert into public.planet_models (key, words, slug, status) select md5('month' || i), 'x', 'month-' || i, 'done' from generate_series(1, ${left}) i`);
+shown = await previewWith(withModels('nia', ['harp']));
+ok(shown.structuredContent.models.over[0] === 't0' && shown.structuredContent.models.making.length === 0, `${MODELS_A_MONTH} a month in all`, shown.structuredContent.models);
+await w.db.exec("update public.planet_models set at = now() - interval '40 days' where slug like 'month-%'");
+ok((await previewWith(withModels('nia', ['harp']))).structuredContent.models.making[0] === 't0', 'a new month, new room');
+ok(!(await previewWith(kiosk, {})).structuredContent.models && !/Real models/.test((await previewWith(kiosk, {})).content[0].text), 'without Meshy (no key), a preview is as it was');
+ok(!(await planets.rpc({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'prepare_planet', arguments: { spec: withModels('ola', ['oar']) } } }, { models: m })).result.isError && (await w.q("select count(*)::int as n from public.planet_models where slug = 'ola'"))[0].n === 0, 'preparing starts nothing: only a preview does');
+await refused('anon', 'select * from public.planet_models', 'signed out, nobody reads planet_models');
+await refused('anon', `select public.planet_models_claim('x', array['${'a'.repeat(32)}'], array['w'], 999, 999)`, 'nor claims a model round the caps');
+await refused('authenticated', `select public.planet_model_turn('${k0}')`, 'nor moves one on, signed in');
+
+}
+
 console.log(`planet: ${passed} checks passed`);
