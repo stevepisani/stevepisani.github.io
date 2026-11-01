@@ -7,7 +7,7 @@ import {buildGround} from '../assets/js/planets/ground.js';
 const base={version:1,slug:'test-craft',who:{name:'Stock review'}};
 for(const kind of Object.keys(STOCK)) {
   const parts=partsOf({stock:kind});
-  assert(parts.length>1,`${kind} must have a recognizable silhouette before a model loads`);
+  assert(STOCK[kind].file ? parts.length===1 : parts.length>1,`${kind}: ready library has a measured diagnostic envelope; legacy stock keeps its recognizable fallback`);
   assert(parts.length<=40,`${kind} must respect the per-thing parts cap`);
   assert.deepEqual(checkPlanet({...base,things:[{id:'prop',name:kind,parts,at:{bearing:0,distance:5}}]}),[],`${kind} fallback must obey the public authoring contract`);
 }

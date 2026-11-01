@@ -1,4 +1,5 @@
 import { stockParts } from './planet-stock.js';
+import { LIBRARY_STOCK } from './planet-library.js';
 import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
 import { settingErrors, composeSetting } from './planet-setting.js';
 export function composePlanet(spec) {
@@ -75,6 +76,7 @@ export const STOCK = {
   mailbox: { size: [0.45, 1.3, 0.4], model: 'A rounded rural mailbox on a wooden post, painted red, its little flag up' },
   planter: { size: [0.8, 0.8, 0.8], model: 'A round terracotta pot with a leafy green bush in it, dotted with small yellow flowers' },
   fence: { size: [2, 1, 0.15], model: 'A short straight run of white wooden picket fence, three posts with pointed pickets between them' },
+  ...LIBRARY_STOCK,
 };
 
 export const LIMITS = {
@@ -250,7 +252,7 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'on', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith']);
     if(t.frameWith!==undefined && (typeof t.frameWith!=='string'||!thingIds.has(t.frameWith)))fail(`${at}.frameWith`,'should name a thing listed before this one');
     if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
@@ -261,7 +263,17 @@ export function checkPlanet(spec) {
     if (t.footprint !== undefined && (!Array.isArray(t.footprint) || t.footprint.length !== 2 || !t.footprint.every((n) => typeof n === 'number' && n >= 0.05 && n <= 12))) fail(`${at}.footprint`, 'should be [width, depth], each 0.05 to 12 metres');
     known(`${at}.collection`, t.collection);
     // placed from where you land (at), or beside another thing placed before it (near)
-    if ((t.at === undefined) === (t.near === undefined)) fail(`${at}.at`, 'should have at: { bearing, distance }, or near: { of, side, gap }, not both');
+    if ([t.at,t.near,t.on].filter(v=>v!==undefined).length!==1) fail(`${at}.at`, 'choose exactly one of at, near or on');
+    else if(t.on!==undefined) {
+      if(!isObj(t.on))fail(`${at}.on`,'should be { of, at: [x, z] }');
+      else {
+        only(`${at}.on`,t.on,['of','at']);
+        const anchor=spec.things.find(a=>a?.id===t.on.of);
+        if(!thingIds.has(t.on.of)||t.on.of===t.id||!STOCK[anchor?.stock]?.support||anchor.on)fail(`${at}.on.of`,'needs an earlier ground-level stock side-table with a declared flat support');
+        if(!Array.isArray(t.on.at)||t.on.at.length!==2||!t.on.at.every(n=>typeof n==='number'&&Number.isFinite(n)))fail(`${at}.on.at`,'needs [x, z] in metres on the tabletop');
+      }
+      if(t.solid!==false||t.footprint||t.craft||(Array.isArray(t.parts)&&t.parts.some(p=>p?.ground))||t.use&&t.use!=='switch')fail(`${at}.on`,'tabletop props need solid: false, no ground feet/footprint/craft, and only an optional switch action');
+    }
     else if (t.at !== undefined) {
       if (!isObj(t.at)) fail(`${at}.at`, 'should be { bearing, distance }');
       else {
@@ -293,6 +305,7 @@ export function checkPlanet(spec) {
     if (t.stock !== undefined && !Object.hasOwn(STOCK, t.stock)) fail(`${at}.stock`, `should be one of ${Object.keys(STOCK).join(', ')}`);
     else if (t.stock !== undefined && t.model !== undefined) fail(`${at}.model`, 'a stock thing has its model already; give it model words or stock, not both');
     const ps = list(`${at}.parts`, t.parts, LIMITS.parts);
+    if(STOCK[t.stock]?.file && t.parts!==undefined)fail(`${at}.parts`,'ready library stock uses its measured envelope; omit parts');
     if (!ps.length && t.stock === undefined) fail(`${at}.parts`, 'should have at least one part');
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
@@ -347,6 +360,19 @@ export function checkPlanet(spec) {
   });
   if (parts > LIMITS.allParts) fail('things', `more than ${LIMITS.allParts} parts in all`);
   if (lights > LIMITS.lights) fail('things', `more than ${LIMITS.lights} with a light`);
+  // Bounds are measured only after shape validation, so malformed output is a diagnostic.
+  if(!errors.length) {
+    const mounted=[];
+    for(const [i,t] of (spec.things||[]).entries()) {
+      if(t.near && spec.things.find(a=>a.id===t.near.of)?.on)fail(`things[${i}].near.of`,'ground placement needs a ground anchor, not a tabletop prop');
+      if(!t.on)continue;
+      const anchor=spec.things.find(a=>a.id===t.on.of),support=STOCK[anchor.stock].support,bounds=tabletopBounds(t);
+      if(Math.abs(boxOf(partBoxes(t))[2])>.02)fail(`things[${i}].on`,'the prop foot must be at local y=0 to meet the tabletop');
+      if(bounds.some((v,k)=>Math.abs(v)>support.half[k<2?0:1]+.0001))fail(`things[${i}].on`,'the whole prop must fit inside the declared tabletop');
+      if(mounted.some(m=>m.of===t.on.of&&bounds[0]<m.b[1]-.003&&bounds[1]>m.b[0]+.003&&bounds[2]<m.b[3]-.003&&bounds[3]>m.b[2]+.003))fail(`things[${i}].on`,'tabletop props overlap; separate their on.at offsets');
+      mounted.push({of:t.on.of,b:bounds});
+    }
+  }
 
   const placeIds = new Set();
   list('places', spec.places, LIMITS.places).forEach((p, i) => {
@@ -514,7 +540,14 @@ const GROUND_RADIUS = 20; // world/planet.js RADIUS: the ground's distance from 
 export function partsOf(t) {
   if (t.parts && t.parts.length) return t.parts;
   const k = t.stock && STOCK[t.stock];
+  if(k?.file)return [{shape:'box',size:k.size,at:[0,k.size[1]/2,0],color:'#b8b1a2'}]; // layout envelope, never revealed
   return k ? stockParts(t.stock,k.size) : [];
+}
+
+function tabletopBounds(t) {
+  const b=boxOf(partBoxes(t)),a=(t.turn||0)*Math.PI/180,xs=[],zs=[];
+  for(const x of [b[0],b[1]])for(const z of [b[4],b[5]]){xs.push(t.on.at[0]+x*Math.cos(a)+z*Math.sin(a));zs.push(t.on.at[1]-x*Math.sin(a)+z*Math.cos(a));}
+  return [Math.min(...xs),Math.max(...xs),Math.min(...zs),Math.max(...zs)];
 }
 
 // what a friend's planet can't draw: Steve's own planet's parts, which pass checkPlanet for his spec
@@ -605,6 +638,12 @@ export function placeThings(things = []) {
   const unit = ([x, n]) => { const l = Math.hypot(x, n) || 1; return [x / l, n / l]; };
   for (const t of things) {
     if (t.at) { placed.set(t.id, { bearing: t.at.bearing, distance: t.at.distance, turn: t.turn || 0 }); continue; }
+    if(t.on) {
+      const anchor=placed.get(t.on.of);if(!anchor)continue;
+      const a=(anchor.bearing-anchor.turn)*DEG,s=things.find(a=>a.id===t.on.of).scale||1,[x,z]=t.on.at.map(n=>n*s);
+      const px=anchor.distance*Math.sin(anchor.bearing*DEG)+x*Math.cos(a)-z*Math.sin(a),pn=anchor.distance*Math.cos(anchor.bearing*DEG)-x*Math.sin(a)-z*Math.cos(a),bearing=Math.atan2(px,pn)/DEG;
+      placed.set(t.id,{bearing,distance:Math.hypot(px,pn),turn:bearing-anchor.bearing+anchor.turn+(t.turn||0)});continue;
+    }
     const of = placed.get(t.near && t.near.of), anchor = things.find((x) => x.id === (t.near && t.near.of));
     if (!of) continue;
     const p = [of.distance * Math.sin(of.bearing * DEG), of.distance * Math.cos(of.bearing * DEG)];
@@ -644,7 +683,7 @@ export function lookOver(spec) {
     if (!bs.length) return;
     const all = boxOf(bs);
     const wide = Math.max(all[1] - all[0], all[5] - all[4]), tall = all[3] - all[2];
-    if (wide < 0.4 && tall < 0.4) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
+    if (wide < 0.4 && tall < 0.4 && !t.on) notes.push(`things[${i}] (${t.name}): under 40 cm all round, hard to see from a few steps away; make it bigger (scale)`);
     // the ground falls away by length² / 8R under something straight: 15 cm at 5 m
     // Known trees have grounded trunks; the authored canopy has four terrain-fitted feet.
     if (wide > 5 && !['birch','palm','canopy'].includes(t.craft)) notes.push(`things[${i}] (${t.name}): ${wide.toFixed(1)} m long, so on a planet this round its ends lift off the ground; shorten it or stand it on legs`);

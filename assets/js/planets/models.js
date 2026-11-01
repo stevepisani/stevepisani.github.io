@@ -75,10 +75,14 @@ export async function loadModels(spec, things) {
   };
   const later = [], ready = [];
   try {
-    const response = await fetch(new URL('manifest.json', BASE), { signal: controller.signal });
-    if (!response.ok) throw Error('The model library is unavailable');
-    const made = await response.json();
+    let made={};
+    if(wanted.some(t=>!t.stock||STOCK[t.stock].model)) {
+      const response = await fetch(new URL('manifest.json', BASE), { signal: controller.signal });
+      if (!response.ok) throw Error('The model library is unavailable');
+      made = await response.json();
+    }
     for (const t of wanted) {
+      if(t.stock && STOCK[t.stock].file){ready.push({t,url:new URL(STOCK[t.stock].file,BASE).href});continue;}
       const [key, words] = t.stock ? [`stock/${t.stock}`, STOCK[t.stock].model] : [`${spec.slug}/${t.id}`, t.model];
       const m = made[key];
       if (m && m.model === words) ready.push({ t, url: new URL(m.file, BASE).href });

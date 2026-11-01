@@ -141,7 +141,8 @@ with rafters, a continuous roof shell and four independently terrain-fitted feet
 sheltered activity without an existing roof, roughly 4 m wide and 3 m deep. It is non-solid
 dressing, not a watertight room or collision enclosure; it neither stops rain nor adds furniture,
 lights or biography. Walking heights stay on the existing terrain. Its roof participates in
-whole-place framing; its arrival and nearby additions use a lower approach below the eaves.
+the framing around the activity; it may crop at the edges rather than pushing the useful
+objects into the distance. Its arrival and nearby additions use a lower approach below the eaves.
 Inspect actual rendered arrivals and reverse views, not only bounds/visibility counters.
 
 When `edge: windows` is present, `extras: ["window-seat"]` adds one cushioned usable seat beneath
@@ -484,6 +485,40 @@ a planet's own code is kept, so this section grows with it. Then set the
 status to `built` and tell them (the contact, if they gave one).
 
 ## Real models (Meshy)
+
+### Ready personal props and tabletop relationships
+
+Five static CC0 KayKit models now join the original nine generated stock choices:
+`reading-chair`, `side-table`, `books`, `book`, `table-lamp`. They total 46,676 bytes, load before
+reveal through the same bounded model loader, and use measured envelopes for placement.
+`get_kit.things.readyStock` supplies sizes, the table's support rectangle and a small lamp-light
+suggestion. Use these only when they fit the interview; no activity, enclosure, books or light
+is added by default. These files have no model words and are excluded from both paid generation
+paths. Existing accepted Meshy files, identities and caps are unchanged. Source, license,
+normalization, hashes and the offline importer live in `assets/models/planets/library/`.
+
+`on: {of: <earlier side-table id>, at: [x,z]}` places a separate prop on the actual flat table,
+instead of `at` or `near`. Coordinates are local metres from its centre, +z toward its front.
+The usable rectangle is 0.70 × 0.70 m; rotated/scaled envelopes must fit and cannot overlap
+another mounted prop. Props need `solid: false`, a foot at local y=0, no ground feet, footprint
+or authored craft, and only an optional switch action. Supports must be ground-level side tables;
+stacking, arbitrary object tops and using a mounted prop as a ground-near anchor are refused.
+
+For example, put books at `[-0.17,-0.16]`, the lamp at `[0.17,0.13]`, and an optional later book
+at `[-0.17,0.14]`. Parent position, orientation and scale carry them together. After the real
+table loads, its actual top settles the props regardless of asset completion order; flat
+tabletop props do not receive the ground-curvature sink. A mounted prop's reveal keeps its table
+as context. The original scene and props remain unchanged when a book is added.
+
+The source family has rounded, simple silhouettes; it is not a universal personal-hero library
+or an unseen-interview quality result. `tools/fixtures/planet-reading.json` is an authored study.
+`node tools/smoke.mjs _site --only library --shots <dir>` checks actual 700×440/366×440 reveals,
+independent supported objects, real sit/switch, a featured book addition, changed terrain/parent
+scale/turn, and missing-file failure. Unit checks verify hashes, decoded bounds and actual flat
+support triangles. The local review runner now preserves mesh-centre hit probes and can find a
+real triangle target when that centre is obscured; the subsequent actual tap/action must pass.
+
+### Generated personal models
 
 Simple shapes only go so far (Steve, Oct 26: "still very very poor. let's try just using meshy").
 A thing can say what it is in words, `model` (up to 600 characters: what it is, its materials and

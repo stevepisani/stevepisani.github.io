@@ -15,7 +15,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   for (const t of things) {
     // An edited reveal features the addition with its immediate anchor, rather than expanding
     // the union of every nearby interest until the original place becomes a distant speck.
-    if(featured && t.id!==(featured.frameWith||featured.near?.of))continue;
+    if(featured && t.id!==(featured.frameWith||featured.near?.of||featured.on?.of))continue;
     // A shelter frames the activity from inside. Fitting its entire roof pushes a small
     // furnished scene far away and lets the curved foreground hide the useful objects.
     if (t===primary || !t.root || t.center.distanceTo(primary.center)>5.5 || t.role==='environment' || t.craft==='canopy' || (!t.role && t.solid===false && !t.use)) continue;
