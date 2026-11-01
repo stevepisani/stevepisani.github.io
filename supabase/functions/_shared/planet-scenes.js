@@ -157,7 +157,7 @@ export function composePlanet(spec) {
     const entrance = pos(cx, cn - 2.2);
     out.routes.push({ from: previous, to: entrance });
     previous = entrance;
-    const add = (id,name,x,n,parts,extra={}) => out.things.push({ id: `${s.id}-${id}`, name, at: pos(cx+x,cn+n), parts, ...extra });
+    const add = (id,name,x,n,parts,extra={}) => out.things.push({ id: `${s.id}-${id}`, name, at: pos(cx+x,cn+n), parts, role: ['table','cat','scope'].includes(id)?'focus':/^palm-|^garden-/.test(id)?'environment':'support', ...extra });
     if (s.kind === 'gathering') {
       if (s.setting === 'tropical') add('pavilion','Supper pavilion',0.25,0.25,pavilion(),{footprint:[4.8,3.9],solid:false,turn:0});
       add('table',s.name,0.45,0,table(),{footprint:[2.5,1.45],note:s.note,collection:s.collection});

@@ -82,6 +82,11 @@ caught(shaped, (s) => { s.things[0].parts[0].profile = [[0, 0], [1, 1]]; }, /^th
 caught(shaped, (s) => { s.things[0].parts[6].repeat.count = 100; }, /^things\[0\]\.parts\[6\]\.repeat\.count: should be a whole number from 2 to 24/, 'too many copies');
 caught(shaped, (s) => { s.things = Array.from({ length: 2 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(10).fill({ shape: 'box', size: [1, 1, 1], repeat: { count: 24 } }) })); }, /^things: more than 400 parts in all/, 'repeats count toward the planet\'s parts');
 caught(made, (s) => { s.things = Array.from({ length: 11 }, (_, i) => ({ ...s.things[0], id: `t${i}`, light: undefined, parts: Array(40).fill(s.things[0].parts[0]) })); }, /^things: more than 400 parts in all/, 'more parts than a planet allows');
+const daylight=clone(made);daylight.look.sky.period='day';daylight.look.sky.clouds='overcast';delete daylight.things[0].light;
+ok(checkPlanet(daylight).length===0 && !lookOver(daylight).some(n=>/nothing glows/.test(n)),'daylight needs no artificial lamp to avoid a dim-night warning');
+caught(daylight,s=>{s.look.sky.period='sunrise';},/look.sky.period/,'unsupported sky periods are refused');
+caught(daylight,s=>{s.look.sky.clouds='live-weather';},/look.sky.clouds/,'cloud cover cannot imply live weather');
+caught(made,s=>{s.things[0].role='most-important';},/role/,'composition roles are bounded');
 caught(made, (s) => { s.look.ground.color = 'brown'; }, /^look\.ground\.color: should be a colour/, 'a colour that isn\'t #rrggbb');
 for (const slug of ['', 'a', 'Sam', '-sam', 'sam-', 'sam steve', 'x'.repeat(33), 7]) caught(least, (s) => { s.slug = slug; }, /^slug:/, `a bad slug: ${JSON.stringify(slug)}`);
 caught(least, (s) => { delete s.who; }, /^who: missing/, 'no who');
@@ -145,6 +150,7 @@ const init = (await call('initialize', { protocolVersion: '2025-06-18' })).resul
 ok(init.protocolVersion === '2025-06-18' && init.serverInfo.name === 'planets' && /get_kit/.test(init.instructions), 'it says who it is and how to use it');
 const tools = (await call('tools/list')).result.tools;
 ok(tools.map((t) => t.name).join() === 'get_kit,prepare_planet,preview_planet,send_planet' && tools.slice(0, 3).every((t) => t.annotations.readOnlyHint) && !tools[3].annotations.readOnlyHint && !tools[3].annotations.destructiveHint, 'four tools: three read-only, and send_planet, the one that saves something (and destroys nothing)');
+ok(/only when those activities fit/.test(init.instructions) && /do not turn unrelated interests/.test(init.instructions),'creation instructions preserve unrelated interests instead of forcing the scene library');
 ok(/never send it without their go-ahead/i.test(init.instructions), 'a planet is sent only when its person says so');
 ok(!tools[1]._meta.ui && !tools[1]._meta['openai/outputTemplate'] && tools[2]._meta.ui.resourceUri === planets.APP_URI && tools[2]._meta['openai/outputTemplate'] === planets.APP_URI, 'preparation opens no card; only preview_planet shows it');
 ok(/prepare_planet before the first reveal/.test(init.instructions) && /at most two targeted corrections/.test(init.instructions) && /one specific additive change/.test(init.instructions), 'instructions bound preparation and ask for one personal additive suggestion at reveal');
@@ -358,4 +364,5 @@ await w.db.exec(`set request.jwt.claims = '{"sub":"11111111-1111-4111-8111-11111
 ok((await w.q("update public.planet_requests set status = 'building' where slug = 'sam' returning id")).length === 2, 'Steve reads them and marks what he is building');
 await w.db.exec('reset role');
 
+await import('./planet-overview-test.mjs');
 console.log(`planet: ${passed} checks passed`);

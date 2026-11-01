@@ -11,7 +11,7 @@ export { composePlanet };
 //     who: { name, sign },                 sign: the neon over the hub, 12 characters at most
 //     links: [{ id, label, note, href }],  the hub's menu; href https://, mailto: or a site path
 //     look: { theme, home, ground, sky },  theme from THEMES; home: a city, never an address;
-//                                          ground: { color, hills 0..1 }; sky: { color, light }
+//                                          ground: { color, hills 0..1 }; sky: { color, light, period?, clouds? }
 //     things: [{ id, name, note, collection, at: { bearing, distance }, turn, scale, solid, model, stock, use,
 //                parts: [{ shape, size, at, turn, color, finish, spin, text, round, profile,
 //                          outline, path, thick, repeat, mirror }], light }],
@@ -214,7 +214,9 @@ export function checkPlanet(spec) {
       }
       if (sky !== undefined) {
         if (!isObj(sky)) fail('look.sky', 'should be an object');
-        else { only('look.sky', sky, ['color', 'light']); color('look.sky.color', sky.color); color('look.sky.light', sky.light); }
+        else { only('look.sky', sky, ['color', 'light', 'period', 'clouds']); color('look.sky.color', sky.color); color('look.sky.light', sky.light);
+          if(sky.period!==undefined && !['day','dusk','night'].includes(sky.period)) fail('look.sky.period','should be day, dusk or night');
+          if(sky.clouds!==undefined && !['clear','overcast'].includes(sky.clouds)) fail('look.sky.clouds','should be clear or overcast'); }
       }
     }
   }
@@ -241,7 +243,7 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role']);
     if (t.craft !== undefined && !['palm', 'cat', 'planting'].includes(t.craft)) fail(`${at}.craft`, 'should be palm, cat or planting');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
@@ -271,6 +273,7 @@ export function checkPlanet(spec) {
     between(`${at}.turn`, t.turn, -180, 180);
     between(`${at}.scale`, t.scale, 0.25, 4);
     if (t.solid !== undefined && typeof t.solid !== 'boolean') fail(`${at}.solid`, 'should be true or false');
+    if(t.role!==undefined && !['focus','support','environment'].includes(t.role)) fail(`${at}.role`,'should be focus, support or environment');
     if (t.use !== undefined && !USES.includes(t.use)) fail(`${at}.use`, `should be one of ${USES.join(', ')}`);
     else if (t.use === 'switch' && t.light === undefined) fail(`${at}.use`, 'switch turns its light on and off, so it needs a light');
     if (t.use === 'greet' && t.craft !== 'cat') fail(`${at}.use`, 'greet needs a cat character');
@@ -658,7 +661,7 @@ export function lookOver(spec) {
       if (apart < (reach.get(things[i]) || 0) + (reach.get(things[j]) || 0) - 0.3) notes.push(`things[${i}] (${things[i].name}) and things[${j}] (${things[j].name}): ${apart.toFixed(1)} m apart, so they stand in each other; move one (its at, or its near's gap)`);
     }
   }
-  if (things.length && !lit) notes.push('things: nothing glows and nothing casts light, so the planet is dim at night; give something a light or a glowing part');
+  if (things.length && !lit && spec.look?.sky?.period!=='day') notes.push('things: nothing glows and nothing casts light, so the planet is dim at night; give something a light or a glowing part');
   return notes;
 }
 
