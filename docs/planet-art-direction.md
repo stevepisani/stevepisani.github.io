@@ -43,7 +43,7 @@ shore, companions and night palette apply only when the interview supports them.
 landscapes and other emotional tones need their own coherent treatment; more enclosure is not a
 universal rule.
 
-The current composer supports gathering, lookout and painting scenes, with conditional tropical and woodland settings. Shared
+The current composer supports gathering, lookout and painting scenes, with conditional tropical and woodland settings. Custom activities can independently request open wall/window/railing edges and accepted birch woodland around an anchor; these are bounded setting layers, not complete buildings or universal coverage. Shared
 materials, water, paths and interaction craft are reusable; this small authored library does not
 establish coverage of unrelated interests. Unsupported needs are coverage gaps, not permission
 to replace the interview with a tropical dinner or astronomy scene.
@@ -132,3 +132,10 @@ action and edit evidence before proposing a release. This is the local preflight
 production visual selection/hosting and independent fresh-input quality remain open. Validate
 owner preference before growing the catalog or paying for a provider comparison. Do not label
 these repeatedly tuned development studies as general one-shot acceptance.
+
+For edited reveals, preserve world data and feature the addition with its immediate anchor using
+`reveal`. Do not shrink the whole world merely to include every unrelated object. Inspect the
+actual card at 700×440 and 366×440: projected size and visible mesh samples are technical checks,
+not recognition scores. A changed viewpoint is explicit; stable world layout is a separate
+contract. Keep frozen blind inputs as regressions; adopting new setting controls is a feature
+study, not a fresh one-shot result.

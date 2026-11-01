@@ -44,6 +44,11 @@ rather than leaving it in a chat.
    bounded correction pass and no claimed screenshot inspection or asset generation. The first
    reveal should immediately offer one specific personal addition. Visual quality on unseen
    input still needs the fresh-input benchmark and actual rendered acceptance.
+   The current draft also separates custom activities from optional window/wall/railing and
+   accepted woodland setting layers. Edited arrivals can feature a personal addition with its
+   immediate anchor while preserving the original world; dawn has an explicit sky treatment.
+   Actual inline regression evidence and owner acceptance stay on PRO-2293. These controls
+   need fresh independent input evaluation after shared changes.
    The next prototype follows [the art-direction brief](planet-art-direction.md): complete
    activity-based assemblies, shared tactile craft, visible companion/telescope responses,
    actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets

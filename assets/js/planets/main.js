@@ -62,7 +62,7 @@ async function start(spec) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(coarse ? 72 : spec.arrival === 'overview' ? 54 : 68, 1, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(coarse ? 72 : spec.arrival === 'overview'||spec.reveal ? 54 : 68, 1, 0.05, 2000);
   const time = { value: 0 };
   const look = spec.look || {}, sky = look.sky || {};
   const atmosphere = buildPlanetSky(sky,quality,time), space = atmosphere.group;
@@ -110,12 +110,12 @@ async function start(spec) {
 
   const player = new Player(camera, { colliders: [...things.colliders, ...ground.colliders], surface: ground.surface });
   const UP = new THREE.Vector3(0, 1, 0);
-  const overview = spec.arrival === 'overview';
+  const overview = spec.arrival === 'overview'||!!spec.reveal;
   const walkingEye = player.eye;
-  let opening = null, openingUntouched = true;
-  function frameOpening() {
-    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders]});
-    if(opening){player.eye=opening.eye;player.spawn(opening.dir,opening.target,opening.pitch);player.look(window.__veilLook||0,0);}
+  let opening = null, openingUntouched = true, revealFocus=spec.reveal;
+  function frameOpening(loadingLook=true) {
+    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders],focusId:revealFocus});
+    if(opening){player.eye=opening.eye;player.spawn(opening.dir,opening.target,opening.pitch);if(loadingLook)player.look(window.__veilLook||0,0);}
   }
   if (overview) frameOpening();
   else player.spawn(UP,new THREE.Vector3(0,ground.surface(UP),-10),-.18);
@@ -137,6 +137,16 @@ async function start(spec) {
   // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
   const EYE = walkingEye, SEATED = 1.3, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let seat = null, move = null, arriving = overview, scope = null, detail = null;
+  const revealView=$('reveal-view');
+  if(spec.reveal) {
+    revealView.hidden=false;
+    revealView.addEventListener('click',()=>{
+      if(move||seat||scope)return;
+      player.stop();close();revealFocus=revealFocus?null:spec.reveal;
+      arriving=true;openingUntouched=true;frameOpening(false);
+      revealView.textContent=revealFocus?'Whole place':'See addition';
+    });
+  }
   let stargazing, scopeHistory=false;
   const scopeFov=()=>Math.max(18,2*Math.atan(Math.tan(9*Math.PI/180)/Math.min(1,camera.aspect))*180/Math.PI);
   const detailButton = $('details');
@@ -317,6 +327,7 @@ async function start(spec) {
       advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
+    if(spec.reveal)revealView.disabled=!!(move||seat||scope);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
     sun.target.position.copy(player.pos);

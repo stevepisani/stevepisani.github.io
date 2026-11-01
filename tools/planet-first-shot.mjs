@@ -58,8 +58,9 @@ export function addInterview({run,id,input,provenance}) {
 export function additiveDesign(candidate) {
   const edit=candidate.edit,next=structuredClone(candidate.spec);
   if(!edit||typeof edit.suggestion!=='string'||!edit.suggestion.trim()||!!edit.thing===!!edit.sceneExtra)throw Error('Supply one specific suggestion and exactly one additive thing or sceneExtra');
-  if(edit.thing){next.things||=[];next.things.push(edit.thing);}
-  else {const scene=next.scenes?.find(s=>s.id===edit.sceneExtra.id);if(!scene)throw Error('The additive scene id is absent');scene.extras=[...new Set([...(scene.extras||[]),edit.sceneExtra.kind])];}
+  if(edit.thing){next.things||=[];next.things.push(edit.thing);next.reveal=edit.thing.id;}
+  else {const scene=next.scenes?.find(s=>s.id===edit.sceneExtra.id);if(!scene)throw Error('The additive scene id is absent');scene.extras=[...new Set([...(scene.extras||[]),edit.sceneExtra.kind])];next.reveal=`${scene.id}-${edit.sceneExtra.kind}`;}
+  next.arrival='overview';
   return next;
 }
 

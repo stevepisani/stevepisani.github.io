@@ -1,6 +1,10 @@
 import { stockParts } from './planet-stock.js';
-import { sceneErrors, composePlanet } from './planet-scenes.js';
-export { composePlanet };
+import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
+import { settingErrors, composeSetting } from './planet-setting.js';
+export function composePlanet(spec) {
+  const scenes=composeScenes(spec);
+  return composeSetting(scenes,placeThings(scenes.things));
+}
 // A planet spec: everything that makes a little planet someone's own, in one small JSON. Steve's is
 // built from _data/ by tools/planet.mjs; other people's will be written by their own AI through the
 // Planets connector (My Tiny Planet, Linear P-PRO-40). The same rules for the server and the
@@ -165,7 +169,7 @@ export function checkPlanet(spec) {
   };
 
   if (!isObj(spec)) return ['spec: should be an object'];
-  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad', 'scenes', 'routes', 'arrival']);
+  only('spec', spec, ['version', 'slug', 'who', 'links', 'look', 'collections', 'things', 'places', 'robot', 'telescope', 'launchPad', 'scenes', 'setting', 'routes', 'arrival', 'reveal']);
   if (JSON.stringify(spec).length > LIMITS.bytes) fail('spec', `larger than ${LIMITS.bytes / 1024} KB`);
   if (spec.arrival !== undefined && spec.arrival !== 'overview') fail('arrival', 'should be overview');
   if (spec.version !== 1) fail('version', 'should be 1');
@@ -218,7 +222,7 @@ export function checkPlanet(spec) {
         if (!isObj(sky)) fail('look.sky', 'should be an object');
         else { only('look.sky', sky, ['color', 'light', 'period', 'clouds', 'weather']); if(sky.weather!==undefined && !['clear','rain'].includes(sky.weather))fail('look.sky.weather','should be clear or rain');
           color('look.sky.color', sky.color); color('look.sky.light', sky.light);
-          if(sky.period!==undefined && !['day','dusk','night'].includes(sky.period)) fail('look.sky.period','should be day, dusk or night');
+          if(sky.period!==undefined && !['day','dawn','dusk','night'].includes(sky.period)) fail('look.sky.period','should be day, dawn, dusk or night');
           if(sky.clouds!==undefined && !['clear','overcast'].includes(sky.clouds)) fail('look.sky.clouds','should be clear or overcast'); }
       }
     }
@@ -433,11 +437,13 @@ export function checkPlanet(spec) {
     }
   });
   errors.push(...sceneErrors(spec));
+  errors.push(...settingErrors(spec));
+  if(!errors.length && spec.reveal!==undefined && (typeof spec.reveal!=='string'||!composeScenes(spec).things?.some(t=>t.id===spec.reveal)))fail('reveal','should name a thing to feature in an overview arrival');
   // Generated geometry has the same caps as handwritten geometry; raw scene input cannot
   // bypass the 24-thing / 400-part / 64 KB limits.
-  if (!errors.length && spec.scenes) {
+  if (!errors.length && (spec.scenes||spec.setting)) {
     const compiled = composePlanet(spec), ids = compiled.things.map((t)=>t.id);
-    if (new Set(ids).size !== ids.length) fail('scenes','a generated id collides with a custom thing; change the scene id');
+    if (new Set(ids).size !== ids.length) fail(spec.setting?'setting':'scenes','a generated id collides with a custom thing; change the setting anchor or scene id');
     else errors.push(...checkPlanet(compiled));
   }
   return errors;

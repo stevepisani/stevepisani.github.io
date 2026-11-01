@@ -116,11 +116,41 @@ hammock at the scene edge. Recompile the original design to add it without movin
 scene objects. The example rehearsal and browser tests check this reveal/edit path; owner
 satisfaction and an unseen-input friend pilot are still separate gates.
 
+## Settings for custom activities and edited reveals
+
+Custom activities can now use a top-level `setting: { around: <custom thing id>,
+edge?: wall|windows|railing, planting?: woodland, color?: "#rrggbb" }`. This is independent
+of the authored activity library: it supplies short grounded backdrop bays, low side returns
+and/or five accepted birches with four fern/stone beds. It adds no hobby, companion, weather,
+season or time of day. These are open non-solid setting edges, not full rooms or physical
+barriers. They suit a compact activity roughly four metres wide; inspect surrounding furniture
+for visual conflicts. Leave setting absent when the person wants openness. Do not duplicate an
+authored scene's existing dressing. The woodland asset is birch, not species-accurate beech.
+
+Preparation resolves the anchor through the existing placement code, compiles into ordinary
+bounded things, and removes setting intent from the prepared spec. The returned original design
+includes setting intent for later edits. Existing objects remain unchanged, generated IDs cannot
+replace them, and the same object/part/byte caps apply. The setting frame follows its anchor's
+position and orientation; an addition does not resize or move that frame. A compiled spec stays
+idempotent. No new asset service, library dependency or generation job is needed.
+
+For an accepted addition, append its thing and set `reveal: <new thing id>` with
+`arrival: overview`. An authored extra uses its generated ID, e.g. `studio-birdbath`.
+The edited arrival features that object with its nearby `near.of` anchor; unrelated activities
+no longer expand its framing bounds. It searches clear surface positions around the addition,
+checking actual mesh samples and a minimum projected size. The viewpoint can change; original
+object positions and the rest of the world do not. There is no forced introductory flight.
+A visible patch or pixel threshold does not certify recognizable identity or aesthetic quality;
+large conflicting arrangements still need rendered inspection and may yield a best-effort view.
+The edited view provides “Whole place” and “See addition” controls, disabled while seated,
+using the telescope or in a transition. They change the view without a forced flight. The first-attempt
+runner uses this same reveal field for its scripted additive edit.
+
 ## Atmosphere and visible responses
 
-`look.sky.period` is `day|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
-Day/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
-with the horizon fitted to the tiny planet's visible limb. Clear legacy nights retain their
+`look.sky.period` is `day|dawn|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
+Day/dawn/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
+with dawn using a cool upper sky and warm horizon. The horizon is fitted to the tiny planet's visible limb. Clear legacy nights retain their
 nebula/stars. `color` tints the chosen sky treatment; `light` colours the directional light.
 These controls are art direction, not live weather or an astronomical clock. They do not imply
 snow or weather audio. Explicit `look.sky.weather: rain` adds bounded local rain streaks and haze. Rain stays static under reduced motion; it is never inferred from woodland alone. Defaults without weather remain unchanged.
