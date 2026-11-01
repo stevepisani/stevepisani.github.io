@@ -43,7 +43,7 @@ shore, companions and night palette apply only when the interview supports them.
 landscapes and other emotional tones need their own coherent treatment; more enclosure is not a
 universal rule.
 
-The current composer supports gathering and lookout scenes and a tropical setting. Shared
+The current composer supports gathering, lookout and painting scenes, with conditional tropical and woodland settings. Shared
 materials, water, paths and interaction craft are reusable; this small authored library does not
 establish coverage of unrelated interests. Unsupported needs are coverage gaps, not permission
 to replace the interview with a tropical dinner or astronomy scene.
@@ -111,3 +111,18 @@ derived from the craft, not external guarantees of generated-scene quality.
 Tooling sources were checked in October 2026. Recheck availability and prices before generation.
 Current API features do not establish quality on a particular asset; compare providers only
 against fixed accepted inputs.
+
+
+## Current quality development
+
+The first two development places are a tropical gathering and a woodland painting/birdwatching
+clearing. They use distinct setting layers and usable actions, rather than applying tropical
+dressing universally. The woodland's accepted CC0 tree is normalized, bounded and ready before
+reveal; its imported foliage receives a recorded green treatment. Rain is explicit and respects
+reduced motion. A visible bath/hammock addition must preserve the existing scene.
+
+Use `tools/planet-scene-review.mjs` for actual local arrivals, fixed-camera asset comparisons,
+action and edit evidence before proposing a release. This is the local preflight foundation;
+production visual selection/hosting and independent fresh-input quality remain open. Validate
+owner preference before growing the catalog or paying for a provider comparison. Do not label
+these repeatedly tuned development studies as general one-shot acceptance.

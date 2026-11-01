@@ -17,7 +17,7 @@ rather than leaving it in a chat.
    after usable-world responses, and a frozen four-interview development review through
    `planet-live --interviews`. This is engine evidence, not held-out model quality or owner acceptance. The next craft pass
    adds recognizable stock fallbacks, explicit curved-ground support feet and ground surface
-   treatments; hero coverage and richer coherent settings remain open. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
+   treatments; the next draft adds a woodland painting/birdwatching kit, a required normalized CC0 birch, explicit rain, tropical depth layers and an offline rendered preflight. It captures real arrivals, actions, visible additions and fixed-camera asset comparisons; it is not a production visual-selection worker. Hero finishing, owner acceptance, physical-phone/embedded checks and independent fresh-input quality remain open. Steve, Oct 25 2026, after trying it in ChatGPT: every planet is
    unique to its person, and the only thing shared with his is the planet's size (no bar, sign,
    telescope, rocket or campfire); the first ten are built by hand, in a way that doesn't scale; a
    library of shared places comes only if it takes off. Done: the spec and its checks

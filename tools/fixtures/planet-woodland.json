@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "slug": "test-woodland-studio",
+  "who": {
+    "name": "Rowan"
+  },
+  "look": {
+    "sky": {
+      "weather": "rain"
+    }
+  },
+  "collections": {
+    "loves": {
+      "title": "What matters here",
+      "items": [
+        "A quiet rainy forest",
+        "Watercolour painting and watching birds",
+        "Birds, no pet",
+        "Soft green light, a sheltered clearing, peaceful"
+      ]
+    }
+  },
+  "scenes": [
+    {
+      "id": "studio",
+      "name": "Watercolours in the clearing",
+      "kind": "painting",
+      "setting": "woodland",
+      "note": "Watercolour painting and watching birds in a quiet sheltered forest clearing.",
+      "collection": "loves"
+    }
+  ]
+}

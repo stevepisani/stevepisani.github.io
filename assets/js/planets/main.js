@@ -18,9 +18,10 @@ import { readSpec, tellCard } from '../world/spec.js';
 import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
 import { buildThings } from './things.js';
-import { loadModels } from './models.js';
+import { loadModels, loadSceneAssets } from './models.js';
 import { buildPaths } from './paths.js';
 import { buildStargazing } from './stargazing.js';
+import { makeRain } from './rain.js';
 
 const $ = (id) => document.getElementById(id);
 const root = $('planet'), canvas = $('planet-canvas'), veil = $('veil'), status = $('veil-status'), hint = $('hint'), card = $('thing');
@@ -65,6 +66,10 @@ async function start(spec) {
   const time = { value: 0 };
   const look = spec.look || {}, sky = look.sky || {};
   const atmosphere = buildPlanetSky(sky,quality,time), space = atmosphere.group;
+  if(sky.weather==='rain') {
+    scene.fog=new THREE.FogExp2(atmosphere.fill,.027);
+    scene.add(makeRain(time,matchMedia('(prefers-reduced-motion: reduce)').matches));
+  }
   space.traverse(o=>o.layers.enable(2)); // the telescope sees sky, not foreground fronds or its own barrel
   scene.add(space);
   // cool starlight from one side and a little from all round, so the ground reads at night
@@ -86,7 +91,10 @@ async function start(spec) {
   const ground = buildGround(spec.slug, { quality, time, ...look.ground });
   scene.add(ground.mesh);
   // what their AI made for them from what they love (things.js); none, and the planet is bare
-  const things = buildThings(spec.things, ground.surface);
+  let library;
+  try { say('Planting the scene…');library=await loadSceneAssets(spec); }
+  catch { return fail('The scene’s trees could not load. Please reload to try again.', ['required scene asset unavailable']); }
+  const things = buildThings(spec.things, ground.surface, library);
   scene.add(things.group);
   ground.dress(spec.things||[]);
   // worn paths from where you land to each of their places (paths.js)
@@ -148,7 +156,7 @@ async function start(spec) {
   };
   function sit(t) {
     const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
-    glide({ pos: at, quat: facing(at, f), eye: SEATED, pitch: -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
+    glide({ pos: at, quat: facing(at, f), eye: t.seatView?.eye ?? SEATED, pitch: t.seatView?.pitch ?? -0.18 }, () => { seat = t; $('stand').hidden = false; showDetailsFor(t); });
   }
   function stand(then) {
     detailButton.hidden=true;

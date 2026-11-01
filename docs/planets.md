@@ -55,20 +55,22 @@ preparing the result again is idempotent. `prepare_planet` also returns the smal
 `design`, for later edits: change that design, then prepare it again. Never overlay it on the
 compiled things. Raw and compiled data pass the same validator and total geometry caps.
 
-There are two authored layouts for now: `gathering` (table, food, seats and warm lights) and
+There are three authored layouts for now: `gathering` (table, food, seats and warm lights) and
 `lookout` (a telescope, small ringed-planet sculpture, seat and lantern). Choose them when they
 fit the interview; this is not coverage for every person's world. `setting: tropical` adds
 shore palms, beach planting, sand and a native shallow lagoon. Optional `companion: {kind:
 cat, name?, color?, note?}` adds the reusable rounded cat only when the person mentioned one.
-The props are code-built miniatures, available immediately; they do not need Meshy downloads.
+A `painting` scene provides a watercolour easel, supplies, a usable seat and a bird that turns toward a greeting. `setting: woodland` adds a shelter, layered birches and ferns. The one CC0 Quaternius birch (148 KB, 512 px WebP textures, 4,596 triangles) is shared across the scene and loaded before reveal. Its foot is normalized to the origin at a declared 5.5 m height. Source/license and changes live in `assets/models/planets/library/`; `tools/planet-nature.mjs` reproduces its offline import. A failed required load shows a reload message instead of revealing a primitive substitute.
+
+The other props are code-built miniatures, available immediately; they do not need Meshy downloads.
 They are a bounded starting library, not a replacement for finished hero models or proof of
 first-pass quality on unseen input. Existing custom things and cached models remain available.
 
 A tropical gathering also has an open bamboo-and-thatch pavilion. Furniture stays separate for
 independent interaction. An opaque matte part can use `surface: wood|bamboo|thatch|cloth` for
 shared procedural texture craft. `craft: planting` uses instanced tropical leaf beds;
-`craft: palm` reuses the procedural palm; `craft: cat` keeps
-authored head/tail joints. No downloads or generation are needed. A cat's `use: greet` turns
+`craft: palm` reuses the procedural palm; `craft: cat` and `craft: bird` keep
+authored head/tail joints. These companions need no downloads or generation. A cat's `use: greet` turns
 its head toward the visitor (a settled pose under reduced motion). A lookout's `use: look` opens
 an explicitly imagined ringed-world sky; Step back, Escape or a walking key returns. Details
 remain optional for those actions, rather than covering their response with a card. This is
@@ -121,10 +123,10 @@ Day/dusk use a horizon/cloud dome and different directional, hemisphere and envi
 with the horizon fitted to the tiny planet's visible limb. Clear legacy nights retain their
 nebula/stars. `color` tints the chosen sky treatment; `light` colours the directional light.
 These controls are art direction, not live weather or an astronomical clock. They do not imply
-rain, snow, weather audio or a matching environment asset library.
+snow or weather audio. Explicit `look.sky.weather: rain` adds bounded local rain streaks and haze. Rain stays static under reduced motion; it is never inferred from woodland alone. Defaults without weather remain unchanged.
 
 All usable things respond in the world before optional details. Seats sit, lights switch, the
-cat acknowledges and the telescope looks; the separate details button can then open the object's
+cat/bird acknowledges and the telescope looks; the separate details button can then open the object's
 name/note/collection. This does not add riding, baking, animal rigs or musical performance.
 Wood parts map grain in part metres rather than stretching a whole tile over every little board.
 
@@ -470,3 +472,33 @@ it. A finished friend's planet still goes to `tools/models/planets/` for the wor
 Meshy, for a planet's real models: about $0.70 a model, at most 14 a planet for the first 10 friends (above), and those made while the chat waits at most 30 a month, about $20 (above). Otherwise
 no AI of ours: an edge function call per tool call, within the plan's included calls, and a row
 per planet sent, at most 20 a day and 50 waiting. A request over 256 KB is refused before it's read (a spec is 64 KB at most).
+
+
+## Rendered development preflight
+
+`node tools/planet-scene-review.mjs --design <json> --baseline <json> --out <dir>
+--action <id> --extra hammock|birdbath` uses the existing local prepare/preview path and built
+site. It blocks all external requests and supplies no model-generation context. The original
+owner design can stay outside the public repository; `tools/fixtures/planet-woodland.json` is a
+synthetic development design derived from the existing forest intake, not unseen evaluation.
+
+It saves actual desktop/portrait arrivals, a first action reached by a real tap/walk, reverse
+views, an additive edit and a primitive/accepted-tree comparison. Fixed-camera images reuse
+the final arrival pose and are labeled QA observers, separate from actual arrivals. It checks
+visible mesh targets for additions, original-object preservation and missing-required-asset
+recovery. Reports include input and renderer hashes, errors and render statistics. It does not
+choose an aesthetic winner, prove physical-phone speed or implement a production rendering
+worker: `prepare_planet` still truthfully reports no rendered inspection.
+
+`extras: [birdbath]` adds a shallow bath at the clearing edge; `[hammock]` adds a sitting hammock
+beneath the palms. Both preserve existing object identities/geometry and mark the addition as
+focus so its visible surface participates in opening selection. Instance-aware batching retains
+fringe instances rather than collapsing their source geometry to a single strand.
+
+
+The painting's paper uses a seeded code-painted watercolour texture, rather than raised geometry
+or a woven-material stand-in. It is generic scenery, never claimed as the person's own work.
+A sit action can declare `seatView: {eye?, pitch?}` (eye 0.8–1.6 m, pitch −0.5–0.3 radians).
+The painting seat uses it to frame the canvas; ordinary seats retain their existing defaults.
+The review turns in place before finding a seat after a greeting, then uses a real tap and walk;
+that controller look is recorded explicitly rather than described as an unchanged arrival view.

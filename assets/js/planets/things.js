@@ -11,7 +11,8 @@ import { RADIUS } from '../world/planet.js';
 import { placeThings, partsOf } from '../../../supabase/functions/_shared/planet.js';
 import { surface, woodSet, bambooSet, thatchSet, rattanSet } from '../world/materials.js';
 import { palm } from '../world/props.js';
-import { planting } from '../world/decor.js';
+import { planting, shrub, grassFringe } from '../world/decor.js';
+import { watercolour } from './painting.js';
 
 const DEG = Math.PI / 180;
 const surfaces = new Map();
@@ -148,7 +149,7 @@ function batchParts(body) {
   body.updateMatrixWorld(true);
   const groups = new Map();
   body.traverse((o)=>{
-    if(!o.isMesh || o.userData.spin || o.material.transparent || (o.material.map && !o.material.userData.crafted) || o.matrixWorld.determinant()<0) return;
+    if(!o.isMesh || o.isInstancedMesh || o.userData.spin || o.material.transparent || (o.material.map && !o.material.userData.crafted) || o.matrixWorld.determinant()<0) return;
     for(let parent=o.parent;parent && parent!==body;parent=parent.parent) if(parent.userData.joint) return;
     const m=o.material,key=[m.type,m.color?.getHex(),m.emissive?.getHex(),m.emissiveIntensity,m.roughness,m.metalness,m.side,m.map?.uuid,m.bumpMap?.uuid,m.bumpScale].join('/');
     if(!groups.has(key)) groups.set(key,[]);
@@ -175,7 +176,7 @@ function batchParts(body) {
  * `surface(dir)` is the ground's distance from the centre (ground.js), so everything stands on it.
  * A pickable mesh carries its thing in `userData.thing`.
  */
-export function buildThings(things = [], surface) {
+export function buildThings(things = [], surface, library = new Map()) {
   const group = new THREE.Group(), colliders = [], pickable = [], spinning = [], characters = [];
   const Y = new THREE.Vector3(0, 1, 0);
   // where each stands, from where you land or beside another thing (placeThings, in the spec's rules)
@@ -197,8 +198,17 @@ export function buildThings(things = [], surface) {
     const body = new THREE.Group();
     const joints = {};
     if (thing.craft === 'palm') body.add(palm({height:4.9,lean:0.22,seed:thing.id.length}));
-    if (thing.craft === 'planting') body.add(planting([[0,0,-0.06]],thing.id.length));
-    for (const p of ['palm','planting'].includes(thing.craft) ? [] : partsOf(thing)) {
+    if (thing.craft === 'planting') body.add(planting([[-.3,.1,-.06],[.45,-.15,-.06]],thing.id.length));
+    if (thing.craft === 'birch') {
+      if(!library.has('birch'))throw Error('The accepted birch must be ready before building the scene');
+      body.add(library.get('birch').clone(true));
+    }
+    if(thing.craft==='woodland-floor')for(const [x,z,s] of [[-.7,-.1,1],[.45,-.3,.7],[.55,.5,.8]]) {
+      const fern=shrub(0);fern.position.set(x,-.04,z);fern.scale.setScalar(s);body.add(fern);
+    }
+    if(thing.craft==='pavilion')for(const z of [-1.89,1.89])body.add(grassFringe({x0:-2.4,x1:2.4,y:3.05,z,count:48,length:.2,seed:13}));
+    if(thing.craft==='easel')body.add(watercolour());
+    for (const p of ['palm','planting','birch'].includes(thing.craft) ? [] : partsOf(thing)) {
       const one = part(p);
       if(p.ground)fitGroundSupport(one,root,surface);
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
@@ -218,7 +228,7 @@ export function buildThings(things = [], surface) {
         if (!joints[p.joint]) {
           const joint = joints[p.joint] = new THREE.Group();
           joint.userData.joint = p.joint;
-          joint.position.set(...(p.joint === 'head' ? [0, 0.98, 0] : [0.32, 0.4, -0.1]));
+          joint.position.set(...(p.joint === 'head' ? thing.craft==='bird'?[.1,1.78,.15]:[0, 0.98, 0] : [0.32, 0.4, -0.1]));
           body.add(joint);
         }
         parent = joints[p.joint];
@@ -227,7 +237,7 @@ export function buildThings(things = [], surface) {
       parent.add(copies);
       if (p.mirror) { const m = copies.clone(); m.scale.x = -1; parent.add(m); }
     }
-    if (thing.craft === 'cat') { thing.joints = joints; characters.push(thing); }
+    if (['cat','bird'].includes(thing.craft)) { thing.joints = joints; characters.push(thing); }
     batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
