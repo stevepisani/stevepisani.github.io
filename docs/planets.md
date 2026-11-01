@@ -176,6 +176,45 @@ The review records aesthetic/interaction gaps rather than passing them as univer
 No generation, external API or send calls are part of this review mode. Separate fresh interviews
 and owner judgment remain necessary after tuning this set.
 
+## First-attempt creation evidence
+
+`tools/planet-first-shot.mjs` freezes the actual connector instructions, kit, creation prompt,
+source fingerprints and built renderer **before** interviews are added. It does not generate
+designs or call a model API. Give its `generation-input.txt` to the designing host, then submit
+that host's original JSON before inspecting preparation diagnostics or rendered views:
+
+```sh
+node tools/planet-first-shot.mjs freeze --out /private/run --site _site
+node tools/planet-first-shot.mjs intake --run /private/run --id case-a --input /private/interview.txt --provenance synthetic-development
+node tools/planet-first-shot.mjs submit --run /private/run --id case-a --candidate /private/first-output.json --generator 'host/model and context exposure'
+node tools/planet-first-shot.mjs render --run /private/run --id case-a --attempt 1
+```
+
+The generation input specifies an envelope: raw `spec`, a supported `firstAction` thing ID,
+the generator's `coverage` disclosure, and one `edit` with a concrete suggestion and either a
+new `thing` or `sceneExtra: {id, kind}`. Coverage disclosure is not an independent fidelity
+assessment. Production hosts receive the same `first_reveal` checklist in the kit; it asks for
+an activity, readable personal detail, supported action, coherent relationships and honest gaps.
+
+Submit saves the original bytes before parsing or preparing, including invalid JSON. Two later
+corrections are allowed, each with a declared reason; they have separate numbered artifacts.
+Changed input, candidate, code or renderer bytes are refused. Render records actual desktop and
+portrait arrivals, a real tap/walk/action, and an additive edit through the existing preflight.
+It refuses to overwrite previous render evidence. A failed first attempt remains a failure even
+if a later correction succeeds. Inspect attempt 1, not only the last valid design.
+
+Keep runs and real interviews outside the public repo. `independent-interview` provenance and
+generator context are declarations: the tool cannot prove that the host was isolated, that the
+interview was unseen or that the generator's self-assessment is accurate. Same-session synthetic
+trials are development evidence, never held-out acceptance. Generation latency/cost remain
+unknown unless measured by the designing host; render/preparation timings are separate. There
+are no paid jobs, network calls, sends or automatic aesthetic scores. `technicalReady` means
+only that the captured browser/action/edit checks passed; aesthetic acceptance stays null.
+This local benchmark is not a hosted pre-reveal worker or an implemented one-shot guarantee.
+
+Keep the tuned examples as references/regressions. Judge fresh outputs without per-person hand
+edits, fix shared rules/assets, then reserve different unseen interviews for acceptance.
+
 ## The pieces
 
 - **The spec** (`supabase/functions/_shared/planet.js`): one small JSON per planet, and

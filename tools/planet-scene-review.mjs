@@ -4,21 +4,22 @@
 import {readFileSync,writeFileSync,mkdirSync,existsSync,statSync} from 'node:fs';
 import {resolve,join,extname} from 'node:path';
 import {createHash} from 'node:crypto';
+import {pathToFileURL} from 'node:url';
 import {rpc} from '../supabase/functions/planets/server.js';
 import {chromium} from './chromium.mjs';
-const arg=(key,fallback=null)=>{const i=process.argv.indexOf('--'+key);return i<0?fallback:process.argv[i+1];};
-const design=JSON.parse(readFileSync(arg('design'),'utf8')),out=resolve(arg('out')),site=resolve(arg('site','_site'));
+export async function reviewScene({design,out,site='_site',baseline=null,action=null,seat=null,extra=null,editDesign=null,assetComparison=true}) {
+out=resolve(out);site=resolve(site);
 mkdirSync(out,{recursive:true});
 const tool=async(name,spec)=>(await rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:{spec}}},{})).result;
 const prepared=await tool('prepare_planet',design);
 if(prepared.isError)throw Error(prepared.content[0].text);
 const final=prepared.structuredContent.spec;
 const cases=[['after',final]];
-if(arg('baseline'))cases.push(['before',JSON.parse(readFileSync(arg('baseline'),'utf8'))]);
+if(baseline)cases.push(['before',baseline]);
 const partsOnly=structuredClone(final);partsOnly.things.forEach(t=>{if(t.craft==='birch')delete t.craft;});
-if(final.things.some(t=>t.craft==='birch'))cases.push(['primitive-trees',partsOnly]);
+if(assetComparison&&final.things.some(t=>t.craft==='birch'))cases.push(['primitive-trees',partsOnly]);
 let edited;
-if(arg('extra')){const next=structuredClone(design);next.scenes[0].extras=[arg('extra')];const p=await tool('prepare_planet',next);if(p.isError)throw Error(p.content[0].text);edited=p.structuredContent.spec;cases.push(['edit',edited]);}
+if(extra||editDesign){const next=editDesign||structuredClone(design);if(extra)next.scenes[0].extras=[extra];const p=await tool('prepare_planet',next);if(p.isError)throw Error(p.content[0].text);edited=p.structuredContent.spec;cases.push(['edit',edited]);}
 const urls=new Map();
 for(const [name,spec] of cases){const r=await tool('preview_planet',spec);if(r.isError)throw Error(r.content[0].text);urls.set(name,r.structuredContent.url.replace('/p/preview/#','/p/preview/?test=1#'));}
 const hash=value=>createHash('sha256').update(value).digest('hex');
@@ -49,17 +50,18 @@ for(const [device,viewport] of [['desktop',{width:1280,height:720}],['phone',{wi
         return{id,inView:!!p,visibleMeshTargetAtFixedCamera:visible};
       }),edited.things.filter(t=>!final.things.some(o=>o.id===t.id)).map(t=>t.id));
       if(view.additions?.some(t=>!view.opening.visible.includes(t.id)))throw Error('An addition has no visible mesh target in its actual arrival');
-      if(name==='after')for(const [actionName,id] of [['action',arg('action')],['seat',arg('seat')]].filter(([,id])=>id)) {
+      if(name==='after')for(const [actionName,id] of [['action',action],['seat',seat]].filter(([,id])=>id)) {
         if(actionName==='seat') {
           await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor;w.player.face(t.root.localToWorld(new V(0,.6,0)),()=>{},{down:true});},id);
           await page.waitForFunction(()=>!window.__planet.player.facing,null,{timeout:10000});
         }
         const point=await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor,B=t.hull.constructor;w.camera.updateMatrixWorld(true);const points=[];t.root.traverse(o=>{if(o.isMesh)points.push(new B().setFromObject(o).getCenter(new V()));});for(const p of points){const q=p.project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;if(q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.95&&w.pickAt(x,y)===id)return{x,y};}return null;},id);
         if(!point)throw Error('No visible action target: '+id);
+        const initialLight=await page.evaluate(id=>window.__planet.spec.things.find(t=>t.id===id)?.lamp?.intensity,id);
         await page.mouse.click(point.x,point.y);
-        await page.waitForFunction(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id);return !w.busy()&&(t.use==='greet'?!!t.greeting:t.use==='sit'?w.seated()===id:false);},id,{timeout:60000});
+        await page.waitForFunction(({id,initialLight})=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id);return !w.busy()&&(t.use==='greet'?!!t.greeting:t.use==='sit'?w.seated()===id:t.use==='switch'?t.lamp?.intensity!==initialLight:t.use==='look'?w.scoped()===id:false);},{id,initialLight},{timeout:60000});
         view[actionName]={id,point,observer:actionName==='action'?'Real tap and walking from the opening; no observer staging.':'Turned in place toward the seat using the player controller, then real tap/walk; position never teleported.',image:await shot(actionName)};
-        if(actionName==='seat'){await page.locator('#stand').click();await page.waitForFunction(()=>!window.__planet.busy());}
+        if(await page.locator('#stand').isVisible()){await page.locator('#stand').click();await page.waitForFunction(()=>!window.__planet.busy());}
       }
       if(name==='after') {await page.evaluate(()=>{const w=window.__planet;w.player.stop();w.player.look(Math.PI,0);});view.reverse=await shot('reverse');}
       console.log(`${device} ${name}: rendered, fits ${view.opening.fits}${view.action?', action passed':''}`);
@@ -78,3 +80,11 @@ for(const [device,viewport] of [['desktop',{width:1280,height:720}],['phone',{wi
 }finally{await browser.close();}
 writeFileSync(join(out,'review.json'),JSON.stringify(report,null,2)+'\n');
 if(report.views.some(v=>v.error||v.errors.length))throw Error('Rendered preflight failed; see review.json');
+return report;
+}
+
+if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) {
+  const arg=(key,fallback=null)=>{const i=process.argv.indexOf('--'+key);return i<0?fallback:process.argv[i+1];};
+  const json=key=>arg(key)?JSON.parse(readFileSync(arg(key),'utf8')):null;
+  await reviewScene({design:json('design'),out:arg('out'),site:arg('site','_site'),baseline:json('baseline'),action:arg('action'),seat:arg('seat'),extra:arg('extra'),editDesign:json('edit-design')});
+}

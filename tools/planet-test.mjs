@@ -370,6 +370,7 @@ await w.db.exec('reset role');
 await import('./planet-overview-test.mjs');
 await import('./planet-craft-test.mjs');
 await import('./planet-scene-kit-test.mjs');
+await import('./planet-first-shot-test.mjs');
 await import('./planet-motion-test.mjs');
 // ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
 {

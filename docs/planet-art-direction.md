@@ -55,6 +55,12 @@ input fidelity and visual feedback alongside failures. Fix the shared rule or ac
 then rerun all cases without manual per-person rescue. Keep a separate unseen set after tuning;
 a regression suite that has been repeatedly polished is no longer unseen evidence.
 
+Freeze the real kit/instructions and renderer with `tools/planet-first-shot.mjs` before adding
+evaluation interviews. Save each raw model output before preparation, retain invalid first
+attempts and record bounded corrections separately. A same-session synthetic trial is useful
+development evidence, but it does not establish an isolated host or an independent person's
+first result. The tool's coverage metadata is the generator's disclosure, not a fidelity judge.
+
 Opening views must fit the actual composed bounds and viewport. Importance (focus, support,
 environment) is separate from collision. Keep nearby personal additions in the framing intent,
 and check focus visibility as well as bounding rectangles. Shared camera changes must also
