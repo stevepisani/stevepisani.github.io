@@ -365,6 +365,7 @@ ok((await w.q("update public.planet_requests set status = 'building' where slug 
 await w.db.exec('reset role');
 
 await import('./planet-overview-test.mjs');
+await import('./planet-motion-test.mjs');
 // ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
 {
 const { modelsNow, MODELS_A_MONTH, PER_PLANET: CHAT_PER_PLANET } = await import('../supabase/functions/planets/models.js');

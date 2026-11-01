@@ -96,7 +96,10 @@ the character or letting it steal another object’s hits. Remote
 scenery cannot shrink the hero. It respects the receiving aspect ratio and reframes an untouched
 opening on resize; deliberate looking is preserved. Very large/conflicting arrangements can
 still return a best-effort frame rather than a guarantee. Visibility and clear starting feet
-are not a complete walking-route proof. The first tap lowers the visitor to walking height.
+are not a complete walking-route proof. The first tap lowers the visitor to walking height. Walking consumes elapsed frame time in
+bounded 50 ms physics steps (at most 250 ms per frame), so slower rendering does not discard
+most of the approach time. Entering a seat/lens transition stops further walking steps. This
+keeps collision steps small; it does not establish physical-phone frame rate or comfort.
 
 `footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
 select foliage, but the box under its canopy no longer claims taps meant for another object.
