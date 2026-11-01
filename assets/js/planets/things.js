@@ -283,6 +283,7 @@ export function buildThings(things = [], surface) {
         pickable.push(o);
       });
       body.add(model);
+      thing.real = true; // its real model is in
     },
     // a spinning part turns about its own up, after its own turn
     greet(thing, observer, reduced) {

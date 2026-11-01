@@ -45,8 +45,8 @@ rather than leaving it in a chat.
    The next prototype follows [the art-direction brief](planet-art-direction.md): complete
    activity-based assemblies, shared tactile craft, visible companion/telescope responses,
    actual desktop/portrait evidence and a safe versioned reference cache. Accepted assets
-   support first reveal; bespoke live generation is deferred until measured quality, latency
-   and cost justify it. Then: try it in Claude and ChatGPT
+   support first reveal; capped models can now arrive while the chat continues (PR #150), but
+   delayed replacements cannot rescue an inadequate opening. Measured quality/latency remain open. Then: try it in Claude and ChatGPT
    and see what the models make; then each friend's planet finished by hand at `/p/<slug>/`
    (`docs/planets.md`, "Building a friend's planet"). Untested on a real phone and in ChatGPT's phone app.
 

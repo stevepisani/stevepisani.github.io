@@ -63,8 +63,9 @@ seed and browser checks remain separate from aesthetic acceptance.
 
 ## First reveal and assets
 
-First reveal uses accepted, available assets and deterministic assemblies. Bespoke AI generation
-grows the library separately until measured experiments justify putting it in the waiting path.
+First reveal uses accepted, available assets and deterministic assemblies. The current connector
+can also start capped model generation while the chat continues; those models arrive later.
+This does not remove the first-reveal bar or establish measured quality/latency acceptance.
 A successful generation job, valid GLB or geometry check cannot certify visual quality. Required
 hero assets must be ready before they are promised as finished. A fallback must meet the bar
 on its own; a later swap cannot rescue an inadequate first impression.
