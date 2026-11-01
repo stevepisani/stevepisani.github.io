@@ -385,5 +385,7 @@ async function start(spec) {
     const p = t && new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(camera);
     return p && p.z < 1 && Math.abs(p.x) < 1 && Math.abs(p.y) < 1 ? { x: (p.x + 1) / 2 * innerWidth, y: (1 - p.y) / 2 * innerHeight } : null;
   };
-  window.__planet = { ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, opening:()=>opening, pickAt:(x,y)=>aim(x,y)?.thing?.id||null, seated: () => seat && seat.id, scoped:()=>scope && scope.id, busy: () => !!move, metrics: () => ({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}) };
+  // Test-only current-view readback catches blank pixels which readiness cannot detect.
+  const capture=TEST?()=>{pipeline.render(0);return canvas.toDataURL();}:undefined;
+  window.__planet = { capture, ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, opening:()=>opening, pickAt:(x,y)=>aim(x,y)?.thing?.id||null, seated: () => seat && seat.id, scoped:()=>scope && scope.id, busy: () => !!move, metrics: () => ({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}) };
 }

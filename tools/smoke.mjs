@@ -1927,6 +1927,53 @@ async function chatModel(page, shot) {
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
 // in it (showsNothing) is really there. A metre cube 9 m out at bearing 17 is on screen as they
 // land; at bearing 30 it isn't, and the connector refuses a planet with only that.
+// A first reveal must contain actual pixels, not just ready/draw counters. This sheltered
+// development study previously produced NaN HDR pixels on grazing wood and a black bloom pass.
+async function shelterPreview(page, shot) {
+  const design=JSON.parse(readFileSync(new URL('./fixtures/planet-shelter.json',import.meta.url)));
+  const prepare=async input=>{
+    const r=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:input}}},{})).result;
+    if(r.isError||r.structuredContent.diagnostics.warnings.length)throw Error('Shelter preparation: '+JSON.stringify(r));
+    return r.structuredContent.spec;
+  };
+  const load=async spec=>{
+    await page.goto('about:blank');
+    await page.goto(`${base}/p/preview/?test=1#${await packPlanet(spec)}`);
+    await until(page,()=>window.__planet?.ready,null,240000);
+    await page.locator('#veil').waitFor({state:'hidden'});
+    const frame=await page.evaluate(async()=>{
+      const w=window.__planet,im=new Image();im.src=w.capture();await im.decode();
+      const c=document.createElement('canvas');c.width=im.width;c.height=im.height;
+      const ctx=c.getContext('2d');ctx.drawImage(im,0,0);const pixels=ctx.getImageData(0,0,c.width,c.height).data;
+      let lit=0;for(let i=0;i<pixels.length;i+=4)if(Math.max(pixels[i],pixels[i+1],pixels[i+2])>12)lit++;
+      return {litFraction:lit/(c.width*c.height),fits:w.opening().fits,eye:w.player.eye,detail:w.opening().detail};
+    });
+    if(!frame.fits||frame.litFraction<.2||frame.eye>2)throw Error('Sheltered card must show its activity below the roof: '+JSON.stringify(frame));
+    return frame;
+  };
+  const first=await prepare(design);await load(first);await shot('shelter-arrival');
+  design.setting.extras=['window-seat'];design.reveal='loom-setting-seat';
+  const edited=await prepare(design);
+  if(!first.things.every(t=>JSON.stringify(t)===JSON.stringify(edited.things.find(e=>e.id===t.id))))throw Error('Adding a window seat changed the existing place');
+  const frame=await load(edited);
+  if(!frame.detail?.meetsBudget)throw Error('The window seat is not visibly featured: '+JSON.stringify(frame));
+  await shot('shelter-added-seat');
+  const target=await page.evaluate(()=>{
+    const w=window.__planet,t=w.spec.things.find(t=>t.id==='loom-setting-seat'),V=w.camera.position.constructor,B=t.hull.constructor;
+    const points=[];t.root.traverse(o=>{if(o.isMesh)points.push(new B().setFromObject(o).getCenter(new V()));});
+    for(const p of points){const q=p.project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;if(q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.95&&w.pickAt(x,y)===t.id)return{x,y};}return null;
+  });
+  if(!target)throw Error('The addition has no real visible tap target');
+  await page.mouse.click(target.x,target.y);
+  await until(page,()=>window.__planet.seated()==='loom-setting-seat'&&!window.__planet.busy(),null,60000);
+  if(!await page.evaluate(()=>window.__planet.screenOf('loom')))throw Error('The new seat should face the activity, not empty sky');
+  await shot('shelter-seat-action');
+  await page.locator('#stand').click();await until(page,()=>!window.__planet.busy(),null,30000);
+  await page.locator('#reveal-view').click();
+  if(await page.locator('#reveal-view').textContent()!=='See addition')throw Error('Whole-place view did not return');
+  step('sheltered first pixels, stable architecture, visible window-seat addition, real tap/sit/return and whole-place view');
+}
+
 async function firstView(page, shot) {
   const { showsNothing } = await import('../supabase/functions/_shared/planet.js');
   const cube = (bearing) => ({ version: 1, slug: 'test-cube', who: { name: 'Cube' }, things: [{ id: 'cube', name: 'Cube', at: { bearing, distance: 9 }, parts: [{ shape: 'box', size: [1, 1, 1], color: '#ff7a2a' }] }] });
@@ -2103,6 +2150,8 @@ if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, 
 for (const n of [1, 2, 3, 4]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));
 if (want('phone')) await session('phone planet', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planet(p, s, { phone: true }));
 if (want('holiday')) await session('holiday', { viewport: { width: 1280, height: 800 } }, holiday);
+if (want('planets') || want('scenes') || want('shelter')) await session('shelter card desktop', { viewport: { width: 700, height: 440 } }, shelterPreview);
+if (want('planets') || want('scenes') || want('shelter')) await session('shelter card phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, shelterPreview);
 if (want('planets') || want('scenes')) await session('composed scenes desktop', { viewport: { width: 1280, height: 800 } }, composedPreview);
 if (want('planets') || want('scenes')) await session('composed scenes phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, composedPreview);
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);

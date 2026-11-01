@@ -18,7 +18,7 @@ const prompt=`Design this person's first Tiny Planet from the supplied interview
 
 Return one JSON object, without Markdown:
 { "spec": <the raw design for prepare_planet>, "firstAction": "<one thing id with sit, switch, greet or look>", "coverage": { "represented": ["exact interview quotes represented by the scene"], "unsupported": ["requests not supported, or empty"], "omitted": ["requests not included, or empty"] }, "edit": { "suggestion": "one optional additive change grounded in their answers", "thing": <one new thing to append> } }
-Instead of edit.thing, a matching authored scene may use edit.sceneExtra: { "id": "<scene id>", "kind": "hammock or birdbath" }. Choose exactly one. The edit must preserve original objects. The first action must be possible in the first design, not require the edit. Do not imply unsupported animation, cooking, riding, audio, pets or other behavior works. Preserve personal meaning rather than substituting a familiar theme. Coverage is the generator's disclosure, not an independent assessment.
+Instead of edit.thing, a matching authored scene may use edit.sceneExtra: { "id": "<scene id>", "kind": "hammock or birdbath" }, or an existing windows setting may use edit.settingExtra: { "kind": "window-seat" }. Choose exactly one. The edit must preserve original objects. The first action must be possible in the first design, not require the edit. Do not imply unsupported animation, cooking, riding, audio, pets or other behavior works. Preserve personal meaning rather than substituting a familiar theme. Coverage is the generator's disclosure, not an independent assessment.
 
 Submit the first JSON before running any prepare/render checks. At most two later targeted corrections may be recorded with their reasons. Keep the original even if it fails. A new person is not expected to fix a weak scene.`;
 
@@ -57,9 +57,13 @@ export function addInterview({run,id,input,provenance}) {
 
 export function additiveDesign(candidate) {
   const edit=candidate.edit,next=structuredClone(candidate.spec);
-  if(!edit||typeof edit.suggestion!=='string'||!edit.suggestion.trim()||!!edit.thing===!!edit.sceneExtra)throw Error('Supply one specific suggestion and exactly one additive thing or sceneExtra');
+  if(!edit||typeof edit.suggestion!=='string'||!edit.suggestion.trim()||[edit.thing,edit.sceneExtra,edit.settingExtra].filter(Boolean).length!==1)throw Error('Supply one specific suggestion and exactly one additive thing, sceneExtra or settingExtra');
   if(edit.thing){next.things||=[];next.things.push(edit.thing);next.reveal=edit.thing.id;}
-  else {const scene=next.scenes?.find(s=>s.id===edit.sceneExtra.id);if(!scene)throw Error('The additive scene id is absent');scene.extras=[...new Set([...(scene.extras||[]),edit.sceneExtra.kind])];next.reveal=`${scene.id}-${edit.sceneExtra.kind}`;}
+  else if(edit.sceneExtra){const scene=next.scenes?.find(s=>s.id===edit.sceneExtra.id);if(!scene)throw Error('The additive scene id is absent');scene.extras=[...new Set([...(scene.extras||[]),edit.sceneExtra.kind])];next.reveal=`${scene.id}-${edit.sceneExtra.kind}`;}
+  else {
+    if(next.setting?.edge!=='windows'||edit.settingExtra.kind!=='window-seat')throw Error('A window-seat addition needs an existing windows setting');
+    next.setting.extras=[...new Set([...(next.setting.extras||[]),'window-seat'])];next.reveal=`${next.setting.around.slice(0,15)}-setting-seat`;
+  }
   next.arrival='overview';
   return next;
 }
