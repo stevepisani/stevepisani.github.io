@@ -80,11 +80,21 @@ planet’s own surface. The lagoon has an irregular wet margin, broken groups of
 and the same wind-ripple/sky-reflection treatment as the homepage. Its walking boundary
 conservatively encloses every lobe; some dry sand at its edge is deliberately kept clear.
 
-Only `arrival: overview` uses the elevated, slightly oblique scene opening. Ordinary planets
-retain their original forward axis and loading-screen drag. The scene opening currently uses
-a fixed authored view, not a general bounds-driven framing system; broader composition coverage
-and held-out first-reveal evaluation remain open. The first scene tap brings the visitor down
-to walking height, then walks to the chosen thing. Dragging still looks around.
+`arrival: overview` frames the actual primary activity for the current viewport. Optional
+thing `role: focus|support|environment` separates composition importance from collision. Put the
+main activity first (or mark it focus), nearby usable furniture and shelter as support, and
+scenery as environment. Personal additions can be focus without becoming solid. The composer
+supplies roles for its authored scenes. Ordinary previews retain their validated forward axis
+and loading-screen drag.
+
+The opening searches stable surface positions clear of colliders, fits primary/nearby supporting
+bounds, and checks focus visibility with the same mesh/hull hit policy as real taps. Open silhouettes
+are checked at real surface samples as well as their potentially empty box centre. Remote
+scenery cannot shrink the hero. It respects the receiving aspect ratio and reframes an untouched
+opening on resize; deliberate looking is preserved. Very large/conflicting arrangements can
+still return a best-effort frame rather than a guarantee. Visibility and clear starting feet
+are not a complete walking-route proof. The first tap lowers the visitor to walking height.
+
 `footprint: [width, depth]` separates ground clearance from visual bounds. Mesh hits still
 select foliage, but the box under its canopy no longer claims taps meant for another object.
 Scene routes join entrances, rather than drawing a separate trail to each plant. Footprints
@@ -97,6 +107,44 @@ swimming feature. `scenes[0].extras: ["hammock"]` is one supported additive edit
 hammock at the scene edge. Recompile the original design to add it without moving existing
 scene objects. The example rehearsal and browser tests check this reveal/edit path; owner
 satisfaction and an unseen-input friend pilot are still separate gates.
+
+## Atmosphere and visible responses
+
+`look.sky.period` is `day|dusk|night` (default night); `clouds` is `clear|overcast` (default clear).
+Day/dusk use a horizon/cloud dome and different directional, hemisphere and environment light,
+with the horizon fitted to the tiny planet's visible limb. Clear legacy nights retain their
+nebula/stars. `color` tints the chosen sky treatment; `light` colours the directional light.
+These controls are art direction, not live weather or an astronomical clock. They do not imply
+rain, snow, weather audio or a matching environment asset library.
+
+All usable things respond in the world before optional details. Seats sit, lights switch, the
+cat acknowledges and the telescope looks; the separate details button can then open the object's
+name/note/collection. This does not add riding, baking, animal rigs or musical performance.
+Wood parts map grain in part metres rather than stretching a whole tile over every little board.
+
+## Repeatable interview development review
+
+Use the existing connector runner, offline and without sends:
+
+```sh
+node tools/planet-live.mjs --interviews --phase review --local --site _site --shots /path/to/review
+```
+
+The fixture `tools/fixtures/planet-interviews.json` contains four clearly synthetic intakes and
+agent-authored first designs (forest art, desert cycling, mountain reading/baking, city music).
+It is a development stress set, not independent model generations or held-out acceptance data.
+Frozen meshes, placements and names stay unchanged in the shared-renderer comparison; new
+period/cloud and importance metadata are translated from the same intakes. It records input
+hashes, renderer bundle hash, actual desktop/phone frames, first-action state changes and one
+additive edit. The old centre-tap probe is retained; when occluded, a visible control is also
+clicked in a fresh preview, reported explicitly as a separate first-reveal probe.
+
+`--phase` names an evidence folder; it does not restore old renderer code. `baseline` omits the
+new atmosphere/importance metadata. Reproducing a historical renderer requires that checkout
+and build. `--arrivals-only` captures first reveals without claiming actions or edits were run.
+The review records aesthetic/interaction gaps rather than passing them as universal quality.
+No generation, external API or send calls are part of this review mode. Separate fresh interviews
+and owner judgment remain necessary after tuning this set.
 
 ## The pieces
 

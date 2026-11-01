@@ -55,7 +55,9 @@ input fidelity and visual feedback alongside failures. Fix the shared rule or ac
 then rerun all cases without manual per-person rescue. Keep a separate unseen set after tuning;
 a regression suite that has been repeatedly polished is no longer unseen evidence.
 
-Opening views must fit the actual composed bounds and viewport. Shared camera changes must also
+Opening views must fit the actual composed bounds and viewport. Importance (focus, support,
+environment) is separate from collision. Keep nearby personal additions in the framing intent,
+and check focus visibility as well as bounding rectangles. Shared camera changes must also
 preserve ordinary-planet framing and the loading-screen drag. Passing schema, geometry, terrain
 seed and browser checks remain separate from aesthetic acceptance.
 

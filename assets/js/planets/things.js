@@ -82,6 +82,21 @@ export function placeOnPlanet(bearing, distance) {
   return new THREE.Vector3(0, Math.cos(t), 0).addScaledVector(ahead, Math.sin(t)).normalize();
 }
 
+// Keep grain at a consistent material scale, rather than stretching the entire wood tile
+// across every board, however small it is. Clone shared primitives before touching their UVs.
+function woodUV(mesh) {
+  const original=mesh.geometry,g=original.clone().scale(mesh.scale.x,mesh.scale.y,mesh.scale.z);
+  if(!Object.values(shared).includes(original)) original.dispose();
+  mesh.geometry=g;mesh.scale.setScalar(1);
+  const p=g.attributes.position,n=g.attributes.normal,uv=g.attributes.uv;
+  for(let i=0;i<p.count;i++) {
+    const x=Math.abs(n.getX(i)),y=Math.abs(n.getY(i)),z=Math.abs(n.getZ(i));
+    const u=x>y && x>z?p.getZ(i):p.getX(i),v=y>x && y>z?p.getZ(i):p.getY(i);
+    uv.setXY(i,u*2,v*2);
+  }
+  uv.needsUpdate=true;
+}
+
 // one part, as a mesh placed in its thing: unit-sized shapes are scaled to its size; a rounded box,
 // a tube and a lathe or extrude are built for it
 function part(p) {
@@ -114,6 +129,7 @@ function part(p) {
       mesh = new THREE.Mesh(geometry(p.shape), m);
       mesh.scale.set(w, h, d);
     }
+    if (p.surface==='wood') woodUV(mesh);
     // solid parts cast shadows; light passes through glass, and what glows lights itself
     mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
     mesh.receiveShadow = true;

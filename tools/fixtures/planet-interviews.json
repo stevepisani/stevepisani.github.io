@@ -1,0 +1,3051 @@
+{
+  "purpose": "Synthetic development stress cases. Intake and first designs frozen before shared renderer changes. These are agent-authored examples using existing parts, not independent model runs or unseen acceptance evidence.",
+  "cases": [
+    {
+      "id": "forest",
+      "intake": {
+        "place": "A quiet rainy forest",
+        "activity": "Watercolour painting and watching birds",
+        "companions": "Birds, no pet",
+        "atmosphere": "Soft green light, a sheltered clearing, peaceful"
+      },
+      "spec": {
+        "version": 1,
+        "slug": "test-contrast-forest",
+        "who": {
+          "name": "Rowan"
+        },
+        "arrival": "overview",
+        "look": {
+          "ground": {
+            "color": "#506347",
+            "hills": 0.12
+          },
+          "sky": {
+            "color": "#728e8a",
+            "light": "#c7d1c9"
+          }
+        },
+        "collections": {
+          "loves": {
+            "title": "What matters here",
+            "items": [
+              "A quiet rainy forest",
+              "Watercolour painting and watching birds",
+              "Birds, no pet",
+              "Soft green light, a sheltered clearing, peaceful"
+            ]
+          }
+        },
+        "things": [
+          {
+            "id": "easel",
+            "name": "Painting under the trees",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  1.9,
+                  0.13
+                ],
+                "at": [
+                  -0.48,
+                  0.9,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  1.9,
+                  0.13
+                ],
+                "at": [
+                  0.48,
+                  0.9,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1.35,
+                  0.12,
+                  0.22
+                ],
+                "at": [
+                  0,
+                  0.82,
+                  0.12
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.1,
+                  1.75,
+                  0.1
+                ],
+                "at": [
+                  0,
+                  0.8,
+                  -0.35
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1.3,
+                  1.1,
+                  0.08
+                ],
+                "at": [
+                  0,
+                  1.48,
+                  0.03
+                ],
+                "color": "#e6dfc6",
+                "round": 0.08,
+                "surface": "cloth"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1.13,
+                  0.94,
+                  0.025
+                ],
+                "at": [
+                  0,
+                  1.48,
+                  0.08
+                ],
+                "color": "#a5bdbe",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1.1,
+                  0.18,
+                  0.03
+                ],
+                "at": [
+                  0,
+                  1.16,
+                  0.1
+                ],
+                "color": "#617959",
+                "round": 0.08
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.4,
+                  0.6,
+                  0.03
+                ],
+                "at": [
+                  0.25,
+                  1.43,
+                  0.1
+                ],
+                "color": "#78926b"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.25,
+                  0.38,
+                  0.03
+                ],
+                "at": [
+                  -0.3,
+                  1.35,
+                  0.1
+                ],
+                "color": "#4d7668"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.35,
+                  0.05,
+                  0.28
+                ],
+                "at": [
+                  -0.3,
+                  0.92,
+                  0.3
+                ],
+                "color": "#a67443"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.08,
+                  0.04,
+                  0.07
+                ],
+                "at": [
+                  -0.35,
+                  0.96,
+                  0.3
+                ],
+                "color": "#a44841"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.08,
+                  0.04,
+                  0.07
+                ],
+                "at": [
+                  -0.23,
+                  0.96,
+                  0.32
+                ],
+                "color": "#d7ad60"
+              }
+            ],
+            "at": {
+              "bearing": 0,
+              "distance": 6.8
+            },
+            "footprint": [
+              1.4,
+              0.8
+            ],
+            "note": "Watercolours and birds in a quiet rainy forest.",
+            "collection": "loves"
+          },
+          {
+            "id": "forest-seat",
+            "name": "A place to paint",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.12,
+                  0.65
+                ],
+                "at": [
+                  0,
+                  0.55,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  0,
+                  0.92,
+                  -0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              }
+            ],
+            "near": {
+              "of": "easel",
+              "side": "front",
+              "gap": 1.1
+            },
+            "use": "sit",
+            "turn": 180,
+            "collection": "loves"
+          },
+          {
+            "id": "forest-trees",
+            "name": "A clearing in the canopy",
+            "parts": [
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.35,
+                  3.5,
+                  0.35
+                ],
+                "at": [
+                  -2.1,
+                  1.75,
+                  0
+                ],
+                "color": "#665242"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  2.2,
+                  1.6,
+                  2
+                ],
+                "at": [
+                  -2.1,
+                  3.9,
+                  0
+                ],
+                "color": "#467353"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.7,
+                  1.4,
+                  1.8
+                ],
+                "at": [
+                  -2.7,
+                  4.3,
+                  0.15
+                ],
+                "color": "#5a8964"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.35,
+                  4,
+                  0.35
+                ],
+                "at": [
+                  2.2,
+                  2,
+                  -0.4
+                ],
+                "color": "#665242"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  2.2,
+                  1.6,
+                  2
+                ],
+                "at": [
+                  2.2,
+                  4.4,
+                  -0.4
+                ],
+                "color": "#467353"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.7,
+                  1.4,
+                  1.8
+                ],
+                "at": [
+                  1.6,
+                  4.8,
+                  -0.25
+                ],
+                "color": "#5a8964"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.35,
+                  4.2,
+                  0.35
+                ],
+                "at": [
+                  -1,
+                  2.1,
+                  -2.5
+                ],
+                "color": "#665242"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  2.2,
+                  1.6,
+                  2
+                ],
+                "at": [
+                  -1,
+                  4.6000000000000005,
+                  -2.5
+                ],
+                "color": "#467353"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.7,
+                  1.4,
+                  1.8
+                ],
+                "at": [
+                  -1.6,
+                  5,
+                  -2.35
+                ],
+                "color": "#5a8964"
+              }
+            ],
+            "near": {
+              "of": "easel",
+              "side": "back",
+              "gap": 1
+            },
+            "solid": false,
+            "footprint": [
+              5,
+              4
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "forest-birds",
+            "name": "Birds above the clearing",
+            "parts": [
+              {
+                "shape": "sphere",
+                "size": [
+                  0.25,
+                  0.19,
+                  0.4
+                ],
+                "at": [
+                  0,
+                  2.7,
+                  0
+                ],
+                "color": "#d7a35f"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.16,
+                  0.16,
+                  0.18
+                ],
+                "at": [
+                  0,
+                  2.8,
+                  0.2
+                ],
+                "color": "#d7a35f"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.08,
+                  0.12
+                ],
+                "at": [
+                  0,
+                  2.79,
+                  0.32
+                ],
+                "color": "#f0d897",
+                "round": 0.08
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.2,
+                  0.05,
+                  0.6
+                ],
+                "at": [
+                  0.2,
+                  2.72,
+                  -0.05
+                ],
+                "color": "#566d79"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.2,
+                  0.05,
+                  0.6
+                ],
+                "at": [
+                  -0.2,
+                  2.72,
+                  -0.05
+                ],
+                "color": "#566d79"
+              }
+            ],
+            "near": {
+              "of": "easel",
+              "side": "left",
+              "gap": 1
+            },
+            "solid": false,
+            "footprint": [
+              0.4,
+              0.5
+            ],
+            "collection": "loves"
+          }
+        ]
+      },
+      "firstAction": "forest-seat",
+      "edit": {
+        "suggestion": "Add a little birdbath beside the painting spot",
+        "thing": {
+          "id": "birdbath",
+          "name": "A birdbath in the clearing",
+          "parts": [
+            {
+              "shape": "cylinder",
+              "size": [
+                0.25,
+                0.75,
+                0.25
+              ],
+              "at": [
+                0,
+                0.37,
+                0
+              ],
+              "color": "#a8aba2"
+            },
+            {
+              "shape": "sphere",
+              "size": [
+                1,
+                0.15,
+                1
+              ],
+              "at": [
+                0,
+                0.78,
+                0
+              ],
+              "color": "#9caaa4"
+            },
+            {
+              "shape": "cylinder",
+              "size": [
+                0.76,
+                0.025,
+                0.76
+              ],
+              "at": [
+                0,
+                0.86,
+                0
+              ],
+              "color": "#719da3"
+            }
+          ],
+          "near": {
+            "of": "easel",
+            "side": "right",
+            "gap": 1.8
+          },
+          "solid": false
+        }
+      },
+      "requestedSky": {
+        "period": "day",
+        "clouds": "overcast"
+      },
+      "roles": {
+        "easel": "focus",
+        "forest-seat": "support",
+        "forest-trees": "environment",
+        "forest-birds": "focus"
+      }
+    },
+    {
+      "id": "desert",
+      "intake": {
+        "place": "A sunny desert",
+        "activity": "Cycling and mechanical projects",
+        "companions": "My border collie",
+        "atmosphere": "Bright daylight, colourful and playful"
+      },
+      "spec": {
+        "version": 1,
+        "slug": "test-contrast-desert",
+        "who": {
+          "name": "Alex"
+        },
+        "arrival": "overview",
+        "look": {
+          "ground": {
+            "color": "#c9a474",
+            "hills": 0.14
+          },
+          "sky": {
+            "color": "#b8d6d9",
+            "light": "#fff1d6"
+          }
+        },
+        "collections": {
+          "loves": {
+            "title": "What matters here",
+            "items": [
+              "A sunny desert",
+              "Cycling and mechanical projects",
+              "My border collie",
+              "Bright daylight, colourful and playful"
+            ]
+          }
+        },
+        "things": [
+          {
+            "id": "bicycle",
+            "name": "A bicycle ready for the trail",
+            "parts": [
+              {
+                "shape": "torus",
+                "size": [
+                  1,
+                  0.99,
+                  0.1
+                ],
+                "at": [
+                  -0.65,
+                  0.55,
+                  0
+                ],
+                "color": "#30363a"
+              },
+              {
+                "shape": "torus",
+                "size": [
+                  1,
+                  0.99,
+                  0.1
+                ],
+                "at": [
+                  0.65,
+                  0.55,
+                  0
+                ],
+                "color": "#30363a"
+              },
+              {
+                "shape": "tube",
+                "size": [
+                  1.4,
+                  0.8,
+                  0.08
+                ],
+                "at": [
+                  0,
+                  0.77,
+                  0
+                ],
+                "color": "#d76c39",
+                "path": [
+                  [
+                    -0.46,
+                    -0.3,
+                    0
+                  ],
+                  [
+                    -0.1,
+                    0.4,
+                    0
+                  ],
+                  [
+                    0.05,
+                    -0.3,
+                    0
+                  ],
+                  [
+                    -0.46,
+                    -0.3,
+                    0
+                  ],
+                  [
+                    0.46,
+                    -0.3,
+                    0
+                  ],
+                  [
+                    0.3,
+                    0.4,
+                    0
+                  ],
+                  [
+                    -0.1,
+                    0.4,
+                    0
+                  ]
+                ],
+                "thick": 0.045
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.38,
+                  0.07,
+                  0.18
+                ],
+                "at": [
+                  -0.15,
+                  1.16,
+                  0
+                ],
+                "color": "#393734",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "tube",
+                "size": [
+                  0.3,
+                  0.25,
+                  0.25
+                ],
+                "at": [
+                  0.47,
+                  1.19,
+                  0
+                ],
+                "color": "#aeb6b9",
+                "path": [
+                  [
+                    0,
+                    -0.5,
+                    0
+                  ],
+                  [
+                    0,
+                    0.4,
+                    0
+                  ],
+                  [
+                    0.4,
+                    0.4,
+                    0.4
+                  ]
+                ],
+                "thick": 0.035
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.13,
+                  0.15,
+                  0.13
+                ],
+                "at": [
+                  0,
+                  0.52,
+                  0
+                ],
+                "color": "#aeb6b9",
+                "turn": [
+                  90,
+                  0,
+                  0
+                ]
+              }
+            ],
+            "at": {
+              "bearing": 0,
+              "distance": 6.5
+            },
+            "footprint": [
+              2.4,
+              0.7
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "workbench",
+            "name": "The workshop light",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  2,
+                  0.15,
+                  0.85
+                ],
+                "at": [
+                  0,
+                  0.85,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.85,
+                  0.12
+                ],
+                "at": [
+                  -0.8,
+                  0.4,
+                  -0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.85,
+                  0.12
+                ],
+                "at": [
+                  -0.8,
+                  0.4,
+                  0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.85,
+                  0.12
+                ],
+                "at": [
+                  0.8,
+                  0.4,
+                  -0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.85,
+                  0.12
+                ],
+                "at": [
+                  0.8,
+                  0.4,
+                  0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1.7,
+                  0.9,
+                  0.1
+                ],
+                "at": [
+                  0,
+                  1.5,
+                  -0.35
+                ],
+                "color": "#6b807e",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.18,
+                  0.18,
+                  0.18
+                ],
+                "at": [
+                  0.6,
+                  1.9,
+                  -0.1
+                ],
+                "color": "#f6d9a0",
+                "round": 0.08,
+                "finish": "glow"
+              },
+              {
+                "shape": "tube",
+                "size": [
+                  0.12,
+                  0.6,
+                  0.12
+                ],
+                "at": [
+                  0.6,
+                  1.5,
+                  -0.3
+                ],
+                "color": "#3c494a",
+                "path": [
+                  [
+                    0,
+                    -0.5,
+                    0
+                  ],
+                  [
+                    0,
+                    0.5,
+                    0
+                  ],
+                  [
+                    0.5,
+                    0.5,
+                    0.5
+                  ]
+                ],
+                "thick": 0.04
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.6,
+                  0.06,
+                  0.3
+                ],
+                "at": [
+                  -0.3,
+                  0.98,
+                  0
+                ],
+                "color": "#aab4ae",
+                "round": 0.08
+              }
+            ],
+            "near": {
+              "of": "bicycle",
+              "side": "back",
+              "gap": 0.8
+            },
+            "use": "switch",
+            "light": {
+              "color": "#ffe2a8",
+              "strength": 0.3,
+              "at": [
+                0.6,
+                1.85,
+                -0.1
+              ]
+            },
+            "footprint": [
+              2,
+              0.9
+            ],
+            "note": "A task light for working on mechanical projects. The bicycle is a static miniature.",
+            "collection": "loves"
+          },
+          {
+            "id": "collie",
+            "name": "A border collie beside the bike",
+            "parts": [
+              {
+                "shape": "sphere",
+                "size": [
+                  0.42,
+                  0.5,
+                  0.9
+                ],
+                "at": [
+                  0,
+                  0.57,
+                  0
+                ],
+                "color": "#343a3c"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.42,
+                  0.45,
+                  0.42
+                ],
+                "at": [
+                  0,
+                  0.97,
+                  0.36
+                ],
+                "color": "#343a3c"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.25,
+                  0.3,
+                  0.09
+                ],
+                "at": [
+                  0,
+                  0.99,
+                  0.57
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.26,
+                  0.15,
+                  0.25
+                ],
+                "at": [
+                  0,
+                  0.85,
+                  0.61
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.1,
+                  0.08,
+                  0.08
+                ],
+                "at": [
+                  0,
+                  0.9,
+                  0.74
+                ],
+                "color": "#303237"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  0.18,
+                  0.28,
+                  0.17
+                ],
+                "at": [
+                  -0.15,
+                  1.24,
+                  0.33
+                ],
+                "color": "#343a3c"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  0.18,
+                  0.28,
+                  0.17
+                ],
+                "at": [
+                  0.15,
+                  1.24,
+                  0.33
+                ],
+                "color": "#343a3c"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.15,
+                  0.45,
+                  0.16
+                ],
+                "at": [
+                  -0.17,
+                  0.23,
+                  -0.27
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.15,
+                  0.45,
+                  0.16
+                ],
+                "at": [
+                  -0.17,
+                  0.23,
+                  0.3
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.15,
+                  0.45,
+                  0.16
+                ],
+                "at": [
+                  0.17,
+                  0.23,
+                  -0.27
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.15,
+                  0.45,
+                  0.16
+                ],
+                "at": [
+                  0.17,
+                  0.23,
+                  0.3
+                ],
+                "color": "#eee4cf"
+              },
+              {
+                "shape": "tube",
+                "size": [
+                  0.25,
+                  0.6,
+                  0.6
+                ],
+                "at": [
+                  0,
+                  0.65,
+                  -0.6
+                ],
+                "color": "#343a3c",
+                "path": [
+                  [
+                    0,
+                    -0.3,
+                    0.5
+                  ],
+                  [
+                    0.2,
+                    0.3,
+                    -0.2
+                  ],
+                  [
+                    0,
+                    0.5,
+                    -0.5
+                  ]
+                ],
+                "thick": 0.11
+              }
+            ],
+            "near": {
+              "of": "bicycle",
+              "side": "left",
+              "gap": 0.8
+            },
+            "footprint": [
+              0.5,
+              1.1
+            ],
+            "note": "A static custom miniature, without a greeting animation.",
+            "collection": "loves"
+          },
+          {
+            "id": "desert-rock",
+            "name": "Sandstone along the trail",
+            "parts": [
+              {
+                "shape": "sphere",
+                "size": [
+                  2.2,
+                  1.2,
+                  1.3
+                ],
+                "at": [
+                  -1,
+                  0.45,
+                  0
+                ],
+                "color": "#ad7552"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.8,
+                  2.1,
+                  1.2
+                ],
+                "at": [
+                  0.5,
+                  0.8,
+                  -0.4
+                ],
+                "color": "#bb875d"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.4,
+                  2,
+                  0.4
+                ],
+                "at": [
+                  2,
+                  0.9,
+                  -0.3
+                ],
+                "color": "#668364"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.22,
+                  0.8,
+                  0.22
+                ],
+                "at": [
+                  2.3,
+                  1.2,
+                  -0.3
+                ],
+                "color": "#668364",
+                "turn": [
+                  0,
+                  0,
+                  90
+                ]
+              }
+            ],
+            "near": {
+              "of": "workbench",
+              "side": "back",
+              "gap": 1.2
+            },
+            "solid": false,
+            "footprint": [
+              4,
+              1.8
+            ],
+            "collection": "loves"
+          }
+        ]
+      },
+      "firstAction": "workbench",
+      "edit": {
+        "suggestion": "Add a trail-side water bowl for the collie",
+        "thing": {
+          "id": "water-bowl",
+          "name": "Water beside the trail",
+          "parts": [
+            {
+              "shape": "cylinder",
+              "size": [
+                0.65,
+                0.14,
+                0.65
+              ],
+              "at": [
+                0,
+                0.08,
+                0
+              ],
+              "color": "#969e97"
+            },
+            {
+              "shape": "cylinder",
+              "size": [
+                0.51,
+                0.025,
+                0.51
+              ],
+              "at": [
+                0,
+                0.16,
+                0
+              ],
+              "color": "#6da9bd"
+            }
+          ],
+          "near": {
+            "of": "collie",
+            "side": "front",
+            "gap": 0.4
+          },
+          "solid": false
+        }
+      },
+      "requestedSky": {
+        "period": "day",
+        "clouds": "clear"
+      },
+      "roles": {
+        "bicycle": "focus",
+        "workbench": "support",
+        "collie": "focus",
+        "desert-rock": "environment"
+      }
+    },
+    {
+      "id": "mountain",
+      "intake": {
+        "place": "A snowy mountain cabin",
+        "activity": "Baking, reading and time with family",
+        "companions": "My family",
+        "atmosphere": "Cozy shelter, quiet wintry surroundings"
+      },
+      "spec": {
+        "version": 1,
+        "slug": "test-contrast-mountain",
+        "who": {
+          "name": "Samira"
+        },
+        "arrival": "overview",
+        "look": {
+          "ground": {
+            "color": "#e0e3dd",
+            "hills": 0.16
+          },
+          "sky": {
+            "color": "#8099bb",
+            "light": "#cbd8e8"
+          }
+        },
+        "collections": {
+          "loves": {
+            "title": "What matters here",
+            "items": [
+              "A snowy mountain cabin",
+              "Baking, reading and time with family",
+              "My family",
+              "Cozy shelter, quiet wintry surroundings"
+            ]
+          }
+        },
+        "things": [
+          {
+            "id": "reading-table",
+            "name": "A book beside the warm oven",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1.3,
+                  0.12,
+                  0.8
+                ],
+                "at": [
+                  0,
+                  0.65,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  -0.48,
+                  0.3,
+                  -0.25
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  -0.48,
+                  0.3,
+                  0.25
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  0.48,
+                  0.3,
+                  -0.25
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  0.48,
+                  0.3,
+                  0.25
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.55,
+                  0.05,
+                  0.55
+                ],
+                "at": [
+                  -0.25,
+                  0.76,
+                  0
+                ],
+                "color": "#755354",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  12
+                ]
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.55,
+                  0.05,
+                  0.55
+                ],
+                "at": [
+                  0.25,
+                  0.76,
+                  0
+                ],
+                "color": "#755354",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  -12
+                ]
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.5,
+                  0.06,
+                  0.5
+                ],
+                "at": [
+                  -0.25,
+                  0.81,
+                  0
+                ],
+                "color": "#e9e0c7",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  12
+                ]
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.5,
+                  0.06,
+                  0.5
+                ],
+                "at": [
+                  0.25,
+                  0.81,
+                  0
+                ],
+                "color": "#e9e0c7",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  -12
+                ]
+              }
+            ],
+            "at": {
+              "bearing": 0,
+              "distance": 6.8
+            },
+            "footprint": [
+              1.4,
+              0.9
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "reading-seat",
+            "name": "The reading chair",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.12,
+                  0.65
+                ],
+                "at": [
+                  0,
+                  0.55,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  0,
+                  0.92,
+                  -0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              }
+            ],
+            "near": {
+              "of": "reading-table",
+              "side": "left",
+              "gap": 0.5
+            },
+            "turn": 80,
+            "use": "sit",
+            "collection": "loves"
+          },
+          {
+            "id": "baking-oven",
+            "name": "Warm light from the baking oven",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1.4,
+                  1.2,
+                  0.85
+                ],
+                "at": [
+                  0,
+                  0.6,
+                  0
+                ],
+                "color": "#8a7167",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.65,
+                  0.08
+                ],
+                "at": [
+                  0,
+                  0.65,
+                  0.46
+                ],
+                "color": "#382a2a",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  0.42,
+                  0.025
+                ],
+                "at": [
+                  0,
+                  0.62,
+                  0.51
+                ],
+                "color": "#e7a160",
+                "round": 0.08,
+                "finish": "glow"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.4,
+                  0.16,
+                  0.25
+                ],
+                "at": [
+                  0,
+                  0.38,
+                  0.55
+                ],
+                "color": "#ba864f"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.24,
+                  2,
+                  0.24
+                ],
+                "at": [
+                  0.45,
+                  1.8,
+                  -0.15
+                ],
+                "color": "#696561"
+              }
+            ],
+            "near": {
+              "of": "reading-table",
+              "side": "right",
+              "gap": 0.7
+            },
+            "use": "switch",
+            "light": {
+              "color": "#ffca83",
+              "strength": 0.7,
+              "at": [
+                0,
+                0.6,
+                0.6
+              ]
+            },
+            "footprint": [
+              1.5,
+              1
+            ],
+            "note": "The oven light switches. Baking itself is not animated.",
+            "collection": "loves"
+          },
+          {
+            "id": "cabin",
+            "name": "A snowy reading shelter",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  0.18,
+                  3.1,
+                  0.18
+                ],
+                "at": [
+                  -2,
+                  1.45,
+                  -1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.18,
+                  3.1,
+                  0.18
+                ],
+                "at": [
+                  -2,
+                  1.45,
+                  1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.18,
+                  3.1,
+                  0.18
+                ],
+                "at": [
+                  2,
+                  1.45,
+                  -1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.18,
+                  3.1,
+                  0.18
+                ],
+                "at": [
+                  2,
+                  1.45,
+                  1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  4.2,
+                  0.18,
+                  0.16
+                ],
+                "at": [
+                  0,
+                  2.95,
+                  1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  4.2,
+                  0.18,
+                  0.16
+                ],
+                "at": [
+                  0,
+                  2.95,
+                  -1.5
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  2.55,
+                  0.2,
+                  3.7
+                ],
+                "at": [
+                  -1.05,
+                  3.45,
+                  0
+                ],
+                "color": "#6d594d",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  25
+                ],
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  2.55,
+                  0.11,
+                  3.7
+                ],
+                "at": [
+                  -1.05,
+                  3.58,
+                  0
+                ],
+                "color": "#e8eae2",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  25
+                ]
+              },
+              {
+                "shape": "box",
+                "size": [
+                  2.55,
+                  0.2,
+                  3.7
+                ],
+                "at": [
+                  1.05,
+                  3.45,
+                  0
+                ],
+                "color": "#6d594d",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  -25
+                ],
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  2.55,
+                  0.11,
+                  3.7
+                ],
+                "at": [
+                  1.05,
+                  3.58,
+                  0
+                ],
+                "color": "#e8eae2",
+                "round": 0.08,
+                "turn": [
+                  0,
+                  0,
+                  -25
+                ]
+              },
+              {
+                "shape": "box",
+                "size": [
+                  4,
+                  2.7,
+                  0.14
+                ],
+                "at": [
+                  0,
+                  1.3,
+                  -1.5
+                ],
+                "color": "#7d634d",
+                "round": 0.08,
+                "surface": "wood"
+              }
+            ],
+            "near": {
+              "of": "reading-table",
+              "side": "back",
+              "gap": 0
+            },
+            "solid": false,
+            "footprint": [
+              4.4,
+              3.4
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "snow-pines",
+            "name": "Snow on the pines",
+            "parts": [
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.23,
+                  2.7,
+                  0.23
+                ],
+                "at": [
+                  -1.5,
+                  1.35,
+                  0
+                ],
+                "color": "#746455"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  2,
+                  3,
+                  2
+                ],
+                "at": [
+                  -1.5,
+                  2.1,
+                  0
+                ],
+                "color": "#567465"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  1.7,
+                  2.2,
+                  1.7
+                ],
+                "at": [
+                  -1.5,
+                  2.7,
+                  0
+                ],
+                "color": "#e3e7dd"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.23,
+                  2.7,
+                  0.23
+                ],
+                "at": [
+                  1.5,
+                  1.35,
+                  0
+                ],
+                "color": "#746455"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  2,
+                  3,
+                  2
+                ],
+                "at": [
+                  1.5,
+                  2.1,
+                  0
+                ],
+                "color": "#567465"
+              },
+              {
+                "shape": "cone",
+                "size": [
+                  1.7,
+                  2.2,
+                  1.7
+                ],
+                "at": [
+                  1.5,
+                  2.7,
+                  0
+                ],
+                "color": "#e3e7dd"
+              }
+            ],
+            "near": {
+              "of": "cabin",
+              "side": "back",
+              "gap": 0.8
+            },
+            "solid": false,
+            "footprint": [
+              5,
+              2
+            ],
+            "collection": "loves"
+          }
+        ]
+      },
+      "firstAction": "reading-seat",
+      "edit": {
+        "suggestion": "Add a second reading chair for a family member",
+        "thing": {
+          "id": "second-chair",
+          "name": "A second chair by the book",
+          "parts": [
+            {
+              "shape": "box",
+              "size": [
+                1,
+                0.12,
+                0.65
+              ],
+              "at": [
+                0,
+                0.55,
+                0
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            },
+            {
+              "shape": "box",
+              "size": [
+                1,
+                0.65,
+                0.12
+              ],
+              "at": [
+                0,
+                0.92,
+                -0.28
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            },
+            {
+              "shape": "box",
+              "size": [
+                0.12,
+                0.55,
+                0.12
+              ],
+              "at": [
+                -0.37,
+                0.26,
+                -0.2
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            },
+            {
+              "shape": "box",
+              "size": [
+                0.12,
+                0.55,
+                0.12
+              ],
+              "at": [
+                -0.37,
+                0.26,
+                0.2
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            },
+            {
+              "shape": "box",
+              "size": [
+                0.12,
+                0.55,
+                0.12
+              ],
+              "at": [
+                0.37,
+                0.26,
+                -0.2
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            },
+            {
+              "shape": "box",
+              "size": [
+                0.12,
+                0.55,
+                0.12
+              ],
+              "at": [
+                0.37,
+                0.26,
+                0.2
+              ],
+              "color": "#75513b",
+              "round": 0.08,
+              "surface": "wood"
+            }
+          ],
+          "near": {
+            "of": "reading-table",
+            "side": "front",
+            "gap": 0.8
+          },
+          "use": "sit",
+          "turn": 180
+        }
+      },
+      "requestedSky": {
+        "period": "day",
+        "clouds": "overcast"
+      },
+      "roles": {
+        "reading-table": "focus",
+        "reading-seat": "support",
+        "baking-oven": "focus",
+        "cabin": "support",
+        "snow-pines": "environment"
+      }
+    },
+    {
+      "id": "city",
+      "intake": {
+        "place": "A dense city rooftop",
+        "activity": "Synth music, vinyl records and rooftop gardening",
+        "companions": "Friends visiting the rooftop",
+        "atmosphere": "Lively colourful evening, a small refuge in the city"
+      },
+      "spec": {
+        "version": 1,
+        "slug": "test-contrast-city",
+        "who": {
+          "name": "Jules"
+        },
+        "arrival": "overview",
+        "look": {
+          "ground": {
+            "color": "#59636a",
+            "hills": 0
+          },
+          "sky": {
+            "color": "#705b9a",
+            "light": "#c0b7d1"
+          }
+        },
+        "collections": {
+          "loves": {
+            "title": "What matters here",
+            "items": [
+              "A dense city rooftop",
+              "Synth music, vinyl records and rooftop gardening",
+              "Friends visiting the rooftop",
+              "Lively colourful evening, a small refuge in the city"
+            ]
+          }
+        },
+        "things": [
+          {
+            "id": "synth",
+            "name": "The rooftop synth light",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  2.4,
+                  0.12,
+                  1
+                ],
+                "at": [
+                  0,
+                  0.9,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.1,
+                  0.9,
+                  0.1
+                ],
+                "at": [
+                  -0.9,
+                  0.43,
+                  -0.3
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.1,
+                  0.9,
+                  0.1
+                ],
+                "at": [
+                  -0.9,
+                  0.43,
+                  0.3
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.1,
+                  0.9,
+                  0.1
+                ],
+                "at": [
+                  0.9,
+                  0.43,
+                  -0.3
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.1,
+                  0.9,
+                  0.1
+                ],
+                "at": [
+                  0.9,
+                  0.43,
+                  0.3
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  2.15,
+                  0.15,
+                  0.72
+                ],
+                "at": [
+                  0,
+                  1.04,
+                  0
+                ],
+                "color": "#3a454f",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.07,
+                  0.38
+                ],
+                "at": [
+                  -0.91,
+                  1.15,
+                  0.15
+                ],
+                "color": "#f0e8d4",
+                "round": 0.08,
+                "repeat": {
+                  "count": 13,
+                  "at": [
+                    0.145,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.07,
+                  0.1,
+                  0.21
+                ],
+                "at": [
+                  -0.81,
+                  1.2,
+                  0.03
+                ],
+                "color": "#313638",
+                "round": 0.08,
+                "repeat": {
+                  "count": 9,
+                  "at": [
+                    0.19,
+                    0,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.48,
+                  0.16,
+                  0.22
+                ],
+                "at": [
+                  0.5,
+                  1.2,
+                  -0.2
+                ],
+                "color": "#66ccc2",
+                "round": 0.08,
+                "finish": "glow"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.07,
+                  0.1,
+                  0.07
+                ],
+                "at": [
+                  -0.72,
+                  1.18,
+                  -0.2
+                ],
+                "color": "#d1a67b",
+                "repeat": {
+                  "count": 6,
+                  "at": [
+                    0.18,
+                    0,
+                    0
+                  ]
+                }
+              }
+            ],
+            "at": {
+              "bearing": 0,
+              "distance": 6.8
+            },
+            "use": "switch",
+            "light": {
+              "color": "#9ddfd7",
+              "strength": 0.4,
+              "at": [
+                0,
+                1.5,
+                0
+              ]
+            },
+            "footprint": [
+              2.4,
+              1
+            ],
+            "note": "The console light switches; this miniature does not produce audio.",
+            "collection": "loves"
+          },
+          {
+            "id": "vinyl",
+            "name": "Records in the rooftop studio",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  0.95,
+                  0.55,
+                  0.65
+                ],
+                "at": [
+                  0,
+                  0.28,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.58,
+                  0.04,
+                  0.58
+                ],
+                "at": [
+                  0,
+                  0.6,
+                  0
+                ],
+                "color": "#2d3037",
+                "spin": 60
+              },
+              {
+                "shape": "cylinder",
+                "size": [
+                  0.2,
+                  0.05,
+                  0.2
+                ],
+                "at": [
+                  0,
+                  0.63,
+                  0
+                ],
+                "color": "#c78972",
+                "spin": 60
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.65,
+                  0.45,
+                  0.2
+                ],
+                "at": [
+                  0,
+                  0.7,
+                  -0.3
+                ],
+                "color": "#bc8a61",
+                "round": 0.08
+              }
+            ],
+            "near": {
+              "of": "synth",
+              "side": "right",
+              "gap": 0.6
+            },
+            "footprint": [
+              1,
+              0.8
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "studio-seat",
+            "name": "A seat at the keys",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.12,
+                  0.65
+                ],
+                "at": [
+                  0,
+                  0.55,
+                  0
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.65,
+                  0.12
+                ],
+                "at": [
+                  0,
+                  0.92,
+                  -0.28
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  -0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  -0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.12,
+                  0.55,
+                  0.12
+                ],
+                "at": [
+                  0.37,
+                  0.26,
+                  0.2
+                ],
+                "color": "#75513b",
+                "round": 0.08,
+                "surface": "wood"
+              }
+            ],
+            "near": {
+              "of": "synth",
+              "side": "front",
+              "gap": 1
+            },
+            "use": "sit",
+            "turn": 180,
+            "collection": "loves"
+          },
+          {
+            "id": "roof-garden",
+            "name": "The rooftop garden",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.55,
+                  0.85
+                ],
+                "at": [
+                  -1.6,
+                  0.3,
+                  0
+                ],
+                "color": "#8b6b55",
+                "round": 0.08
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.1,
+                  0.9,
+                  0.9
+                ],
+                "at": [
+                  -1.6,
+                  0.85,
+                  0
+                ],
+                "color": "#648365"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.7,
+                  0.75,
+                  0.7
+                ],
+                "at": [
+                  -1.4000000000000001,
+                  1.25,
+                  0
+                ],
+                "color": "#7c996d"
+              },
+              {
+                "shape": "box",
+                "size": [
+                  1,
+                  0.55,
+                  0.85
+                ],
+                "at": [
+                  1.6,
+                  0.3,
+                  0
+                ],
+                "color": "#8b6b55",
+                "round": 0.08
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  1.1,
+                  0.9,
+                  0.9
+                ],
+                "at": [
+                  1.6,
+                  0.85,
+                  0
+                ],
+                "color": "#648365"
+              },
+              {
+                "shape": "sphere",
+                "size": [
+                  0.7,
+                  0.75,
+                  0.7
+                ],
+                "at": [
+                  1.8,
+                  1.25,
+                  0
+                ],
+                "color": "#7c996d"
+              }
+            ],
+            "near": {
+              "of": "synth",
+              "side": "back",
+              "gap": 0.7
+            },
+            "solid": false,
+            "footprint": [
+              4.2,
+              1
+            ],
+            "collection": "loves"
+          },
+          {
+            "id": "skyline",
+            "name": "The city beyond the garden",
+            "parts": [
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  2.4,
+                  0.85
+                ],
+                "at": [
+                  -2,
+                  1.2,
+                  0
+                ],
+                "color": "#566471",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.08,
+                  0.16,
+                  0.025
+                ],
+                "at": [
+                  -2.2,
+                  1,
+                  0.44
+                ],
+                "color": "#e9b36e",
+                "round": 0.08,
+                "finish": "glow",
+                "repeat": {
+                  "count": 4,
+                  "at": [
+                    0,
+                    0.4,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  2.9,
+                  0.85
+                ],
+                "at": [
+                  -1,
+                  1.45,
+                  0
+                ],
+                "color": "#6b7281",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.08,
+                  0.16,
+                  0.025
+                ],
+                "at": [
+                  -1.2,
+                  1,
+                  0.44
+                ],
+                "color": "#e9b36e",
+                "round": 0.08,
+                "finish": "glow",
+                "repeat": {
+                  "count": 4,
+                  "at": [
+                    0,
+                    0.4,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  3.4,
+                  0.85
+                ],
+                "at": [
+                  0,
+                  1.7,
+                  0
+                ],
+                "color": "#645c7a",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.08,
+                  0.16,
+                  0.025
+                ],
+                "at": [
+                  -0.2,
+                  1,
+                  0.44
+                ],
+                "color": "#e9b36e",
+                "round": 0.08,
+                "finish": "glow",
+                "repeat": {
+                  "count": 4,
+                  "at": [
+                    0,
+                    0.4,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  3.9,
+                  0.85
+                ],
+                "at": [
+                  1,
+                  1.95,
+                  0
+                ],
+                "color": "#566471",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.08,
+                  0.16,
+                  0.025
+                ],
+                "at": [
+                  0.8,
+                  1,
+                  0.44
+                ],
+                "color": "#e9b36e",
+                "round": 0.08,
+                "finish": "glow",
+                "repeat": {
+                  "count": 4,
+                  "at": [
+                    0,
+                    0.4,
+                    0
+                  ]
+                }
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.8,
+                  4.4,
+                  0.85
+                ],
+                "at": [
+                  2,
+                  2.2,
+                  0
+                ],
+                "color": "#6b7281",
+                "round": 0.08
+              },
+              {
+                "shape": "box",
+                "size": [
+                  0.08,
+                  0.16,
+                  0.025
+                ],
+                "at": [
+                  1.8,
+                  1,
+                  0.44
+                ],
+                "color": "#e9b36e",
+                "round": 0.08,
+                "finish": "glow",
+                "repeat": {
+                  "count": 4,
+                  "at": [
+                    0,
+                    0.4,
+                    0
+                  ]
+                }
+              }
+            ],
+            "near": {
+              "of": "roof-garden",
+              "side": "back",
+              "gap": 1.8
+            },
+            "solid": false,
+            "footprint": [
+              5,
+              0.9
+            ],
+            "collection": "loves"
+          }
+        ]
+      },
+      "firstAction": "synth",
+      "edit": {
+        "suggestion": "Add a warm lamp beside the rooftop garden",
+        "thing": {
+          "id": "garden-lamp",
+          "name": "A light beside the plants",
+          "parts": [
+            {
+              "shape": "cylinder",
+              "size": [
+                0.1,
+                1.7,
+                0.1
+              ],
+              "at": [
+                0,
+                0.85,
+                0
+              ],
+              "color": "#3d484d"
+            },
+            {
+              "shape": "box",
+              "size": [
+                0.35,
+                0.38,
+                0.35
+              ],
+              "at": [
+                0,
+                1.72,
+                0
+              ],
+              "color": "#e4ba82",
+              "round": 0.08,
+              "finish": "glow"
+            }
+          ],
+          "near": {
+            "of": "roof-garden",
+            "side": "left",
+            "gap": 0.4
+          },
+          "use": "switch",
+          "light": {
+            "color": "#ffd39a",
+            "strength": 0.4,
+            "at": [
+              0,
+              1.7,
+              0
+            ]
+          },
+          "footprint": [
+            0.4,
+            0.4
+          ]
+        }
+      },
+      "requestedSky": {
+        "period": "dusk",
+        "clouds": "clear"
+      },
+      "roles": {
+        "synth": "focus",
+        "vinyl": "focus",
+        "studio-seat": "support",
+        "roof-garden": "focus",
+        "skyline": "environment"
+      }
+    }
+  ]
+}
