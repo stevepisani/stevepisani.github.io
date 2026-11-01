@@ -6,7 +6,7 @@ import { BODY } from '../world/player.js';
 import { pickThing } from './picking.js';
 const UP = new THREE.Vector3(0,1,0);
 
-export function overviewFrame(things, { aspect, fov, surface, colliders = [] }) {
+export function overviewFrame(things, { aspect, fov, surface, colliders = [], height = 720 }) {
   for(const t of things)t.root?.updateWorldMatrix(true,true);
   const primary = things.find(t=>t.root && t.role==='focus') || things.find(t=>t.root && t.solid!==false) || things.find(t=>t.root);
   if (!primary) return null;
@@ -67,10 +67,20 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [] }) 
         return pickThing(caster,things,pickable)?.id===t.id;
       });
     });
-    const score=visible.filter(Boolean).length;
-    const frame={dir,target,eye,pitch,bounds,ids,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id)};
+    // A readable fragment is not enough for a small companion. Prefer a clear body-sized
+    // tap patch, so a chair edge cannot steal the greeting at a slightly rounded pixel.
+    const greetings=focus.filter(t=>t.use==='greet');
+    const tappable=greetings.filter(t=>{
+      const centre=new THREE.Box3().setFromObject(t.root).getCenter(new THREE.Vector3()).project(probe);
+      return [[0,0],[-5,0],[5,0],[0,-5],[0,5]].every(([x,y])=>{
+        caster.setFromCamera(new THREE.Vector2(centre.x+2*x/(height*aspect),centre.y+2*y/height),probe);
+        return pickThing(caster,things,pickable)?.id===t.id;
+      });
+    });
+    const score=visible.filter(Boolean).length+tappable.length*2;
+    const frame={dir,target,eye,pitch,bounds,ids,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id)};
     if(score>bestScore){best=frame;bestScore=score;}
-    if(visible.every(Boolean))return frame;
+    if(visible.every(Boolean) && tappable.length===greetings.length)return frame;
   }
   return best||fallback;
 }

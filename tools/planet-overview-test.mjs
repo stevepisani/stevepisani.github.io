@@ -35,5 +35,13 @@ for(const x of [-1.5,1.5]) {const m=original.clone();m.position.x=x;open.root.ad
 open.root.updateMatrixWorld(true);
 const openFrame=overviewFrame([open],{aspect:390/844,fov:72,surface:()=>RADIUS});
 assert(openFrame.visible.includes(open.id),'an open silhouette is visible even when its bounding centre is air');
+// A narrow foreground post leaves the body partly visible while stealing its centre tap.
+// This arrangement failed the former surface-sample-only view; the greeting needs a clear patch.
+const activity=make('workspace',2,1,[0,19,-6]);
+const companion=make('small companion',.5,.8,[-1,19,-5]);companion.use='greet';
+companion.root.children[0].scale.z=.5;
+const post=make('foreground post',.12,1.4,[-.4,19,-4.8],'support');post.root.children[0].scale.z=.12;
+const greetingFrame=overviewFrame([activity,companion,post],{aspect:1.6,fov:54,height:800,surface:()=>RADIUS});
+assert(greetingFrame.tappable.includes(companion.id),'a visible companion should have a clear, tolerant greeting target');
 for(const root of objects)root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
-console.log('Overview: portrait/landscape bounds, environmental invariance, personal addition, open silhouettes and arrival clearance passed.');
+console.log('Overview: portrait/landscape bounds, environmental invariance, personal addition, open silhouettes, tolerant greeting targets and arrival clearance passed.');
