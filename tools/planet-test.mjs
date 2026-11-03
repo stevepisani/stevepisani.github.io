@@ -13,6 +13,7 @@ import { RADIUS } from '../assets/js/world/planet.js';
 import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingReach, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
+import './planet-authoring-guard-test.mjs';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`planet: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 900)}` : ''}`); passed++; };
@@ -20,6 +21,11 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 // the spec with one change made, and what checkPlanet says about it
 const errorsWith = (spec, change) => { const s = clone(spec); change(s); return checkPlanet(s); };
 const caught = (spec, change, re, what) => { const e = errorsWith(spec, change); ok(e.some((x) => re.test(x)), what, e); };
+
+// Natural base and local scene material are independent authoring choices.
+const layeredGround={version:1,slug:'test-ground-layer',who:{name:'Ground layer'},look:{ground:{base:'grass',cover:'paving',color:'#9b8870',hills:.05}}};
+ok(checkPlanet(layeredGround).length===0,'a grass base accepts a locally paved activity surface');
+caught(layeredGround,s=>s.look.ground.base='lava',/look.ground.base/,'unsupported planet-wide terrain remains rejected');
 
 // ---------- Steve's ----------
 const read = (f) => readFileSync(new URL(`../_data/${f}`, import.meta.url), 'utf8');

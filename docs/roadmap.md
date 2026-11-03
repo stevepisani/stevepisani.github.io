@@ -10,6 +10,12 @@ rather than leaving it in a chat.
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
    their own, from what they love. Current shared follow-up: reported minimum-thickness/display-label
    assembly, tighter compact-card context, and bounded reversible part responses beyond sitting.
+   Current quality work bounds optional seated-view hints using one authoring contract, routes
+   approaches around intervening props, and frames visible responses from a user-triggered view.
+   Every planet also gets a standard rock/grass base outside softly bounded scene-local surfaces;
+   floor or sand choices no longer spread across the entire sphere. These are shared improvements
+   checked against preserved inputs and authored controls. Fresh unseen quality and owner acceptance
+   remain open; the old failures stay in the evaluation record.
    Tests use generic authored controls and preserve prior first attempts as regressions; no claim
    of new unseen acceptance. See [assembly and responses](planets.md#assembly-and-visible-responses).
    Remaining work includes personal-hero/scene recognition, meaningful activity selection and

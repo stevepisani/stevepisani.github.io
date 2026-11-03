@@ -35,6 +35,19 @@ Film framing must survive freely moving visitors. No single-view façade, forced
 flight or elaborate camera move should hide an unfinished place. Templates encode relationships
 and anchors without forcing every person into the same theme or belongings.
 
+## Landscape belongs to the world; surfaces belong to a scene
+
+Use the standard rock or grass base outside activity areas. A bakery's paving, a beach's sand
+or a snowy clearing should read as a place within that landscape, with a soft, coherent edge.
+A material choice must not tile the whole sphere. Group related surfaces and belongings through
+real placement, reserve clear approaches and use the surrounding landscape to connect discoveries.
+Shared material craft supplies continuity across planets without supplying anyone's biography.
+
+Judge personal relationships through visible staging: the kept object belongs beside the shared
+activity, the waiting seat faces its usable surface, and an addition carries a recognizable detail.
+A tiny token and a story in its note are not sufficient evidence of personal payoff. Check both
+the first view and the actual response camera; a fully executed action can still crop the subject.
+
 ## Generalization is a release criterion
 
 Improve the reusable composition and asset system, then test a different person's world. Do not

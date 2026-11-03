@@ -1,9 +1,9 @@
 # My Tiny Planet: planets for other people
 
 Anyone's ChatGPT or Claude can ask the person it's talking with what they love and show them
-their own little planet right there in the chat, walkable. Every planet is its person's own: the
-only thing shared with Steve's is its size (Steve, Oct 2026). Their AI builds it in the chat from
-what they said (Steve chose this, Oct 26, for the wow of seeing it at once): their ground and sky,
+their own little planet right there in the chat, walkable. Every planet is its person's own.
+The shared size and standard rock/grass base are reusable building blocks; the interview supplies
+its places, belongings and local scene surfaces. Their AI builds it in the chat from what they said (Steve chose this, Oct 26, for the wow of seeing it at once): their ground and sky,
 and things made of simple shapes, each tied to what they love in their words. The first ten
 sent are then finished by hand. The plan and what's next are in
 `docs/roadmap.md` (My Tiny Planet, Linear P-PRO-40); this file is how what's built works.
@@ -49,10 +49,13 @@ friend's first attempt then supplies separate evidence for first-pass quality on
 
 ## Assembly and visible responses
 
-`prepare_planet` and `preview_planet` apply two narrow deterministic tolerances before strict
+`prepare_planet` and `preview_planet` apply narrow deterministic tolerances before strict
 validation: finite positive part dimensions below 0.01 m become 0.01 m, and display names/titles
 longer than 40 characters receive a compact display label. `diagnostics.adjustments` returns
-the path, full original value and assembled value. The caller's object is not mutated; existing
+the path, full original value and assembled value. Finite `seatView.eye` and `seatView.pitch`
+on sitting things are also bounded to 0.8–1.6 metres and −0.5–0.3 radians. The validator, assembler
+and machine-readable kit share `SEAT_VIEW_RANGES`; invalid types, references and non-seat hints
+remain strict. Prefer `toward` for a seat facing another object. The caller's object is not mutated; existing
 valid specs are unchanged. IDs, notes, placements, nonnumeric/zero/negative/oversized dimensions
 and other schema failures are not repaired. Oversized raw requests remain rejected. Use the
 returned prepared spec. `send_planet` still requires that valid reviewed spec; it does not
@@ -85,6 +88,26 @@ per-interview camera adjustments or a guarantee of phone recognition.
 `tools/fixtures/planet-responses.json` contains two authored response controls. The offline
 browser suite checks actual taps, changed rendered meshes, reversal and both motion settings at
 700×440 and 366×440. These controls are implementation evidence, not fresh interview acceptance.
+
+## Shared landscape and local scene surfaces
+
+Every Tiny Planet has a standard natural base: `look.ground.base: rock|grass` (default `rock`).
+The rock preset uses muted stone, varied grain, triplanar bump and scattered grit; the grass
+preset uses a stable green palette and short instanced cover. These share terrain craft with
+the homepage while keeping the person's scene and belongings specific to their interview.
+
+`look.ground.color` and `cover: grass|sand|snow|paving` now treat local activity areas. They do
+not recolor or pave the entire sphere. Scene areas come from the actual ground-placed activity
+and supporting footprints; nearby footprints join into soft-edged patches. Separate distant
+activities retain separate patches. No interview keywords or case names determine the surface.
+This is a rendering change for existing ground color/cover fields; their serialized values
+and the authored object layout are preserved.
+
+Paths and usable footprints clear grass and loose stones. Native water and its wet sand margin
+remain shoreline treatments. Decoration uses stable seeded candidates so a personal addition
+clears only its immediate vicinity. Neither material choice nor surface dressing changes terrain
+heights, walking collision or the native coast's water boundary. The ground system receives the
+built path ribbon and thing footprints after those objects exist.
 
 ## Scene composer
 
