@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { RADIUS } from '../world/planet.js';
 import { groundMaterial, addGrass } from './ground-surface.js';
-import {groundBase,BASE_COLORS,COVER_COLORS,sceneGroundZones,zoneWeight,pathGroundSegments,pathWeight,occupiedGround} from './ground-zones.js';
+import {groundBase,BASE_COLORS,COVER_COLORS,sceneGroundZones,zoneWeight,pathGroundSegments,pathWeight,groundClearance,occupiedGround} from './ground-zones.js';
 import { rippleWater } from '../world/water.js';
 
 // a number from 0 to 1 for each character of the slug, so the hills are the planet's own
@@ -80,7 +80,7 @@ export function buildGround(slug, { color, base:baseChoice, hills = 0.6, coast, 
   const isWater=dir=>!!coast&&shoreDistance(dir)<=coast.radius+.35&&surface(dir)<waterLevel;
   const dress=(things=[],routes=[],paths=null)=>{
     for(const item of dressing){mesh.remove(item);item.geometry.dispose();item.material.dispose();}dressing=[];
-    const zones=sceneGroundZones(things),segments=pathGroundSegments(paths);
+    const zones=sceneGroundZones(things),segments=pathGroundSegments(paths),blockers=groundClearance(things);
     mesh.userData.groundZones=zones;mesh.userData.groundBase=baseKind;
     const blend=geo.getAttribute('groundBlend'),vertex=geo.getAttribute('color'),sand=new THREE.Color(COVER_COLORS.sand),sceneTint=new THREE.Color(),values=[0,0,0,0];
     for(let i=0;i<pos.count;i++){
@@ -97,7 +97,7 @@ export function buildGround(slug, { color, base:baseChoice, hills = 0.6, coast, 
       blend.setXYZW(i,...values);
     }
     vertex.needsUpdate=blend.needsUpdate=true;
-    const clear=point=>!occupiedGround(point,things)&&pathWeight(point,segments)<.02;
+    const clear=point=>!occupiedGround(point,blockers)&&pathWeight(point,segments)<.02;
     const coverAt=(point,dir)=>({scene:zoneWeight(point,zones),shore:shoreWeight(dir)});
     const stoneRand=seeded(slug+':stones'),stoneCount=baseKind==='grass'?(quality.high?650:400):(quality.high?2800:1800);
     const stones=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),new THREE.MeshStandardMaterial({color:new THREE.Color(BASE_COLORS.rock).multiplyScalar(.72),roughness:.96,flatShading:true}),stoneCount);let n=0;

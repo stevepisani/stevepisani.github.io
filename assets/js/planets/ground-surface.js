@@ -1,6 +1,7 @@
 // Layered metre-scale grain and guarded bump, as on the honed homepage terrain.
 // The terrain stays one surface: its material weights change only inside soft scene patches.
 import * as THREE from 'three';
+import {groundClearance,occupiedGround} from './ground-zones.js';
 export function groundMaterial() {
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.96,metalness:0});
   material.customProgramCacheKey=()=>`planet-ground-zones-2`;
@@ -46,6 +47,7 @@ export function groundMaterial() {
 // Stable candidates are consumed before testing exclusions. An additive prop clears only
 // nearby tufts, without moving vegetation elsewhere or changing its random sequence.
 export function addGrass(mesh,surface,rand,quality,things=[],accept=()=>true) {
+  const blockers=groundClearance(things);
   const positions=[],colors=[],leaf=new THREE.Color(),vertices=[[0,0,0],[-.035,.08,0],[.018,.19,.015]];
   for(let j=0;j<6;j++) {
     const a=j*Math.PI/3,dx=Math.cos(a),dz=Math.sin(a);leaf.set(j%2?'#a6b280':'#c4ce91');
@@ -57,7 +59,7 @@ export function addGrass(mesh,surface,rand,quality,things=[],accept=()=>true) {
   for(let i=0;i<count;i++) {
     const size=.65+rand()*.7;
     dir.set(rand()-.5,rand()-.5,rand()-.5).normalize();point.copy(dir).multiplyScalar(surface(dir)-.015);
-    if(!accept(point,dir)||things.some(t=>!t.on&&t.solid!==false&&t.center&&point.distanceTo(t.center)<(t.reach||.5)+.35))continue;
+    if(!accept(point,dir)||occupiedGround(point,blockers))continue;
     q.setFromUnitVectors(up,dir);matrix.compose(point,q,scale.setScalar(size));grass.setMatrixAt(n++,matrix);
   }
   grass.count=n;grass.name='ground-grass';grass.receiveShadow=true;mesh.add(grass);return grass;

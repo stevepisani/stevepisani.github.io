@@ -67,4 +67,30 @@ export function pathWeight(point,segments){
   }
   return weight;
 }
-export function occupiedGround(point,things){return things.some(t=>!t.on&&t.center&&t.solid!==false&&point.distanceTo(t.center)<(t.reach||.5)+.35);}
+// Collision, framing role and physical ground coverage are separate concerns. A walk-through
+// floor still covers grass; a tabletop prop or a wholly raised decoration does not.
+export function groundClearance(things=[]){
+  const blockers=[];
+  for(const t of things){
+    if(t.on||!t.center)continue;
+    if(t.root&&t.box){
+      t.root.updateWorldMatrix(true,false);
+      const scale=t.root.getWorldScale(new THREE.Vector3());
+      if(t.box.min.y*scale.y>.35&&!t.footprint)continue;
+      const right=new THREE.Vector3().setFromMatrixColumn(t.root.matrixWorld,0).normalize();
+      const forward=new THREE.Vector3().setFromMatrixColumn(t.root.matrixWorld,2).normalize();
+      const bounds=t.footprint?{min:{x:-t.footprint[0]/2,z:-t.footprint[1]/2},max:{x:t.footprint[0]/2,z:t.footprint[1]/2}}:t.box;
+      const center=t.center.clone().addScaledVector(right,(bounds.min.x+bounds.max.x)*scale.x/2).addScaledVector(forward,(bounds.min.z+bounds.max.z)*scale.z/2);
+      blockers.push({center,up:t.center.clone().normalize(),right,forward,hx:clamp((bounds.max.x-bounds.min.x)*scale.x/2,.15,6)+.25,hz:clamp((bounds.max.z-bounds.min.z)*scale.z/2,.15,6)+.25});
+    }else blockers.push({center:t.center,radius:clamp(t.reach||.5,.15,6)+.35});
+  }
+  return blockers;
+}
+export function occupiedGround(point,blockers){
+  return blockers.some(b=>{
+    if(b.radius!==undefined)return point.distanceToSquared(b.center)<b.radius*b.radius;
+    if(point.dot(b.up)<b.center.dot(b.up)-5)return false;
+    const x=point.x-b.center.x,y=point.y-b.center.y,z=point.z-b.center.z;
+    return Math.abs(x*b.right.x+y*b.right.y+z*b.right.z)<b.hx&&Math.abs(x*b.forward.x+y*b.forward.y+z*b.forward.z)<b.hz;
+  });
+}
