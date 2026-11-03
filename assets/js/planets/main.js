@@ -12,6 +12,7 @@ import { createPipeline, loadAO } from '../world/render.js';
 import { Player, bindInput } from '../world/player.js';
 import { buildPlanetSky } from './sky.js';
 import { overviewFrame } from './overview.js';
+import { responseFrame, approachRoute } from './action-view.js';
 import { pickThing } from './picking.js';
 import { advanceWalking } from './motion.js';
 import { readSpec, tellCard } from '../world/spec.js';
@@ -99,10 +100,10 @@ async function start(spec) {
   catch { return fail('The scene’s trees could not load. Please reload to try again.', ['required scene asset unavailable']); }
   const things = buildThings(spec.things, ground.surface, library);
   scene.add(things.group);
-  ground.dress(spec.things||[]);
   // worn paths from where you land to each of their places (paths.js)
   const paths = buildPaths(spec.things || [], things.placed, ground.surface, look.ground && look.ground.color, spec.routes);
   if (paths) scene.add(paths);
+  ground.dress(spec.things||[],spec.routes||[],paths);
   if ((spec.things || []).length) hint.dataset.things = '';
   // Frame the finished available objects, not placeholders that change after the first reveal.
   // New models still being made keep their shapes and arrive through the existing later path.
@@ -143,18 +144,18 @@ async function start(spec) {
   // light. Sitting down and getting up are body motions from and to the walking view, never cuts
   // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
   const EYE = walkingEye, SEATED = 1.3, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let seat = null, move = null, arriving = overview, scope = null, detail = null;
+  let seat = null, move = null, arriving = overview, scope = null, detail = null, responseView = null, actionTrace = null;
   const revealView=$('reveal-view');
   if(spec.reveal) {
     revealView.hidden=false;
     revealView.addEventListener('click',()=>{
-      if(move||seat||scope)return;
+      if(move||seat||scope||responseView)return;
       player.stop();close();revealFocus=revealFocus?null:spec.reveal;
       arriving=true;openingUntouched=true;frameOpening(false);
       revealView.textContent=revealFocus?'Whole place':'See addition';
     });
   }
-  let stargazing, scopeHistory=false;
+  let stargazing, scopeHistory=false, responseHistory=false;
   const scopeFov=()=>Math.max(18,2*Math.atan(Math.tan(9*Math.PI/180)/Math.min(1,camera.aspect))*180/Math.PI);
   const detailButton = $('details');
   function showDetailsFor(t) { detail=t; detailButton.textContent=t.name; detailButton.setAttribute('aria-label',`About ${t.name}`); detailButton.hidden=false; }
@@ -168,7 +169,7 @@ async function start(spec) {
   const glide = (to, then) => {
     player.stop();
     const angle=player.quat.angleTo(to.quat)+Math.abs((to.pitch ?? player.pitch)-player.pitch);
-    const duration=Math.max(1.3,1.5*angle/(140*Math.PI/180),player.pos.distanceTo(to.pos)/3);
+    const duration=Math.max(1.3,1.5*angle/(140*Math.PI/180),1.5*(player.pos.distanceTo(to.pos)+Math.abs((to.eye??player.eye)-player.eye))/3);
     move = { from: { pos: player.pos.clone(), quat: player.quat.clone(), eye: player.eye, pitch: player.pitch }, to, t: 0, dur: still ? 0 : duration, then };
   };
   function sit(t) {
@@ -187,6 +188,7 @@ async function start(spec) {
   function stand(then) {
     detailButton.hidden=true;
     if (scope) return leaveScope(then);
+    if (responseView) return leaveResponse(then);
     if (!seat) return then && then();
     const t = seat, at = player.clearOf(t.center.clone().addScaledVector(frontOf(t), t.reach + 0.5));
     seat = null;
@@ -219,7 +221,38 @@ async function start(spec) {
     $('stand').hidden=true; $('stand').textContent='Stand up';
     glide(keep.from,then);
   }
-  addEventListener('popstate',()=>{if(scope && scopeHistory){scopeHistory=false;leaveScope();}});
+  addEventListener('popstate',()=>{if(scope && scopeHistory){scopeHistory=false;leaveScope();}else if(responseView&&responseHistory){responseHistory=false;leaveResponse();}});
+  function leaveResponse(then) {
+    responseView=null;responseCaption.hidden=true;detailButton.hidden=true;
+    if(responseHistory){responseHistory=false;history.back();}
+    $('stand').hidden=true;$('stand').textContent='Stand up';
+    glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-.06},then);
+  }
+  function responseStatus(text) {
+    responseCaption.style.top='auto';responseCaption.style.bottom='16px';
+    responseCaption.textContent=text;responseCaption.hidden=false;
+  }
+  function change(t) {
+    const perform=()=>{
+      const done=things.respond(t,still);
+      responseStatus((done?t.response.done:t.response.label)+' · Tap again to change it');
+      showDetailsFor(t);actionTrace={...actionTrace,stage:'responded',responded:done};
+    };
+    if(responseView?.id===t.id)return perform();
+    const view=responseFrame(t,spec.things,{aspect:camera.aspect,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:player.colliders});
+    if(!view?.fits||!view.visible.includes(t.id)){
+      actionTrace={id:t.id,stage:'unavailable',reason:'No clear complete response view'};
+      responseStatus('There is no clear view of this change.');return;
+    }
+    const point=view.dir.clone().multiplyScalar(ground.surface(view.dir)),via=approachRoute(player.pos,point,player.colliders,ground.surface);
+    actionTrace={id:t.id,stage:'approaching',point:point.toArray(),via:via.map(p=>p.toArray()),bounds:{min:view.bounds.min.toArray(),max:view.bounds.max.toArray()}};
+    player.walkTo(point,{via,onArrive:()=>{
+      player.vel.set(0,0,0);actionTrace.stage='framing';
+      glide({pos:point,quat:facing(point,view.target.clone().sub(point)),eye:view.eye,pitch:view.pitch},()=>{
+        responseView={id:t.id};history.pushState({...history.state,planetResponse:true},'',location.href);responseHistory=true;$('stand').textContent='Step back';$('stand').hidden=false;perform();
+      });
+    },onStuck:()=>{actionTrace={...actionTrace,stage:'blocked',position:player.pos.toArray()};responseStatus('The way is blocked. Try walking around it.');}});
+  }
   function flip(t) {
     const on = t.lamp.intensity === 0;
     t.lamp.userData.on ??= t.lamp.intensity;
@@ -238,6 +271,7 @@ async function start(spec) {
     detailButton.hidden=true;
     responseCaption.hidden=true;
     if (t.use) close(); else open(t);
+    if(t.use==='change')return change(t);
     // up to it from where you are (its front can face something close: a bench, the oven), and a
     // seat takes you the last step
     const near = t.center.clone().lerp(camera.position, Math.min(0.9, (t.reach + 1.4) / Math.max(1, t.center.distanceTo(camera.position))));
@@ -247,14 +281,10 @@ async function start(spec) {
       if (t.use === 'switch' && t.lamp) { flip(t); showDetailsFor(t); }
       if (t.use === 'greet') { things.greet(t,camera.position,still); showDetailsFor(t); }
       if (t.use === 'look') lookThrough(t);
-      if (t.use === 'change') {
-        const done=things.respond(t,still),caption=responseCaption;
-        caption.textContent=(done?t.response.done:t.response.label)+' · Tap again to change it';caption.hidden=false;
-        showDetailsFor(t);
-      }
     };
     // stopped by something on the way but close (the van beside the camp chairs): close enough
-    player.walkTo(player.clearOf(near), { onArrive: there, onStuck: () => player.pos.distanceTo(t.center) < t.reach + 3 && there() });
+    const to=player.clearOf(near);
+    player.walkTo(to, { via:approachRoute(player.pos,to,player.colliders,ground.surface), onArrive: there, onStuck: () => player.pos.distanceTo(t.center) < t.reach + 3 && there() });
   }
 
   function act(at) {
@@ -263,7 +293,7 @@ async function start(spec) {
     if (at.thing) return go(at.thing);
     close();
     const to = player.clearOf(at.point);
-    player.walkTo(to);
+    player.walkTo(to,{via:approachRoute(player.pos,to,player.colliders,ground.surface)});
     ring.position.copy(to).addScaledVector(to.clone().normalize(), 0.03);
     ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), to.clone().normalize());
     ring.material.opacity = 0.8;
@@ -275,6 +305,7 @@ async function start(spec) {
       if (scope) return; // lens contents are a view; its controls, Escape or walking return
       const at = aim(x, y);
       if (!at || move) return;
+      if(responseView && at.thing?.id===responseView.id)return change(at.thing);
       if (seat && at.thing === seat) return open(seat);
       // seated, a tap elsewhere gets you up first, then goes there
       if (arriving) {
@@ -320,6 +351,7 @@ async function start(spec) {
     pipeline.setSize(innerWidth, innerHeight);
     camera.aspect = innerWidth / innerHeight;
     if (overview && arriving && openingUntouched) frameOpening();
+    if(responseView){const t=spec.things.find(t=>t.id===responseView.id),v=responseFrame(t,spec.things,{aspect:camera.aspect,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:player.colliders});if(v?.fits){player.eye=v.eye;player.spawn(v.dir,v.target,v.pitch);}}
     if (scope && root.dataset.state==='scope') camera.fov=scopeFov();
     camera.updateProjectionMatrix();
   };
@@ -343,6 +375,8 @@ async function start(spec) {
       if (k === 1) { const then = move.then; move = null; if (then) then(); }
     } else if (scope) {
       if (player.keys.x || player.keys.z) leaveScope();
+    } else if (responseView) {
+      if(player.keys.x||player.keys.z)leaveResponse();
     } else if (seat) {
       if (player.keys.x || player.keys.z) stand(); // a step gets you up
     } else {
@@ -350,7 +384,7 @@ async function start(spec) {
       advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
-    if(spec.reveal)revealView.disabled=!!(move||seat||scope);
+    if(spec.reveal)revealView.disabled=!!(move||seat||scope||responseView);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
     sun.target.position.copy(player.pos);
@@ -410,5 +444,5 @@ async function start(spec) {
   };
   // Test-only current-view readback catches blank pixels which readiness cannot detect.
   const capture=TEST?()=>{pipeline.render(0);return canvas.toDataURL();}:undefined;
-  window.__planet = { capture, ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, opening:()=>opening, pickAt:(x,y)=>aim(x,y)?.thing?.id||null, seated: () => seat && seat.id, scoped:()=>scope && scope.id, busy: () => !!move, metrics: () => ({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}) };
+  window.__planet = { capture, ready: false, player, camera, ground, things, spec, open, screenOf, looks, models, opening:()=>opening, pickAt:(x,y)=>aim(x,y)?.thing?.id||null, seated: () => seat && seat.id, scoped:()=>scope && scope.id, responseView:()=>responseView?.id||null, actionDebug:TEST?()=>({trace:actionTrace,target:player.target?.point.toArray(),position:player.pos.toArray(),stuck:{...player._stuck}}):undefined, busy: () => !!move, metrics: () => ({calls:renderer.info.render.calls,triangles:renderer.info.render.triangles}) };
 }
