@@ -67,7 +67,7 @@ for(const [device,viewport] of [['desktop',{width:1280,height:720}],['phone',{wi
         if(!point)throw Error('No visible action target: '+id);
         const initialLight=await page.evaluate(id=>window.__planet.spec.things.find(t=>t.id===id)?.lamp?.intensity,id);
         await page.mouse.click(point.x,point.y);
-        await page.waitForFunction(({id,initialLight})=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id);return !w.busy()&&(t.use==='greet'?!!t.greeting:t.use==='sit'?w.seated()===id:t.use==='switch'?t.lamp?.intensity!==initialLight:t.use==='look'?w.scoped()===id:false);},{id,initialLight},{timeout:60000});
+        await page.waitForFunction(({id,initialLight})=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id);return !w.busy()&&(t.use==='greet'?!!t.greeting:t.use==='sit'?w.seated()===id:t.use==='switch'?t.lamp?.intensity!==initialLight:t.use==='look'?w.scoped()===id:t.use==='change'?t.responded&&t.responseState.value===1:false);},{id,initialLight},{timeout:60000});
         view[actionName]={id,point,probe,observer:actionName==='action'?'Real tap and walking from the opening; no observer staging.':'Turned in place toward the seat using the player controller, then real tap/walk; position never teleported.',image:await shot(actionName)};
         if(await page.locator('#stand').isVisible()){await page.locator('#stand').click();await page.waitForFunction(()=>!window.__planet.busy());}
       }

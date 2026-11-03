@@ -47,6 +47,45 @@ A rehearsed, refined example is not a fresh-generation benchmark. Readiness for 
 requires the owner's explicit satisfaction with the simulated reveal and edit experience; the
 friend's first attempt then supplies separate evidence for first-pass quality on unseen input.
 
+## Assembly and visible responses
+
+`prepare_planet` and `preview_planet` apply two narrow deterministic tolerances before strict
+validation: finite positive part dimensions below 0.01 m become 0.01 m, and display names/titles
+longer than 40 characters receive a compact display label. `diagnostics.adjustments` returns
+the path, full original value and assembled value. The caller's object is not mutated; existing
+valid specs are unchanged. IDs, notes, placements, nonnumeric/zero/negative/oversized dimensions
+and other schema failures are not repaired. Oversized raw requests remain rejected. Use the
+returned prepared spec. `send_planet` still requires that valid reviewed spec; it does not
+silently assemble an invalid one at submission.
+
+A custom thing may use `use: change`, `response: {label, done}` and one to eight basic parts with
+`after: {size?, at?}`. Each size/position is a three-number vector with the same limits as the
+initial part. A real tap approaches the thing and changes these meshes over 1.2 seconds; another
+tap reverses from the current state. Reduced motion settles immediately. Labels are at most 40
+characters; a small accessible status accompanies the visible response instead of an explanatory
+card. The existing optional details button remains available.
+
+For example, a small leaf can unfold, or a keepsake can settle into a chosen place. The response
+is a bounded reversible visual state, not a gardening, skating, cooking or postal simulation.
+It uses no arbitrary script, network request, generation or new model. Only box, sphere,
+cylinder, cone and capsule parts can change, without repeat, mirror, spin, joints or ground
+fitting. Changing things cannot use stock/models/craft or tabletop placement. Static surrounding
+parts stay batched. Layout and runtime envelopes reserve both endpoints; part identity, picking
+and reversal survive the response. State is local to the loaded world and is not persistence.
+
+Compact overview cards prioritize the focus activity and usable objects. Nonfocus supporting
+furnishings beyond 3.5 m from the primary activity stay in the world as walking discoveries;
+landscape keeps the existing 5.5 m context. Compact fitting uses each included object's bounds,
+without forcing empty corners of their combined bounding box into view, and leaves a smaller
+horizontal inset for a readable activity. Broad floors/walls should be context rather than
+the sole personal hero; the kit asks for explicit visual hierarchy. Environmental scenery
+and canopy overhangs still do not shrink the activity. These are shared framing rules, not
+per-interview camera adjustments or a guarantee of phone recognition.
+
+`tools/fixtures/planet-responses.json` contains two authored response controls. The offline
+browser suite checks actual taps, changed rendered meshes, reversal and both motion settings at
+700×440 and 366×440. These controls are implementation evidence, not fresh interview acceptance.
+
 ## Scene composer
 
 `planet-scenes.js` compiles 1–3 semantic `scenes` into ordinary `things`, explicit entrance

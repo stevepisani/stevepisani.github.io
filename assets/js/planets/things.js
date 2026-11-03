@@ -13,6 +13,7 @@ import { surface, woodSet, bambooSet, thatchSet, rattanSet } from '../world/mate
 import { palm } from '../world/props.js';
 import { planting, shrub, grassFringe } from '../world/decor.js';
 import { watercolour } from './painting.js';
+import {responsePart,responseState} from './response.js';
 
 const DEG = Math.PI / 180;
 const surfaces = new Map();
@@ -160,7 +161,7 @@ function batchParts(body) {
   body.updateMatrixWorld(true);
   const groups = new Map();
   body.traverse((o)=>{
-    if(!o.isMesh || o.isInstancedMesh || o.userData.spin || o.material.transparent || (o.material.map && !o.material.userData.crafted) || o.matrixWorld.determinant()<0) return;
+    if(!o.isMesh || o.isInstancedMesh || o.userData.responding || o.userData.spin || o.material.transparent || (o.material.map && !o.material.userData.crafted) || o.matrixWorld.determinant()<0) return;
     for(let parent=o.parent;parent && parent!==body;parent=parent.parent) if(parent.userData.joint) return;
     const m=o.material,key=[m.type,m.color?.getHex(),m.emissive?.getHex(),m.emissiveIntensity,m.roughness,m.metalness,m.side,m.map?.uuid,m.bumpMap?.uuid,m.bumpScale].join('/');
     if(!groups.has(key)) groups.set(key,[]);
@@ -188,7 +189,7 @@ function batchParts(body) {
  * A pickable mesh carries its thing in `userData.thing`.
  */
 export function buildThings(things = [], surface, library = new Map()) {
-  const group = new THREE.Group(), colliders = [], pickable = [], spinning = [], characters = [];
+  const group = new THREE.Group(), colliders = [], pickable = [], spinning = [], characters = [], responses=[];
   const Y = new THREE.Vector3(0, 1, 0);
   // where each stands, from where you land or beside another thing (placeThings, in the spec's rules)
   const placed = placeThings(things);
@@ -213,7 +214,7 @@ export function buildThings(things = [], surface, library = new Map()) {
     }
 
     const body = new THREE.Group();
-    const joints = {};
+    const joints = {}, responsive=[];
     if (thing.craft === 'palm') body.add(palm({height:4.9,lean:0.22,seed:thing.id.length}));
     if (thing.craft === 'planting') body.add(planting([[-.3,.1,-.06],[.45,-.15,-.06]],thing.id.length));
     if (thing.craft === 'birch') {
@@ -227,6 +228,7 @@ export function buildThings(things = [], surface, library = new Map()) {
     if(thing.craft==='easel')body.add(watercolour());
     for (const p of ['palm','planting','birch'].includes(thing.craft) ? [] : partsOf(thing)) {
       const one = part(p);
+      if(p.after){one.userData.responding=true;responsive.push(responsePart(one,p));}
       if(p.ground)fitGroundSupport(one,root,surface);
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
@@ -255,6 +257,7 @@ export function buildThings(things = [], surface, library = new Map()) {
       if (p.mirror) { const m = copies.clone(); m.scale.x = -1; parent.add(m); }
     }
     if (['cat','bird'].includes(thing.craft)) { thing.joints = joints; characters.push(thing); }
+    if(responsive.length){thing.responseState=responseState(responsive);responses.push(thing);}
     batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
@@ -265,14 +268,20 @@ export function buildThings(things = [], surface, library = new Map()) {
     // how far it reaches from its foot, along the ground: where you stop when you walk up to it
     // (measured before it's placed, so in metres from its foot)
     const box = new THREE.Box3().setFromObject(body);
+    if(thing.responseState){thing.responseState.toggle(0,true);body.updateMatrixWorld(true);box.union(new THREE.Box3().setFromObject(body));thing.responseState.toggle(0,true);body.updateMatrixWorld(true);}
     thing.box = box;
     thing.hull = box.clone();
-    if (thing.footprint) {
+    if (thing.footprint && thing.use!=='change') {
       thing.hull.min.set(-thing.footprint[0]/2, box.min.y, -thing.footprint[1]/2);
       thing.hull.max.set(thing.footprint[0]/2, thing.use === 'look' ? box.max.y : Math.min(box.max.y, 1.8), thing.footprint[1]/2);
     } // where a tap means it (main.js): its shapes now, its model once it's in
+    if(thing.footprint && thing.use==='change') {
+      thing.hull.min.x=Math.min(thing.hull.min.x,-thing.footprint[0]/2);thing.hull.max.x=Math.max(thing.hull.max.x,thing.footprint[0]/2);
+      thing.hull.min.z=Math.min(thing.hull.min.z,-thing.footprint[1]/2);thing.hull.max.z=Math.max(thing.hull.max.z,thing.footprint[1]/2);
+    }
     thing.body = body;
-    const reach = thing.footprint ? Math.max(...thing.footprint) / 2 : Math.max(0.3, Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z)));
+    const visualReach=Math.max(0.3,Math.hypot(Math.max(-box.min.x,box.max.x),Math.max(-box.min.z,box.max.z)));
+    const reach = thing.footprint ? Math.max(Math.max(...thing.footprint)/2,thing.use==='change'?visualReach:0) : visualReach;
     root.add(body);
     if (thing.light) {
       const light = new THREE.PointLight(thing.light.color || '#ffd9a0', 24 * (thing.light.strength ?? 0.6), 16, 1.4);
@@ -331,7 +340,9 @@ export function buildThings(things = [], surface, library = new Map()) {
       thing.greeting = { at:performance.now()/1000, yaw:THREE.MathUtils.clamp(Math.atan2(at.x,at.z),-0.7,0.7), reduced };
       if (reduced) { thing.joints.head.rotation.y = thing.greeting.yaw; thing.joints.head.rotation.z=0.12; if(thing.joints.tail) thing.joints.tail.rotation.z=0.2; }
     },
+    respond(thing,reduced=false){thing.responded=thing.responseState.toggle(performance.now()/1000,reduced);return thing.responded;},
     update(t) {
+      for(const r of responses)r.responseState.update(t);
       for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed));
       for (const c of characters) {
         const a=c.greeting;

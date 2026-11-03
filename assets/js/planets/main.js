@@ -42,6 +42,9 @@ if (!spec) fail(/^There’s no/.test(errors[0]) ? errors[0] : `This planet can�
 else start(spec);
 
 async function start(spec) {
+  // A cached page shell may precede this bundle; keep the optional status backward compatible.
+  const responseCaption=$('response-caption')||Object.assign(root.appendChild(document.createElement('p')),{id:'response-caption',className:'response-caption',hidden:true});
+  responseCaption.setAttribute('role','status');
   document.title = `${spec.who.name}: a tiny planet`;
   $('topbar-name').textContent = spec.who.name;
   $('topbar-line').textContent = spec.look && spec.look.home ? `A tiny planet in ${spec.look.home}` : 'A tiny planet';
@@ -233,6 +236,7 @@ async function start(spec) {
   // a tap on one of their things: walk up to it and say what it is, then do what it does
   function go(t) {
     detailButton.hidden=true;
+    responseCaption.hidden=true;
     if (t.use) close(); else open(t);
     // up to it from where you are (its front can face something close: a bench, the oven), and a
     // seat takes you the last step
@@ -243,12 +247,18 @@ async function start(spec) {
       if (t.use === 'switch' && t.lamp) { flip(t); showDetailsFor(t); }
       if (t.use === 'greet') { things.greet(t,camera.position,still); showDetailsFor(t); }
       if (t.use === 'look') lookThrough(t);
+      if (t.use === 'change') {
+        const done=things.respond(t,still),caption=responseCaption;
+        caption.textContent=(done?t.response.done:t.response.label)+' · Tap again to change it';caption.hidden=false;
+        showDetailsFor(t);
+      }
     };
     // stopped by something on the way but close (the van beside the camp chairs): close enough
     player.walkTo(player.clearOf(near), { onArrive: there, onStuck: () => player.pos.distanceTo(t.center) < t.reach + 3 && there() });
   }
 
   function act(at) {
+    responseCaption.hidden=true;
     if (!walked) { walked = true; hint.classList.add('is-gone'); }
     if (at.thing) return go(at.thing);
     close();
@@ -299,7 +309,7 @@ async function start(spec) {
     }));
     card.hidden = false;
   }
-  function close() { card.hidden = true; }
+  function close() { card.hidden = true; responseCaption.hidden=true; }
   $('thing-close').addEventListener('click', close);
   addEventListener('keydown', (e) => { if (e.key === 'Escape') { close(); stand(); } });
 

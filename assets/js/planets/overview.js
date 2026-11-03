@@ -11,7 +11,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   const featured=things.find(t=>t.root && t.id===focusId);
   const primary = featured || things.find(t=>t.root && t.role==='focus') || things.find(t=>t.root && t.solid!==false) || things.find(t=>t.root);
   if (!primary) return null;
-  const bounds = new THREE.Box3().setFromObject(primary.root), ids = [primary.id];
+  const bounds = new THREE.Box3().setFromObject(primary.root), ids = [primary.id], boxes=[bounds.clone()], compact=aspect<1.05;
   for (const t of things) {
     // An edited reveal features the addition with its immediate anchor, rather than expanding
     // the union of every nearby interest until the original place becomes a distant speck.
@@ -19,10 +19,13 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     // A shelter frames the activity from inside. Fitting its entire roof pushes a small
     // furnished scene far away and lets the curved foreground hide the useful objects.
     if (t===primary || !t.root || t.center.distanceTo(primary.center)>5.5 || t.role==='environment' || t.craft==='canopy' || (!t.role && t.solid===false && !t.use)) continue;
+    // A compact card keeps the activity and reachable actions. More distant support is a
+    // walking discovery, rather than a reason to shrink every personal detail on the phone.
+    if(compact&&!featured&&t.role!=='focus'&&!t.use&&t.center.distanceTo(primary.center)>3.5)continue;
     const b=new THREE.Box3().setFromObject(t.root), size=b.getSize(new THREE.Vector3());
     // A narrow trunk's broad canopy is environmental framing, rather than a huge solid hero.
     if (!t.role && !t.use && t.footprint && Math.max(size.x,size.z)>3*Math.max(...t.footprint)*(t.scale||1)) continue;
-    bounds.union(b);ids.push(t.id);
+    bounds.union(b);boxes.push(b);ids.push(t.id);
   }
   const size=bounds.getSize(new THREE.Vector3()),target=bounds.getCenter(new THREE.Vector3());
   const toward=primary.center.clone().addScaledVector(UP,-primary.center.y).normalize();
@@ -31,7 +34,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
 
   const start=-UP.angleTo(primary.center.clone().normalize())*RADIUS+1.5;
   const corners=[];
-  for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z])corners.push(new THREE.Vector3(x,y,z));
+  for(const box of compact?boxes:[bounds])for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z])corners.push(new THREE.Vector3(x,y,z));
   const probe=new THREE.PerspectiveCamera(fov,aspect,.05,2000);
   const pickable=[];
   for(const t of things)t.root?.traverse(o=>{if(o.isMesh){o.geometry.computeBoundingBox();pickable.push(o);}});
@@ -80,7 +83,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     const eye=sheltered?1.8:THREE.MathUtils.clamp(size.y*.7+2,2.8,7);
     probe.position.copy(foot).addScaledVector(dir,eye);probe.up.copy(dir);probe.lookAt(target);probe.updateMatrixWorld(true);
     const projected=corners.map(p=>p.clone().project(probe));
-    const fits=projected.every(p=>Math.abs(p.x)<.83 && p.y<.8 && p.y>-.76 && p.z>0 && p.z<1);
+    const fits=projected.every(p=>Math.abs(p.x)<(compact?.92:.83) && p.y<.8 && p.y>-.76 && p.z>0 && p.z<1);
     const pitch=Math.asin(target.clone().sub(probe.position).normalize().dot(dir));
     fallback={dir,target,eye,pitch,bounds,ids,fits:false,visible:[]};
     if(!fits)continue;
@@ -114,7 +117,7 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
       detail={id:featured.id,visibleFraction:shown,heightPixels:pixels,meetsBudget:shown>=.55&&pixels>=32};
     }
     const score=visible.filter(Boolean).length+tappable.length*2+(detail?detail.visibleFraction*4+Math.min(1,detail.heightPixels/64):0);
-    const frame={dir,target,eye,pitch,bounds,ids,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id),...(detail?{detail}:{})};
+    const frame={dir,target,eye,pitch,bounds,ids,fitPoints:corners,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id),...(detail?{detail}:{})};
     if(score>bestScore){best=frame;bestScore=score;}
     if(visible.every(Boolean) && tappable.length===greetings.length && (!detail||detail.meetsBudget))return frame;
   }

@@ -1924,6 +1924,35 @@ async function chatModel(page, shot) {
   step("a model made while the chat waits: asked after by its words' key, and swapped in for the shapes once it's made");
 }
 
+// Two authored controls for one shared response API; neither is an interview acceptance case.
+async function smallResponses(page,shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-responses.json',import.meta.url)));
+  const prepared=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:input}}},{})).result;
+  if(prepared.isError)throw Error(prepared.content[0].text);
+  const targetOf=async id=>page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor;w.camera.updateMatrixWorld(true);let hit=null;t.body.traverse(o=>{if(!o.isMesh||hit)return;const p=o.geometry.attributes.position,ix=o.geometry.index,n=ix?ix.count:p.count;for(let i=0;i<24&&!hit;i++){const k=3*Math.floor((n/3-1)*i/23),v=new V();for(let j=0;j<3;j++)v.add(new V().fromBufferAttribute(p,ix?ix.getX(k+j):k+j));const q=v.multiplyScalar(1/3).applyMatrix4(o.matrixWorld).project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;if(q.z>0&&q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.8&&w.pickAt(x,y)===id)hit={x,y};}});return hit;},id);
+  for(const motion of ['reduce','no-preference'])for(const id of ['plant','keepsake']) {
+    await page.emulateMedia({reducedMotion:motion});
+    if(motion==='reduce'&&id==='plant')await page.route('**/p/preview/**',async route=>{const response=await route.fetch();return route.fulfill({response,body:(await response.text()).replace(/<p class="response-caption"[^>]*><\/p>/,'')});});
+    await page.goto('about:blank');await page.goto(`${base}/p/preview/?test=1#${await packPlanet(prepared.structuredContent.spec)}`);
+    await until(page,()=>window.__planet?.ready,null,120000);await page.locator('#veil').waitFor({state:'hidden'});
+    const start=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
+    await shot(`response-${id}-${motion}-before`);
+    let point=await targetOf(id);if(!point)throw Error('Response not tappable in arrival: '+id);await page.mouse.click(point.x,point.y);
+    await until(page,id=>{const t=window.__planet.spec.things.find(t=>t.id===id);return !window.__planet.busy()&&t.responded&&t.responseState.value===1;},id,60000);
+    await page.locator('#response-caption').waitFor({state:'visible'});
+    const end=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
+    if(JSON.stringify(start)===JSON.stringify(end))throw Error('Response state did not change rendered meshes');
+    await shot(`response-${id}-${motion}-after`);
+    point=await targetOf(id);if(!point)throw Error('Response cannot be reversed by a real tap');await page.mouse.click(point.x,point.y);
+    await until(page,id=>{const t=window.__planet.spec.things.find(t=>t.id===id);return !t.responded&&t.responseState.value===0;},id,60000);
+    const reset=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
+    if(JSON.stringify(start)!==JSON.stringify(reset))throw Error('Response did not restore original geometry');
+    await shot(`response-${id}-${motion}-reset`);
+    if(motion==='reduce'&&id==='plant')await page.unroute('**/p/preview/**');
+  }
+  step('two reusable visual responses: real taps, changed meshes, reversal, normal and reduced motion');
+}
+
 // Finished furniture must be in the actual first frame, even over a slow connection. This is
 // an authored library study, not an unseen interview or evidence of aesthetic acceptance.
 async function readingFamily(page, shot) {
@@ -2244,6 +2273,8 @@ if (want('planets')) await session('planets card', { viewport: { width: 760, hei
 if (want('planets')) await session('planets chat model', { viewport: { width: 1000, height: 700 } }, chatModel);
 if (want('planets') || want('models')) await session('ready models card', { viewport: { width: 700, height: 440 } }, readyModels);
 if (want('planets') || want('models')) await session('ready models phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readyModels);
+if (want('planets') || want('responses')) await session('small responses card', { viewport: { width: 700, height: 440 } }, smallResponses);
+if (want('planets') || want('responses')) await session('small responses phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, smallResponses);
 if (want('planets') || want('library')) await session('reading family card', { viewport: { width: 700, height: 440 } }, readingFamily);
 if (want('planets') || want('library')) await session('reading family phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readingFamily);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);

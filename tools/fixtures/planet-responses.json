@@ -1,0 +1,16 @@
+{
+  "version": 1, "slug": "test-small-responses", "who": {"name": "Small responses"}, "arrival": "overview",
+  "look": {"sky": {"period": "day"}, "ground": {"color": "#738268", "hills": 0.05}},
+  "things": [
+    {"id": "plant", "name": "A leaf to notice", "role": "focus", "at": {"bearing": -10, "distance": 5}, "use": "change", "response": {"label": "Let a leaf unfold", "done": "One leaf opens"}, "parts": [
+      {"shape": "cylinder", "size": [0.7,0.6,0.7], "at": [0,0.3,0], "color": "#b9724b"},
+      {"shape": "cylinder", "size": [0.6,0.05,0.6], "at": [0,0.61,0], "color": "#493b2b"},
+      {"shape": "cylinder", "size": [0.05,1.2,0.05], "at": [0,1.15,0], "color": "#376d43"},
+      {"shape": "sphere", "size": [0.08,0.12,0.04], "at": [0.08,1.5,0], "turn": [0,0,-30], "color": "#71a55c", "after": {"size": [0.5,0.85,0.1], "at": [0.2,1.75,0]}}
+    ]},
+    {"id": "keepsake", "name": "A place for one small thing", "role": "focus", "near": {"of": "plant", "side": "right", "gap": 0.8}, "use": "change", "response": {"label": "Set the keepsake down", "done": "A small place is ready"}, "parts": [
+      {"shape": "box", "size": [1,0.6,0.65], "at": [0,0.3,0], "color": "#a38360", "round": 0.04},
+      {"shape": "box", "size": [0.3,0.03,0.22], "at": [-0.65,1,0], "color": "#e7bc65", "after": {"at": [0,0.625,0]}}
+    ]}
+  ]
+}
