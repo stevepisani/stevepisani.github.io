@@ -12,7 +12,7 @@ import { createPipeline, loadAO } from '../world/render.js';
 import { Player, bindInput } from '../world/player.js';
 import { buildPlanetSky } from './sky.js';
 import { overviewFrame } from './overview.js';
-import { responseFrame, approachRoute } from './action-view.js';
+import { responseFrame, responseFrameAt, approachRoute } from './action-view.js';
 import { pickThing } from './picking.js';
 import { advanceWalking } from './motion.js';
 import { readSpec, tellCard } from '../world/spec.js';
@@ -144,12 +144,12 @@ async function start(spec) {
   // light. Sitting down and getting up are body motions from and to the walking view, never cuts
   // (unless they'd rather less motion); seated, you can look round, and any walk gets you up.
   const EYE = walkingEye, SEATED = 1.3, still = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let seat = null, move = null, arriving = overview, scope = null, detail = null, responseView = null, actionTrace = null;
+  let seat = null, move = null, arriving = overview, scope = null, detail = null, responseView = null, pendingResponse = null, actionTrace = null;
   const revealView=$('reveal-view');
   if(spec.reveal) {
     revealView.hidden=false;
     revealView.addEventListener('click',()=>{
-      if(move||seat||scope||responseView)return;
+      if(move||seat||scope||responseView||pendingResponse)return;
       player.stop();close();revealFocus=revealFocus?null:spec.reveal;
       arriving=true;openingUntouched=true;frameOpening(false);
       revealView.textContent=revealFocus?'Whole place':'See addition';
@@ -170,7 +170,7 @@ async function start(spec) {
     player.stop();
     const angle=player.quat.angleTo(to.quat)+Math.abs((to.pitch ?? player.pitch)-player.pitch);
     const duration=Math.max(1.3,1.5*angle/(140*Math.PI/180),1.5*(player.pos.distanceTo(to.pos)+Math.abs((to.eye??player.eye)-player.eye))/3);
-    move = { from: { pos: player.pos.clone(), quat: player.quat.clone(), eye: player.eye, pitch: player.pitch }, to, t: 0, dur: still ? 0 : duration, then };
+    move = { from: { pos: player.pos.clone(), quat: player.quat.clone(), eye: player.eye, pitch: player.pitch, fov:camera.fov }, to, t: 0, dur: still ? 0 : duration, then };
   };
   function sit(t) {
     const f = frontOf(t), at = t.center.clone().addScaledVector(f, 0.1 * (t.scale || 1));
@@ -189,6 +189,7 @@ async function start(spec) {
     detailButton.hidden=true;
     if (scope) return leaveScope(then);
     if (responseView) return leaveResponse(then);
+    if(pendingResponse){cancelPendingResponse();return glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-.06},then);}
     if (!seat) return then && then();
     const t = seat, at = player.clearOf(t.center.clone().addScaledVector(frontOf(t), t.reach + 0.5));
     seat = null;
@@ -223,35 +224,76 @@ async function start(spec) {
   }
   addEventListener('popstate',()=>{if(scope && scopeHistory){scopeHistory=false;leaveScope();}else if(responseView&&responseHistory){responseHistory=false;leaveResponse();}});
   function leaveResponse(then) {
+    const lens=responseView?.baseFov??camera.fov;
     responseView=null;responseCaption.hidden=true;detailButton.hidden=true;
     if(responseHistory){responseHistory=false;history.back();}
     $('stand').hidden=true;$('stand').textContent='Stand up';
-    glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-.06},then);
+    glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-.06,fov:lens},then);
   }
   function responseStatus(text) {
     responseCaption.style.top='auto';responseCaption.style.bottom='16px';
     responseCaption.textContent=text;responseCaption.hidden=false;
   }
-  function change(t) {
-    const perform=()=>{
-      const done=things.respond(t,still);
-      responseStatus((done?t.response.done:t.response.label)+' · Tap again to change it');
-      showDetailsFor(t);actionTrace={...actionTrace,stage:'responded',responded:done};
-    };
-    if(responseView?.id===t.id)return perform();
-    const view=responseFrame(t,spec.things,{aspect:camera.aspect,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:player.colliders});
+  const responseLayout=()=>`${innerWidth}x${innerHeight}`;
+  const responsePose=(t,keep)=>responseFrameAt(t,spec.things,{point:player.pos,eye:keep.eye,fov:keep.baseFov,aspect:camera.aspect,height:innerHeight});
+  const responseMove=(v,then)=>glide({pos:player.pos.clone(),quat:facing(player.pos,v.target.clone().sub(player.pos)),eye:v.eye,pitch:v.pitch,fov:v.fov},then);
+  function cancelPendingResponse() {
+    if(!pendingResponse)return;
+    camera.fov=pendingResponse.baseFov;camera.updateProjectionMatrix();
+    pendingResponse=null;move=null;player.stop();player.vel.set(0,0,0);
+  }
+  function rejectPendingResponse(message) {
+    cancelPendingResponse();
+    if(Math.abs(player.eye-EYE)>.001)glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-.06},()=>responseStatus(message));
+    else responseStatus(message);
+  }
+  function performResponse(t) {
+    const done=things.respond(t,still);
+    responseStatus((done?t.response.done:t.response.label)+' · Tap again to change it');
+    showDetailsFor(t);actionTrace={...actionTrace,stage:'responded',responded:done};
+  }
+  function framePendingResponse(keep) {
+    if(pendingResponse!==keep)return;
+    const t=spec.things.find(t=>t.id===keep.id),v=responsePose(t,keep);
+    if(!v){rejectPendingResponse('There is no clear view of this change.');return;}
+    keep.eye=v.eye;keep.layout=responseLayout();actionTrace.stage='framing';
+    responseMove(v,()=>{
+      if(pendingResponse!==keep)return;
+      // Layout can change while the camera glide is in flight, even before mode entry.
+      const current=responsePose(t,keep);
+      if(keep.layout!==responseLayout()||!current||Math.abs(current.eye-player.eye)>.001||Math.abs(current.fov-camera.fov)>.001)return framePendingResponse(keep);
+      pendingResponse=null;responseView={id:t.id,baseFov:keep.baseFov,eye:current.eye};
+      history.pushState({...history.state,planetResponse:true},'',location.href);responseHistory=true;
+      $('stand').textContent='Step back';$('stand').hidden=false;performResponse(t);
+    });
+  }
+  function planPendingResponse(keep) {
+    if(pendingResponse!==keep)return;
+    const t=spec.things.find(t=>t.id===keep.id);
+    const view=responseFrame(t,spec.things,{aspect:camera.aspect,fov:keep.baseFov,height:innerHeight,surface:ground.surface,colliders:player.colliders});
     if(!view?.fits||!view.visible.includes(t.id)){
-      actionTrace={id:t.id,stage:'unavailable',reason:'No clear complete response view'};
-      responseStatus('There is no clear view of this change.');return;
+      rejectPendingResponse('There is no clear view of this change.');actionTrace={id:t.id,stage:'unavailable',reason:'No clear complete response view'};return;
     }
+    keep.eye=view.eye;keep.stage='approaching';
     const point=view.dir.clone().multiplyScalar(ground.surface(view.dir)),via=approachRoute(player.pos,point,player.colliders,ground.surface);
     actionTrace={id:t.id,stage:'approaching',point:point.toArray(),via:via.map(p=>p.toArray()),bounds:{min:view.bounds.min.toArray(),max:view.bounds.max.toArray()}};
     player.walkTo(point,{via,onArrive:()=>{
-      player.vel.set(0,0,0);actionTrace.stage='framing';
-      glide({pos:point,quat:facing(point,view.target.clone().sub(point)),eye:view.eye,pitch:view.pitch},()=>{
-        responseView={id:t.id};history.pushState({...history.state,planetResponse:true},'',location.href);responseHistory=true;$('stand').textContent='Step back';$('stand').hidden=false;perform();
-      });
-    },onStuck:()=>{actionTrace={...actionTrace,stage:'blocked',position:player.pos.toArray()};responseStatus('The way is blocked. Try walking around it.');}});
+      if(pendingResponse!==keep)return;
+      player.vel.set(0,0,0);keep.stage='framing';framePendingResponse(keep);
+    },onStuck:()=>{
+      if(pendingResponse!==keep)return;
+      rejectPendingResponse('The way is blocked. Try walking around it.');actionTrace={...actionTrace,stage:'blocked',position:player.pos.toArray()};
+    }});
+  }
+  function refitResponse() {
+    const keep=responseView;if(!keep)return;
+    const t=spec.things.find(t=>t.id===keep.id),v=responsePose(t,keep);
+    if(!v)return leaveResponse(()=>responseStatus('There is no clear view of this change.'));
+    keep.eye=v.eye;responseMove(v);
+  }
+  function change(t) {
+    if(responseView?.id===t.id)return performResponse(t);
+    cancelPendingResponse();pendingResponse={id:t.id,baseFov:camera.fov};planPendingResponse(pendingResponse);
   }
   function flip(t) {
     const on = t.lamp.intensity === 0;
@@ -268,6 +310,7 @@ async function start(spec) {
   $('stand').addEventListener('click', () => stand());
   // a tap on one of their things: walk up to it and say what it is, then do what it does
   function go(t) {
+    if(pendingResponse&&pendingResponse.id!==t.id)cancelPendingResponse();
     detailButton.hidden=true;
     responseCaption.hidden=true;
     if (t.use) close(); else open(t);
@@ -291,7 +334,7 @@ async function start(spec) {
     responseCaption.hidden=true;
     if (!walked) { walked = true; hint.classList.add('is-gone'); }
     if (at.thing) return go(at.thing);
-    close();
+    cancelPendingResponse();close();
     const to = player.clearOf(at.point);
     player.walkTo(to,{via:approachRoute(player.pos,to,player.colliders,ground.surface)});
     ring.position.copy(to).addScaledVector(to.clone().normalize(), 0.03);
@@ -351,7 +394,8 @@ async function start(spec) {
     pipeline.setSize(innerWidth, innerHeight);
     camera.aspect = innerWidth / innerHeight;
     if (overview && arriving && openingUntouched) frameOpening();
-    if(responseView){const t=spec.things.find(t=>t.id===responseView.id),v=responseFrame(t,spec.things,{aspect:camera.aspect,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:player.colliders});if(v?.fits){player.eye=v.eye;player.spawn(v.dir,v.target,v.pitch);}}
+    if(pendingResponse){const keep=pendingResponse;if(keep.stage==='framing'){move=null;framePendingResponse(keep);}else planPendingResponse(keep);}
+    else if(responseView)refitResponse();
     if (scope && root.dataset.state==='scope') camera.fov=scopeFov();
     camera.updateProjectionMatrix();
   };
@@ -372,6 +416,7 @@ async function start(spec) {
       player.quat.slerpQuaternions(move.from.quat, move.to.quat, e);
       player.eye = THREE.MathUtils.lerp(move.from.eye, move.to.eye, e);
       if (move.to.pitch !== undefined) player.pitch = THREE.MathUtils.lerp(move.from.pitch, move.to.pitch, e);
+      if(move.to.fov!==undefined){camera.fov=THREE.MathUtils.lerp(move.from.fov,move.to.fov,e);camera.updateProjectionMatrix();}
       if (k === 1) { const then = move.then; move = null; if (then) then(); }
     } else if (scope) {
       if (player.keys.x || player.keys.z) leaveScope();
@@ -381,10 +426,11 @@ async function start(spec) {
       if (player.keys.x || player.keys.z) stand(); // a step gets you up
     } else {
       if (arriving && (player.keys.x || player.keys.z)) { arriving = false; glide({pos:player.pos.clone(),quat:player.quat.clone(),eye:EYE,pitch:-0.18}); }
+      if(pendingResponse&&(player.keys.x||player.keys.z))cancelPendingResponse();
       advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
-    if(spec.reveal)revealView.disabled=!!(move||seat||scope||responseView);
+    if(spec.reveal)revealView.disabled=!!(move||seat||scope||responseView||pendingResponse);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away
     sun.target.position.copy(player.pos);
