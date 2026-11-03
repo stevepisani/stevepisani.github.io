@@ -279,7 +279,7 @@ caught(stocked, (s) => { delete s.things[0].stock; }, /^things\[0\]\.parts: shou
 ok(errorsWith(planets.EXAMPLE, (s) => { s.things[0].model = 'x'.repeat(LIMITS.text + 1); }).some((e) => /^things\[0\]\.model/.test(e)), "a model's words have a cap");
 const toModel = wanted(modelled(), {});
 ok(toModel.length === modelled().reduce((n, p) => n + (p.things || []).filter((t) => t.model).length, 0) && toModel.length <= PER_RUN, 'every thing described is to be modelled, until it is', toModel.map((t) => t.key));
-ok(Object.keys(STOCK).every((k) => toModel.some((t) => t.key === `stock/${k}`)), 'each stock thing is modelled once, as the planet stock', toModel.map((t) => t.key));
+ok(Object.keys(STOCK).filter(k=>STOCK[k].model).every((k) => toModel.some((t) => t.key === `stock/${k}`)) && Object.keys(STOCK).filter(k=>STOCK[k].file).every(k=>!toModel.some(t=>t.key===`stock/${k}`)), 'generated stock is modelled once; ready CC0 stock is never bought from the model pipeline', toModel.map((t) => t.key));
 const many = { ...least, things: Array.from({ length: PER_PLANET + 1 }, (_, i) => ({ id: `t${i}`, name: `T${i}`, model: 'A chair', at: { bearing: i * 20 - 160, distance: 6 }, parts: [{ shape: 'box', size: [1, 1, 1] }] })) };
 let overCap = false;
 try { wanted([many], {}); } catch (e) { overCap = new RegExp(`more than ${PER_PLANET} a planet`).test(e.message); }
@@ -369,6 +369,8 @@ await w.db.exec('reset role');
 
 await import('./planet-overview-test.mjs');
 await import('./planet-craft-test.mjs');
+await import('./planet-library-test.mjs');
+await import('./planet-picking-test.mjs');
 await import('./planet-scene-kit-test.mjs');
 await import('./planet-setting-test.mjs');
 await import('./planet-first-shot-test.mjs');

@@ -205,6 +205,12 @@ export function buildThings(things = [], surface, library = new Map()) {
     const face = Math.atan2(localBack.x, localBack.z);
     root.rotateY(face + at.turn * DEG);
     root.scale.setScalar(thing.scale || 1);
+    if(thing.on) {
+      const anchor=things.find(t=>t.id===thing.on.of);
+      root.position.set(thing.on.at[0],anchor.hull.max.y,thing.on.at[1]);
+      root.quaternion.identity();root.rotateY((thing.turn||0)*DEG);
+      anchor.root.add(root); // inherit the actual support plane/orientation/scale, not terrain tilt
+    }
 
     const body = new THREE.Group();
     const joints = {};
@@ -274,10 +280,11 @@ export function buildThings(things = [], surface, library = new Map()) {
       root.add(light);
       thing.lamp = light; // a thing you can switch (use) turns this on and off
     }
-    group.add(root);
+    if(!thing.on)group.add(root);
     thing.reach = Math.min(6, reach * (thing.scale || 1));
     if (thing.solid !== false) colliders.push({ center: root.position.clone(), radius: Math.min(4, thing.reach * 0.8) });
-    thing.center = root.position.clone();
+    root.updateWorldMatrix(true,true);
+    thing.center = new THREE.Vector3().setFromMatrixPosition(root.matrixWorld);
     thing.root = root;
   }
   return {
@@ -292,11 +299,13 @@ export function buildThings(things = [], surface, library = new Map()) {
       for (let i = spinning.length; i--;) if (had.has(spinning[i].mesh)) spinning.splice(i, 1);
       body.clear();
       const m = new THREE.Box3().setFromObject(model), ms = m.getSize(new THREE.Vector3()), bs = box.getSize(new THREE.Vector3());
-      const s = Math.min(bs.y / ms.y, Math.max(bs.x, bs.z) / Math.max(ms.x, ms.z));
+      // Every axis must fit: a long narrow model must not protrude across the neighboring
+      // activity just because the original envelope's other ground axis was longer.
+      const s = Math.min(...['x','y','z'].filter(a=>ms[a]>1e-6).map(a=>bs[a]/ms[a]));
       model.scale.setScalar(s);
       const mid = box.getCenter(new THREE.Vector3()), mm = m.getCenter(new THREE.Vector3());
       // a little into the ground: the planet curves away under anything long (a sag of L²/8R)
-      const sag = (Math.max(ms.x, ms.z) * s) ** 2 / (8 * RADIUS) + 0.02;
+      const sag = thing.on ? 0 : (Math.max(ms.x, ms.z) * s) ** 2 / (8 * RADIUS) + 0.02;
       model.position.set(mid.x - mm.x * s, box.min.y - m.min.y * s - sag, mid.z - mm.z * s);
       thing.hull.copy(m).applyMatrix4(model.matrix.compose(model.position, model.quaternion, model.scale));
       model.traverse((o) => {
@@ -307,6 +316,13 @@ export function buildThings(things = [], surface, library = new Map()) {
       });
       body.add(model);
       thing.real = true; // its real model is in
+      // Parent/child assets may finish in either order. Once the table is real, settle every
+      // attached prop on its actual top (including ground sink), without moving any old object.
+      for(const child of things.filter(t=>t.on?.of===thing.id)) {
+        child.root.position.y=thing.hull.max.y;
+        child.root.updateWorldMatrix(true,true);
+        child.center.setFromMatrixPosition(child.root.matrixWorld);
+      }
     },
     // a spinning part turns about its own up, after its own turn
     greet(thing, observer, reduced) {

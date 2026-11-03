@@ -1,0 +1,122 @@
+{
+  "author": "Kay Lousberg",
+  "pack": "KayKit Furniture Bits 1.0",
+  "source": "https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0",
+  "revision": "96d5930a8dbdb363409bbc2d3341718b00e17c9c",
+  "license": "CC0-1.0",
+  "licenseFile": "KayKit-LICENSE.txt",
+  "licenseHash": "cd675f2adc31eb5fedaedc1072d8ddc27b917f523682f0561837c03dc56393cb",
+  "assets": [
+    {
+      "id": "reading-chair",
+      "sourceModel": "armchair_pillows",
+      "sourceHashes": {
+        "armchair_pillows.gltf": "1344db27a72870fb0a1b43ffcfe12f5f3dd3284f5dcecd10ed593d6e0d940f79",
+        "armchair_pillows.bin": "b40556981e1bd4593ccaf7a14593f32e20859c2f2e6022a0ed0d1a278a4194a0",
+        "furniturebits_texture.png": "de62db37a80d1801c3d9eb674890ae04b04469e0c149481a51fa250562c628dc"
+      },
+      "file": "reading-chair-v1.glb",
+      "sha256": "eadd029a2f6211dc172f98a3a63404e31aa78a2b00de8104b14df43349af5880",
+      "bytes": 12068,
+      "triangles": 614,
+      "size": [
+        1.544042,
+        1.05,
+        1.372482
+      ],
+      "origin": "bounding-foot centre at [0,0,0], +Y up; front preserved from source",
+      "changes": "uniform metre normalization; roughness .85; meshopt and 512px WebP; no geometry simplification",
+      "support": null
+    },
+    {
+      "id": "side-table",
+      "sourceModel": "table_small",
+      "sourceHashes": {
+        "table_small.gltf": "6ae46ef60d18cf1fe507fbb2fb20235144af2ac7101f410269a761ac91ae9aee",
+        "table_small.bin": "e18bad66ad227a4a374fd58fbe6870a73c0f3f3687cb363506e0d77e07964066",
+        "furniturebits_texture.png": "de62db37a80d1801c3d9eb674890ae04b04469e0c149481a51fa250562c628dc"
+      },
+      "file": "side-table-v1.glb",
+      "sha256": "731f79f2d9cf2a9e3e1fe5149fece5141b62dd26d3fefbbb8a1a5798fdf30e55",
+      "bytes": 8540,
+      "triangles": 168,
+      "size": [
+        0.75,
+        0.75,
+        0.75
+      ],
+      "origin": "bounding-foot centre at [0,0,0], +Y up; front preserved from source",
+      "changes": "uniform metre normalization; roughness .85; meshopt and 512px WebP; no geometry simplification",
+      "support": {
+        "height": 0.75,
+        "half": [
+          0.35,
+          0.35
+        ]
+      }
+    },
+    {
+      "id": "books",
+      "sourceModel": "book_set",
+      "sourceHashes": {
+        "book_set.gltf": "437bfaba3f3413a0b825627a1cb905765a191f4708be51838c9b60c8132cbe61",
+        "book_set.bin": "3aa3fcc774b46c7ffe2b1a3109bf006749163bbb392cfca930b34bfba4b67853",
+        "furniturebits_texture.png": "de62db37a80d1801c3d9eb674890ae04b04469e0c149481a51fa250562c628dc"
+      },
+      "file": "books-v1.glb",
+      "sha256": "bf4ab51dc2cddf5f742999b4699f648c5900e13a7b4f0101be07e8726b377bef",
+      "bytes": 9232,
+      "triangles": 196,
+      "size": [
+        0.312,
+        0.2,
+        0.146
+      ],
+      "origin": "bounding-foot centre at [0,0,0], +Y up; front preserved from source",
+      "changes": "uniform metre normalization; roughness .85; meshopt and 512px WebP; no geometry simplification",
+      "support": null
+    },
+    {
+      "id": "book",
+      "sourceModel": "book_single",
+      "sourceHashes": {
+        "book_single.gltf": "7b86695b060681fc6de8ac70fc1f24b870edcaf84bfe4ed98b7e706ae594d464",
+        "book_single.bin": "0aa0921f471184039e85488a80041a0b4aee6f68589ad53077eea03f4659d66c",
+        "furniturebits_texture.png": "de62db37a80d1801c3d9eb674890ae04b04469e0c149481a51fa250562c628dc"
+      },
+      "file": "book-v1.glb",
+      "sha256": "368f721fb5de047fef812a81bb2c362ce29fbb32a6b4e52538f44927e5d2cf43",
+      "bytes": 7044,
+      "triangles": 68,
+      "size": [
+        0.104,
+        0.2,
+        0.146
+      ],
+      "origin": "bounding-foot centre at [0,0,0], +Y up; front preserved from source",
+      "changes": "uniform metre normalization; roughness .85; meshopt and 512px WebP; no geometry simplification",
+      "support": null
+    },
+    {
+      "id": "table-lamp",
+      "sourceModel": "lamp_table",
+      "sourceHashes": {
+        "lamp_table.gltf": "7cc2e9f24145551bfc919247e74a414bbd40bc2fde1fb9a1ac33e16cb9d0497b",
+        "lamp_table.bin": "c3d4cc2fea09cfb3037b9ece861abf6126cae3226858f18de37bd8cf87a06145",
+        "furniturebits_texture.png": "de62db37a80d1801c3d9eb674890ae04b04469e0c149481a51fa250562c628dc"
+      },
+      "file": "table-lamp-v1.glb",
+      "sha256": "9cd4d22032805c310d0ee0437bbb448bcf27d335cc3c011605aea0053cd713dd",
+      "bytes": 9792,
+      "triangles": 392,
+      "size": [
+        0.33279,
+        0.34,
+        0.33279
+      ],
+      "origin": "bounding-foot centre at [0,0,0], +Y up; front preserved from source",
+      "changes": "uniform metre normalization; roughness .85; meshopt and 512px WebP; no geometry simplification",
+      "support": null
+    }
+  ]
+}

@@ -55,12 +55,20 @@ for(const [device,viewport] of [['desktop',{width:1280,height:720}],['phone',{wi
           await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor;w.player.face(t.root.localToWorld(new V(0,.6,0)),()=>{},{down:true});},id);
           await page.waitForFunction(()=>!window.__planet.player.facing,null,{timeout:10000});
         }
-        const point=await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor,B=t.hull.constructor;w.camera.updateMatrixWorld(true);const points=[];t.root.traverse(o=>{if(o.isMesh)points.push(new B().setFromObject(o).getCenter(new V()));});for(const p of points){const q=p.project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;if(q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.95&&w.pickAt(x,y)===id)return{x,y};}return null;},id);
+        const probe=await page.evaluate(id=>{
+          const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor,B=t.hull.constructor;w.camera.updateMatrixWorld(true);const points=[],centres=[];
+          t.root.traverse(o=>{if(o.isMesh)points.push({p:new B().setFromObject(o).getCenter(new V()),method:'mesh-centre'});});
+          t.root.traverse(o=>{if(!o.isMesh)return;const p=o.geometry.attributes.position,ix=o.geometry.index,n=ix?ix.count:p.count;for(let i=0;i<24;i++){const k=3*Math.floor((n/3-1)*i/23),v=new V();for(let j=0;j<3;j++)v.add(new V().fromBufferAttribute(p,ix?ix.getX(k+j):k+j));points.push({p:v.multiplyScalar(1/3).applyMatrix4(o.matrixWorld),method:'triangle-centroid'});}});
+          for(const {p,method} of points){const q=p.project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2,hit=w.pickAt(x,y);if(method==='mesh-centre')centres.push({x,y,hit});if(q.z>0&&q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.95&&hit===id)return{point:{x,y},method,centreProbes:centres};}
+          return {point:null,centreProbes:centres};
+        },id);
+        const point=probe.point;
+        view[actionName]={id,probe};
         if(!point)throw Error('No visible action target: '+id);
         const initialLight=await page.evaluate(id=>window.__planet.spec.things.find(t=>t.id===id)?.lamp?.intensity,id);
         await page.mouse.click(point.x,point.y);
         await page.waitForFunction(({id,initialLight})=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id);return !w.busy()&&(t.use==='greet'?!!t.greeting:t.use==='sit'?w.seated()===id:t.use==='switch'?t.lamp?.intensity!==initialLight:t.use==='look'?w.scoped()===id:false);},{id,initialLight},{timeout:60000});
-        view[actionName]={id,point,observer:actionName==='action'?'Real tap and walking from the opening; no observer staging.':'Turned in place toward the seat using the player controller, then real tap/walk; position never teleported.',image:await shot(actionName)};
+        view[actionName]={id,point,probe,observer:actionName==='action'?'Real tap and walking from the opening; no observer staging.':'Turned in place toward the seat using the player controller, then real tap/walk; position never teleported.',image:await shot(actionName)};
         if(await page.locator('#stand').isVisible()){await page.locator('#stand').click();await page.waitForFunction(()=>!window.__planet.busy());}
       }
       if(name==='after') {await page.evaluate(()=>{const w=window.__planet;w.player.stop();w.player.look(Math.PI,0);});view.reverse=await shot('reverse');}

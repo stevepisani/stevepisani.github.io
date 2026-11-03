@@ -2,7 +2,8 @@
 // words (`model` in its spec) gets a model made from them by Meshy (tools/planet-models.mjs, run
 // by the Planet models workflow) into assets/models/planets/, listed in its manifest.json under
 // "<slug>/<thing id>" with the words it was made from. Once it's here it takes the place of the
-// thing's simple shapes, which show until then, and still do if the words have changed since.
+// thing's simple shapes. Available matching models load before the first reveal; shapes remain
+// for models still being made, or whose words have changed since.
 // A stock thing (stock in its spec) gets the stock model, made once for every planet
 // ("stock/<name>", from the words in STOCK). A thing whose words have no model here yet may have one
 // being made while the chat waits (supabase/functions/planets/models.js, started by its preview):
@@ -15,6 +16,19 @@ import { modelKey, MODELS_URL } from '../../../supabase/functions/_shared/planet
 
 const BASE = new URL('../../models/planets/', import.meta.url);
 const loader = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+
+// Parsing/decoding cannot itself be aborted. Stop waiting on the same deadline as fetch and
+// discard its eventual result; never let a late decode mutate an already failed scene.
+async function decode(bytes, path, gltf, signal) {
+  signal.throwIfAborted();
+  let abort;
+  const stopped = new Promise((_, reject) => {
+    abort = () => reject(Error('Model loading timed out'));
+    signal.addEventListener('abort', abort, { once: true });
+  });
+  try { return await Promise.race([gltf.parseAsync(bytes, path), stopped]); }
+  finally { signal.removeEventListener('abort', abort); }
+}
 
 // Accepted library assets are part of the first reveal, rather than a later replacement.
 // Fetch/parse each once even when several trees share it. Unknown names are never URLs.
@@ -34,29 +48,64 @@ export async function loadSceneAssets(spec) {
 const ASK_EVERY = 10_000, ASK_FOR = 12 * 60_000;
 
 /**
- * Loads the models made for this planet's things and swaps each in (things.swap); resolves to how
- * many, once those already made are in. Those still being made come in later, as they're made.
+ * Load the already-made models before framing/reveal. A bounded, shared deadline prevents one
+ * broken asset from holding the loading screen forever. Parse at most three files concurrently,
+ * and clone a shared source for repeated furniture. Pending generation never delays the reveal.
  */
 export async function loadModels(spec, things) {
   const wanted = (spec.things || []).filter((t) => t.model || t.stock);
   if (!wanted.length) return 0;
-  let made = {};
-  try { made = await (await fetch(new URL('manifest.json', BASE))).json(); } catch { /* none here: maybe some are being made */ }
+  const controller = new AbortController();
+  const deadline = setTimeout(() => controller.abort(), 15000);
   const gltf = loader();
+  const sources = new Map();
+  const initial = async url => {
+    if (!sources.has(url)) sources.set(url, (async () => {
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) throw Error(`Model unavailable (${response.status})`);
+      const parsed = await decode(await response.arrayBuffer(), new URL('.', url).href, gltf, controller.signal);
+      return parsed.scene;
+    })());
+    return (await sources.get(url)).clone(true);
+  };
+  // Later generation retains the existing progressive replacement path, independently of the
+  // initial batch's deadline/cache. A failed later load must not remove the original shapes.
   const swap = async (t, url) => {
     try { things.swap(t, (await gltf.loadAsync(url)).scene); return true; } catch (e) { console.warn(`${t.id}: its model didn't load`, e); return false; }
   };
-  let n = 0;
-  const later = [];
-  // one at a time, so the walk keeps drawing between them (each is parsed on the main thread)
-  for (const t of wanted) {
-    const [key, words] = t.stock ? [`stock/${t.stock}`, STOCK[t.stock].model] : [`${spec.slug}/${t.id}`, t.model];
-    const m = made[key];
-    if (m && m.model === words) { if (await swap(t, new URL(m.file, BASE).href)) n++; }
-    else if (!t.stock) later.push(t);
+  const later = [], ready = [];
+  try {
+    let made={};
+    if(wanted.some(t=>!t.stock||STOCK[t.stock].model)) {
+      const response = await fetch(new URL('manifest.json', BASE), { signal: controller.signal });
+      if (!response.ok) throw Error('The model library is unavailable');
+      made = await response.json();
+    }
+    for (const t of wanted) {
+      if(t.stock && STOCK[t.stock].file){ready.push({t,url:new URL(STOCK[t.stock].file,BASE).href});continue;}
+      const [key, words] = t.stock ? [`stock/${t.stock}`, STOCK[t.stock].model] : [`${spec.slug}/${t.id}`, t.model];
+      const m = made[key];
+      if (m && m.model === words) ready.push({ t, url: new URL(m.file, BASE).href });
+      else if (!t.stock) later.push(t);
+      else throw Error(`The ready ${t.stock} model is missing`);
+    }
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(3, ready.length) }, async () => {
+      while (next < ready.length) {
+        const { t, url } = ready[next++];
+        const model = await initial(url);
+        if (controller.signal.aborted) throw Error('Model loading timed out');
+        things.swap(t, model);
+      }
+    }));
+  } catch (error) {
+    controller.abort();
+    throw error;
+  } finally {
+    clearTimeout(deadline);
   }
   if (later.length) whileMade(later, swap);
-  return n;
+  return ready.length;
 }
 
 // the models being made while the chat waits: asked after until each is in, has failed, or it's

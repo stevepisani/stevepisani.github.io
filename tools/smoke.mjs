@@ -1924,6 +1924,91 @@ async function chatModel(page, shot) {
   step("a model made while the chat waits: asked after by its words' key, and swapped in for the shapes once it's made");
 }
 
+// Finished furniture must be in the actual first frame, even over a slow connection. This is
+// an authored library study, not an unseen interview or evidence of aesthetic acceptance.
+async function readingFamily(page, shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-reading.json',import.meta.url)));
+  const prepare=async design=>{const r=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:design}}},{})).result;if(r.isError)throw Error(r.content[0].text);return r.structuredContent.spec;};
+  let manifestRequests=0;
+  await page.route('**/assets/models/planets/manifest.json',route=>{manifestRequests++;return route.abort();});
+  const load=async design=>{await page.goto(`${base}/p/preview/?test=1#${await packPlanet(design)}`);await page.reload();await until(page,()=>window.__planet?.ready,null,240000);await page.locator('#veil').waitFor({state:'hidden'});};
+  const contact=async()=>page.evaluate(()=>{
+    const w=window.__planet,V=w.camera.position.constructor,table=w.spec.things.find(t=>t.id==='table');table.root.updateWorldMatrix(true,true);
+    const up=table.root.localToWorld(new V(0,1,0)).sub(table.root.getWorldPosition(new V())).normalize();
+    return {real:w.spec.things.filter(t=>t.real).length,placed:w.spec.things.filter(t=>t.on).every(t=>{const n=t.root.localToWorld(new V(0,1,0)).sub(t.root.getWorldPosition(new V())).normalize();return t.real&&t.root.parent===table.root&&Math.abs(t.root.position.y-table.hull.max.y)<1e-5&&Math.abs(t.hull.min.y)<1e-5&&n.distanceTo(up)<1e-5&&!w.things.colliders.some(c=>c.center.distanceTo(t.center)<1e-6);})};
+  });
+  const first=await prepare(input);await load(first);
+  const a=await contact();if(a.real!==4||!a.placed||manifestRequests)throw Error(`ready family, physical tabletop attachment and no generated-model manifest request: ${JSON.stringify({...a,manifestRequests})}`);
+  await shot('reading-first-reveal');
+  // Real triangle samples, rather than an empty bounding-box centre or a direct action hook.
+  const targetOf=async id=>{
+    return await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor;w.camera.updateMatrixWorld(true);let hit=null;t.body.traverse(o=>{if(!o.isMesh||hit)return;const p=o.geometry.attributes.position,ix=o.geometry.index,count=ix?ix.count:p.count;for(let i=0;i<24&&!hit;i++){const k=3*Math.floor((count/3-1)*i/23),v=new V();for(let j=0;j<3;j++)v.add(new V().fromBufferAttribute(p,ix?ix.getX(k+j):k+j));const q=v.multiplyScalar(1/3).applyMatrix4(o.matrixWorld).project(w.camera),x=(q.x+1)*innerWidth/2,y=(1-q.y)*innerHeight/2;if(q.z>0&&q.z<1&&Math.abs(q.x)<.95&&Math.abs(q.y)<.85&&w.pickAt(x,y)===id)hit={x,y};}});return hit;},id);
+  };
+  const tap=async id=>{const target=await targetOf(id);if(!target)throw Error('No actual visible target for '+id);await page.mouse.click(target.x,target.y);};
+  const intensity=await page.evaluate(()=>window.__planet.spec.things.find(t=>t.id==='lamp').lamp.intensity);
+  await tap('lamp');await until(page,i=>!window.__planet.busy()&&window.__planet.spec.things.find(t=>t.id==='lamp').lamp.intensity!==i,intensity,60000);await shot('reading-lamp-switched');
+  await page.keyboard.press('Escape');
+  // Restore the real arrival after the lamp walk, then tap the actual chair from there.
+  await load(first);await tap('chair');await until(page,()=>window.__planet.seated()==='chair'&&!window.__planet.busy(),null,60000);const seatedTargets={books:await targetOf('books'),table:await targetOf('table')};if(!seatedTargets.books||!seatedTargets.table)throw Error('sitting must show real table and book faces: '+JSON.stringify(seatedTargets));await shot('reading-seated');await tap('books');await until(page,()=>!window.__planet.busy()&&!document.getElementById('thing').hidden&&/A favorite story/.test(document.getElementById('thing').textContent),null,60000);await until(page,()=>!window.__planet.player.target&&!window.__planet.player.facing);await shot('reading-book-reward');await page.keyboard.press('Escape');
+  const edit=structuredClone(input);edit.things.push({id:'new-book',name:'One more story',stock:'book',on:{of:'table',at:[-.17,.14]},solid:false,role:'support'});edit.reveal='new-book';
+  const next=await prepare(edit);if(!first.things.every(t=>JSON.stringify(t)===JSON.stringify(next.things.find(n=>n.id===t.id))))throw Error('a tabletop addition moved an existing object');await load(next);
+  const b=await contact(),detail=await page.evaluate(()=>window.__planet.opening().detail);
+  if(b.real!==5||!b.placed||!detail?.meetsBudget)throw Error(`finished, grounded, visible book addition: ${JSON.stringify({b,detail})}`);await shot('reading-book-added');
+  await page.getByRole('button',{name:'Whole place',exact:true}).click();await until(page,()=>!window.__planet.opening().detail);await page.getByRole('button',{name:'See addition',exact:true}).click();await until(page,()=>window.__planet.opening().detail?.id==='new-book');
+  const moved=structuredClone(input);moved.slug='test-reading-turned';moved.things[0].at={bearing:14,distance:8};moved.things[0].turn=-35;moved.things[1].turn=55;moved.things[1].scale=1.5;delete moved.setting;
+  await load(await prepare(moved));if(!(await contact()).placed)throw Error('tabletop props lost support on another terrain/orientation/scale');await shot('reading-open-turned');
+  await page.route('**/library/books-v1.glb',route=>route.fulfill({status:404}));await page.reload();await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');if(await page.evaluate(()=>!!window.__planet?.ready))throw Error('an unavailable ready prop revealed its envelope');
+  step('ready CC0 family; real sit/switch; supported book/lamp through scale, turn and terrain; stable featured book addition; missing source never reveals an envelope');
+}
+
+async function readyModels(page, shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-ready-models.json',import.meta.url)));
+  const prepared=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:input}}},{})).result;
+  if(prepared.isError)throw Error(prepared.content[0].text);
+  const url=`${base}/p/preview/?test=1#${await packPlanet(prepared.structuredContent.spec)}`;
+  let release,requested=false,chairRequests=0;
+  const held=new Promise(r=>{release=r;});
+  await page.route('**/assets/models/planets/stock/*.glb',async route=>{
+    if(route.request().url().endsWith('/chair.glb'))chairRequests++;
+    if(route.request().url().endsWith('/bench.glb')){requested=true;await held;}
+    await route.continue();
+  });
+  await page.goto(url);
+  await until(page,()=>/finishing touches/.test(document.getElementById('veil-status').textContent));
+  for(let i=0;i<100&&!requested;i++)await page.waitForTimeout(50);
+  if(!requested)throw Error('the ready model was never requested');
+  if(await page.evaluate(()=>window.__planet?.ready||document.getElementById('veil').classList.contains('is-gone')))throw Error('placeholder furniture was revealed before the ready model arrived');
+  await shot('waiting-for-finished-furniture');release();
+  await until(page,()=>window.__planet?.ready,null,240000);
+  await page.locator('#veil').waitFor({state:'hidden'});
+  const first=await page.evaluate(()=>{
+    const w=window.__planet;
+    return {real:w.spec.things.filter(t=>t.real).map(t=>t.id),fits:w.opening().fits,chairs:w.spec.things.filter(t=>t.stock==='chair').map(t=>t.body.children[0].uuid),contained:w.spec.things.filter(t=>t.real).every(t=>{const V=w.camera.position.constructor,a=t.box.getSize(new V()),b=t.hull.getSize(new V());return ['x','y','z'].every(k=>b[k]<=a[k]+1e-5);})};
+  });
+  if(first.real.length!==5||!first.fits||!first.contained||new Set(first.chairs).size!==2||chairRequests!==1)throw Error(`finished first reveal, contained geometry, independent chair clones and one source request: ${JSON.stringify({...first,chairRequests})}`);
+  await shot('finished-first-reveal');
+  step('the first reveal waits for all five ready models; two chairs share one fetch but have independent transforms; finished geometry fits');
+
+  await page.unroute('**/assets/models/planets/stock/*.glb');
+  await page.route('**/assets/models/planets/stock/bench.glb',route=>route.fulfill({status:404}));
+  await page.reload();
+  await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');
+  if(await page.evaluate(()=>window.__planet?.ready)||!await page.locator('#veil-status').textContent().then(t=>/models.*reload/i.test(t)))throw Error('a missing ready model revealed placeholders instead of a reload message');
+  await shot('missing-ready-model');
+  step('an unavailable ready model gives a reload message instead of an unfinished first reveal');
+  await page.unroute('**/assets/models/planets/stock/bench.glb');
+  let finish;
+  const stalled=new Promise(r=>{finish=r;});
+  await page.route('**/assets/models/planets/stock/bench.glb',async route=>{await stalled;await route.continue().catch(()=>{});});
+  await page.clock.install();await page.reload();
+  await until(page,()=>/finishing touches/.test(document.getElementById('veil-status').textContent));
+  await page.clock.fastForward(15001);
+  await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');
+  finish();await page.waitForTimeout(200);
+  if(await page.evaluate(()=>window.__planet?.ready))throw Error('a late model revived a timed-out first reveal');
+  step('the initial model batch times out within one 15-second budget, and late completion cannot reveal it');
+}
+
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as
 // in it (showsNothing) is really there. A metre cube 9 m out at bearing 17 is on screen as they
 // land; at bearing 30 it isn't, and the connector refuses a planet with only that.
@@ -2157,6 +2242,10 @@ if (want('planets') || want('scenes')) await session('composed scenes phone', { 
 if (want('planets')) await session('planets preview', { viewport: { width: 1280, height: 800 } }, preview);
 if (want('planets')) await session('planets card', { viewport: { width: 760, height: 900 } }, planetCard);
 if (want('planets')) await session('planets chat model', { viewport: { width: 1000, height: 700 } }, chatModel);
+if (want('planets') || want('models')) await session('ready models card', { viewport: { width: 700, height: 440 } }, readyModels);
+if (want('planets') || want('models')) await session('ready models phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readyModels);
+if (want('planets') || want('library')) await session('reading family card', { viewport: { width: 700, height: 440 } }, readingFamily);
+if (want('planets') || want('library')) await session('reading family phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readingFamily);
 if (want('planets')) await session('planets first view phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, firstView);
 if (want('planets')) await session('planets card phone', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true }, (p, s) => planetCard(p, s, { phone: true }));
 if (want('nogl')) await session('nogl fallback', { viewport: { width: 1280, height: 800 } }, noWebGL, [...browserArgs, '--disable-webgl', '--disable-webgl2', '--disable-3d-apis']);

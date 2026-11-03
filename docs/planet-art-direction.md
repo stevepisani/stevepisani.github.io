@@ -76,6 +76,25 @@ A successful generation job, valid GLB or geometry check cannot certify visual q
 hero assets must be ready before they are promised as finished. A fallback must meet the bar
 on its own; a later swap cannot rescue an inadequate first impression.
 
+Ready stock and matching cached custom models now load before reveal and before the receiving
+viewport's overview is chosen. Repeated props share the source download, not their transforms.
+The batch has a 15-second deadline and a clear reload failure instead of revealing advertised-ready
+models as placeholders. All three placement-envelope axes constrain uniform model size. A canopy
+frames the activity; fitting its entire roof must not force small furniture into the distance. This
+closes a delivery gap for existing assets; it does not add an accepted hero family or establish
+quality for unfamiliar interviews. Next content work should expand the accepted finished library
+after neutral and scene review, then use a newly frozen kit for independent first-attempt evidence.
+
+The next small family is five versioned CC0 KayKit furnishings: a reading chair, side table,
+book row, single book and table lamp (46,676 bytes total). They are explicit ready stock choices,
+not automatic reading scenes. A declared flat support lets independent props sit on the real
+table while inheriting its orientation/scale, with bounded fit and overlap validation. No world
+height guesses, compound-person defaults or new paid requests are needed. Neutral front/back
+and real arrival/action/addition reviews remain development evidence; the owner's visual bar,
+broader personal heroes and fresh independent first-attempt quality are still open.
+A sit can explicitly face a named activity (`seatView.toward`) using its actual bounds. A
+successful seated state alone is insufficient: the review must show the activity from that view.
+
 Reuse generic material textures, palms, planting, terrain and rendering techniques already in
 the engine. Preserve the storybook miniature style. Do not copy another person's architecture,
 signs, collections or biography as a default.

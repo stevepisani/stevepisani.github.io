@@ -31,7 +31,7 @@ export { STYLE_NAME } from './planet-model-cache.mjs';
 export const PER_PLANET = 14, PER_RUN = 24, FIRST_PLANETS = 10;
 const isFriend = (slug) => slug !== EXAMPLE.slug && slug !== 'stock' && !slug.startsWith('test-');
 // the stock things as a planet of their own, one of each, so their models are made like any planet's
-const STOCK_PLANET = { version: 1, slug: 'stock', who: { name: 'Stock' }, things: Object.entries(STOCK).map(([id, k], i) => ({ id, name: id, model: k.model, at: { bearing: i * 30 - 120, distance: 6 }, parts: partsOf({ stock: id }) })) };
+const STOCK_PLANET = { version: 1, slug: 'stock', who: { name: 'Stock' }, things: Object.entries(STOCK).filter(([,k])=>k.model).map(([id, k], i) => ({ id, name: id, model: k.model, at: { bearing: i * 30 - 120, distance: 6 }, parts: partsOf({ stock: id }) })) };
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const OUT = root + 'assets/models/planets/', TMP = root + '.planet-models-tmp/', SPECS = root + 'tools/models/planets/', PICTURES = SPECS + 'pictures/';
