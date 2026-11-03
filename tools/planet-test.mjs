@@ -14,6 +14,8 @@ import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingR
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
 import './planet-authoring-guard-test.mjs';
+import './planet-ground-zones-test.mjs';
+import './planet-action-view-test.mjs';
 
 let passed = 0;
 const ok = (cond, what, detail) => { if (!cond) throw new Error(`planet: ${what}${detail !== undefined ? `\n  got ${JSON.stringify(detail).slice(0, 900)}` : ''}`); passed++; };

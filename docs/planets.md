@@ -68,6 +68,19 @@ tap reverses from the current state. Reduced motion settles immediately. Labels 
 characters; a small accessible status accompanies the visible response instead of an explanatory
 card. The existing optional details button remains available.
 
+Approaches reuse the homepage's obstacle route planner. A change action walks to a clear
+surface viewpoint, then enters a visitor-triggered inspection view fitted to both endpoint
+bounds. The full response stays between the upper controls and lower status. Tapping again
+reverses; Step back, Escape, browser Back or a movement key returns to walking. A blocked or
+unframeable response is reported without firing the change from a distance. Sitting, greeting,
+light and telescope actions retain their behavior with routed approaches.
+
+Rotation during an approach replans the route; during framing it invalidates the stale pose.
+An active inspection keeps its physical foot position and refits its eye/lens, restoring the
+ordinary lens on exit. Bounds and sampled mesh visibility are technical checks, not proof that
+a personal detail or the changed part is recognizable. Actual card images remain necessary.
+
+
 For example, a small leaf can unfold, or a keepsake can settle into a chosen place. The response
 is a bounded reversible visual state, not a gardening, skating, cooking or postal simulation.
 It uses no arbitrary script, network request, generation or new model. Only box, sphere,

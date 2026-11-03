@@ -1938,8 +1938,21 @@ async function smallResponses(page,shot) {
     const start=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
     await shot(`response-${id}-${motion}-before`);
     let point=await targetOf(id);if(!point)throw Error('Response not tappable in arrival: '+id);await page.mouse.click(point.x,point.y);
+    const originalViewport=page.viewportSize(),rotating=motion==='no-preference'&&id==='plant';
+    if(rotating){
+      await until(page,()=>['approaching','framing'].includes(window.__planet.actionDebug()?.trace?.stage),null,60000);
+      await page.setViewportSize({width:originalViewport.width>500?366:700,height:440});
+    }
+
     await until(page,id=>{const t=window.__planet.spec.things.find(t=>t.id===id);return !window.__planet.busy()&&t.responded&&t.responseState.value===1;},id,60000);
     await page.locator('#response-caption').waitFor({state:'visible'});
+    const assertResponseFits=async()=>{
+      const fit=await page.evaluate(id=>{const w=window.__planet,t=w.spec.things.find(t=>t.id===id),V=w.camera.position.constructor,B=t.box.constructor;w.camera.updateMatrixWorld(true);const b=new B().setFromObject(t.root),points=[];for(const x of [b.min.x,b.max.x])for(const y of [b.min.y,b.max.y])for(const z of [b.min.z,b.max.z]){const q=new V(x,y,z).project(w.camera);points.push({x:(q.x+1)*innerWidth/2,y:(1-q.y)*innerHeight/2,z:q.z});}const rect=s=>{const e=document.querySelector(s);return e&&!e.hidden?e.getBoundingClientRect():null;};const top=Math.max(...['.topbar','#stand','#details'].map(s=>rect(s)?.bottom||0)),bottom=rect('#response-caption')?.top||innerHeight;return {points,top,bottom,width:innerWidth,height:innerHeight};},id);
+      if(fit.points.some(p=>p.z<=0||p.z>=1||p.x<0||p.x>fit.width||p.y<fit.top-2||p.y>fit.bottom+2))throw Error('Rendered response is cropped or covered by controls: '+JSON.stringify(fit));
+    };
+    await assertResponseFits();
+    if(rotating){await page.setViewportSize(originalViewport);await until(page,()=>window.__planet.camera.aspect===innerWidth/innerHeight&&!window.__planet.busy(),null,60000);await assertResponseFits();}
+
     const end=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
     if(JSON.stringify(start)===JSON.stringify(end))throw Error('Response state did not change rendered meshes');
     await shot(`response-${id}-${motion}-after`);
@@ -1948,9 +1961,36 @@ async function smallResponses(page,shot) {
     const reset=await page.evaluate(id=>{const t=window.__planet.spec.things.find(t=>t.id===id),all=[];t.body.traverse(m=>{if(m.userData.responding)all.push({position:m.position.toArray(),scale:m.scale.toArray()});});return all;},id);
     if(JSON.stringify(start)!==JSON.stringify(reset))throw Error('Response did not restore original geometry');
     await shot(`response-${id}-${motion}-reset`);
+    if(await page.evaluate(id=>window.__planet.responseView()!==id,id))throw Error('A response must retain its explicit view until the visitor exits');
+    if(motion==='reduce'&&id==='plant')await page.getByRole('button',{name:'Step back',exact:true}).click();
+    else if(motion==='reduce')await page.keyboard.press('Escape');
+    else if(id==='plant')await page.goBack();
+    else {await page.keyboard.down('ArrowUp');await until(page,()=>!window.__planet.responseView(),null,60000);await page.keyboard.up('ArrowUp');}
+    await until(page,()=>!window.__planet.responseView()&&!window.__planet.busy(),null,60000);
+
     if(motion==='reduce'&&id==='plant')await page.unroute('**/p/preview/**');
   }
   step('two reusable visual responses: real taps, changed meshes, reversal, normal and reduced motion');
+}
+
+// Authored landscape controls, separate from preserved interview regression evidence.
+async function landscapeSurfaces(page,shot) {
+  const input=JSON.parse(readFileSync(new URL('./fixtures/planet-ground-zones.json',import.meta.url)));
+  for(const baseKind of ['rock','grass']) {
+    const design=structuredClone(input);design.look.ground.base=baseKind;
+    const result=(await planets.rpc({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'prepare_planet',arguments:{spec:design}}},{})).result;
+    if(result.isError)throw Error(result.content[0].text);
+    await page.goto('about:blank');await page.goto(`${base}/p/preview/?test=1#${await packPlanet(result.structuredContent.spec)}`);
+    await until(page,()=>window.__planet?.ready,null,120000);await page.locator('#veil').waitFor({state:'hidden'});
+    const observed=await page.evaluate(()=>{
+      const mesh=window.__planet.ground.mesh,g=mesh.geometry,p=g.getAttribute('position'),mix=g.getAttribute('groundBlend');let localPaving=0,outside=0;
+      for(let i=0;i<p.count;i++){if(mix.getW(i)>.8)localPaving++;if(p.getY(i)<0&&mix.getW(i)<.001)outside++;}
+      const gl=document.getElementById('planet-canvas').getContext('webgl2');return {base:mesh.userData.groundBase,zones:mesh.userData.groundZones.length,localPaving,outside,glError:gl.getError()};
+    });
+    if(observed.base!==baseKind||!observed.zones||!observed.localPaving||!observed.outside||observed.glError)throw Error('Scene surface escaped the natural base or shader failed: '+JSON.stringify(observed));
+    await shot(`landscape-${baseKind}`);
+  }
+  step('standard grass/rock remains outside actual feathered scene surfaces at both card sizes');
 }
 
 // Finished furniture must be in the actual first frame, even over a slow connection. This is
@@ -2273,6 +2313,8 @@ if (want('planets')) await session('planets card', { viewport: { width: 760, hei
 if (want('planets')) await session('planets chat model', { viewport: { width: 1000, height: 700 } }, chatModel);
 if (want('planets') || want('models')) await session('ready models card', { viewport: { width: 700, height: 440 } }, readyModels);
 if (want('planets') || want('models')) await session('ready models phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readyModels);
+if (want('planets') || want('landscape')) await session('landscape card', { viewport: { width: 700, height: 440 } }, landscapeSurfaces);
+if (want('planets') || want('landscape')) await session('landscape phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, landscapeSurfaces);
 if (want('planets') || want('responses')) await session('small responses card', { viewport: { width: 700, height: 440 } }, smallResponses);
 if (want('planets') || want('responses')) await session('small responses phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, smallResponses);
 if (want('planets') || want('library')) await session('reading family card', { viewport: { width: 700, height: 440 } }, readingFamily);

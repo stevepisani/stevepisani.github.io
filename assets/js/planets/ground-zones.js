@@ -1,11 +1,12 @@
 // Soft material footprints derived from the built scene. No terrain or collision changes.
 import * as THREE from 'three';
+import {DEFAULT_GROUND_BASE} from '../../../supabase/functions/_shared/planet.js';
 
 const FEATHER = 0.85, MARGIN = 0.8;
 const clamp = THREE.MathUtils.clamp, smooth = THREE.MathUtils.smoothstep;
 export const BASE_COLORS = Object.freeze({rock:'#777b73',grass:'#748566'});
 export const COVER_COLORS = Object.freeze({rock:'#777b73',grass:'#84976c',sand:'#cbbd99',snow:'#d8dce0',paving:'#958c78'});
-export function groundBase(base){return base==='grass'||base==='rock'?base:'rock';}
+export function groundBase(base){return base==='grass'||base==='rock'?base:DEFAULT_GROUND_BASE;}
 
 // Use tangent rectangles, not the object's tall spherical picking envelope: a canopy or
 // screen must not turn half the planet into paving. Nearby rectangles overlap into a scene.
