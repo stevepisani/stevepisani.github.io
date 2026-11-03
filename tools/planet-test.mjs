@@ -375,6 +375,7 @@ await import('./planet-scene-kit-test.mjs');
 await import('./planet-setting-test.mjs');
 await import('./planet-first-shot-test.mjs');
 await import('./planet-motion-test.mjs');
+await import('./planet-response-test.mjs');
 // ---------- Real models made while the chat waits: the connector on the real schema, a made-up Meshy ----------
 {
 const { modelsNow, MODELS_A_MONTH, PER_PLANET: CHAT_PER_PLANET } = await import('../supabase/functions/planets/models.js');

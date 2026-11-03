@@ -59,7 +59,7 @@ export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
 // or to its left or right as it faces
 export const SIDES = ['front', 'back', 'left', 'right'];
 // what a thing does when you walk up to it: sit on it (facing the way it faces) or switch its light
-export const USES = ['sit', 'switch', 'greet', 'look'];
+export const USES = ['sit', 'switch', 'greet', 'look', 'change'];
 export const SURFACES = ['wood', 'bamboo', 'thatch', 'cloth'];
 // Stock things, as a film set keeps stock props: small things every place uses, each a real model
 // made once in the house style (tools/planet-models.mjs makes them as the planet "stock"; Steve
@@ -79,6 +79,7 @@ export const STOCK = {
   ...LIBRARY_STOCK,
 };
 
+export const MIN_PART_SIZE = 0.01;
 export const LIMITS = {
   bytes: 64 * 1024, // the whole spec, as JSON
   text: 600, // any one piece of text
@@ -252,7 +253,7 @@ export function checkPlanet(spec) {
   list('things', spec.things, LIMITS.things).forEach((t, i) => {
     const at = `things[${i}]`;
     if (!isObj(t)) return fail(at, 'should be an object');
-    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'on', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith']);
+    only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'on', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith', 'response']);
     if(t.frameWith!==undefined && (typeof t.frameWith!=='string'||!thingIds.has(t.frameWith)))fail(`${at}.frameWith`,'should name a thing listed before this one');
     if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
@@ -313,7 +314,16 @@ export function checkPlanet(spec) {
     ps.forEach((p, j) => {
       const pat = `${at}.parts[${j}]`;
       if (!isObj(p)) return fail(pat, 'should be an object');
-      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint', 'ground']);
+      only(pat, p, ['shape', 'size', 'at', 'turn', 'color', 'finish', 'spin', 'text', 'round', 'profile', 'outline', 'path', 'thick', 'repeat', 'mirror', 'surface', 'joint', 'ground', 'after']);
+      if(p.after!==undefined){
+        if(t.use!=='change'||!isObj(p.after)||p.repeat||p.mirror||p.joint||p.spin||p.ground||!['box','sphere','cylinder','cone','capsule'].includes(p.shape))fail(`${pat}.after`,'needs a change action and one unanimated basic part without ground/repeat/mirror/joints');
+        else {
+          only(`${pat}.after`,p.after,['size','at']);
+          if(!Object.keys(p.after).length)fail(`${pat}.after`,'needs a new size or position');
+          triple(`${pat}.after.size`,p.after.size,MIN_PART_SIZE,LIMITS.size);
+          triple(`${pat}.after.at`,p.after.at,-LIMITS.size,LIMITS.size);
+        }
+      }
       if(p.ground!==undefined && typeof p.ground!=='boolean')fail(`${pat}.ground`,'should be true or false');
       if(p.ground && (!['box','cylinder'].includes(p.shape) || p.repeat || p.mirror || p.spin || p.joint || p.turn?.[0] || p.turn?.[2]))fail(`${pat}.ground`,'only an upright, unanimated box or cylinder can meet the ground');
       if (p.surface !== undefined && !SURFACES.includes(p.surface)) fail(`${pat}.surface`, `should be one of ${SURFACES.join(', ')}`);
@@ -324,7 +334,7 @@ export function checkPlanet(spec) {
       parts += copies;
       if (!SHAPES.includes(p.shape)) fail(`${pat}.shape`, `should be one of ${SHAPES.join(', ')}`);
       if (p.size === undefined) fail(`${pat}.size`, 'missing: [width, height, depth] in metres');
-      triple(`${pat}.size`, p.size, 0.01, LIMITS.size);
+      triple(`${pat}.size`, p.size, MIN_PART_SIZE, LIMITS.size);
       triple(`${pat}.at`, p.at, -LIMITS.size, LIMITS.size);
       triple(`${pat}.turn`, p.turn, -360, 360);
       color(`${pat}.color`, p.color);
@@ -350,6 +360,12 @@ export function checkPlanet(spec) {
       }
       if (p.mirror !== undefined && typeof p.mirror !== 'boolean') fail(`${pat}.mirror`, 'should be true or false');
     });
+    if(t.use==='change' || t.response!==undefined){
+      if(t.use!=='change'||!isObj(t.response)||t.model||t.stock||t.craft||t.on)fail(`${at}.response`,'change needs custom ground-level parts and response labels; no model/stock/craft/tabletop');
+      else {only(`${at}.response`,t.response,['label','done']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);}
+      if(!ps.some(p=>p?.after))fail(`${at}.response`,'change needs at least one part with after');
+      if(ps.filter(p=>p?.after).length>8)fail(`${at}.response`,'at most eight changing parts');
+    }
     if (t.light !== undefined) {
       lights++;
       if (!isObj(t.light)) fail(`${at}.light`, 'should be an object');
@@ -600,8 +616,8 @@ export function showsNothing(spec) {
 
 /** Notes on a spec that passed checkPlanet, each "where: what", for its maker to look at. */
 // each part's box in metres from its thing's foot: [x0, x1, y0, y1, z0, z1], copies included
-function partBoxes(t) {
-  return partsOf(t).map((p) => {
+function partBoxes(t,allStates=false) {
+  return partsOf(t).flatMap(p=>allStates&&p.after?[p,{...p,...p.after,after:undefined}]:[p]).map((p) => {
     // a turned part is measured as if it could face any way: turned about its up, its longest side
     // either way along the ground; tipped over, its longest side every way
     const [x, y, z] = p.size, [tx, ty, tz] = (p.turn || [0, 0, 0]).map((a) => a % 180 !== 0), s = t.scale || 1;
@@ -622,11 +638,12 @@ const boxOf = (bs) => [Math.min(...bs.map((b) => b[0])), Math.max(...bs.map((b) 
 
 /** How far a thing reaches from its foot along the ground, in metres. */
 export function thingReach(t) {
-  if (t.footprint) return Math.max(...t.footprint) / 2 * (t.scale || 1);
-  const bs = partBoxes(t);
+  const footprint=t.footprint?Math.max(...t.footprint)/2*(t.scale||1):0;
+  if (t.footprint && t.use!=='change') return footprint;
+  const bs = partBoxes(t,true);
   if (!bs.length) return 0;
   const all = boxOf(bs);
-  return Math.max(Math.abs(all[0]), Math.abs(all[1]), Math.abs(all[4]), Math.abs(all[5]));
+  return Math.max(footprint,Math.abs(all[0]), Math.abs(all[1]), Math.abs(all[4]), Math.abs(all[5]));
 }
 
 /**

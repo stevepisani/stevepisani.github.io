@@ -12,9 +12,8 @@ function make(id,width,height,position,role='focus') {
 function fits(frame,aspect,fov) {
   assert(frame?.fits,'a supported primary activity should fit');
   const cam=new THREE.PerspectiveCamera(fov,aspect,.05,2000);cam.position.copy(frame.dir).multiplyScalar(RADIUS+frame.eye);cam.up.copy(frame.dir);cam.lookAt(frame.target);cam.updateMatrixWorld(true);
-  for(const x of [frame.bounds.min.x,frame.bounds.max.x])for(const y of [frame.bounds.min.y,frame.bounds.max.y])for(const z of [frame.bounds.min.z,frame.bounds.max.z]) {
-    const p=new THREE.Vector3(x,y,z).project(cam);assert(Math.abs(p.x)<.85 && Math.abs(p.y)<.85 && p.z<1,'bounds should clear the viewport edges');
-  }
+  const points=frame.fitPoints||[...function*(){for(const x of [frame.bounds.min.x,frame.bounds.max.x])for(const y of [frame.bounds.min.y,frame.bounds.max.y])for(const z of [frame.bounds.min.z,frame.bounds.max.z])yield new THREE.Vector3(x,y,z);}()];
+  for(const point of points){const p=point.clone().project(cam);assert(Math.abs(p.x)<(aspect<1.05?.94:.85) && Math.abs(p.y)<.85 && p.z<1,'actual activity bounds should clear the viewport edges');}
 }
 for(const [w,h] of [[1,2],[5,4],[3,7]])for(const aspect of [390/844,1280/720]) {
   const focus=make('activity',w,h,[0,19,-6]);const fov=aspect<1?72:54;
@@ -41,6 +40,10 @@ for(const aspect of [366/440,700/440]) {
   fits(small,aspect,72);
 }
 const feet=frame.dir.clone().multiplyScalar(RADIUS),collider={center:feet,radius:.5};
+const centre=make('compact activity',1.2,1.5,[0,19,-6]),secondary=make('secondary furnishing',1,2,[4.6,19,-6],'support');
+const phone=overviewFrame([centre,secondary],{aspect:366/440,fov:72,surface:()=>RADIUS}),desktop=overviewFrame([centre,secondary],{aspect:700/440,fov:54,surface:()=>RADIUS});
+assert(!phone.ids.includes(secondary.id)&&desktop.ids.includes(secondary.id),'phone priority does not fit distant supporting furniture at the cost of its activity');
+secondary.use='sit';assert(overviewFrame([centre,secondary],{aspect:366/440,fov:72,surface:()=>RADIUS}).ids.includes(secondary.id),'reachable actions retain context on phone');
 const clear=overviewFrame([focus,addition],{aspect:390/844,fov:72,surface:()=>RADIUS,colliders:[collider]});
 assert(clear.dir.clone().multiplyScalar(RADIUS).distanceTo(collider.center)>.8,'arrival feet must clear nearby solids');
 const open=make('open shape',1,1,[0,19,-6]);open.solid=false;

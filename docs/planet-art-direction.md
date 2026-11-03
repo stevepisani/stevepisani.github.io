@@ -170,3 +170,20 @@ evidence, not a new person's first generation or proof of the owner's quality ba
 Check actual canvas pixels as well as readiness and geometry: a degenerate textured normal can
 poison HDR bloom even when draw calls and mesh visibility are valid. Keep the failed capture and
 the fixed same-view evidence. A technical black-frame regression passing does not establish delight.
+
+## Shared follow-up after first-attempt evaluation
+
+Treat validity, composition and meaningful response as distinct gates. Narrow assembly tolerances
+report their original values and never replace the saved raw candidate. Strict validation remains
+responsible for malformed and over-budget designs. Regression replays through changed assembly
+are not new first attempts, and newly renderable data does not prove visual acceptance.
+
+Compact openings may leave secondary furnishing to discovery while retaining the focus and usable
+objects. Inspect the actual phone frame and a real first-action tap; fewer framing bounds alone
+do not establish better recognition.
+
+A bounded `change` response can visibly unfold or place a few custom parts. Choose a change that
+serves the interview's meaning, with an honest label and a way to reverse it. Do not describe it
+as real tending, cooking, skating, sending mail or persistent state. The kit must not substitute
+a generic action for a personal moment merely because the transition passes a test. Authored
+response studies establish shared capability; a later independent input round must test selection.

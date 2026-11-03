@@ -8,7 +8,12 @@ rather than leaving it in a chat.
 
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
-   their own, from what they love. The current draft also refines scene atmosphere with
+   their own, from what they love. Current shared follow-up: reported minimum-thickness/display-label
+   assembly, tighter compact-card context, and bounded reversible part responses beyond sitting.
+   Tests use generic authored controls and preserve prior first attempts as regressions; no claim
+   of new unseen acceptance. See [assembly and responses](planets.md#assembly-and-visible-responses).
+   Remaining work includes personal-hero/scene recognition, meaningful activity selection and
+   real host/phone evidence. The current draft also refines scene atmosphere with
    five explicit CC0 ready furnishings (47 KB) and bounded tabletop relationships: separate books
    and lamps sit on a declared real support, following its position/turn/scale. An authored
    reading study checks real actions and a stable visible book addition at actual card sizes.

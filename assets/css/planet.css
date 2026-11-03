@@ -58,6 +58,8 @@
    side on a computer; × or Esc closes it, and so does walking somewhere else. */
 .thing { position: absolute; z-index: 6; right: 16px; top: 64px; width: min(340px, calc(100vw - 32px)); max-height: calc(100% - 96px); overflow: auto; box-sizing: border-box; padding: 18px 20px 16px; border-radius: 16px; background: rgb(14 16 36 / .82); backdrop-filter: blur(12px); border: 1px solid rgb(255 255 255 / .12); color: #e8eaf8; font: .95rem/1.45 var(--font-body); -webkit-user-select: text; user-select: text; }
 .thing[hidden] { display: none; }
+.response-caption { position:absolute; z-index:4; top:110px; left:16px; max-width:calc(100% - 64px); padding:8px 12px; border-radius:12px; background:rgb(14 16 36 / .82); color:#fff; font:.85rem/1.4 var(--font-body); pointer-events:none; }
+.response-caption[hidden] { display:none; }
 .thing h2 { margin: 0 32px 6px 0; font: 700 1.25rem/1.2 var(--font-display); color: #fff; }
 .thing p { margin: 0 0 10px; color: #c3c8e6; }
 .thing h3 { margin: 12px 0 6px; font: 600 .75rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: #9aa0c0; }
