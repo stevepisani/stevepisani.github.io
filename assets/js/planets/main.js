@@ -252,7 +252,8 @@ async function start(spec) {
   }
   function performResponse(t) {
     const done=things.respond(t,still);
-    responseStatus((done?t.response.done:t.response.label)+' · Tap again to change it');
+    responseStatus((done?t.response.done:t.response.label)+(done&&t.response.hold?' · Returns shortly; tap to reverse':' · Tap again to change it'));
+    if(responseView)responseView.lastResponded=done;
     showDetailsFor(t);actionTrace={...actionTrace,stage:'responded',responded:done};
   }
   function framePendingResponse(keep) {
@@ -433,6 +434,13 @@ async function start(spec) {
       advanceWalking(player,real,()=>!!(move||seat||scope));
     }
     things.update(now / 1000);
+    if(responseView) {
+      const t=spec.things.find(t=>t.id===responseView.id);
+      if(t?.response?.hold && responseView.lastResponded && !t.responded && t.responseState.value<.01) {
+        responseView.lastResponded=false;
+        if(!responseCaption.hidden)responseStatus(t.response.label+' · Ready to replay');
+      }
+    }
     if(spec.reveal)revealView.disabled=!!(move||seat||scope||responseView||pendingResponse);
     player.applyToCamera(now / 1000);
     space.position.copy(camera.position); // the sky is infinitely far away

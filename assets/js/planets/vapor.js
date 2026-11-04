@@ -4,7 +4,7 @@ import * as THREE from 'three';
 export function vaporMaterial(color='#dce8e5') {
   const material=new THREE.ShaderMaterial({
     transparent:true,depthWrite:false,side:THREE.FrontSide,
-    uniforms:{color:{value:new THREE.Color(color)},time:{value:0},amount:{value:0}},
+    uniforms:{color:{value:new THREE.Color(color)},time:{value:0},amount:{value:1}},
     vertexShader:`varying vec3 local; varying vec3 normalView; varying vec3 toward;
       void main(){local=position*2.0;vec4 view=modelViewMatrix*vec4(position,1.0);normalView=normalMatrix*normal;toward=-view.xyz;gl_Position=projectionMatrix*view;}`,
     fragmentShader:`uniform vec3 color;uniform float time;uniform float amount;

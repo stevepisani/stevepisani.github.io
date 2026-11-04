@@ -2,9 +2,15 @@
 import assert from 'node:assert/strict';
 import {checkPlanet} from '../supabase/functions/_shared/planet.js';
 import {RESPONSE_HOLD_RANGE} from '../supabase/functions/_shared/planet-authoring.js';
+import {buildThings} from '../assets/js/planets/things.js';
 import {rpc} from '../supabase/functions/planets/server.js';
 const source={version:1,slug:'test-brief-moment',who:{name:'A brief moment'},arrival:'overview',setting:{around:'display',floor:'timber'},things:[{id:'display',name:'A small working display',role:'focus',at:{bearing:0,distance:6},use:'change',response:{label:'A brief release',done:'A soft cloud rises',hold:3},parts:[{shape:'box',size:[.8,.4,.8],at:[0,.2,0],color:'#667b81'},{shape:'sphere',finish:'vapor',size:[.08,.08,.08],at:[0,.6,0],color:'#dddddd',after:{size:[.6,.8,.6],at:[0,1.2,0]}}]}]};
 const original=structuredClone(source);
+const staticVapor=structuredClone(source.things[0]);staticVapor.id='static-vapor';delete staticVapor.use;delete staticVapor.response;delete staticVapor.parts[1].after;
+const staticWorld=buildThings([staticVapor],()=>20);let amount;
+staticWorld.group.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)amount=o.material.uniforms.amount.value;});assert.equal(amount,1,'an accepted static vapor finish is visible without an action');
+const changingWorld=buildThings([structuredClone(source.things[0])],()=>20);
+changingWorld.group.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)assert.equal(o.material.uniforms.amount.value,0,'a responding puff starts hidden until requested');});
 assert.deepEqual(checkPlanet(source),[]);
 for(const hold of [1,8.1,NaN,Infinity,-Infinity,'3',null]){const s=structuredClone(source);s.things[0].response.hold=hold;assert(checkPlanet(s).some(e=>e.includes('response.hold')),'invalid transient duration is rejected, not silently repaired');}
 for(const hold of RESPONSE_HOLD_RANGE){const s=structuredClone(source);s.things[0].response.hold=hold;assert.deepEqual(checkPlanet(s),[]);}
