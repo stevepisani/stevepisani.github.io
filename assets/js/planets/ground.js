@@ -1,12 +1,11 @@
-// A friend's planet's ground: the one thing every planet shares with Steve's is its size (RADIUS),
-// and everything else is theirs. Until their planet is built (by hand, for the first ten: Steve,
-// Oct 2026) it's bare rock under the stars, its hills its own (seeded by the planet's slug, so
-// no two are the same shape). A built planet passes its own `ground` (colour, hills).
+// Every planet has a consistent rock or grass base. Its own scene treatments stay local,
+// with soft edges derived from the actual built scene; its hills remain seeded by its slug.
 // Like Steve's (world/planet.js), the height is a function of direction, so the mesh and your feet
 // always agree.
 import * as THREE from 'three';
 import { RADIUS } from '../world/planet.js';
 import { groundMaterial, addGrass } from './ground-surface.js';
+import {groundBase,BASE_COLORS,COVER_COLORS,sceneGroundZones,zoneWeight,pathGroundSegments,pathWeight,groundClearance,occupiedGround} from './ground-zones.js';
 import { rippleWater } from '../world/water.js';
 
 // a number from 0 to 1 for each character of the slug, so the hills are the planet's own
@@ -21,8 +20,9 @@ function seeded(slug) {
  * centre in a direction (for Player), `mesh` what's drawn and what a tap lands on.
  * `ground`: { color: '#rrggbb', hills: 0..1 } from a built planet (optional).
  */
-export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, cover, time = { value: 0 }, quality = { high: false } } = {}) {
-  const rand = seeded(slug);
+export function buildGround(slug, { color, base:baseChoice, hills = 0.6, coast, cover, time = { value: 0 }, quality = { high: false } } = {}) {
+  const rand = seeded(slug),baseKind=groundBase(baseChoice);
+  const sceneCover=cover||baseKind,mode={grass:0,sand:1,snow:2,paving:3}[sceneCover];
   const waves = Array.from({ length: 4 }, (_, i) => ({
     k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(2 + i * 1.7 + rand()),
     phase: rand() * Math.PI * 2,
@@ -47,7 +47,8 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, cover
 
   const geo = new THREE.IcosahedronGeometry(RADIUS, quality.high ? 96 : 64);
   const pos = geo.attributes.position, colors = new Float32Array(pos.count * 3);
-  const base = new THREE.Color(color), c = new THREE.Color(), d = new THREE.Vector3();
+  const base = new THREE.Color(BASE_COLORS[baseKind]),sceneColor=new THREE.Color(color||COVER_COLORS[sceneCover]), c = new THREE.Color(), d = new THREE.Vector3();
+  const naturalColors=new Float32Array(pos.count*3),sceneColors=new Float32Array(pos.count*3),blends=new Float32Array(pos.count*4);
   // patches of a second, duller tone and of pale dust, at their own scales, so it isn't one flat colour
   const patches = Array.from({ length: 6 }, (_, i) => ({ k: new THREE.Vector3(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(5 + i * 3 + rand() * 2), phase: rand() * Math.PI * 2 }));
   const patch = (dir, from) => patches.slice(from, from + 3).reduce((a, w) => a + Math.sin(dir.dot(w.k) + w.phase), 0) / 3;
@@ -59,30 +60,64 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, cover
     pos.setXYZ(i, d.x * (RADIUS + h), d.y * (RADIUS + h), d.z * (RADIUS + h));
     // a little lighter on the tops, darker in the hollows, and a grain of noise so it reads as ground
     c.copy(base).lerp(dull, THREE.MathUtils.smoothstep(patch(d, 0), -0.1, 0.5) * 0.8).lerp(dust, THREE.MathUtils.smoothstep(patch(d, 3), 0.3, 0.8) * 0.6);
-    if (coast) c.lerp(wet, 1 - THREE.MathUtils.smoothstep(shoreDistance(d), coast.radius - 0.25, coast.radius + 0.8));
-    c.multiplyScalar(0.8 + h * 0.4 + (rand() - 0.5) * 0.06);
-    c.toArray(colors, i * 3);
+    const shade=0.8+h*.4+(rand()-.5)*.06;
+    c.multiplyScalar(shade).toArray(naturalColors,i*3);
+    c.copy(sceneColor).multiplyScalar(shade).toArray(sceneColors,i*3);
+    c.fromArray(naturalColors,i*3).toArray(colors,i*3);
+    if(baseKind==='grass')blends[i*4]=1;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('groundBlend',new THREE.BufferAttribute(blends,4));
   geo.computeVertexNormals();
-  const material = groundMaterial(cover);
+  const material = groundMaterial();
   const mesh = new THREE.Mesh(geo, material);
   mesh.receiveShadow = true;
-  // loose stones, so the ground reads as ground and you can see yourself walk: one instanced mesh,
-  // sunk a little so none floats on a slope
-  const STONES = cover==='snow'||cover==='paving'?0:cover==='sand'?400:cover==='grass'?600:coast?450:quality.high?3000:2000;
-  const stones = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), new THREE.MeshStandardMaterial({ color: base.clone().multiplyScalar(0.7), roughness: 0.9, flatShading: true }), STONES);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
-  for (let i = 0; i < STONES; i++) {
-    d.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
-    const r = coast ? 0.025 + rand() * 0.045 : 0.03 + Math.pow(rand(), 4) * 0.35;
-    p.copy(d).multiplyScalar(surface(d) - r * 0.35);
-    q.setFromEuler(new THREE.Euler(rand() * 6, rand() * 6, rand() * 6));
-    m.compose(p, q, sc.set(r, r * (0.5 + rand() * 0.4), r * (0.7 + rand() * 0.5)));
-    stones.setMatrixAt(i, m);
-  }
-  stones.receiveShadow = true;
-  mesh.add(stones);
+  let dressing=[];
+  const wetWeight=dir=>coast?1-THREE.MathUtils.smoothstep(shoreDistance(dir),coast.radius-.5,coast.radius+1.2):0;
+  // A local sand apron belongs to the shoreline, never the whole sphere.
+  const shoreWeight=dir=>coast?1-THREE.MathUtils.smoothstep(shoreDistance(dir),coast.radius+.4,coast.radius+2.1):0;
+  const isWater=dir=>!!coast&&shoreDistance(dir)<=coast.radius+.35&&surface(dir)<waterLevel;
+  const dress=(things=[],routes=[],paths=null)=>{
+    for(const item of dressing){mesh.remove(item);item.geometry.dispose();item.material.dispose();}dressing=[];
+    const zones=sceneGroundZones(things),segments=pathGroundSegments(paths),blockers=groundClearance(things);
+    mesh.userData.groundZones=zones;mesh.userData.groundBase=baseKind;
+    const blend=geo.getAttribute('groundBlend'),vertex=geo.getAttribute('color'),sand=new THREE.Color(COVER_COLORS.sand),sceneTint=new THREE.Color(),values=[0,0,0,0];
+    for(let i=0;i<pos.count;i++){
+      p.fromBufferAttribute(pos,i);d.copy(p).normalize();
+      const weight=zoneWeight(p,zones),shore=shoreWeight(d),wetness=wetWeight(d);
+      c.fromArray(naturalColors,i*3).lerp(sceneTint.fromArray(sceneColors,i*3),weight);
+      // Reuse the same seeded broad variation, even in the coast treatment.
+      if(shore>0)c.lerp(sand,shore*.82);if(wetness>0)c.lerp(wet,wetness*.6);
+      vertex.setXYZ(i,c.r,c.g,c.b);
+      values[0]=baseKind==='grass'?1:0;values[1]=values[2]=values[3]=0;
+      for(let k=0;k<4;k++)values[k]*=1-weight;
+      if(mode!==undefined)values[mode]+=weight;
+      for(let k=0;k<4;k++)values[k]*=1-shore;values[1]+=shore;
+      blend.setXYZW(i,...values);
+    }
+    vertex.needsUpdate=blend.needsUpdate=true;
+    const clear=point=>!occupiedGround(point,blockers)&&pathWeight(point,segments)<.02;
+    const coverAt=(point,dir)=>({scene:zoneWeight(point,zones),shore:shoreWeight(dir)});
+    const stoneRand=seeded(slug+':stones'),stoneCount=baseKind==='grass'?(quality.high?650:400):(quality.high?2800:1800);
+    const stones=new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1,0),new THREE.MeshStandardMaterial({color:new THREE.Color(BASE_COLORS.rock).multiplyScalar(.72),roughness:.96,flatShading:true}),stoneCount);let n=0;
+    for(let i=0;i<stoneCount;i++){
+      d.set(stoneRand()-.5,stoneRand()-.5,stoneRand()-.5).normalize();
+      const radius=.025+Math.pow(stoneRand(),4)*.22,turn=[stoneRand()*6,stoneRand()*6,stoneRand()*6],sy=.5+stoneRand()*.4,sz=.7+stoneRand()*.5;
+      p.copy(d).multiplyScalar(surface(d)-radius*.35);
+      const weights=coverAt(p,d);
+      if(weights.scene>.02||weights.shore>.02||isWater(d)||!clear(p))continue;
+      q.setFromEuler(new THREE.Euler(...turn));m.compose(p,q,sc.set(radius,radius*sy,radius*sz));stones.setMatrixAt(n++,m);
+    }
+    stones.count=n;stones.name='ground-stones';stones.receiveShadow=true;mesh.add(stones);dressing.push(stones);
+    if(baseKind==='grass'||sceneCover==='grass'){
+      const grass=addGrass(mesh,surface,seeded(slug+':grass'),quality,things,(point,dir)=>{
+        const weights=coverAt(point,dir),grassWeight=baseKind==='grass'?(sceneCover==='grass'?1:1-weights.scene):sceneCover==='grass'?weights.scene:0;
+        return grassWeight>.98&&weights.shore<.02&&!isWater(dir)&&pathWeight(point,segments)<.02;
+      });dressing.push(grass);
+    }
+    return {zones,segments};
+  };
   const colliders = [];
   if (coast) {
     // Curved water cap cut from a sphere, wholly inside the depressed basin. The opaque
@@ -119,6 +154,6 @@ export function buildGround(slug, { color = '#6b7082', hills = 0.6, coast, cover
     // Conservatively enclose every lobe: a low broad collision circle keeps the current walking controller on dry sand.
     colliders.push({center:coastDir.clone().multiplyScalar(waterLevel),radius:(coast.radius+0.35)*1.16});
   }
-  return { mesh, surface, colliders, dress:things=>cover==='grass'&&addGrass(mesh,surface,rand,quality,things), isWater: (dir) => !!coast && shoreDistance(dir) <= coast.radius + 0.35 && surface(dir) < waterLevel };
+  return {mesh,surface,colliders,dress,isWater};
 }
 const _d = new THREE.Vector3();

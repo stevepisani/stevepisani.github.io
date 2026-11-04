@@ -29,7 +29,7 @@ for(const cover of ['grass','sand','snow','paving']){
  g.mesh.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 }
 // An additive prop may clear cover at its own foot, but must not reshuffle existing cover.
-const ga=buildGround(base.slug,{hills:.4,cover:'grass'}),gb=buildGround(base.slug,{hills:.4,cover:'grass'});
+const ga=buildGround(base.slug,{hills:.4,base:'grass',cover:'grass'}),gb=buildGround(base.slug,{hills:.4,base:'grass',cover:'grass'});
 ga.dress([]);gb.dress([{solid:true,center:new THREE.Vector3(0,20,0),reach:2}]);
 const positions=g=>{const grass=g.mesh.getObjectByName('ground-grass'),matrix=new THREE.Matrix4(),out=[];for(let i=0;i<grass.count;i++){grass.getMatrixAt(i,matrix);out.push(matrix.elements.map(n=>n.toFixed(5)).join(','));}return out;};
 const initial=new Set(positions(ga));assert(positions(gb).every(p=>initial.has(p)),'an additive edit must not reshuffle cover elsewhere');

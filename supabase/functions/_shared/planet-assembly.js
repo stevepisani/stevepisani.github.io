@@ -1,5 +1,6 @@
 // Narrow, deterministic assembly tolerances. Validation still owns every other constraint.
 import {LIMITS, MIN_PART_SIZE} from './planet.js';
+import {SEAT_VIEW_RANGES} from './planet-authoring.js';
 export function assemblePlanet(input) {
   const adjustments=[];
   if(!input || typeof input!=='object' || Array.isArray(input))return {spec:input,adjustments};
@@ -19,6 +20,17 @@ export function assemblePlanet(input) {
   if(Array.isArray(spec.things))spec.things.forEach((t,i)=>{
     label(t,'name',`things[${i}].name`);
     label(t?.response,'label',`things[${i}].response.label`);label(t?.response,'done',`things[${i}].response.done`);
+    // These are optional seated-camera hints, not object placement or terrain. A finite
+    // out-of-range hint uses the nearest supported view; malformed/irrelevant hints still
+    // go to strict validation, including pitch combined with a toward target.
+    if(t?.use==='sit' && t.seatView && typeof t.seatView==='object' && !Array.isArray(t.seatView)) {
+      for(const [key,[lo,hi]]of Object.entries(SEAT_VIEW_RANGES)) {
+        const original=t.seatView[key];
+        if(!Number.isFinite(original))continue;
+        const value=Math.max(lo,Math.min(hi,original));
+        if(value!==original){t.seatView[key]=value;adjustments.push({path:`things[${i}].seatView.${key}`,kind:'presentation-hint',original,value});}
+      }
+    }
     if(!Array.isArray(t?.parts))return;
     t.parts.forEach((p,j)=>{
       for(const [object,path]of [[p,`things[${i}].parts[${j}]`],[p?.after,`things[${i}].parts[${j}].after`]]){

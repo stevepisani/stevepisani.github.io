@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "slug": "test-ground-zones",
+  "who": {
+    "name": "A shared ground study"
+  },
+  "arrival": "overview",
+  "look": {
+    "ground": {
+      "base": "grass",
+      "cover": "paving",
+      "color": "#b3a080",
+      "hills": 0.035
+    },
+    "sky": {
+      "period": "day",
+      "color": "#8da8ba",
+      "light": "#fff0d3"
+    }
+  },
+  "things": [
+    {
+      "id": "terrace-table",
+      "name": "A small terrace",
+      "role": "focus",
+      "at": {
+        "bearing": 0,
+        "distance": 6
+      },
+      "footprint": [
+        2.4,
+        1.4
+      ],
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            2.4,
+            0.13,
+            1.4
+          ],
+          "at": [
+            0,
+            1.05,
+            0
+          ],
+          "surface": "wood",
+          "color": "#9e754f"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            1.05,
+            0.13
+          ],
+          "at": [
+            1,
+            0.525,
+            0.5
+          ],
+          "ground": true,
+          "surface": "wood",
+          "color": "#795b42"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            1.05,
+            0.13
+          ],
+          "at": [
+            1,
+            0.525,
+            -0.5
+          ],
+          "ground": true,
+          "surface": "wood",
+          "color": "#795b42"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            1.05,
+            0.13
+          ],
+          "at": [
+            -1,
+            0.525,
+            0.5
+          ],
+          "ground": true,
+          "surface": "wood",
+          "color": "#795b42"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            1.05,
+            0.13
+          ],
+          "at": [
+            -1,
+            0.525,
+            -0.5
+          ],
+          "ground": true,
+          "surface": "wood",
+          "color": "#795b42"
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.24,
+            0.24,
+            0.24
+          ],
+          "at": [
+            0.45,
+            1.23,
+            0.12
+          ],
+          "color": "#6c9691"
+        }
+      ]
+    },
+    {
+      "id": "terrace-seat",
+      "name": "Pause by the table",
+      "role": "support",
+      "stock": "bench",
+      "use": "sit",
+      "near": {
+        "of": "terrace-table",
+        "side": "front",
+        "gap": 0.8
+      }
+    },
+    {
+      "id": "edge-light",
+      "name": "A light at the edge",
+      "role": "support",
+      "near": {
+        "of": "terrace-table",
+        "side": "left",
+        "gap": 1.2
+      },
+      "parts": [
+        {
+          "shape": "cylinder",
+          "size": [
+            0.12,
+            1.25,
+            0.12
+          ],
+          "color": "#666254"
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.28,
+            0.28,
+            0.28
+          ],
+          "at": [
+            0,
+            1.4,
+            0
+          ],
+          "finish": "glow",
+          "color": "#e4c78f"
+        }
+      ],
+      "light": {
+        "strength": 0.4,
+        "color": "#ffe0a1",
+        "at": [
+          0,
+          1.4,
+          0
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "from": {
+        "bearing": 0,
+        "distance": 1.2
+      },
+      "to": {
+        "bearing": 0,
+        "distance": 3.5
+      }
+    }
+  ]
+}

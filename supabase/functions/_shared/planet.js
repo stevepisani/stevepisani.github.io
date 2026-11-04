@@ -1,3 +1,4 @@
+import { SEAT_VIEW_RANGES } from './planet-authoring.js';
 import { stockParts } from './planet-stock.js';
 import { LIBRARY_STOCK } from './planet-library.js';
 import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
@@ -61,6 +62,8 @@ export const SIDES = ['front', 'back', 'left', 'right'];
 // what a thing does when you walk up to it: sit on it (facing the way it faces) or switch its light
 export const USES = ['sit', 'switch', 'greet', 'look', 'change'];
 export const SURFACES = ['wood', 'bamboo', 'thatch', 'cloth'];
+export const GROUND_BASES = ['rock', 'grass'];
+export const DEFAULT_GROUND_BASE = 'rock';
 // Stock things, as a film set keeps stock props: small things every place uses, each a real model
 // made once in the house style (tools/planet-models.mjs makes them as the planet "stock"; Steve
 // approved the "kit", Oct 27, 2026), so any planet can have one free and at once. A thing with
@@ -206,7 +209,8 @@ export function checkPlanet(spec) {
       const g = spec.look.ground, sky = spec.look.sky;
       if (g !== undefined) {
         if (!isObj(g)) fail('look.ground', 'should be an object');
-        else { only('look.ground', g, ['color', 'hills', 'coast', 'cover']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+        else { only('look.ground', g, ['color', 'hills', 'coast', 'cover', 'base']); color('look.ground.color', g.color); between('look.ground.hills', g.hills, 0, 1);
+          if(g.base!==undefined && !GROUND_BASES.includes(g.base))fail('look.ground.base','should be rock or grass');
           if(g.cover!==undefined && !['grass','sand','snow','paving'].includes(g.cover))fail('look.ground.cover','should be grass, sand, snow or paving');
           if (g.coast !== undefined) {
             if (!isObj(g.coast)) fail('look.ground.coast', 'should be an object');
@@ -297,7 +301,7 @@ export function checkPlanet(spec) {
     if(t.seatView!==undefined) {
       if(!isObj(t.seatView)||t.use!=='sit')fail(`${at}.seatView`,'needs a sit action and an object');
       else {
-        only(`${at}.seatView`,t.seatView,['eye','pitch','toward']);between(`${at}.seatView.eye`,t.seatView.eye,.8,1.6);between(`${at}.seatView.pitch`,t.seatView.pitch,-.5,.3);
+        only(`${at}.seatView`,t.seatView,['eye','pitch','toward']);between(`${at}.seatView.eye`,t.seatView.eye,...SEAT_VIEW_RANGES.eye);between(`${at}.seatView.pitch`,t.seatView.pitch,...SEAT_VIEW_RANGES.pitch);
         if(t.seatView.toward!==undefined&&(typeof t.seatView.toward!=='string'||!t.seatView.toward||t.seatView.pitch!==undefined))fail(`${at}.seatView.toward`,'name an activity target instead of an absolute pitch');
       }
     }
