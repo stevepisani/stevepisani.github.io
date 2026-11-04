@@ -124,7 +124,12 @@ occlusion and projected character size are evaluated after the part and thing tr
 seeing the back, a thin edge or a tall post is insufficient. The whole-place return retains
 that content as a framing concern without rotating or moving the objects. These are technical
 readability diagnostics, not a guarantee of recognition, readable arbitrary text, or personal
-meaning. Non-text keepsakes still require visible craft and actual image review. Existing
+meaning. Identical text on opposite physical faces counts as alternative ways to expose one
+message; every distinct message remains a separate requirement. Each scene build chooses an
+already loaded Inter face for all its characters or an explicit system UI fallback. Complete
+labels fit within the bounded texture using actual font measurements, and diagnostics retain
+the painted font and advance; later webfont arrival cannot invalidate those measurements.
+Non-text keepsakes still require visible craft and actual image review. Existing
 worlds and frozen first attempts stay intact; novel opt-in capabilities are exercised by
 separate generic controls, never silently added to saved examples.
 
@@ -660,7 +665,7 @@ required sources have decoded, and cancellation rejects late results. Each insta
 transform. Safe phase/resource-path/attempt/byte/status diagnostics retain the failure cause for
 the host and console, while the visitor gets a concise reload message. A missing advertised-ready
 asset still fails clearly; unfinished substitutes are not silently revealed. The budget covers
-asset work, not a promise of total host latency or phone performance; rendering/compile time is
+asset waiting, not a promise of total host latency or phone performance; synchronous decode cannot be preempted, and rendering/compile time is
 measured separately and the card's existing 60-second loading boundary is unchanged.
 The host card allows up to 60 seconds for a frame that has announced loading; phone/network
 latency acceptance remains unmeasured.
