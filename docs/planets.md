@@ -102,6 +102,36 @@ per-interview camera adjustments or a guarantee of phone recognition.
 browser suite checks actual taps, changed rendered meshes, reversal and both motion settings at
 700×440 and 366×440. These controls are implementation evidence, not fresh interview acceptance.
 
+## Shared personal payoff controls
+
+These controls are explicit and independent of biography. `setting.floor: timber|paving` supplies
+nine low segmented surfaces and an open front threshold in the existing setting frame. The
+segments follow curved ground and clear grass/grit. They do not change terrain or walking height,
+create a complete room, supply furniture or make a roof edge safe. Existing object positions and
+the setting frame stay fixed when a belonging is added. Choose the floor only when the
+interview supports a distinct local activity surface; the surrounding standard base remains.
+
+Sphere parts can use `finish: vapor` for soft translucent wisps. A changing sphere can rise or
+expand through its existing `after` endpoints. This is a visual material, not opaque rocks,
+physical smoke, heat, pouring, a fluid simulation or audio. Optional `response.hold: 2..8`
+(seconds) makes any bounded response automatically return after its completed state. Omit hold
+for a persistent reversible change. Another real tap can still reverse it early; subsequent
+actions replay the same moment. Reduced motion settles state changes and keeps vapor detail
+still. Inspection does not move itself when the response returns.
+
+Edited arrivals evaluate actual text surfaces separately from the whole mesh. Front normals,
+occlusion and projected character size are evaluated after the part and thing transforms;
+seeing the back, a thin edge or a tall post is insufficient. The whole-place return retains
+that content as a framing concern without rotating or moving the objects. These are technical
+readability diagnostics, not a guarantee of recognition, readable arbitrary text, or personal
+meaning. Non-text keepsakes still require visible craft and actual image review. Existing
+worlds and frozen first attempts stay intact; novel opt-in capabilities are exercised by
+separate generic controls, never silently added to saved examples.
+
+A local regression pass is familiar evidence. A new frozen unrelated-interview round, actual
+optional offer/acceptance, continued interaction after an edit, physical-phone performance and
+owner acceptance remain separate gates.
+
 ## Shared landscape and local scene surfaces
 
 Every Tiny Planet has a standard natural base: `look.ground.base: rock|grass` (default `rock`).

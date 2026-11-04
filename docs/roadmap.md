@@ -144,6 +144,16 @@ rather than leaving it in a chat.
    - polish still open: repack before each move, smarter search, a phone test checklist, the
      recipes kept on the phone for opening with no connection, and a "today" view in SJPJr's card.
 
+## Shared Tiny Planet follow-up in development
+
+The next shared quality pass addresses model-download reliability, actual content visibility
+for personal additions, explicit local setting floors, and brief soft visual responses.
+Existing first attempts remain unchanged regression inputs. This is shared engine/kit work,
+not a repaired personal showcase or proof of one-shot acceptance. Controlled loading tests,
+actual native-size reveal/action/addition views and continued post-edit use precede a new
+frozen unrelated-input round. Actual host/phone and owner visual acceptance remain open on
+PRO-2293. No new paid generation is part of this change.
+
 ## Waiting on Steve
 
 - **Personal details out of the public repo's history** (Steve chose this Oct 30 2026; the audit:
