@@ -26,7 +26,7 @@ rather than leaving it in a chat.
    These are stock options, not a reading scene applied to unrelated people. Broader personal
    heroes, all-angle asset acceptance and a newly frozen independent round remain open. It includes
    ready stock/matching cached models loaded before reveal and actual-geometry framing, a shared
-   15-second model-load deadline, repeated-source reuse and three-axis placement-envelope fitting.
+   progress-aware shared asset budget, repeated-source reuse and three-axis placement-envelope fitting.
    This closes a first-view delivery gap; accepted finished hero families and fresh independent
    first-attempt evidence remain the next visual-quality work. The merged #152 keeps crafted
    bump materials finite in the HDR/bloom pass and adds explicit sheltered activity settings.
@@ -143,6 +143,16 @@ rather than leaving it in a chat.
      the catalog, the frame deleted after), emailed grocery receipts, a monthly card export;
    - polish still open: repack before each move, smarter search, a phone test checklist, the
      recipes kept on the phone for opening with no connection, and a "today" view in SJPJr's card.
+
+## Shared Tiny Planet follow-up in development
+
+The next shared quality pass addresses model-download reliability, actual content visibility
+for personal additions, explicit local setting floors, and brief soft visual responses.
+Existing first attempts remain unchanged regression inputs. This is shared engine/kit work,
+not a repaired personal showcase or proof of one-shot acceptance. Controlled loading tests,
+actual native-size reveal/action/addition views and continued post-edit use precede a new
+frozen unrelated-input round. Actual host/phone and owner visual acceptance remain open on
+PRO-2293. No new paid generation is part of this change.
 
 ## Waiting on Steve
 

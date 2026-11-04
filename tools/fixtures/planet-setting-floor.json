@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "slug": "test-repair-floor",
+  "who": {
+    "name": "Repair bench control"
+  },
+  "arrival": "overview",
+  "look": {
+    "sky": {
+      "period": "dusk"
+    },
+    "ground": {
+      "base": "rock",
+      "hills": 0.05
+    }
+  },
+  "setting": {
+    "around": "vessel",
+    "floor": "timber",
+    "edge": "windows"
+  },
+  "things": [
+    {
+      "id": "vessel",
+      "name": "A shared workbench",
+      "role": "focus",
+      "at": {
+        "bearing": 0,
+        "distance": 6
+      },
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            2.3,
+            0.14,
+            1.2
+          ],
+          "at": [
+            0,
+            1,
+            0
+          ],
+          "color": "#ad8d65",
+          "surface": "wood"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            1,
+            0.15
+          ],
+          "at": [
+            -0.9,
+            0.5,
+            -0.4
+          ],
+          "color": "#6c6152",
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            1,
+            0.15
+          ],
+          "at": [
+            -0.9,
+            0.5,
+            0.4
+          ],
+          "color": "#6c6152",
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            1,
+            0.15
+          ],
+          "at": [
+            0.9,
+            0.5,
+            -0.4
+          ],
+          "color": "#6c6152",
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.15,
+            1,
+            0.15
+          ],
+          "at": [
+            0.9,
+            0.5,
+            0.4
+          ],
+          "color": "#6c6152",
+          "surface": "wood",
+          "ground": true
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.8,
+            0.35,
+            0.4
+          ],
+          "at": [
+            0,
+            1.25,
+            0
+          ],
+          "color": "#627c7c"
+        }
+      ]
+    },
+    {
+      "id": "seat",
+      "name": "A nearby resting seat",
+      "role": "support",
+      "near": {
+        "of": "vessel",
+        "side": "right",
+        "gap": 0.8
+      },
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            1.5,
+            0.14,
+            0.6
+          ],
+          "at": [
+            0,
+            0.5,
+            0
+          ],
+          "color": "#947d5e",
+          "surface": "wood"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            0.5,
+            0.5
+          ],
+          "at": [
+            -0.58,
+            0.25,
+            0
+          ],
+          "color": "#5f615b"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            0.5,
+            0.5
+          ],
+          "at": [
+            0.58,
+            0.25,
+            0
+          ],
+          "color": "#5f615b"
+        }
+      ]
+    }
+  ]
+}

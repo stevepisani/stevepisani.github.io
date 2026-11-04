@@ -91,7 +91,8 @@ on its own; a later swap cannot rescue an inadequate first impression.
 
 Ready stock and matching cached custom models now load before reveal and before the receiving
 viewport's overview is chosen. Repeated props share the source download, not their transforms.
-The batch has a 15-second deadline and a clear reload failure instead of revealing advertised-ready
+Required assets share a bounded progress-aware loading session, with per-request stall recovery
+and an absolute limit. A clear reload failure retains its cause instead of revealing advertised-ready
 models as placeholders. All three placement-envelope axes constrain uniform model size. A canopy
 frames the activity; fitting its entire roof must not force small furniture into the distance. This
 closes a delivery gap for existing assets; it does not add an accepted hero family or establish
@@ -200,3 +201,20 @@ serves the interview's meaning, with an honest label and a way to reverse it. Do
 as real tending, cooking, skating, sending mail or persistent state. The kit must not substitute
 a generic action for a personal moment merely because the transition passes a test. Authored
 response studies establish shared capability; a later independent input round must test selection.
+
+## Shared setting and response follow-up
+
+A local surface can make an activity belong to its setting without supplying its biography.
+Use an explicit segmented timber or paving floor when a sheltered/shared activity needs that
+boundary; leave an open approach and the surrounding natural landscape visible. This remains
+an open setting layer, not a complete room or proof of broad setting coverage.
+
+Judge the exposed personal content of an addition in its close reveal and whole-place return.
+An edge-on message or an object's blank back cannot pass because a post is tall enough. Actual
+text planes expose orientation and character-size diagnostics to the shared framer. Continue
+to inspect images for non-text identity, crowding, coherent use and emotional payoff.
+
+A bounded moment may return automatically with an explicit hold. Soft vapor is a reusable
+visual response material, not an implied simulation or sound. Preserve the causal part of the
+interview; do not call a symbolic state a working activity. New controls require separate
+unrelated-input evaluation. Keep previous first attempts unchanged as regressions.

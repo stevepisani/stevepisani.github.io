@@ -23,9 +23,12 @@ for(const withRoute of [false,true]) {
 // including root rotation/scale, rather than the current or axis-aligned unplaced part size.
 const spec=[{id:'changing-display',name:'Changing display',at:{bearing:0,distance:7},use:'change',response:{label:'Expand it',done:'Expanded'},scale:1.1,turn:13,parts:[{shape:'box',size:[2,2,.15],at:[0,2,0],after:{size:[5,5,.15],at:[0,3,0]},color:'#8ea675'}]}];
 const world=buildThings(spec,surface,new Map()),thing=spec[0],box=actionBounds(thing);
+const label=new THREE.Mesh(new THREE.PlaneGeometry(1,.2),new THREE.MeshBasicMaterial());label.position.set(0,1,0);label.userData.content={glyphFraction:2/3};thing.body.add(label); // incidental label inside the existing endpoint envelope
+
 assert(box.max.y-box.min.y>4,'both endpoint positions/sizes must affect the world envelope');
 for(const [width,height,fov]of [[700,440,54],[366,440,72]]){
  const frame=responseFrame(thing,spec,{aspect:width/height,fov,height,surface,colliders:world.colliders});
+ assert.equal(frame?.content??null,null,'response inspection fits endpoints instead of prioritizing incidental label text');
  assert(frame?.fits&&frame.visible.includes(thing.id),'the whole supported response needs a clear surface view');
  const probe=new THREE.PerspectiveCamera(fov,width/height,.05,2000),up=frame.dir.clone();probe.position.copy(up).multiplyScalar(surface(up)+frame.eye);probe.up.copy(up);probe.lookAt(frame.target);probe.updateMatrixWorld(true);
  for(const k of [0,1]){

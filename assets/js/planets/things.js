@@ -14,6 +14,9 @@ import { palm } from '../world/props.js';
 import { planting, shrub, grassFringe } from '../world/decor.js';
 import { watercolour } from './painting.js';
 import {responsePart,responseState} from './response.js';
+import { vaporMaterial } from './vapor.js';
+import { conformSurfaceFloor } from './surface-floor.js';
+import {textLayout} from './text-layout.js';
 
 const DEG = Math.PI / 180;
 const surfaces = new Map();
@@ -66,18 +69,23 @@ function material(color, finish = 'matte') {
 }
 
 // their own words on a panel: drawn once on a canvas, as wide as the panel is
-function words(text, color, finish) {
+function words(text, color, finish, textStyle) {
   const c = document.createElement('canvas');
   const x = c.getContext('2d');
-  const font = (px) => `600 ${px}px Inter, system-ui, sans-serif`;
+  // Choose once for this scene build. A later webfont arrival must not change the
+  // font that measured/painted an already-uploaded texture. System UI never aliases Inter.
+  textStyle.family ||= document.fonts?.check('600 96px Inter',textStyle.sample) ? 'Inter' : 'system-ui';
+  const font = (px) => `600 ${px}px ${textStyle.family}`;
   x.font = font(96);
-  c.width = Math.min(2048, Math.ceil(x.measureText(text).width) + 64);
-  c.height = 144;
-  x.font = font(96);
+  const layout=textLayout(x.measureText(text).width,{measure:px=>{x.font=font(px);return x.measureText(text).width;}});
+  c.width = layout.width;
+  c.height = layout.height;
+  x.font = font(layout.font);
   x.textAlign = 'center';
   x.textBaseline = 'middle';
   x.fillStyle = color || '#ffffff';
   if (finish === 'glow') { x.shadowColor = color || '#ffffff'; x.shadowBlur = 24; }
+  const drawnFont=x.font,drawnExtent=x.measureText(text).width;
   x.fillText(text, c.width / 2, c.height / 2);
   const map = new THREE.CanvasTexture(c);
   map.colorSpace = THREE.SRGBColorSpace;
@@ -86,7 +94,7 @@ function words(text, color, finish) {
   const m = finish === 'glow'
     ? new THREE.MeshBasicMaterial({ map, color: new THREE.Color(2.4, 2.4, 2.4), transparent: true, side: THREE.DoubleSide, depthWrite: false })
     : new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.8 });
-  return { material: m, aspect: c.width / c.height };
+  return { material: m, aspect: c.width / c.height, glyphFraction:layout.glyphFraction,drawnFont,drawnExtent };
 }
 
 /** Where a bearing (degrees, 0 straight ahead, + to the right) and a distance along the ground lead from where you land. */
@@ -113,18 +121,24 @@ function woodUV(mesh) {
 
 // one part, as a mesh placed in its thing: unit-sized shapes are scaled to its size; a rounded box,
 // a tube and a lathe or extrude are built for it
-function part(p) {
+function part(p, textStyle, terrainFloor=false) {
   const [w, h, d] = p.size;
   let mesh;
   if (p.shape === 'text') {
-    const t = words(p.text, p.color, p.finish);
+    const t = words(p.text, p.color, p.finish, textStyle);
     mesh = new THREE.Mesh(geometry('text'), t.material);
+    mesh.userData.content = { glyphFraction: t.glyphFraction, text:p.text, drawnFont:t.drawnFont, drawnExtent:t.drawnExtent }; // actual canvas glyph height, not the supporting post
+
     // as tall as asked, unless that would make it wider than asked
     const height = Math.min(h, w / t.aspect);
     mesh.scale.set(height * t.aspect, height, 1);
   } else {
-    const m = craftedMaterial(p);
-    if (p.shape === 'box' && p.round) {
+    const m = p.finish==='vapor'?vaporMaterial(p.color):craftedMaterial(p);
+    if(terrainFloor&&p.shape==='box'){
+      // A long flat face can cut through the sphere between correctly fitted corners.
+      // Fine bounded cells make the entire surface follow terrain, not only its edges.
+      mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d,Math.ceil(w/.25),1,Math.ceil(d/.25)),m);
+    } else if (p.shape === 'box' && p.round) {
       mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, p.round * Math.min(w, h, d)), m);
     } else if (p.shape === 'tube') {
       const curve = new THREE.CatmullRomCurve3(p.path.map(([x, y, z]) => new THREE.Vector3(x * w, y * h, z * d)));
@@ -145,7 +159,7 @@ function part(p) {
     }
     if (p.surface==='wood') woodUV(mesh);
     // solid parts cast shadows; light passes through glass, and what glows lights itself
-    mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
+    mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow' && p.finish !== 'vapor';
     mesh.receiveShadow = true;
   }
   mesh.position.fromArray(p.at || [0, h / 2, 0]);
@@ -190,7 +204,7 @@ function batchParts(body) {
  */
 export function buildThings(things = [], surface, library = new Map()) {
   const group = new THREE.Group(), colliders = [], pickable = [], spinning = [], characters = [], responses=[];
-  const Y = new THREE.Vector3(0, 1, 0);
+  const Y = new THREE.Vector3(0, 1, 0), textStyle = {sample:things.flatMap(t=>partsOf(t)).filter(p=>p.shape==='text').map(p=>p.text).join(' ')};
   // where each stands, from where you land or beside another thing (placeThings, in the spec's rules)
   const placed = placeThings(things);
   for (const thing of things) {
@@ -227,9 +241,10 @@ export function buildThings(things = [], surface, library = new Map()) {
     if(thing.craft==='pavilion')for(const z of [-1.89,1.89])body.add(grassFringe({x0:-2.4,x1:2.4,y:3.05,z,count:48,length:.2,seed:13}));
     if(thing.craft==='easel')body.add(watercolour());
     for (const p of ['palm','planting','birch'].includes(thing.craft) ? [] : partsOf(thing)) {
-      const one = part(p);
+      const one = part(p,textStyle,thing.craft==='surface-floor');
       if(p.after){one.userData.responding=true;responsive.push(responsePart(one,p));}
       if(p.ground)fitGroundSupport(one,root,surface);
+      if(thing.craft==='surface-floor'){const source=one.geometry;conformSurfaceFloor(one,root,surface);source.dispose();}
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
       const n = p.repeat ? p.repeat.count : 1;
@@ -257,7 +272,7 @@ export function buildThings(things = [], surface, library = new Map()) {
       if (p.mirror) { const m = copies.clone(); m.scale.x = -1; parent.add(m); }
     }
     if (['cat','bird'].includes(thing.craft)) { thing.joints = joints; characters.push(thing); }
-    if(responsive.length){thing.responseState=responseState(responsive);responses.push(thing);}
+    if(responsive.length){thing.responseState=responseState(responsive,{hold:thing.response?.hold??null});responses.push(thing);}
     batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
@@ -342,7 +357,7 @@ export function buildThings(things = [], surface, library = new Map()) {
     },
     respond(thing,reduced=false){thing.responded=thing.responseState.toggle(performance.now()/1000,reduced);return thing.responded;},
     update(t) {
-      for(const r of responses)r.responseState.update(t);
+      for(const r of responses){r.responseState.update(t);r.responded=r.responseState.active;r.body.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)o.material.uniforms.time.value=r.responseState.reduced?0:t;});}
       for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed));
       for (const c of characters) {
         const a=c.greeting;

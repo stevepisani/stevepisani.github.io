@@ -17,94 +17,59 @@ import { modelKey, MODELS_URL } from '../../../supabase/functions/_shared/planet
 const BASE = new URL('../../models/planets/', import.meta.url);
 const loader = () => new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 
-// Parsing/decoding cannot itself be aborted. Stop waiting on the same deadline as fetch and
-// discard its eventual result; never let a late decode mutate an already failed scene.
-async function decode(bytes, path, gltf, signal) {
-  signal.throwIfAborted();
-  let abort;
-  const stopped = new Promise((_, reject) => {
-    abort = () => reject(Error('Model loading timed out'));
-    signal.addEventListener('abort', abort, { once: true });
-  });
-  try { return await Promise.race([gltf.parseAsync(bytes, path), stopped]); }
-  finally { signal.removeEventListener('abort', abort); }
-}
+import { createAssetLoadSession, AssetLoadError } from './asset-loading.js';
 
-// Accepted library assets are part of the first reveal, rather than a later replacement.
-// Fetch/parse each once even when several trees share it. Unknown names are never URLs.
-export async function loadSceneAssets(spec) {
+// Accepted library assets share the first-reveal budget with all other required models.
+export async function loadSceneAssets(spec, session) {
+  const own=!session;session ||= createAssetLoadSession();
   const library=new Map();
-  if((spec.things||[]).some(t=>t.craft==='birch')) {
-    const res=await fetch(new URL('library/birch.glb',BASE),{signal:AbortSignal.timeout(15000)});
-    if(!res.ok)throw Error('Accepted birch unavailable');
-    const tree=(await loader().parseAsync(await res.arrayBuffer(),BASE.href)).scene;
-    tree.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true;});
-    library.set('birch',tree);
-  }
-  return library;
+  try {
+    if((spec.things||[]).some(t=>t.craft==='birch')) {
+      const url=new URL('library/birch.glb',BASE);
+      const tree=await session.load(url,async bytes=>(await loader().parseAsync(bytes,BASE.href)).scene);
+      session.check();tree.traverse(o=>{if(o.isMesh)o.castShadow=o.receiveShadow=true;});library.set('birch',tree);
+    }
+    return library;
+  } catch(error){session.abort(error);throw error;}
+  finally {if(own)session.close();}
 }
 
 // how often to ask about models being made, and for how long (they take about 3 to 5 minutes)
 const ASK_EVERY = 10_000, ASK_FOR = 12 * 60_000;
 
-/**
- * Load the already-made models before framing/reveal. A bounded, shared deadline prevents one
- * broken asset from holding the loading screen forever. Parse at most three files concurrently,
- * and clone a shared source for repeated furniture. Pending generation never delays the reveal.
- */
-export async function loadModels(spec, things) {
-  const wanted = (spec.things || []).filter((t) => t.model || t.stock);
-  if (!wanted.length) return 0;
-  const controller = new AbortController();
-  const deadline = setTimeout(() => controller.abort(), 15000);
-  const gltf = loader();
-  const sources = new Map();
-  const initial = async url => {
-    if (!sources.has(url)) sources.set(url, (async () => {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw Error(`Model unavailable (${response.status})`);
-      const parsed = await decode(await response.arrayBuffer(), new URL('.', url).href, gltf, controller.signal);
-      return parsed.scene;
-    })());
-    return (await sources.get(url)).clone(true);
+/** Load each required source once, at most three at a time. No model is swapped until
+ * the entire batch is ready, so a failed/retried download cannot leave a partial reveal. */
+export async function loadModels(spec, things, session) {
+  const wanted=(spec.things||[]).filter(t=>t.model||t.stock);
+  if(!wanted.length)return 0;
+  const own=!session;session ||= createAssetLoadSession();
+  const gltf=loader(),later=[],ready=[],loaded=[];
+  const swap=async(t,url)=>{
+    try{things.swap(t,(await gltf.loadAsync(url)).scene);return true;}
+    catch(e){console.warn(`${t.id}: its model didn't load`,e);return false;}
   };
-  // Later generation retains the existing progressive replacement path, independently of the
-  // initial batch's deadline/cache. A failed later load must not remove the original shapes.
-  const swap = async (t, url) => {
-    try { things.swap(t, (await gltf.loadAsync(url)).scene); return true; } catch (e) { console.warn(`${t.id}: its model didn't load`, e); return false; }
-  };
-  const later = [], ready = [];
   try {
-    let made={};
-    if(wanted.some(t=>!t.stock||STOCK[t.stock].model)) {
-      const response = await fetch(new URL('manifest.json', BASE), { signal: controller.signal });
-      if (!response.ok) throw Error('The model library is unavailable');
-      made = await response.json();
+    const made=wanted.some(t=>!t.stock||STOCK[t.stock].model)?await session.json(new URL('manifest.json',BASE)):{};
+    for(const t of wanted) {
+      if(t.stock&&STOCK[t.stock].file){ready.push({t,url:new URL(STOCK[t.stock].file,BASE).href});continue;}
+      const [key,words]=t.stock?[`stock/${t.stock}`,STOCK[t.stock].model]:[`${spec.slug}/${t.id}`,t.model];
+      const m=made[key];
+      if(m&&m.model===words)ready.push({t,url:new URL(m.file,BASE).href});
+      else if(!t.stock)later.push(t);
+      else throw new AssetLoadError('asset-missing',{phase:'manifest',resource:`stock/${t.stock}`});
     }
-    for (const t of wanted) {
-      if(t.stock && STOCK[t.stock].file){ready.push({t,url:new URL(STOCK[t.stock].file,BASE).href});continue;}
-      const [key, words] = t.stock ? [`stock/${t.stock}`, STOCK[t.stock].model] : [`${spec.slug}/${t.id}`, t.model];
-      const m = made[key];
-      if (m && m.model === words) ready.push({ t, url: new URL(m.file, BASE).href });
-      else if (!t.stock) later.push(t);
-      else throw Error(`The ready ${t.stock} model is missing`);
-    }
-    let next = 0;
-    await Promise.all(Array.from({ length: Math.min(3, ready.length) }, async () => {
-      while (next < ready.length) {
-        const { t, url } = ready[next++];
-        const model = await initial(url);
-        if (controller.signal.aborted) throw Error('Model loading timed out');
-        things.swap(t, model);
+    let next=0;
+    await Promise.all(Array.from({length:Math.min(3,ready.length)},async()=>{
+      while(next<ready.length) {
+        const entry=ready[next++];
+        const source=await session.load(entry.url,async bytes=>(await gltf.parseAsync(bytes,new URL('.',entry.url).href)).scene);
+        session.check();loaded.push({t:entry.t,model:source.clone(true)});
       }
     }));
-  } catch (error) {
-    controller.abort();
-    throw error;
-  } finally {
-    clearTimeout(deadline);
-  }
-  if (later.length) whileMade(later, swap);
+    session.check();for(const {t,model} of loaded)things.swap(t,model);
+  } catch(error){session.abort(error);throw error;}
+  finally {if(own)session.close();}
+  if(later.length)whileMade(later,swap);
   return ready.length;
 }
 

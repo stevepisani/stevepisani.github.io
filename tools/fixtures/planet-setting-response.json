@@ -1,0 +1,231 @@
+{
+  "version": 1,
+  "slug": "test-warm-response",
+  "who": {
+    "name": "Warm vessel control"
+  },
+  "arrival": "overview",
+  "look": {
+    "sky": {
+      "period": "dusk"
+    },
+    "ground": {
+      "base": "rock",
+      "hills": 0.05
+    }
+  },
+  "setting": {
+    "around": "vessel",
+    "edge": "railing",
+    "floor": "paving"
+  },
+  "things": [
+    {
+      "id": "vessel",
+      "name": "A warm water bath",
+      "role": "focus",
+      "at": {
+        "bearing": 0,
+        "distance": 6
+      },
+      "use": "change",
+      "response": {
+        "label": "Release a little vapor",
+        "done": "A little vapor rises",
+        "hold": 4
+      },
+      "light": {
+        "color": "#f2b66d",
+        "strength": 0.3,
+        "at": [
+          0,
+          0.7,
+          0.5
+        ]
+      },
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            1.6,
+            0.7,
+            1.0
+          ],
+          "at": [
+            0,
+            0.35,
+            0
+          ],
+          "color": "#80776a",
+          "round": 0.08
+        },
+        {
+          "shape": "cylinder",
+          "size": [
+            0.8,
+            0.5,
+            0.8
+          ],
+          "at": [
+            0,
+            0.95,
+            0
+          ],
+          "color": "#405459",
+          "finish": "metal"
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.75,
+            0.12,
+            0.75
+          ],
+          "at": [
+            0,
+            1.22,
+            0
+          ],
+          "color": "#d7e5de",
+          "finish": "gloss"
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.01,
+            0.01,
+            0.01
+          ],
+          "at": [
+            -0.18,
+            1.3,
+            0
+          ],
+          "finish": "vapor",
+          "color": "#dce8e5",
+          "after": {
+            "size": [
+              0.7,
+              0.9,
+              0.65
+            ],
+            "at": [
+              -0.28,
+              1.65,
+              0.0
+            ]
+          }
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.01,
+            0.01,
+            0.01
+          ],
+          "at": [
+            0,
+            1.3,
+            0
+          ],
+          "finish": "vapor",
+          "color": "#dce8e5",
+          "after": {
+            "size": [
+              0.82,
+              1.04,
+              0.77
+            ],
+            "at": [
+              0.0,
+              2.05,
+              0.06
+            ]
+          }
+        },
+        {
+          "shape": "sphere",
+          "size": [
+            0.01,
+            0.01,
+            0.01
+          ],
+          "at": [
+            0.18,
+            1.3,
+            0
+          ],
+          "finish": "vapor",
+          "color": "#dce8e5",
+          "after": {
+            "size": [
+              0.94,
+              1.1800000000000002,
+              0.89
+            ],
+            "at": [
+              0.28,
+              2.45,
+              0.12
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "seat",
+      "name": "A nearby resting seat",
+      "role": "support",
+      "near": {
+        "of": "vessel",
+        "side": "right",
+        "gap": 0.8
+      },
+      "parts": [
+        {
+          "shape": "box",
+          "size": [
+            1.5,
+            0.14,
+            0.6
+          ],
+          "at": [
+            0,
+            0.5,
+            0
+          ],
+          "color": "#947d5e",
+          "surface": "wood"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            0.5,
+            0.5
+          ],
+          "at": [
+            -0.58,
+            0.25,
+            0
+          ],
+          "color": "#5f615b"
+        },
+        {
+          "shape": "box",
+          "size": [
+            0.13,
+            0.5,
+            0.5
+          ],
+          "at": [
+            0.58,
+            0.25,
+            0
+          ],
+          "color": "#5f615b"
+        }
+      ]
+    }
+  ]
+}

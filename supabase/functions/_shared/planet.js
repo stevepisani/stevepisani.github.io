@@ -1,4 +1,4 @@
-import { SEAT_VIEW_RANGES } from './planet-authoring.js';
+import { SEAT_VIEW_RANGES, RESPONSE_HOLD_RANGE } from './planet-authoring.js';
 import { stockParts } from './planet-stock.js';
 import { LIBRARY_STOCK } from './planet-library.js';
 import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
@@ -55,7 +55,7 @@ export const SIGHTS = ['moon', 'sun', 'earth'];
 // and `tube` runs along a path (a handle, a cable, a rail). A part can be repeated in steps (the
 // keys of a piano, petals round a stem) and mirrored left to right (a pair of wings).
 export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text', 'lathe', 'extrude', 'tube'];
-export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
+export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow', 'vapor'];
 // where a thing can stand beside another (near): in front of it (the side it faces), behind it,
 // or to its left or right as it faces
 export const SIDES = ['front', 'back', 'left', 'right'];
@@ -259,7 +259,7 @@ export function checkPlanet(spec) {
     if (!isObj(t)) return fail(at, 'should be an object');
     only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'on', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith', 'response']);
     if(t.frameWith!==undefined && (typeof t.frameWith!=='string'||!thingIds.has(t.frameWith)))fail(`${at}.frameWith`,'should name a thing listed before this one');
-    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
+    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy', 'surface-floor'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
@@ -343,6 +343,7 @@ export function checkPlanet(spec) {
       triple(`${pat}.turn`, p.turn, -360, 360);
       color(`${pat}.color`, p.color);
       if (p.finish !== undefined && !FINISHES.includes(p.finish)) fail(`${pat}.finish`, `should be one of ${FINISHES.join(', ')}`);
+      if (p.finish === 'vapor' && p.shape !== 'sphere') fail(`${pat}.finish`, 'vapor needs a sphere part');
       between(`${pat}.spin`, p.spin, -360, 360);
       if (p.shape === 'text') text(`${pat}.text`, p.text, LIMITS.name * 2, true);
       else if (p.text !== undefined) fail(`${pat}.text`, 'only a text part has text');
@@ -364,9 +365,13 @@ export function checkPlanet(spec) {
       }
       if (p.mirror !== undefined && typeof p.mirror !== 'boolean') fail(`${pat}.mirror`, 'should be true or false');
     });
+    if(t.craft==='surface-floor') {
+      if(t.on||t.use||t.model||t.stock||t.solid!==false||t.scale!==undefined&&t.scale!==1)fail(`${at}.craft`,'surface-floor needs nonblocking ground-level low boxes, no action/model/stock and scale 1');
+      if(ps.some(p=>!isObj(p)||p.shape!=='box'||!Array.isArray(p.size)||p.size[1]>.1||p.size[0]>3||p.size[2]>3||p.at&&(!Array.isArray(p.at)||Math.abs(p.at[0])>1.5||p.at[1]<-.1||p.at[1]>.05||Math.abs(p.at[2])>1.5)||['after','spin','joint','repeat','mirror','ground','turn'].some(k=>p[k]!==undefined)||p.finish!==undefined&&p.finish!=='matte'||p.surface!==undefined&&p.surface!=='wood'))fail(`${at}.parts`,'surface-floor needs low plain matte boxes within its bounded local tile, with only optional wood surface');
+    }
     if(t.use==='change' || t.response!==undefined){
       if(t.use!=='change'||!isObj(t.response)||t.model||t.stock||t.craft||t.on)fail(`${at}.response`,'change needs custom ground-level parts and response labels; no model/stock/craft/tabletop');
-      else {only(`${at}.response`,t.response,['label','done']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);}
+      else {only(`${at}.response`,t.response,['label','done','hold']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);between(`${at}.response.hold`,t.response.hold,...RESPONSE_HOLD_RANGE);}
       if(!ps.some(p=>p?.after))fail(`${at}.response`,'change needs at least one part with after');
       if(ps.filter(p=>p?.after).length>8)fail(`${at}.response`,'at most eight changing parts');
     }
@@ -716,7 +721,7 @@ export function lookOver(spec) {
     const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
     bs.forEach((b, j) => {
       const p = partsOf(t)[j];
-      if (p.shape === 'text' || p.finish === 'glow' || b[2] < 0.05) return;
+      if (p.shape === 'text' || p.finish === 'glow' || p.finish === 'vapor' || b[2] < 0.05) return;
       const held = bs.some((o, k) => k !== j && near(o, b));
       if (!held) notes.push(`things[${i}].parts[${j}] (${p.shape}): touches nothing and hangs ${b[2].toFixed(2)} m above the ground; move it onto another part or the ground (at is its middle)`);
     });
