@@ -16,6 +16,7 @@ import { watercolour } from './painting.js';
 import {responsePart,responseState} from './response.js';
 import { vaporMaterial } from './vapor.js';
 import { conformSurfaceFloor } from './surface-floor.js';
+import {textLayout} from './text-layout.js';
 
 const DEG = Math.PI / 180;
 const surfaces = new Map();
@@ -73,9 +74,10 @@ function words(text, color, finish) {
   const x = c.getContext('2d');
   const font = (px) => `600 ${px}px Inter, system-ui, sans-serif`;
   x.font = font(96);
-  c.width = Math.min(2048, Math.ceil(x.measureText(text).width) + 64);
-  c.height = 144;
-  x.font = font(96);
+  const layout=textLayout(x.measureText(text).width);
+  c.width = layout.width;
+  c.height = layout.height;
+  x.font = font(layout.font);
   x.textAlign = 'center';
   x.textBaseline = 'middle';
   x.fillStyle = color || '#ffffff';
@@ -88,7 +90,7 @@ function words(text, color, finish) {
   const m = finish === 'glow'
     ? new THREE.MeshBasicMaterial({ map, color: new THREE.Color(2.4, 2.4, 2.4), transparent: true, side: THREE.DoubleSide, depthWrite: false })
     : new THREE.MeshStandardMaterial({ map, transparent: true, side: THREE.DoubleSide, depthWrite: false, roughness: 0.8 });
-  return { material: m, aspect: c.width / c.height };
+  return { material: m, aspect: c.width / c.height, glyphFraction:layout.glyphFraction };
 }
 
 /** Where a bearing (degrees, 0 straight ahead, + to the right) and a distance along the ground lead from where you land. */
@@ -121,6 +123,8 @@ function part(p,terrainFloor=false) {
   if (p.shape === 'text') {
     const t = words(p.text, p.color, p.finish);
     mesh = new THREE.Mesh(geometry('text'), t.material);
+    mesh.userData.content = { glyphFraction: t.glyphFraction, text:p.text }; // actual canvas glyph height, not the supporting post
+
     // as tall as asked, unless that would make it wider than asked
     const height = Math.min(h, w / t.aspect);
     mesh.scale.set(height * t.aspect, height, 1);

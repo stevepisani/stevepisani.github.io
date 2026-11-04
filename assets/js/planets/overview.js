@@ -4,11 +4,13 @@ import * as THREE from 'three';
 import { RADIUS } from '../world/planet.js';
 import { BODY } from '../world/player.js';
 import { pickThing } from './picking.js';
+import {contentSurfaces,contentView} from './content-view.js';
 const UP = new THREE.Vector3(0,1,0);
 
-export function overviewFrame(things, { aspect, fov, surface, colliders = [], height = 720, focusId = null, focusOnly = false, boundsFor, frameArea = null }) {
+export function overviewFrame(things, { aspect, fov, surface, colliders = [], height = 720, focusId = null, focusOnly = false, boundsFor, frameArea = null, contentId = focusId, contentOccluders = [] }) {
   for(const t of things)t.root?.updateWorldMatrix(true,true);
   const featured=things.find(t=>t.root && t.id===focusId);
+  const contentThing=things.find(t=>t.root&&t.id===contentId),surfaces=contentSurfaces(contentThing);
   const primary = featured || things.find(t=>t.root && t.role==='focus') || things.find(t=>t.root && t.solid!==false) || things.find(t=>t.root);
   if (!primary) return null;
   const boundsOf=t=>boundsFor?.(t)||new THREE.Box3().setFromObject(t.root);
@@ -26,7 +28,8 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     const b=boundsOf(t), size=b.getSize(new THREE.Vector3());
     // A narrow trunk's broad canopy is environmental framing, rather than a huge solid hero.
     if (!t.role && !t.use && t.footprint && Math.max(size.x,size.z)>3*Math.max(...t.footprint)*(t.scale||1)) continue;
-    bounds.union(b);boxes.push(b);ids.push(t.id);
+    if(!(featured&&surfaces.length)) {bounds.union(b);boxes.push(b);}
+    ids.push(t.id);
   }
   const size=bounds.getSize(new THREE.Vector3()),target=bounds.getCenter(new THREE.Vector3());
   const toward=primary.center.clone().addScaledVector(UP,-primary.center.y).normalize();
@@ -63,14 +66,15 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
   let best=null,bestScore=-1,fallback={dir:UP.clone(),target,eye:3,pitch:-.3,bounds,ids,fits:false,visible:[]};
   const candidates=[];
   // Search stable walking-surface positions, not a free-floating orbital camera or a flight.
-  if(featured) {
-    const normal=primary.center.clone().normalize(),front=new THREE.Vector3(0,0,1).transformDirection(primary.root.matrixWorld);
+  if(featured||surfaces.length) {
+    const around=contentThing||primary;
+    const normal=around.center.clone().normalize(),front=surfaces.length?surfaces[0].normal.clone():new THREE.Vector3(0,0,1).transformDirection(primary.root.matrixWorld);
     front.addScaledVector(normal,-front.dot(normal)).normalize();
     if(!front.lengthSq())front.set(0,0,1);
     const right=new THREE.Vector3().crossVectors(normal,front).normalize();
     // Prefer the authored front (+z), then lateral views. A rear view can expose a mesh while
     // hiding its identifying face; do not choose it just because it fits one step closer.
-    for(const angle of [0,.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4,1.8,-1.8,2.2,-2.2,Math.PI])for(let distance=2;distance<=13;distance+=.35) {
+    for(const angle of [0,.35,-.35,.7,-.7,1.05,-1.05,1.4,-1.4,1.8,-1.8,2.2,-2.2,Math.PI])for(let distance=surfaces.length?1.2:2;distance<=13;distance+=.35) {
       const tangent=front.clone().multiplyScalar(Math.cos(angle)).addScaledVector(right,Math.sin(angle));
       candidates.push(normal.clone().multiplyScalar(Math.cos(distance/RADIUS)).addScaledVector(tangent,Math.sin(distance/RADIUS)).normalize());
     }
@@ -78,10 +82,12 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     const back=toward.clone().negate().addScaledVector(side,angle).normalize();
     candidates.push(UP.clone().multiplyScalar(Math.cos(b/RADIUS)).addScaledVector(back,Math.sin(b/RADIUS)).normalize());
   }
-  for(const dir of candidates) {
+  const views=candidates.flatMap(dir=>surfaces.length?[1.65,1.2,2.3,3.2].map(eye=>({dir,eye})):[{dir}]);
+  for(const candidate of views) {
+    const dir=candidate.dir;
     const foot=dir.clone().multiplyScalar(surface(dir));
     if(colliders.some(c=>foot.distanceTo(c.center)<c.radius+BODY+.1)) continue;
-    const eye=sheltered?1.8:THREE.MathUtils.clamp(size.y*.7+2,2.8,7);
+    const eye=candidate.eye??(sheltered?1.8:THREE.MathUtils.clamp(size.y*.7+2,2.8,7));
     probe.position.copy(foot).addScaledVector(dir,eye);probe.up.copy(dir);probe.lookAt(target);probe.updateMatrixWorld(true);
     const projected=corners.map(p=>p.clone().project(probe));
     const fits=projected.every(p=>Math.abs(p.x)<(frameArea?.x??(compact?.92:.83)) && p.y<(frameArea?.top??.8) && p.y>(frameArea?.bottom??-.76) && p.z>0 && p.z<1);
@@ -90,6 +96,8 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
     if(!fits)continue;
     const visible=focus.map(t=>{
       return samples.get(t.id).some(point=>{
+        const p=point.clone().project(probe);
+        if(p.z<=0||p.z>=1||Math.abs(p.x)>.95||Math.abs(p.y)>.85)return false;
         caster.set(probe.position,point.clone().sub(probe.position).normalize());
         return pickThing(caster,things,pickable)?.id===t.id;
       });
@@ -117,10 +125,11 @@ export function overviewFrame(things, { aspect, fov, surface, colliders = [], he
       const pixels=(Math.max(...ps.map(p=>p.y))-Math.min(...ps.map(p=>p.y)))*height/2;
       detail={id:featured.id,visibleFraction:shown,heightPixels:pixels,meetsBudget:shown>=.55&&pixels>=32};
     }
-    const score=visible.filter(Boolean).length+tappable.length*2+(detail?detail.visibleFraction*4+Math.min(1,detail.heightPixels/64):0);
-    const frame={dir,target,eye,pitch,bounds,ids,fitPoints:corners,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id),...(detail?{detail}:{})};
+    const content=contentView(surfaces,probe,[...pickable,...contentOccluders],{height,area:frameArea||undefined});
+    const score=visible.filter(Boolean).length+tappable.length*2+(detail?detail.visibleFraction*4+Math.min(1,detail.heightPixels/64):0)+(content?content.score*20:0);
+    const frame={dir,target,eye,pitch,bounds,ids,fitPoints:corners,fits,visible:focus.filter((_,i)=>visible[i]).map(t=>t.id),tappable:tappable.map(t=>t.id),...(detail?{detail}:{}),...(content?{content}:{})};
     if(score>bestScore){best=frame;bestScore=score;}
-    if(visible.every(Boolean) && tappable.length===greetings.length && (!detail||detail.meetsBudget))return frame;
+    if(visible.every(Boolean) && tappable.length===greetings.length && (!detail||detail.meetsBudget) && (!content||content.meetsBudget))return frame;
   }
   return best||fallback;
 }

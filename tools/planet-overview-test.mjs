@@ -76,3 +76,5 @@ for(const [width,height] of [[366,440],[700,440]]) {
 }
 for(const root of objects)root.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
 console.log('Overview: portrait/landscape bounds, environmental invariance, personal addition, open silhouettes, tolerant greeting targets and arrival clearance passed.');
+
+await import('./planet-content-view-test.mjs');

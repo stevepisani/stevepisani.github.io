@@ -125,7 +125,7 @@ async function start(spec) {
   const walkingEye = player.eye;
   let opening = null, openingUntouched = true, revealFocus=spec.reveal;
   function frameOpening(loadingLook=true) {
-    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders],focusId:revealFocus});
+    opening=overviewFrame(spec.things||[],{aspect:innerWidth/innerHeight,fov:camera.fov,height:innerHeight,surface:ground.surface,colliders:[...things.colliders,...ground.colliders],focusId:revealFocus,contentId:spec.reveal,contentOccluders:[ground.mesh]});
     if(opening){player.eye=opening.eye;player.spawn(opening.dir,opening.target,opening.pitch);if(loadingLook)player.look(window.__veilLook||0,0);}
   }
   if (overview) frameOpening();
