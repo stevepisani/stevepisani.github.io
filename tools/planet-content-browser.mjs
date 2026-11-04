@@ -17,14 +17,15 @@ export async function contentMessages(page,shot,{base,rpc,packPlanet}) {
     const started=performance.now();
     await page.goto('about:blank');await page.goto(`${base}/p/preview/?test=1#${await packPlanet(result.structuredContent.spec)}`);
     await page.waitForFunction(()=>window.__planet?.ready,null,{timeout:120000});await page.locator('#veil').waitFor({state:'hidden'});
+    await page.evaluate(()=>document.fonts.ready); // verify the painted metrics after late webfont settlement too
     const observe=()=>page.evaluate(()=>{
       const w=window.__planet,frame=w.opening(),matrices=w.spec.things.map(t=>({id:t.id,matrix:t.root.matrixWorld.toArray()})),labels=[];
-      for(const thing of w.spec.things)thing.root.traverse(m=>{if(!m.userData.content)return;const c=m.material.map.image,x=c.getContext('2d'),data=x.getImageData(0,0,c.width,c.height).data;let left=c.width,right=0;for(let y=0;y<c.height;y++)for(let p=0;p<c.width;p++)if(data[(y*c.width+p)*4+3]){left=Math.min(left,p);right=Math.max(right,p);}labels.push({id:thing.id,extent:x.measureText(m.userData.content.text).width,width:c.width,left,right});});
+      for(const thing of w.spec.things)thing.root.traverse(m=>{if(!m.userData.content)return;const c=m.material.map.image,x=c.getContext('2d'),data=x.getImageData(0,0,c.width,c.height).data;let left=c.width,right=0;for(let y=0;y<c.height;y++)for(let p=0;p<c.width;p++)if(data[(y*c.width+p)*4+3]){left=Math.min(left,p);right=Math.max(right,p);}labels.push({id:thing.id,extent:x.measureText(m.userData.content.text).width,drawnExtent:m.userData.content.drawnExtent,font:x.font,drawnFont:m.userData.content.drawnFont,width:c.width,left,right});});
       return {fits:frame.fits,content:frame.content,labels,matrices};
     });
     const close=await observe(),readyMs=performance.now()-started;
     if(!close.fits||!close.content?.meetsBudget)throw Error('The real message does not have a clear front close view: '+JSON.stringify(close.content));
-    if(close.labels.length!==2||close.labels.some(l=>l.width>2048||l.extent>l.width-63||l.left<14||l.right>=l.width-14))throw Error('Actual text canvas ink or complete text extent clips: '+JSON.stringify(close.labels));
+    if(close.labels.length!==2||close.labels.some(l=>l.font!==l.drawnFont||Math.abs(l.extent-l.drawnExtent)>.5||l.width>2048||l.drawnExtent>l.width-63||l.left<14||l.right>=l.width-14))throw Error('Actual text canvas ink or complete text extent clips: '+JSON.stringify(close.labels));
     await shot(`content-${angle}-close`);
     const wholeStarted=performance.now();
     await page.getByRole('button',{name:'Whole place',exact:true}).click();await page.waitForFunction(()=>!window.__planet.opening().detail&&!window.__planet.busy());

@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import {contentSurfaces,contentView} from '../assets/js/planets/content-view.js';
 import {overviewFrame} from '../assets/js/planets/overview.js';
 import {RADIUS} from '../assets/js/world/planet.js';
+import {textLayout} from '../assets/js/planets/text-layout.js';
+let measurements=0;const nonlinear=px=>{measurements++;return 28*px**1.08;};const fitted=textLayout(nonlinear(96),{measure:nonlinear});assert(nonlinear(fitted.font)<=fitted.width-64,'actual nonlinear font advance must fit its complete canvas');assert(measurements<=19,'font fitting must use a bounded number of actual measurements');
 const roots=[];
 const material=()=>new THREE.MeshBasicMaterial({side:THREE.DoubleSide});
 function sign(id,turn=0,scale=1){
@@ -21,6 +23,17 @@ cam.position.copy(centre).addScaledVector(surfaces[0].normal,-2);cam.lookAt(cent
 cam.position.copy(centre).add(new THREE.Vector3(0,0,2));cam.lookAt(centre);cam.updateMatrixWorld(true);assert(!contentView(surfaces,cam,mesh,{height:440}).meetsBudget,'an edge-on message is not rescued by its tall post');
 cam.position.copy(centre).addScaledVector(surfaces[0].normal,2);cam.lookAt(centre);cam.updateMatrixWorld(true);
 const blocker=new THREE.Mesh(new THREE.BoxGeometry(.3,2,3),material());blocker.position.copy(centre).addScaledVector(surfaces[0].normal,1);blocker.updateMatrixWorld(true);assert(!contentView(surfaces,cam,[blocker,...mesh],{height:440}).meetsBudget,'a real foreground occluder blocks content even when its own thing has visible geometry');
+// Opposite physical faces with the same words are alternatives, not impossible joint targets.
+const double=sign('two-sided notice');double.text.userData.content.text='The same complete message';
+const backText=new THREE.Mesh(double.text.geometry.clone(),double.text.material);backText.position.copy(double.text.position);backText.position.z=-.045;backText.rotation.y=Math.PI;backText.userData.content={glyphFraction:2/3,text:'The same complete message'};double.t.root.add(backText);double.t.root.updateMatrixWorld(true);
+const doubleMeshes=[];double.t.root.traverse(o=>{if(o.isMesh)doubleMeshes.push(o);});
+const doubleSurfaces=contentSurfaces(double.t),doubleCentre=doubleSurfaces[0].centre;
+cam.position.copy(doubleCentre).add(new THREE.Vector3(0,0,2));cam.lookAt(doubleCentre);cam.updateMatrixWorld(true);
+const alternatives=contentView(doubleSurfaces,cam,doubleMeshes,{height:440});
+assert(alternatives.meetsBudget&&alternatives.surfaces===2&&alternatives.messages===1,'one clear face must satisfy a repeated two-sided message');
+backText.userData.content.text='A genuinely different hidden message';
+const distinct=contentView(contentSurfaces(double.t),cam,doubleMeshes,{height:440});
+assert(!distinct.meetsBudget&&distinct.messages===2,'a visible title must not stand in for different hidden words');
 for(const [w,h]of [[366,440],[700,440]])for(const turn of [0,Math.PI/2,Math.PI,-.8]){
  const {t}=sign('addition',turn,.9);const anchor=sign('main-activity',-.2,1).t;anchor.root.position.set(-1,RADIUS,-5);anchor.root.updateMatrixWorld(true);anchor.center.copy(anchor.root.position);t.frameWith=anchor.id;
  const before=[anchor,t].map(t=>t.root.matrixWorld.toArray());const opts={aspect:w/h,fov:w<400?72:54,height:h,surface:()=>RADIUS};
