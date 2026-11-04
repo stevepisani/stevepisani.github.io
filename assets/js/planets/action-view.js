@@ -17,7 +17,7 @@ export function approachRoute(from,to,colliders,surface) {
 export function responseFrame(thing,things,{aspect,fov,height,surface,colliders}) {
   // Upper controls finish at 116 px; the response caption sits below the framed geometry.
   // Use both endpoint bounds so the user can reverse without another camera move.
-  return overviewFrame(things,{aspect,fov,height,surface,colliders,focusId:thing.id,focusOnly:true,boundsFor:t=>t===thing?actionBounds(t):null,frameArea:{x:.88,top:1-264/height,bottom:-1+242/height}});
+  return overviewFrame(things,{aspect,fov,height,surface,colliders,focusId:thing.id,focusOnly:true,contentId:null,boundsFor:t=>t===thing?actionBounds(t):null,frameArea:{x:.88,top:1-264/height,bottom:-1+242/height}});
 }
 
 // Rotation must not teleport an inspecting visitor to a newly searched surface position.

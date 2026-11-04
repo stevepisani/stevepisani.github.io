@@ -20,6 +20,8 @@ import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
 import { holidayOn, HOLIDAYS } from '../assets/js/holidays.js';
 import * as planets from '../supabase/functions/planets/server.js';
+import { contentMessages } from './planet-content-browser.mjs';
+import { settingResponses } from './planet-setting-browser.mjs';
 import { ASSET_LOAD_POLICY } from '../assets/js/planets/asset-loading.js';
 import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
@@ -2325,6 +2327,12 @@ if (want('planets') || want('models')) await session('ready models card', { view
 if (want('planets') || want('models')) await session('ready models phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, readyModels);
 if (want('planets') || want('landscape')) await session('landscape card', { viewport: { width: 700, height: 440 } }, landscapeSurfaces);
 if (want('planets') || want('landscape')) await session('landscape phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, landscapeSurfaces);
+if (want('planets') || want('payoff')) {
+  for(const width of [700,366]) {
+    await session(`content messages ${width}`, {viewport:{width,height:440}}, (page,shot)=>contentMessages(page,shot,{base,rpc:planets.rpc,packPlanet}));
+    await session(`setting responses ${width}`, {viewport:{width,height:440}}, (page,shot)=>settingResponses(page,shot,{base,rpc:planets.rpc,packPlanet}));
+  }
+}
 if (want('planets') || want('responses')) await session('small responses card', { viewport: { width: 700, height: 440 } }, smallResponses);
 if (want('planets') || want('responses')) await session('small responses phone', { viewport: { width: 366, height: 440 }, isMobile: true, hasTouch: true }, smallResponses);
 if (want('planets') || want('library')) await session('reading family card', { viewport: { width: 700, height: 440 } }, readingFamily);
