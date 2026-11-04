@@ -22,6 +22,7 @@ export function contentView(surfaces,camera,pickable,{height,area={x:.9,top:.8,b
       const p=point.clone().project(camera);
       if(p.z<=0||p.z>=1||Math.abs(p.x)>area.x||p.y>area.top||p.y<area.bottom)continue;
       ray.set(camera.position,point.clone().sub(camera.position).normalize());
+      ray.far=camera.position.distanceTo(point)+.001; // nothing beyond this surface can obscure its words
       const hit=ray.intersectObjects(pickable,false)[0];
       if(hit?.object===s.mesh)visible++;
     }
