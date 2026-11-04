@@ -721,7 +721,7 @@ export function lookOver(spec) {
     const near = (a, b) => a[0] <= b[1] + 0.02 && a[1] >= b[0] - 0.02 && a[2] <= b[3] + 0.02 && a[3] >= b[2] - 0.02 && a[4] <= b[5] + 0.02 && a[5] >= b[4] - 0.02;
     bs.forEach((b, j) => {
       const p = partsOf(t)[j];
-      if (p.shape === 'text' || p.finish === 'glow' || b[2] < 0.05) return;
+      if (p.shape === 'text' || p.finish === 'glow' || p.finish === 'vapor' || b[2] < 0.05) return;
       const held = bs.some((o, k) => k !== j && near(o, b));
       if (!held) notes.push(`things[${i}].parts[${j}] (${p.shape}): touches nothing and hangs ${b[2].toFixed(2)} m above the ground; move it onto another part or the ground (at is its middle)`);
     });

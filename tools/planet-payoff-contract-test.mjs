@@ -1,6 +1,6 @@
 // Public API contracts for opt-in shared controls, using unrelated synthetic source data.
 import assert from 'node:assert/strict';
-import {checkPlanet} from '../supabase/functions/_shared/planet.js';
+import {checkPlanet,lookOver} from '../supabase/functions/_shared/planet.js';
 import {RESPONSE_HOLD_RANGE} from '../supabase/functions/_shared/planet-authoring.js';
 import {buildThings} from '../assets/js/planets/things.js';
 import {rpc} from '../supabase/functions/planets/server.js';
@@ -12,6 +12,7 @@ staticWorld.group.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)amount=o.m
 const changingWorld=buildThings([structuredClone(source.things[0])],()=>20);
 changingWorld.group.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)assert.equal(o.material.uniforms.amount.value,0,'a responding puff starts hidden until requested');});
 assert.deepEqual(checkPlanet(source),[]);
+assert(!lookOver(source).some(n=>n.includes('parts[1]')&&n.includes('touches nothing')),'explicit vapor is not a floating physical support defect');
 for(const hold of [1,8.1,NaN,Infinity,-Infinity,'3',null]){const s=structuredClone(source);s.things[0].response.hold=hold;assert(checkPlanet(s).some(e=>e.includes('response.hold')),'invalid transient duration is rejected, not silently repaired');}
 for(const hold of RESPONSE_HOLD_RANGE){const s=structuredClone(source);s.things[0].response.hold=hold;assert.deepEqual(checkPlanet(s),[]);}
 for(const shape of ['box','text','cylinder']){const s=structuredClone(source);s.things[0].parts[0].finish='vapor';s.things[0].parts[0].shape=shape;assert(checkPlanet(s).some(e=>e.includes('vapor needs a sphere')));}
