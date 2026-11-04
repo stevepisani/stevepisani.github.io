@@ -20,6 +20,7 @@ import { wardrobeDb } from './wardrobe-db.mjs';
 import { rpc, APP_URI } from '../supabase/functions/mcp/server.js';
 import { holidayOn, HOLIDAYS } from '../assets/js/holidays.js';
 import * as planets from '../supabase/functions/planets/server.js';
+import { ASSET_LOAD_POLICY } from '../assets/js/planets/asset-loading.js';
 import { packPlanet, PREVIEW_PAGE } from '../supabase/functions/_shared/planet.js';
 
 const args = process.argv.slice(2);
@@ -2066,16 +2067,25 @@ async function readyModels(page, shot) {
   await shot('missing-ready-model');
   step('an unavailable ready model gives a reload message instead of an unfinished first reveal');
   await page.unroute('**/assets/models/planets/stock/bench.glb');
-  let finish;
+  let finish,stalledRequests=0;
+  const failures=[];const onLog=message=>{if(message.type()==='warning')failures.push(message.text());};page.on('console',onLog);
   const stalled=new Promise(r=>{finish=r;});
-  await page.route('**/assets/models/planets/stock/bench.glb',async route=>{await stalled;await route.continue().catch(()=>{});});
+  await page.route('**/assets/models/planets/stock/bench.glb',async route=>{stalledRequests++;await stalled;await route.continue().catch(()=>{});});
   await page.clock.install();await page.reload();
   await until(page,()=>/finishing touches/.test(document.getElementById('veil-status').textContent));
-  await page.clock.fastForward(15001);
+  const loadingAt=await page.evaluate(()=>performance.now());
+  for(let attempt=0;attempt<ASSET_LOAD_POLICY.attempts;attempt++){
+    for(let poll=0;poll<100&&stalledRequests<attempt+1;poll++)await page.waitForTimeout(50);
+    if(stalledRequests!==attempt+1)throw Error('the expected stalled asset attempt was never requested');
+    await page.clock.fastForward(ASSET_LOAD_POLICY.headerMs+1);await page.waitForTimeout(100);
+  }
   await until(page,()=>document.getElementById('planet')?.dataset.state==='failed');
+  const failedAfter=await page.evaluate(start=>performance.now()-start,loadingAt);
+  if(stalledRequests!==ASSET_LOAD_POLICY.attempts||failedAfter>ASSET_LOAD_POLICY.headerMs*ASSET_LOAD_POLICY.attempts+1500||!failures.some(t=>/asset-stalled; phase=headers/.test(t)))throw Error(`stalled model retry/watchdog/cause: ${JSON.stringify({stalledRequests,failedAfter,failures})}`);
+  page.off('console',onLog);
   finish();await page.waitForTimeout(200);
   if(await page.evaluate(()=>window.__planet?.ready))throw Error('a late model revived a timed-out first reveal');
-  step('the initial model batch times out within one 15-second budget, and late completion cannot reveal it');
+  step('a stalled asset gets one bounded retry with a retained phase/cause; late completion cannot reveal a failed batch');
 }
 
 // the first view on a phone held upright, the narrowest it opens on: what the connector counts as

@@ -20,6 +20,7 @@ import { line } from '../../../supabase/functions/_shared/planet.js';
 import { buildGround } from './ground.js';
 import { buildThings } from './things.js';
 import { loadModels, loadSceneAssets } from './models.js';
+import { createAssetLoadSession, assetFailureDetail } from './asset-loading.js';
 import { buildPaths } from './paths.js';
 import { buildStargazing } from './stargazing.js';
 import { makeRain } from './rain.js';
@@ -95,9 +96,10 @@ async function start(spec) {
   const ground = buildGround(spec.slug, { quality, time, ...look.ground });
   scene.add(ground.mesh);
   // what their AI made for them from what they love (things.js); none, and the planet is bare
+  const assetSession=createAssetLoadSession();
   let library;
-  try { say('Planting the scene…');library=await loadSceneAssets(spec); }
-  catch { return fail('The scene’s trees could not load. Please reload to try again.', ['required scene asset unavailable']); }
+  try { say('Planting the scene…');library=await loadSceneAssets(spec,assetSession); }
+  catch(error) { assetSession.close();console.warn('Required planet scene asset failed',assetFailureDetail(error));return fail('The scene’s trees could not load. Please reload to try again.', [assetFailureDetail(error)]); }
   const things = buildThings(spec.things, ground.surface, library);
   scene.add(things.group);
   // worn paths from where you land to each of their places (paths.js)
@@ -108,9 +110,10 @@ async function start(spec) {
   // Frame the finished available objects, not placeholders that change after the first reveal.
   // New models still being made keep their shapes and arrive through the existing later path.
   say('Putting the finishing touches in place…');
-  const models = loadModels(spec, things);
+  const models = loadModels(spec, things,assetSession);
   try { await models; }
-  catch { return fail('The scene’s models could not load. Please reload to try again.', ['required model unavailable']); }
+  catch(error) { console.warn('Required planet model failed',assetFailureDetail(error));return fail('The scene’s models could not load. Please reload to try again.', [assetFailureDetail(error)]); }
+  finally {assetSession.close();}
 
   // where a tap means to walk: a ring on the ground, fading as you arrive
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.3, 32), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false }));
