@@ -91,7 +91,8 @@ on its own; a later swap cannot rescue an inadequate first impression.
 
 Ready stock and matching cached custom models now load before reveal and before the receiving
 viewport's overview is chosen. Repeated props share the source download, not their transforms.
-The batch has a 15-second deadline and a clear reload failure instead of revealing advertised-ready
+Required assets share a bounded progress-aware loading session, with per-request stall recovery
+and an absolute limit. A clear reload failure retains its cause instead of revealing advertised-ready
 models as placeholders. All three placement-envelope axes constrain uniform model size. A canopy
 frames the activity; fitting its entire roof must not force small furniture into the distance. This
 closes a delivery gap for existing assets; it does not add an accepted hero family or establish

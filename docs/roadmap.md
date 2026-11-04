@@ -26,7 +26,7 @@ rather than leaving it in a chat.
    These are stock options, not a reading scene applied to unrelated people. Broader personal
    heroes, all-angle asset acceptance and a newly frozen independent round remain open. It includes
    ready stock/matching cached models loaded before reveal and actual-geometry framing, a shared
-   15-second model-load deadline, repeated-source reuse and three-axis placement-envelope fitting.
+   progress-aware shared asset budget, repeated-source reuse and three-axis placement-envelope fitting.
    This closes a first-view delivery gap; accepted finished hero families and fresh independent
    first-attempt evidence remain the next visual-quality work. The merged #152 keeps crafted
    bump materials finite in the HDR/bloom pass and adds explicit sheltered activity settings.
