@@ -1,4 +1,4 @@
-import { SEAT_VIEW_RANGES } from './planet-authoring.js';
+import { SEAT_VIEW_RANGES, RESPONSE_HOLD_RANGE } from './planet-authoring.js';
 import { stockParts } from './planet-stock.js';
 import { LIBRARY_STOCK } from './planet-library.js';
 import { sceneErrors, composePlanet as composeScenes } from './planet-scenes.js';
@@ -55,7 +55,7 @@ export const SIGHTS = ['moon', 'sun', 'earth'];
 // and `tube` runs along a path (a handle, a cable, a rail). A part can be repeated in steps (the
 // keys of a piano, petals round a stem) and mirrored left to right (a pair of wings).
 export const SHAPES = ['box', 'sphere', 'cylinder', 'cone', 'torus', 'capsule', 'text', 'lathe', 'extrude', 'tube'];
-export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow'];
+export const FINISHES = ['matte', 'gloss', 'metal', 'glass', 'glow', 'vapor'];
 // where a thing can stand beside another (near): in front of it (the side it faces), behind it,
 // or to its left or right as it faces
 export const SIDES = ['front', 'back', 'left', 'right'];
@@ -343,6 +343,7 @@ export function checkPlanet(spec) {
       triple(`${pat}.turn`, p.turn, -360, 360);
       color(`${pat}.color`, p.color);
       if (p.finish !== undefined && !FINISHES.includes(p.finish)) fail(`${pat}.finish`, `should be one of ${FINISHES.join(', ')}`);
+      if (p.finish === 'vapor' && p.shape !== 'sphere') fail(`${pat}.finish`, 'vapor needs a sphere part');
       between(`${pat}.spin`, p.spin, -360, 360);
       if (p.shape === 'text') text(`${pat}.text`, p.text, LIMITS.name * 2, true);
       else if (p.text !== undefined) fail(`${pat}.text`, 'only a text part has text');
@@ -366,7 +367,7 @@ export function checkPlanet(spec) {
     });
     if(t.use==='change' || t.response!==undefined){
       if(t.use!=='change'||!isObj(t.response)||t.model||t.stock||t.craft||t.on)fail(`${at}.response`,'change needs custom ground-level parts and response labels; no model/stock/craft/tabletop');
-      else {only(`${at}.response`,t.response,['label','done']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);}
+      else {only(`${at}.response`,t.response,['label','done','hold']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);between(`${at}.response.hold`,t.response.hold,...RESPONSE_HOLD_RANGE);}
       if(!ps.some(p=>p?.after))fail(`${at}.response`,'change needs at least one part with after');
       if(ps.filter(p=>p?.after).length>8)fail(`${at}.response`,'at most eight changing parts');
     }
