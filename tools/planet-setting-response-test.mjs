@@ -31,6 +31,8 @@ const world=buildThings([structuredClone(source)],()=>20),thing=world.pickable[0
 assert(m.material.transparent&&!m.material.depthWrite&&!m.castShadow,'soft vapor has no solid depth/shadow envelope');
 assert(!/Math\.random|fetch\(/.test(vaporMaterial.toString()),'effect has no random placement or network assets');
 // Curved/noisy ground must meet the whole panel, not only its centre or support foot.
-const root=new THREE.Group();root.position.set(0,20,0);const panel=new THREE.Mesh(new THREE.BoxGeometry(2,.065,1.8,4,1,4),new THREE.MeshBasicMaterial());panel.position.set(0,-.02,0);conformSurfaceFloor(panel,root,()=>20);root.add(panel);root.updateMatrixWorld(true);const pos=panel.geometry.attributes.position;
+const root=new THREE.Group();root.position.set(0,20,0);const panel=new THREE.Mesh(new THREE.BoxGeometry(2,.065,1.8,8,1,8),new THREE.MeshBasicMaterial());panel.position.set(0,-.02,0);conformSurfaceFloor(panel,root,()=>20);root.add(panel);root.updateMatrixWorld(true);const pos=panel.geometry.attributes.position;
 for(let i=0;i<pos.count;i++)if(pos.getY(i)>-.04){const q=new THREE.Vector3().fromBufferAttribute(pos,i);panel.localToWorld(q);assert(Math.abs(q.length()-20.0125)<.0001,'every top vertex lies just above the same curved walking surface');}
+const indices=panel.geometry.index;
+for(let i=0;i<indices.count;i+=3){const vs=[0,1,2].map(j=>new THREE.Vector3().fromBufferAttribute(pos,indices.getX(i+j)));if(vs.every(v=>v.y>-.04)){const centre=vs.reduce((a,v)=>a.add(v),new THREE.Vector3()).multiplyScalar(1/3);panel.localToWorld(centre);assert(centre.length()>20,'triangle interiors must not slice into terrain between fitted vertices');}}
 console.log('Setting/response: independent floor intent, fixed curved-ground panels, stable edits, strict input, finite transient state, reversal, reduced motion and stable hulls passed.');

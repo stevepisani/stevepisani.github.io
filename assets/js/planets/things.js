@@ -115,7 +115,7 @@ function woodUV(mesh) {
 
 // one part, as a mesh placed in its thing: unit-sized shapes are scaled to its size; a rounded box,
 // a tube and a lathe or extrude are built for it
-function part(p) {
+function part(p,terrainFloor=false) {
   const [w, h, d] = p.size;
   let mesh;
   if (p.shape === 'text') {
@@ -126,7 +126,11 @@ function part(p) {
     mesh.scale.set(height * t.aspect, height, 1);
   } else {
     const m = p.finish==='vapor'?vaporMaterial(p.color):craftedMaterial(p);
-    if (p.shape === 'box' && p.round) {
+    if(terrainFloor&&p.shape==='box'){
+      // A long flat face can cut through the sphere between correctly fitted corners.
+      // Fine bounded cells make the entire surface follow terrain, not only its edges.
+      mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d,Math.ceil(w/.25),1,Math.ceil(d/.25)),m);
+    } else if (p.shape === 'box' && p.round) {
       mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, p.round * Math.min(w, h, d)), m);
     } else if (p.shape === 'tube') {
       const curve = new THREE.CatmullRomCurve3(p.path.map(([x, y, z]) => new THREE.Vector3(x * w, y * h, z * d)));
@@ -229,10 +233,10 @@ export function buildThings(things = [], surface, library = new Map()) {
     if(thing.craft==='pavilion')for(const z of [-1.89,1.89])body.add(grassFringe({x0:-2.4,x1:2.4,y:3.05,z,count:48,length:.2,seed:13}));
     if(thing.craft==='easel')body.add(watercolour());
     for (const p of ['palm','planting','birch'].includes(thing.craft) ? [] : partsOf(thing)) {
-      const one = part(p);
+      const one = part(p,thing.craft==='surface-floor');
       if(p.after){one.userData.responding=true;responsive.push(responsePart(one,p));}
       if(p.ground)fitGroundSupport(one,root,surface);
-      if(thing.craft==='surface-floor'){const source=one.geometry;conformSurfaceFloor(one,root,surface);if(p.round||p.surface==='wood')source.dispose();}
+      if(thing.craft==='surface-floor'){const source=one.geometry;conformSurfaceFloor(one,root,surface);source.dispose();}
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
       const n = p.repeat ? p.repeat.count : 1;
