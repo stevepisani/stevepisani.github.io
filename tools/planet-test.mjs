@@ -13,6 +13,7 @@ import { RADIUS } from '../assets/js/world/planet.js';
 import { checkPlanet, composePlanet, showsNothing, lookOver, placeThings, thingReach, planetParts, planetHas, packPlanet, unpackPlanet, PREVIEW_PAGE, LIMITS, STOCK } from '../supabase/functions/_shared/planet.js';
 import * as planets from '../supabase/functions/planets/server.js';
 import { buildPlanet } from './planet.mjs';
+import './planet-payoff-contract-test.mjs';
 import './planet-authoring-guard-test.mjs';
 import './planet-ground-zones-test.mjs';
 import './planet-action-view-test.mjs';
