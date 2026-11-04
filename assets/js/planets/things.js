@@ -14,6 +14,8 @@ import { palm } from '../world/props.js';
 import { planting, shrub, grassFringe } from '../world/decor.js';
 import { watercolour } from './painting.js';
 import {responsePart,responseState} from './response.js';
+import { vaporMaterial } from './vapor.js';
+import { conformSurfaceFloor } from './surface-floor.js';
 
 const DEG = Math.PI / 180;
 const surfaces = new Map();
@@ -123,7 +125,7 @@ function part(p) {
     const height = Math.min(h, w / t.aspect);
     mesh.scale.set(height * t.aspect, height, 1);
   } else {
-    const m = craftedMaterial(p);
+    const m = p.finish==='vapor'?vaporMaterial(p.color):craftedMaterial(p);
     if (p.shape === 'box' && p.round) {
       mesh = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 4, p.round * Math.min(w, h, d)), m);
     } else if (p.shape === 'tube') {
@@ -145,7 +147,7 @@ function part(p) {
     }
     if (p.surface==='wood') woodUV(mesh);
     // solid parts cast shadows; light passes through glass, and what glows lights itself
-    mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow';
+    mesh.castShadow = p.finish !== 'glass' && p.finish !== 'glow' && p.finish !== 'vapor';
     mesh.receiveShadow = true;
   }
   mesh.position.fromArray(p.at || [0, h / 2, 0]);
@@ -230,6 +232,7 @@ export function buildThings(things = [], surface, library = new Map()) {
       const one = part(p);
       if(p.after){one.userData.responding=true;responsive.push(responsePart(one,p));}
       if(p.ground)fitGroundSupport(one,root,surface);
+      if(thing.craft==='surface-floor'){const source=one.geometry;conformSurfaceFloor(one,root,surface);if(p.round||p.surface==='wood')source.dispose();}
       // repeated in steps (each copy moved and turned one more step about the foot), then mirrored
       const copies = new THREE.Group();
       const n = p.repeat ? p.repeat.count : 1;
@@ -257,7 +260,7 @@ export function buildThings(things = [], surface, library = new Map()) {
       if (p.mirror) { const m = copies.clone(); m.scale.x = -1; parent.add(m); }
     }
     if (['cat','bird'].includes(thing.craft)) { thing.joints = joints; characters.push(thing); }
-    if(responsive.length){thing.responseState=responseState(responsive);responses.push(thing);}
+    if(responsive.length){thing.responseState=responseState(responsive,{hold:thing.response?.hold??null});responses.push(thing);}
     batchParts(body);
     body.traverse((o) => {
       if (!o.isMesh) return;
@@ -342,7 +345,7 @@ export function buildThings(things = [], surface, library = new Map()) {
     },
     respond(thing,reduced=false){thing.responded=thing.responseState.toggle(performance.now()/1000,reduced);return thing.responded;},
     update(t) {
-      for(const r of responses)r.responseState.update(t);
+      for(const r of responses){r.responseState.update(t);r.responded=r.responseState.active;r.body.traverse(o=>{if(o.isMesh&&o.material.userData.vapor)o.material.uniforms.time.value=r.responseState.reduced?0:t;});}
       for (const s of spinning) s.mesh.quaternion.copy(s.base).multiply(_q.setFromAxisAngle(Y, t * s.speed));
       for (const c of characters) {
         const a=c.greeting;

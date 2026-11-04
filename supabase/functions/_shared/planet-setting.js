@@ -8,14 +8,15 @@ export function settingErrors(spec) {
   if(spec.setting===undefined)return [];
   const s=spec.setting,e=[],fail=(k,m)=>e.push(`setting${k?'.'+k:''}: ${m}`);
   if(!s||typeof s!=='object'||Array.isArray(s))return ['setting: should be an object'];
-  for(const k of Object.keys(s))if(!['around','edge','planting','color','shelter','extras'].includes(k))fail(k,'not part of a setting');
+  for(const k of Object.keys(s))if(!['around','edge','planting','color','shelter','extras','floor'].includes(k))fail(k,'not part of a setting');
   if(!Array.isArray(spec.things)||!spec.things.some(t=>t?.id===s.around))fail('around','should name an existing custom thing');
   if(s.edge!==undefined&&!['wall','windows','railing'].includes(s.edge))fail('edge','should be wall, windows or railing');
   if(s.planting!==undefined&&s.planting!=='woodland')fail('planting','only woodland is available here; tropical scenes supply their own planting');
+  if(s.floor!==undefined&&!['timber','paving'].includes(s.floor))fail('floor','should be timber or paving');
   if(s.shelter!==undefined&&s.shelter!=='canopy')fail('shelter','only canopy is available');
   if(s.extras!==undefined&&(!Array.isArray(s.extras)||s.extras.length>1||s.extras.some(x=>x!=='window-seat')))fail('extras','only [window-seat] is available');
   if(Array.isArray(s.extras)&&s.extras.includes('window-seat')&&s.edge!=='windows')fail('extras','window-seat needs a windows edge');
-  if(s.edge===undefined&&s.planting===undefined&&s.shelter===undefined)fail('','choose an edge, planting or shelter');
+  if(s.edge===undefined&&s.planting===undefined&&s.shelter===undefined&&s.floor===undefined)fail('','choose an edge, planting, shelter or floor');
   if(s.color!==undefined&&!(typeof s.color==='string'&&/^#[0-9a-f]{6}$/i.test(s.color)))fail('color','should be a colour like #ad9278');
   return e;
 }
@@ -33,6 +34,20 @@ export function composeSetting(spec,placed) {
     const bearing=Math.atan2(px,pn)/DEG;
     out.things.push({id:`${s.around.slice(0,15)}-setting-${id}`,name,at:{bearing,distance:Math.hypot(px,pn)},turn:((bearing-a/DEG+turn+540)%360)-180,parts,role:'environment',solid:false,...extra});
   };
+  if(s.floor) {
+    // Short tangent panels follow the same fixed frame and the planet's curve. They are
+    // surface cues, not raised decks: walking height/collision remains the shared terrain.
+    // Each panel clears grass/pebbles through its real footprint, even though non-solid.
+    for(const [row,z] of [[0,-2.75],[1,-.95],[2,.85]])for(const [col,x] of [[0,-2.14],[1,0],[2,2.14]]) {
+      const timber=s.floor==='timber',parts=[];
+      if(timber)for(let i=0;i<8;i++)parts.push(box([.255,.065,1.79],[-.935+i*.267,-.02,0],wood,{surface:'wood'}));
+      else for(const [px,pz] of [[-.52,-.44],[.52,-.44],[-.52,.44],[.52,.44]])parts.push(box([1.03,.065,.87],[px,-.02,pz],col%2?'#898b84':'#94948a'));
+      add(`floor-${row}-${col}`,timber?'Timber under the activity':'Paving under the activity',x,z,parts,{footprint:[2.14,1.8],craft:'surface-floor'});
+    }
+    // A shallow, separated threshold gives the approach a visible destination without a step
+    // big enough to contradict the terrain walk or closing the open front.
+    add('threshold','The open approach',0,2.02,[box([2.14,.065,.43],[0,-.02,0],s.floor==='timber'?wood:'#94948a',s.floor==='timber'?{surface:'wood'}:{})],{footprint:[2.14,.43],craft:'surface-floor'});
+  }
   if(s.edge) {
     // Separate short bays follow the curved ground. The front and both approaches stay open.
     for(const [i,x] of [[0,-2.05],[1,0],[2,2.05]]) {
