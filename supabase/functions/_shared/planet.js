@@ -259,7 +259,7 @@ export function checkPlanet(spec) {
     if (!isObj(t)) return fail(at, 'should be an object');
     only(at, t, ['id', 'name', 'note', 'collection', 'at', 'near', 'on', 'turn', 'scale', 'solid', 'model', 'stock', 'use', 'parts', 'light', 'footprint', 'craft', 'role', 'seatView', 'frameWith', 'response']);
     if(t.frameWith!==undefined && (typeof t.frameWith!=='string'||!thingIds.has(t.frameWith)))fail(`${at}.frameWith`,'should name a thing listed before this one');
-    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
+    if (t.craft !== undefined && !['palm', 'cat', 'planting', 'pavilion', 'birch', 'woodland-floor', 'bird', 'easel', 'canopy', 'surface-floor'].includes(t.craft)) fail(`${at}.craft`, 'unknown authored craft');
     if (id(`${at}.id`, t.id) && thingIds.has(t.id)) fail(`${at}.id`, `"${t.id}" is used twice`);
     thingIds.add(t.id);
     text(`${at}.name`, t.name, LIMITS.name, true);
@@ -365,6 +365,10 @@ export function checkPlanet(spec) {
       }
       if (p.mirror !== undefined && typeof p.mirror !== 'boolean') fail(`${pat}.mirror`, 'should be true or false');
     });
+    if(t.craft==='surface-floor') {
+      if(t.on||t.use||t.model||t.stock||t.solid!==false||t.scale!==undefined&&t.scale!==1)fail(`${at}.craft`,'surface-floor needs nonblocking ground-level low boxes, no action/model/stock and scale 1');
+      if(ps.some(p=>!isObj(p)||p.shape!=='box'||!Array.isArray(p.size)||p.size[1]>.1||p.size[0]>3||p.size[2]>3||p.at&&(!Array.isArray(p.at)||Math.abs(p.at[0])>1.5||p.at[1]<-.1||p.at[1]>.05||Math.abs(p.at[2])>1.5)||['after','spin','joint','repeat','mirror','ground','turn'].some(k=>p[k]!==undefined)||p.finish!==undefined&&p.finish!=='matte'||p.surface!==undefined&&p.surface!=='wood'))fail(`${at}.parts`,'surface-floor needs low plain matte boxes within its bounded local tile, with only optional wood surface');
+    }
     if(t.use==='change' || t.response!==undefined){
       if(t.use!=='change'||!isObj(t.response)||t.model||t.stock||t.craft||t.on)fail(`${at}.response`,'change needs custom ground-level parts and response labels; no model/stock/craft/tabletop');
       else {only(`${at}.response`,t.response,['label','done','hold']);text(`${at}.response.label`,t.response.label,LIMITS.name,true);text(`${at}.response.done`,t.response.done,LIMITS.name,true);between(`${at}.response.hold`,t.response.hold,...RESPONSE_HOLD_RANGE);}
