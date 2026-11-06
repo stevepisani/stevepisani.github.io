@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
-      "seq": "",
+      "series": "Captive's War",
+      "seq": "1.5",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -5754,7 +5754,7 @@
       "subtitle": null,
       "authors": [
         "Britney Spears",
-        "Britney Spears - introduction"
+        "Britney Spears — Introduction"
       ],
       "narrators": [
         "Michelle Williams"
@@ -5797,5 +5797,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-05"
+  "updated": "2026-11-06"
 }
