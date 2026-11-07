@@ -58,6 +58,7 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
 
 {%- comment -%} Where you are: the sections (a tab bar at the bottom on a phone, a segmented control on a wider screen), each shown only to a member who sees it (me() in the database: Steve all five, Lexi Recipes) {%- endcomment -%}
 <nav class="tabbar wardrobe-tabs" id="tabs" aria-label="Sections">
+  <a href="#finance" data-value="finance" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Finance</span></a>
   <a href="#today" data-value="today" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Today</span></a>
   <a href="#closet" data-value="closet" hidden><svg aria-hidden="true"><use href="#i-closet"/></svg><span>Closet</span></a>
   <a href="#trips" data-value="trips" hidden><svg aria-hidden="true"><use href="#i-trips"/></svg><span>Trips</span></a>
@@ -348,3 +349,5 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
   </form>
 </dialog>
 <template id="leg-row"><div class="leg-row"><label>Place <input data-k="place" type="text" required placeholder="Florence, Italy"></label><label>From <input data-k="from" type="date" required></label><label>To <input data-k="to" type="date" required></label><button class="link-btn leg-row__x" type="button" aria-label="Remove this place">×</button></div></template>
+
+<section id="finance-view" hidden aria-label="Finance"><div id="finance-content" aria-live="polite"></div></section>

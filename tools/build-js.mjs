@@ -33,6 +33,7 @@
 //   npm run watch          rebuild on save, beside `bundle exec jekyll serve`
 //
 // Library versions live in package.json, nowhere else.
+import { backgroundRemovalHardening } from './background-removal-hardening.mjs';
 import * as esbuild from 'esbuild';
 import { rmSync, readFileSync, readdirSync, writeFileSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
@@ -130,7 +131,7 @@ const builds = [
   // the walk in "Rockets and Horses" (_includes/gauge-walk.html loads it)
   { ...common, entryPoints: { gauge: 'assets/js/walk/gauge.js' }, outdir: out, format: 'esm', metafile: true },
   // a new app needs nothing but its file (watch: restart to pick it up)
-  { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', metafile: true },
+  { ...common, entryPoints: readdirSync(root + 'assets/js/apps').filter((f) => f.endsWith('.js')).map((f) => `assets/js/apps/${f}`), outdir: out + '/apps', format: 'esm', splitting: true, chunkNames: '[name]-[hash]', plugins: [backgroundRemovalHardening], metafile: true },
   // the wardrobe's in-chat card for ChatGPT and Claude: one plain script, loaded by the MCP server's page
   { ...common, entryPoints: { 'mcp-app': 'assets/js/mcp-app/widget.js' }, outdir: out, format: 'iife', metafile: true },
   // the Planets connector's card: the same shell, with only the planet's view (docs/planets.md)

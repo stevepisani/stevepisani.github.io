@@ -6,6 +6,14 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **Finance in SJPJr replaces Streamlit.** Build the approved cash overview with category
+   spending detail, then migrate reconciliation, tax scenarios, obligations, goals and connected
+   refresh. The [replacement and cutover contract](finance.md) defines coverage and security
+   gates. Local implementation, reconciliation and focused browser checks are in place;
+   repository review and production verification remain open. No private financial data
+   goes online before the access controls have been verified. Retire Streamlit only after
+   reconciliation and independent operation pass.
+
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
    their own, from what they love. Current shared follow-up: reported minimum-thickness/display-label

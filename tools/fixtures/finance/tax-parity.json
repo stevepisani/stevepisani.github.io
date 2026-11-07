@@ -1,0 +1,230 @@
+[
+  {
+    "input": {
+      "profit_cents": 0,
+      "health_cents": 0,
+      "home_office_cents": 0,
+      "claim_qbi": false
+    },
+    "federal_cents": 0,
+    "state_cents": 0
+  },
+  {
+    "input": {
+      "profit_cents": 0,
+      "health_cents": 0,
+      "home_office_cents": 0,
+      "claim_qbi": true
+    },
+    "federal_cents": 0,
+    "state_cents": 0
+  },
+  {
+    "input": {
+      "profit_cents": 5000000,
+      "health_cents": 500000,
+      "home_office_cents": 0,
+      "claim_qbi": false
+    },
+    "federal_cents": 799154,
+    "state_cents": 68250
+  },
+  {
+    "input": {
+      "profit_cents": 5000000,
+      "health_cents": 500000,
+      "home_office_cents": 200000,
+      "claim_qbi": true
+    },
+    "federal_cents": 737490,
+    "state_cents": 68250
+  },
+  {
+    "input": {
+      "profit_cents": 20000000,
+      "health_cents": 500000,
+      "home_office_cents": 0,
+      "claim_qbi": false
+    },
+    "federal_cents": 5036853,
+    "state_cents": 825160
+  },
+  {
+    "input": {
+      "profit_cents": 20000000,
+      "health_cents": 500000,
+      "home_office_cents": 200000,
+      "claim_qbi": true
+    },
+    "federal_cents": 4323938,
+    "state_cents": 825160
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "health_cents": 500000,
+      "home_office_cents": 0,
+      "claim_qbi": false
+    },
+    "federal_cents": 11649629,
+    "state_cents": 2417660
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "health_cents": 500000,
+      "home_office_cents": 200000,
+      "claim_qbi": true
+    },
+    "federal_cents": 9707116,
+    "state_cents": 2417660
+  },
+  {
+    "input": {
+      "profit_cents": 70000000,
+      "health_cents": 500000,
+      "home_office_cents": 0,
+      "claim_qbi": false
+    },
+    "federal_cents": 20742722,
+    "state_cents": 4511960
+  },
+  {
+    "input": {
+      "profit_cents": 70000000,
+      "health_cents": 500000,
+      "home_office_cents": 200000,
+      "claim_qbi": true
+    },
+    "federal_cents": 20666640,
+    "state_cents": 4511960
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 0,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 35.0,
+      "usable_credit_cents": 1263480,
+      "claim_qbi": true
+    },
+    "federal_cents": 8171858,
+    "state_cents": 2411290
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 0,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 40.0,
+      "usable_credit_cents": 1430434,
+      "claim_qbi": true
+    },
+    "federal_cents": 8004904,
+    "state_cents": 2411290
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 2500000,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 35.0,
+      "usable_credit_cents": 1194355,
+      "claim_qbi": true
+    },
+    "federal_cents": 7760983,
+    "state_cents": 2252040
+  },
+  {
+    "input": {
+      "profit_cents": 45000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 2500000,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 40.0,
+      "usable_credit_cents": 1351434,
+      "claim_qbi": true
+    },
+    "federal_cents": 7603904,
+    "state_cents": 2252040
+  },
+  {
+    "input": {
+      "profit_cents": 65000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 0,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 35.0,
+      "usable_credit_cents": 1809075,
+      "claim_qbi": true
+    },
+    "federal_cents": 16616209,
+    "state_cents": 4054490
+  },
+  {
+    "input": {
+      "profit_cents": 65000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 0,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 40.0,
+      "usable_credit_cents": 2053971,
+      "claim_qbi": true
+    },
+    "federal_cents": 16371313,
+    "state_cents": 4054490
+  },
+  {
+    "input": {
+      "profit_cents": 65000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 2500000,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 35.0,
+      "usable_credit_cents": 1739950,
+      "claim_qbi": true
+    },
+    "federal_cents": 15775239,
+    "state_cents": 3830240
+  },
+  {
+    "input": {
+      "profit_cents": 65000000,
+      "home_office_cents": 1000000,
+      "health_cents": 600000,
+      "retirement_cents": 2500000,
+      "personal_interest_cents": 1800000,
+      "paid_salt_cents": 1800000,
+      "contractor_qre_cents": 1200000,
+      "research_percent": 40.0,
+      "usable_credit_cents": 1974971,
+      "claim_qbi": true
+    },
+    "federal_cents": 15540218,
+    "state_cents": 3830240
+  }
+]

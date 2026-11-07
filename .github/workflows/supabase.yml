@@ -18,7 +18,7 @@ name: Supabase
 on:
   push:
     branches: [main]
-    paths: [supabase/**, tools/supabase.mjs, .github/workflows/supabase.yml]
+    paths: [supabase/**, tools/supabase.mjs, tools/finance-live.mjs, .github/workflows/supabase.yml]
   schedule:
     - cron: '23 * * * *' # hourly: new photos' copies (cheap when there are none); keepalive and the trash ride along
   workflow_dispatch:
@@ -60,6 +60,9 @@ jobs:
       - name: Apply migrations and auth settings
         if: steps.token.outputs.ok
         run: node tools/supabase.mjs
+      - name: Verify finance with synthetic users before private import
+        if: steps.token.outputs.ok && github.ref == 'refs/heads/main'
+        run: node tools/finance-live.mjs
       # pinned to a commit: this job holds the Supabase access token
       - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb # v1.7.3
         if: steps.token.outputs.ok

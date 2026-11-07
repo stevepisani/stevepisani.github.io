@@ -18,6 +18,7 @@ merging Steve's books into `_data/library.json`.
 |---|---|
 | `docs/world.md` | before changing anything on the planet (`assets/js/world/`): every module, and how each thing a visitor does works |
 | `docs/apps.md` | before touching the private app (SJPJr, `/apps`: Today, the closet, trips, places, recipes), or adding a section |
+| `docs/finance.md` | Finance in SJPJr: private data boundaries, import/backup, reviewed tax calculations, verification and Streamlit cutover |
 | `docs/backend.md` | Supabase, the bartender, deploys, secrets, the monthly budget |
 | `docs/planets.md` | My Tiny Planet: a friend's planet (`assets/js/planets/`), the preview page (`/p/preview/`), the Planets connector and its card in the chat |
 | `docs/vision.md` | what the private apps are becoming, and the six rules that keep them improving as AI models do |

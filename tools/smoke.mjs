@@ -599,7 +599,7 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
 // $1.1269 (Frankfurter, made up). By default the
 // member is Steve (me(): his name, all four sections); `email` and `me` make someone else. Returns
 // what was asked of it.
-async function member(page, target, { email = 'member@example.com', me = { name: 'Steve', sections: ['today', 'closet', 'trips', 'recipes'] } } = {}) {
+async function member(page, target, { email = 'member@example.com', me = { name: 'Steve', sections: ['today', 'closet', 'trips', 'recipes'] }, finance = false } = {}) {
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email, role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
   await page.addInitScript(([key, token, email]) => localStorage.setItem(key, JSON.stringify({ access_token: token, refresh_token: 'r', token_type: 'bearer', expires_in: 86400, expires_at: 4102444800, user: { id: 'u1', email, aud: 'authenticated', role: 'authenticated' } })), [`sb-${db.host.split('.')[0]}-auth-token`, jwt, email]);
@@ -654,6 +654,14 @@ async function member(page, target, { email = 'member@example.com', me = { name:
     asked.push({ method, path: url.pathname + url.search, body });
     if (url.pathname.endsWith('/rpc/is_member')) return json(true);
     if (url.pathname.endsWith('/rpc/me')) return json(me);
+    if (url.pathname.endsWith('/rpc/can_finance')) return json(finance);
+    if (url.pathname.endsWith('/auth/v1/user')) return json({id:'u1',email,aud:'authenticated',role:'authenticated'});
+    if (/\/rest\/v1\/finance_/.test(url.pathname)) {
+      if (!finance) return json({message:'Not permitted'},403);
+      if (url.pathname.endsWith('/finance_accounts')) return json([{id:'synthetic-cash',source_key:'synthetic-cash',name:'Synthetic shell checking',kind:'cash',balance_cents:8000000,as_of:'2026-09-01T08:00:00Z',included:true}]);
+      if (url.pathname.endsWith('/finance_plans')) return json([{year:2026,monthly_target_cents:1200000,retirement_goal_cents:2000000,retirement_funded_cents:0,tax_reserve_cents:1000000,contractor_reserve_cents:2000000,operations_reserve_cents:100000,household_reserve_cents:1200000,expected_receipts_cents:3000000,reviewed_on:'2026-09-01',assumptions:'Synthetic shell plan'}]);
+      return json([]);
+    }
     // Storage, as it answers: an upload is kept; signing gives a link only for a file that's there;
     // a signed link is the picture
     const file = /\/storage\/v1\/object\/photos\/(.+)$/.exec(url.pathname);
@@ -760,8 +768,17 @@ async function apps(page, shot) {
   await shot('gate');
   step('signed out: its own bar with the badge, no site nav or footer, and only the sign-in form, said plainly');
 
-  const asked = await member(page, page);
+  const asked = await member(page, page, {finance:true});
   await page.clock.setFixedTime(new Date('2026-09-01T10:00:00+02:00')); // before the trip, so Today is at home
+  await page.goto(base + '/apps/?finance-test#finance');
+  await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
+  if ((await page.textContent('#app-title')) !== 'Finance' || !(await page.isVisible('#tabs a[data-value="finance"][aria-current="page"]'))) throw new Error('Finance is not integrated into the shell navigation');
+  if (!(await page.textContent('.finance-amount')).includes('37,000')) throw new Error('Finance shell cash calculation does not match synthetic reserves');
+  if (await page.evaluate(()=>JSON.stringify(localStorage).includes('Synthetic shell'))) throw new Error('Finance records entered persistent storage');
+  await shot('finance');
+  await page.click('#tabs a[data-value="recipes"]');
+  await until(page,()=>!document.querySelector('#finance-content .finance-amount'));
+  step('Finance in the real shell: explicit permission, recorded reserves, no persistent financial records, and cleared on leaving');
   await page.goto(base + '/apps/recipes');
   await page.waitForURL(/\/apps\/#recipes$/);
   await until(page, () => document.querySelectorAll('#recipe-cards .item').length === 3 && !document.getElementById('recipes-view').hidden);
@@ -834,7 +851,7 @@ async function apps(page, shot) {
   await page.goto(base + '/apps/');
   await until(page, () => document.querySelector('#today-view .sky-panel') && !document.getElementById('today-view').hidden);
   const tabNames = await page.locator('#tabs a:visible').allTextContents();
-  if (tabNames.join() !== 'Today,Closet,Trips,Recipes' || !(await page.isVisible('#tabs a[data-value="today"][aria-current="page"]')) || (await page.evaluate(() => location.hash))) throw new Error(`Steve's tabs, Today first and open with no address: ${tabNames}`);
+  if (tabNames.join() !== 'Finance,Today,Closet,Trips,Recipes' || !(await page.isVisible('#tabs a[data-value="today"][aria-current="page"]')) || (await page.evaluate(() => location.hash))) throw new Error(`Steve's enabled tabs, Today open with no address: ${tabNames}`);
   if ((await page.textContent('#app-title')) !== 'Good morning, Steve' || !/Tuesday/.test(await page.textContent('#app-over'))) throw new Error(`Today's greeting and date: ${await page.textContent('#app-title')} / ${await page.textContent('#app-over')}`);
   const home = flatText(await page.textContent('#today-view'));
   if (!/Nothing planned for today/.test(home) || (await page.textContent('.today-card__place')) !== 'Philadelphia' || !/Next trip.*Europe, autumn/.test(home) || (await page.locator('#today-view .trip-card').getAttribute('href')) !== '#trip/t1') throw new Error(`Today at home: ${home.slice(0, 400)}`);
@@ -1171,6 +1188,10 @@ async function apps(page, shot) {
   await shot('today-journey');
   step('Today: the train tomorrow above the day, counting down; its reference copies; Calendar gets it in UTC; tonight\'s stay opens Maps; home and away, the rate asked once a day and turned round by a tap');
   // pull to refresh on Today: the data and the weather again; nothing else changed, so it says the weather did
+  // The currency control above scrolls into view near the bottom of Today. A refresh
+  // gesture only starts at the top; keep the separate lower-page drag test unchanged.
+  await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+  await until(page, () => scrollY === 0);
   const meteoNow = asked.filter((a) => a.path.startsWith('open-meteo:api')).length, closetNow = asked.filter((a) => a.method === 'GET' && a.path.startsWith('/rest/v1/wardrobe_closet')).length;
   await pullDown(page);
   await until(page, () => /^Weather updated/.test(document.getElementById('app-toast').textContent) && !document.getElementById('app-toast').hidden);
@@ -1294,6 +1315,15 @@ async function apps(page, shot) {
   await page.goto(base + '/about');
   if (!(await page.isVisible('.site-nav [data-members]')) || (await page.getAttribute('.site-nav [data-members]', 'href')) !== '/apps/') throw new Error("the site's nav has no Apps link to SJPJr for someone signed in");
   step('/apps/wardrobe goes to SJPJr at /apps (Today, or the tab in its link), and the site\'s nav has Apps');
+  await page.goto(base + '/apps/#finance');
+  await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
+  await page.click('#app-me');
+  await until(page,()=>document.getElementById('settings').open);
+  page.once('dialog',d=>d.accept());
+  await page.click('#app-signout');
+  await until(page,()=>document.getElementById('app').dataset.state==='out');
+  if (await page.locator('#finance-content .finance-amount').count() || (await page.textContent('#finance-content')).includes('Synthetic shell')) throw new Error('Finance records survived shell sign-out');
+  step('signing out through SJPJr clears the Finance records');
 }
 
 // Someone who isn't Steve (Lexi, say): the wardrobe and trips are Steve's own, so they see what
@@ -1313,6 +1343,9 @@ async function another(page, shot) {
   await page.keyboard.press('Escape');
   await page.goto(base + '/apps/#closet');
   await until(page, () => !document.getElementById('recipes-view').hidden);
+  await page.goto(base + '/apps/#finance');
+  await until(page, () => !document.getElementById('recipes-view').hidden);
+  if (asked.some(a=>/\/rest\/v1\/finance_/.test(a.path))) throw new Error('Finance records were requested for a member without permission');
   await shot('recipes-only');
   step('another member: Recipes only, no tab bar, named from their email; the wardrobe is never asked for, and its address leads to Recipes');
 }

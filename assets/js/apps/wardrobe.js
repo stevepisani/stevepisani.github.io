@@ -27,6 +27,7 @@ import { byDay, wears } from '../../../supabase/functions/_shared/days.js';
 import { fmtDay, journeyCard, stayCard, nextJourney, journeyNow, homeAway, HOME } from './lib/travel.js';
 import * as recipes from './lib/recipes.js';
 import * as places from './lib/places.js';
+import * as finance from './lib/finance.js';
 import { units, setUnits, temp, tempEl, skyOf, skyIcon, placeNow, hourNow, hourLabel, hoursLeft, wetSpell, story, facts, mood, scaleOf, dayList, dayWords, hourStrip } from './lib/sky.js';
 
 const items = rows('wardrobe_items', { trash: true }); // each garment Steve owns; written here (deleting moves to the trash)
@@ -41,7 +42,7 @@ const CATS = [['tops', 'Tops'], ['bottoms', 'Bottoms'], ['outerwear', 'Outerwear
 const catName = Object.fromEntries(CATS);
 let list = [], links = new Map(), failed = false, uid = null, offline = false, me = null;
 // the sections, in the tabs' order; each member sees the ones me() names (null: all of them)
-const SECTIONS = ['today', 'closet', 'trips', 'places', 'recipes'];
+const SECTIONS = ['today', 'closet', 'trips', 'places', 'recipes', 'finance'];
 let sections = SECTIONS;
 const can = (s) => sections.includes(s);
 let view = { cat: '', colour: '', season: '', dress: '', shelf: 'in' };
@@ -528,6 +529,7 @@ function showView(name, id) {
   const was = shown, wasHash = shownHash, hash = id ? `trip/${id}${name === 'pack' ? '/pack' : ''}` : name;
   if (was) scrolls[wasHash] = scrollY;
   const swap = () => {
+    if (was === 'finance' && name !== 'finance') finance.leave();
     shown = name;
     shownHash = hash;
     const tab = name === 'trip' || name === 'pack' ? 'trips' : name;
@@ -561,7 +563,7 @@ const hello = (d = new Date()) => `${d.getHours() >= 5 && d.getHours() < 12 ? 'G
 function title() {
   const t = openTrip, back = shown === 'trip' ? ['#trips', 'Trips'] : shown === 'pack' && t ? [`#trip/${t.id}`, t.name] : null;
   if (shown === 'today') return here({ title: hello(), over: new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }), bar: 'Today' });
-  const name = shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : shown === 'places' ? 'Places' : shown === 'recipes' ? 'Recipes' : 'Closet';
+  const name = shown === 'trip' && t ? t.name : shown === 'pack' ? 'Packing' : shown === 'trips' ? 'Trips' : shown === 'finance' ? 'Finance' : shown === 'places' ? 'Places' : shown === 'recipes' ? 'Recipes' : 'Closet';
   here({ title: name, back });
 }
 // only the sections this member sees, and no tab bar for just one
@@ -575,6 +577,7 @@ $('#tabs').addEventListener('click', (e) => {
   if (a && location.hash === `#${a.dataset.value}` && shown === a.dataset.value) { e.preventDefault(); scrollTo({ top: 0, behavior: calm.matches ? 'auto' : 'smooth' }); }
 });
 function redraw() {
+  if (shown === 'finance') return finance.enter();
   if (shown) title();
   if (shown === 'today') return drawToday();
   if (shown === 'trips') return drawTrips();
@@ -1640,7 +1643,9 @@ addEventListener('online', () => { if (uid) { load(); loadRecipes(); loadPlaces(
 start(async (user) => {
   uid = user.id;
   me = user;
-  sections = user.sections ? SECTIONS.filter((x) => user.sections.includes(x)) : SECTIONS;
+  sections = (user.sections ? SECTIONS.filter((x) => user.sections.includes(x)) : SECTIONS).filter(x => x !== 'finance');
+  if (await finance.permission(user)) sections.push('finance');
+  if (uid !== user.id) return;
   if (!sections.length) sections = ['recipes'];
   tabs();
   unitsSeg.closest('.settings__part').hidden = !mine(); // no weather, no °F or °C
@@ -1649,6 +1654,7 @@ start(async (user) => {
   loadPlaces();
 }, () => {
   list = []; trips = []; parts = noParts(); events = []; openTrip = null; uid = null; me = null; ready = false; shown = null; tiles.clear(); $('#grid').textContent = '';
+  finance.leave();
   recipes.clear();
   places.clear();
 }, { offline: true });
@@ -1657,6 +1663,7 @@ fresh(() => { load(); loadRecipes(); loadPlaces(); });
 // Pull to refresh, at the top of any section: the data again, and the weather (it's what changes
 // on Today and a trip when nothing else has); a toast says which
 pull(async () => {
+  if (shown === 'finance') { await finance.load(); return null; }
   if (shown === 'recipes') { await recipes.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
   if (shown === 'places') { await places.load({ offline: !navigator.onLine }); return navigator.onLine ? 'Updated' : null; }
   const before = JSON.stringify([list, trips, parts, events]), weathered = ['today', 'trip'].includes(shown);
