@@ -203,3 +203,11 @@ owned records cascade on user deletion. Credentials stay in memory and logs cont
 payloads. A verification or cleanup failure fails the workflow and blocks private import.
 This API check does not replace deployed browser, sign-out, cache and backup checks. It must
 not be run from an unmerged branch against production as a substitute for local tests.
+
+After both main deployments finish, run the Supabase workflow on main with `verify_finance`
+selected. This verification-only job does not deploy migrations or functions. It runs the
+API checks plus `tools/finance-browser-live.mjs` against the published app on desktop and phone:
+anonymous gate, authenticated synthetic records, backup export, persistent-storage checks,
+offline clearing, sign-out and a switch to a second owner. Browser sessions remain in memory;
+no credential-bearing traces or screenshots are saved. The temporary users and records are
+removed even if a browser assertion fails. A successful run is required before private import.

@@ -27,7 +27,7 @@ try{
     const created=await api('/auth/v1/admin/users',service,{email,password,email_confirm:true});check(created.ok&&!!created.data?.id);
     const user={id:created.data.id,email};users.push(user);
     await sql(`insert into public.members(email,name,sections,finance_enabled) values ('${email}','Synthetic finance check','{recipes}',${i===0})`);
-    const signed=await api('/auth/v1/token?grant_type=password',anon,{email,password});check(signed.ok&&!!signed.data?.access_token);user.token=signed.data.access_token;
+    const signed=await api('/auth/v1/token?grant_type=password',anon,{email,password});check(signed.ok&&!!signed.data?.access_token);user.token=signed.data.access_token;user.session=signed.data;
   }
   phase='anonymous denial';for(const table of ['finance_accounts','finance_transactions','finance_plans','finance_budgets','finance_tax_scenarios']){const response=await api(`/rest/v1/${table}?select=*`);check([401,403].includes(response.status));}
   phase='non-enabled member denial';check((await api('/rest/v1/rpc/can_finance',users[1].token,{})).data===false);
@@ -40,6 +40,13 @@ try{
   phase='import and duplicate protection';const payload={schema_version:1,transactions:[{account_source_key:'synthetic-live',source_key:'synthetic-transaction',posted_on:'2026-01-01',description:'Synthetic payment',amount_cents:-100,treatment:'personal'}]};
   for(let i=0;i<2;i++)check((await api('/rest/v1/rpc/finance_import',users[0].token,{payload})).ok);
   const ledger=await api('/rest/v1/finance_transactions?select=id',users[0].token);check(ledger.ok&&ledger.data?.length===1);
+  if(process.argv.includes('--browser')) {
+    phase='synthetic browser plan';
+    check((await api('/rest/v1/finance_plans',users[0].token,{year:new Date().getFullYear(),monthly_target_cents:1000,retirement_goal_cents:1000,tax_reserve_cents:1000,contractor_reserve_cents:1000,operations_reserve_cents:1000,household_reserve_cents:1000,expected_receipts_cents:1000,reviewed_on:new Date().toISOString().slice(0,10),assumptions:'Synthetic deployment verification'})).ok);
+    phase='deployed browser verification';
+    const {verifyFinanceBrowser}=await import('./finance-browser-live.mjs');
+    await verifyFinanceBrowser({ref,sessions:users.map(user=>user.session)});
+  }
   phase='revoked membership';await sql(`update public.members set finance_enabled=false where email='${users[0].email}'`);
   check((await api('/rest/v1/rpc/can_finance',users[0].token,{})).data===false);
   const revoked=await api('/rest/v1/finance_accounts?select=*',users[0].token);check(revoked.ok&&revoked.data?.length===0);
