@@ -99,7 +99,7 @@ jobs:
       - run: mkdir _site && tar -xf artifact.tar -C _site
       - name: Finance desktop and phone security behavior
         if: matrix.part == 'pages,apps,planets,nogl'
-        run: node tools/finance-ui-test.mjs
+        run: node tools/finance-ui-test.mjs && node tools/finance-browser-live-test.mjs
       - name: Smoke test
         run: node tools/smoke.mjs _site --only '${{ matrix.part }}'
       - if: failure() # what the page looked like when it failed
