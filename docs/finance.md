@@ -211,3 +211,14 @@ anonymous gate, authenticated synthetic records, backup export, persistent-stora
 offline clearing, sign-out and a switch to a second owner. Browser sessions remain in memory;
 no credential-bearing traces or screenshots are saved. The temporary users and records are
 removed even if a browser assertion fails. A successful run is required before private import.
+
+Synthetic members have no household sections. Their browser requests permit only Finance,
+membership and authentication APIs, so verification does not load shared recipes or other
+personal sections. Each viewport gets a fresh synthetic session; the test never depends on a
+session remaining usable after sign-out. Logs name only fixed verification stages, not tokens,
+record contents or screenshots. The first deployed browser attempt failed with insufficient
+stage detail; private migration remains blocked until a complete run passes.
+`node tools/finance-browser-live-test.mjs` exercises that verifier against the actual local
+build with intercepted synthetic API responses, including rejection of signed-out sessions.
+It checks both viewport flows and prevents unrelated private API reads; it is regression
+evidence, not a substitute for the deployed run.
