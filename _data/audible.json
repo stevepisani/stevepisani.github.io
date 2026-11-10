@@ -695,7 +695,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1707,8 +1707,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
-      "seq": "1.5",
+      "series": "The Captive's War",
+      "seq": "",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -5247,7 +5247,7 @@
       ],
       "series": "Dune",
       "seq": "1",
-      "genre": "Literature & Fiction",
+      "genre": "Science Fiction & Fantasy",
       "minutes": 1262,
       "released": "2007-05-29",
       "cover": "https://m.media-amazon.com/images/I/41rrXYM-wHL._SL500_.jpg",
@@ -5797,5 +5797,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-09"
+  "updated": "2026-11-10"
 }
