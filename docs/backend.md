@@ -61,6 +61,32 @@ design: row-level security guards every table.
   query strings, headers or bodies, because the Actions log is public; keep anything personal out
   of `console` calls in the functions for the same reason. The logs arrive a minute or two late.
 
+### Authentication email delivery
+
+The built-in Supabase sender is not the production email setup: its small shared sending
+quota can prevent members from signing in. A failed send does not prove non-membership.
+The app explains rate limits and connection failures separately and accepts an existing,
+unused code without sending another email. Sign-ups remain disabled.
+
+The planned dedicated sender is `SJPJr <signin@auth.stevenpisani.com>`, through Resend SMTP.
+This is separate from the job board's sender and key. Verify `auth.stevenpisani.com` in
+Resend, adding only the exact DNS records it supplies at the authoritative DNS provider.
+Do not replace the root domain's Google mail MX records. Use a sending-only key restricted
+to that domain; enter it directly in Supabase's SMTP password field, never in this repository,
+browser code, build variables or logs. SMTP host is `smtp.resend.com`, port `465`, user `resend`.
+Disable email click tracking so sign-in links are not rewritten. Keep a finite email-send
+quota appropriate for the private household app and retain per-user resend throttling.
+
+Provider setup is not complete until DNS verification, saved SMTP configuration, an actual
+delivered sign-in email and code verification have succeeded. Inspect the project's actual
+email rate limit after enabling custom SMTP; do not assume that an account tier or a successful
+settings save proves delivery. Existing `tools/supabase.mjs` updates only keys explicitly in
+`auth.json`, so it preserves SMTP credentials configured in the dashboard. SMTP settings and
+credential entry follow the steward's account-level handoff rule.
+
+References: [Resend SMTP for Supabase](https://resend.com/docs/send-with-supabase-smtp),
+[Supabase limits](https://supabase.com/docs/guides/auth/rate-limits).
+
 What's in the database:
 
 | Thing | What it is | Who can do what |

@@ -126,25 +126,41 @@ export function start(open = () => {}, close = () => {}, { offline = false } = {
   // can). Either works once.
   let sentTo = '';
   const code = $('#gate-code');
+  const useCode = (email) => {
+    sentTo = email;
+    code.hidden = false;
+    code.reset();
+    code.code.focus();
+  };
+  $('#gate-existing-code').addEventListener('click', () => {
+    const form = $('#gate-form');
+    if (!form.reportValidity()) return;
+    const email = form.elements.email.value.trim().toLowerCase();
+    note.textContent = `Enter the unused code sent to ${email}. Codes expire after 15 minutes.`;
+    useCode(email);
+  });
   $('#gate-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = String(new FormData(e.target).get('email')).trim().toLowerCase(), send = $('button', e.target);
     send.disabled = true; // a second request inside a minute is refused, and would read as a failure
     note.textContent = 'Sending…';
-    const { error } = await db.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: location.origin + location.pathname + location.search, shouldCreateUser: false }, // sign-ups are off; the query keeps the consent page's request
-    });
+    let error;
+    try {
+      ({ error } = await db.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: location.origin + location.pathname + location.search, shouldCreateUser: false }, // sign-ups are off; the query keeps the consent page's request
+      }));
+    } catch (failure) { error = failure; }
+    const limited = error?.status === 429 || ['over_email_send_rate_limit', 'over_request_rate_limit'].includes(error?.code);
     note.textContent = error
-      ? "That didn't send. Only members can sign in; check the address."
+      ? limited ? 'Sign-in emails are temporarily rate-limited. Wait before requesting another. If you have an unused code, choose “I already have a code”.'
+        : cut(error) ? "Couldn't connect to send the email. Check your connection and try again."
+          : "We couldn't send a sign-in email. Check the address and try again later. If this continues, contact the site owner."
       : installed() ? `Check ${email} for the code.` : `Check ${email}. Open the link on this device, or type the code here.`;
     send.disabled = false;
     if (error) return;
     keep('apps-email', email);
-    sentTo = email;
-    code.hidden = false;
-    code.reset();
-    code.code.focus();
+    useCode(email);
   });
   const enter = async () => {
     const token = code.code.value.replace(/\D/g, ''), go = $('button', code);

@@ -32,7 +32,10 @@ field the sign-in form shows once the email has gone ("Or type the 6-digit code 
 `autocomplete="one-time-code"`, so iOS offers it from Mail where it can; six digits go by
 themselves), which calls `verifyOtp({ email, token, type: 'email' })`. That's the way into the
 home-screen app: iOS gives it its own storage, and the emailed link opens in Safari, which would
-sign in Safari, not the app. Either works once, within the hour. The last email sent to on that
+sign in Safari, not the app. Either works once, within 15 minutes. “I already have a code” opens
+code entry for the address in the email field without sending another email. Send failures
+distinguish rate limits and connection failures from other delivery errors; none claim that a
+delivery failure proves non-membership or expose raw provider errors. The last email sent to on that
 phone is kept (`localStorage` `apps-email`) and filled in next time, with "Welcome back" over it,
 so coming back is one tap and the code. The session is kept in the browser for the whole site, and
 the site's nav shows "Apps" (to `/apps`) to someone signed in (`site.js`). The email's template is applied by the Supabase workflow, not the

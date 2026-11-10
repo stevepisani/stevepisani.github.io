@@ -9,10 +9,12 @@ rather than leaving it in a chat.
 0. **Finance in SJPJr replaces Streamlit.** Build the approved cash overview with category
    spending detail, then migrate reconciliation, tax scenarios, obligations, goals and connected
    refresh. The [replacement and cutover contract](finance.md) defines coverage and security
-   gates. Local implementation, reconciliation and focused browser checks are in place;
-   repository review and production verification remain open. No private financial data
-   goes online before the access controls have been verified. Retire Streamlit only after
-   reconciliation and independent operation pass.
+   gates. The implementation is merged and deployed; synthetic production API and desktop/phone
+   security checks passed on Nov 10 (Actions run 42850495526, with test records removed).
+   Private migration is waiting on reliable sign-in email delivery: configure the dedicated
+   SMTP sender in [backend](backend.md#authentication-email-delivery), verify delivery and owner
+   access, then import and reconcile an exported backup. Retire Streamlit only after
+   reconciliation and independent operation pass. No private financial data has been imported.
 
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
