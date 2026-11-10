@@ -1434,13 +1434,14 @@ async function install(page, shot) {
   // Supabase Auth, made up: the email goes; the code 123456 is right, any other isn't
   const db = new URL(await page.getAttribute('meta[name="supabase-url"]', 'content'));
   const asked = [];
+  let otpFailure = null;
   const jwt = [{ alg: 'HS256', typ: 'JWT' }, { sub: 'u1', email: 'member@example.com', role: 'authenticated', exp: 4102444800 }, 'x'].map((p) => Buffer.from(JSON.stringify(p)).toString('base64url')).join('.');
   await page.context().route(`${db.origin}/**`, (route) => {
     const req = route.request(), url = new URL(req.url()), json = (body, status = 200) => route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
     const body = (() => { try { return req.postDataJSON(); } catch (e) { return null; } })();
     asked.push({ path: url.pathname, body });
-    if (url.pathname.endsWith('/auth/v1/otp')) return json({});
+    if (url.pathname.endsWith('/auth/v1/otp')) return otpFailure ? json(otpFailure.body, otpFailure.status) : json({});
     if (url.pathname.endsWith('/auth/v1/verify')) return body?.token === '123456' ? json({ access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: 4102444800, refresh_token: 'r', user: { id: 'u1', email: 'member@example.com', aud: 'authenticated', role: 'authenticated' } }) : json({ code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' }, 403);
     if (url.pathname.endsWith('/rpc/is_member')) return json(true);
     return json([]);
@@ -1449,8 +1450,29 @@ async function install(page, shot) {
   await until(page, () => document.getElementById('app').dataset.state === 'out');
   if (!(await page.isVisible('#install-hint')) || !(await page.isHidden('#gate-code'))) throw new Error('signed out on an iPhone: the hint should show, and the code field not yet');
   await page.fill('#gate-form [name="email"]', 'member@example.com');
+  for (const failure of [
+    { status: 429, body: { code: 429, msg: 'email rate limit exceeded' }, expected: 'rate-limited' },
+    { status: 400, body: { error_code: 'over_email_send_rate_limit', msg: 'limited' }, expected: 'rate-limited' },
+    { status: 400, body: { msg: 'Failed to fetch' }, expected: "Couldn't connect" },
+    { status: 400, body: { code: 'unexpected_failure', message: 'private provider detail' }, expected: "couldn't send" },
+  ]) {
+    otpFailure = failure;
+    await page.click('#gate-form button');
+    await until(page, () => !document.querySelector('#gate-form button').disabled);
+    const message = await page.textContent('#gate-note');
+    if (!message.includes(failure.expected) || /Only members|private provider detail/.test(message) || await page.getAttribute('#app', 'data-state') !== 'out') throw new Error(`sign-in send failure: expected ${failure.expected}; got ${message}; state ${await page.getAttribute('#app', 'data-state')}`);
+    if (failure.status === 429) await shot('sign-in-rate-limit');
+  }
+  const sentBefore = asked.filter(a => a.path.endsWith('/otp')).length;
+  await page.click('#gate-existing-code');
+  await page.fill('#gate-code [name="code"]', '000000');
+  await until(page, () => document.getElementById('gate-note').textContent.includes("That code didn't work"));
+  if (asked.filter(a => a.path.endsWith('/otp')).length !== sentBefore || asked.filter(a => a.path.endsWith('/verify')).at(-1)?.body?.email !== 'member@example.com') throw new Error('entering an existing code sent another email or used the wrong address');
+  await shot('sign-in-existing-code');
+  step('email rate limits and delivery failures are explained; an existing code can be verified without sending mail');
+  otpFailure = null;
   await page.click('#gate-form button');
-  await until(page, () => !document.getElementById('gate-code').hidden);
+  await until(page, () => document.getElementById('gate-note').textContent.startsWith('Check member@example.com'));
   const field = page.locator('#gate-code [name="code"]');
   if ((await field.getAttribute('autocomplete')) !== 'one-time-code' || (await field.getAttribute('inputmode')) !== 'numeric' || !/type the code here/.test(await page.textContent('#gate-note')) || !(await field.evaluate((f) => f === document.activeElement))) throw new Error(`after sending, the code field (one-time-code, numeric, focused) and what to do: ${await page.textContent('#gate-note')}`);
   const sent = asked.find((a) => a.path.endsWith('/otp'));
@@ -2343,7 +2365,7 @@ if (want('apps')) await session('apps', { viewport: { width: 390, height: 844 },
 if (want('apps')) await session('places tab', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', timezoneId: 'America/New_York' }, placesTab);
 if (want('apps')) await session('another member', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US' }, another);
 if (want('apps')) await session('card in chat', { viewport: { width: 440, height: 900 }, deviceScaleFactor: 2 }, card);
-if (want('apps')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
+if (want('apps') || want('auth')) await session('home-screen app', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, serviceWorkers: 'block', locale: 'en-US', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' }, install);
 if (want('apps')) await session('offline wardrobe', { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US', timezoneId: 'Europe/Rome' }, offline);
 if (want('desktop')) await session('desktop planet', { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s));
 for (const n of [1, 2, 3, 4]) if (want(`desktop-${n}`)) await session(`desktop-${n} planet`, { viewport: { width: 1280, height: 800 } }, (p, s) => planet(p, s, { parts: [n] }));

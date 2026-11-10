@@ -39,6 +39,7 @@
       <label>Email <input name="email" type="email" autocomplete="email" required></label>
       <button class="btn" type="submit">Email me a code</button>
     </form>
+    <button class="btn btn--ghost" id="gate-existing-code" type="button">I already have a code</button>
     <p id="gate-note" role="status"></p>
     {%- comment -%} The code from the same email: the way in from the home-screen app, which the emailed link (opening in Safari) can't reach (kit.js) {%- endcomment %}
     <form class="gate-code" id="gate-code" hidden>
