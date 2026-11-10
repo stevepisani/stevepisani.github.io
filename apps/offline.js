@@ -15,7 +15,8 @@ self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
-  if (req.method !== 'GET') return;
+  // Private APIs must never enter the app's offline cache, including a future same-origin proxy.
+  if (req.method !== 'GET' || req.cache === 'no-store' || req.headers.has('Authorization') || /\/(?:rest\/v1\/finance_|rpc\/finance_|api\/finance)/.test(url.pathname)) return;
   if (url.pathname.includes('/storage/v1/object/sign/photos/')) {
     if (!navigator.onLine) e.respondWith(caches.match(url.origin + url.pathname).then((r) => r || Response.error()));
     return;
@@ -24,7 +25,7 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate' && MOVED[url.pathname]) return e.respondWith(Response.redirect(new URL(MOVED[url.pathname] + (MOVED[url.pathname].includes('#') ? '' : url.search), location.origin), 302));
   if (!/^\/(apps|assets)\//.test(url.pathname)) return;
   e.respondWith(fetch(req).then((res) => {
-    if (res.ok) { const copy = res.clone(); e.waitUntil(caches.open(PAGES).then((c) => c.put(req, copy))); }
+    if (res.ok && !/private|no-store|no-cache/i.test(res.headers.get('Cache-Control') || '')) { const copy = res.clone(); e.waitUntil(caches.open(PAGES).then((c) => c.put(req, copy))); }
     return res;
   }).catch(async () => (await caches.match(req)) || (await caches.match(req, { ignoreSearch: true })) || Response.error()));
 });

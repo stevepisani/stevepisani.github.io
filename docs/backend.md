@@ -222,6 +222,10 @@ Pages is set to Source: GitHub Actions. The custom domain is in `CNAME`; don't r
   "sections": ["today", "closet", "trips", "places", "recipes"]}, ...]`, written by
   `tools/supabase.mjs`. The emails aren't in the repo because it's public. Set it only to add a
   member or change one, or to rebuild the project from scratch; members already there stay.
+  Finance additionally requires `"finance_enabled": true` on that member's entry. An omitted or
+  false flag disables Finance for entries being applied; it never inherits ordinary sections.
+  After migrations on main, the workflow runs `tools/finance-live.mjs` with temporary synthetic
+  users before any real-data import. See [the Finance release gates](finance.md).
 - `AUDIBLE_AUTH`: the Audible device registration, for `audible.yml` (above).
 - `GITHUB_TOKEN` (automatic): the Jekyll build's GitHub metadata, and the Audible sync's commit.
 

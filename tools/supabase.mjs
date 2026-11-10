@@ -49,14 +49,15 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     values (${quote(version)}, ${quote(name)}, array[${quote(body)}]);\ncommit;`);
 }
 
-// The members, from the MEMBERS secret: a JSON list of {email, name, sections}. Never printed.
+// MEMBERS: {email, name, sections, finance_enabled?}. Finance requires explicit true. Never printed.
 if (process.env.MEMBERS) {
   const members = JSON.parse(process.env.MEMBERS);
   console.log(`${dry ? 'would set' : 'setting'} ${members.length} members`);
   if (!dry) {
     for (const m of members) {
-      await sql(`insert into public.members (email, name, sections) values (${quote(m.email.toLowerCase())}, ${quote(m.name)}, array[${m.sections.map(quote).join(',')}]::text[])
-        on conflict (email) do update set name = excluded.name, sections = excluded.sections`);
+      if (m.finance_enabled !== undefined && typeof m.finance_enabled !== 'boolean') throw new Error('finance_enabled must be a boolean');
+      await sql(`insert into public.members (email, name, sections, finance_enabled) values (${quote(m.email.toLowerCase())}, ${quote(m.name)}, array[${m.sections.map(quote).join(',')}]::text[], ${m.finance_enabled === true})
+        on conflict (email) do update set name = excluded.name, sections = excluded.sections, finance_enabled = excluded.finance_enabled`);
     }
   }
 }

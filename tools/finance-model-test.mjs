@@ -1,0 +1,27 @@
+import assert from 'node:assert/strict';
+import { funding, spending, cents, businessActuals } from '../supabase/functions/_shared/finance.js';
+const now = new Date('2026-06-15T12:00:00Z');
+const accounts = [{ id:'cash', included:true, kind:'cash', balance_cents:1000000, as_of:now.toISOString() }, { id:'card', included:true, kind:'credit', balance_cents:100000, as_of:now.toISOString() }];
+const plan = { tax_reserve_cents:200000, contractor_reserve_cents:100000, operations_reserve_cents:50000, household_reserve_cents:100000, retirement_goal_cents:500000, retirement_funded_cents:100000, expected_receipts_cents:1000000, reviewed_on:'2026-06-15' };
+const f = funding(accounts, plan, now);
+assert.equal(f.protected,550000);
+assert.equal(f.surplus,450000);
+assert.equal(f.availableToFund,400000);
+assert.equal(f.projectedAfterGoal,1050000);
+assert.equal(f.available, funding(accounts,{...plan,expected_receipts_cents:0},now).available);
+assert.equal(funding([{...accounts[0],as_of:'2026-01-01'}],plan,now).available,null);
+assert.equal(funding([],plan,now).availableToFund,null);
+assert.equal(funding(accounts,{...plan,reviewed_on:'2026-01-01'},now).available,null);
+assert.equal(funding(accounts,{...plan,tax_reserve_cents:2000000},now).available,0);
+assert.equal(funding(accounts,{...plan,retirement_funded_cents:600000},now).remainingGoal,0);
+for (const value of [NaN,Infinity,0.1,-1,Number.MAX_SAFE_INTEGER]) assert.throws(()=>cents(value));
+const t = (id,amount,treatment='personal',pending=false) => ({id,posted_on:'2026-06-01',amount_cents:amount,treatment,pending,category:'Food'});
+const s = spending([t('purchase',-10000),t('refund',1000),t('transfer',-50000,'transfer'),t('business',-20000,'business_expense'),t('unknown',-500,'review'),t('pending',-500,'personal',true)],'2026-06',[{month:'2026-06-01',category:'Food',target_cents:12000}]);
+assert.equal(s.spent,9000);
+assert.equal(s.groups[0].transactions.length,2);
+assert.equal(s.review.length,1);
+assert.equal(s.groups[0].target,12000);
+console.log('Finance model: funding, freshness, forecasts, refunds and classification checks passed.');
+
+const actuals=businessActuals([t('income',100000,'business_income'),t('contractor',-30000,'contractor'),t('expense',-10000,'business_expense'),t('loan',50000,'financing'),t('future',50000,'business_income',true),t('unreviewed',-5000,'review')],2026);
+assert.deepEqual(actuals,{income:100000,contractors:30000,expenses:10000,profit:60000,unreviewed:1});

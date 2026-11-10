@@ -6,7 +6,9 @@ import { createClient } from '@supabase/supabase-js';
 import { SIZES, QUALITY, copyPath, copyPaths } from './photo-sizes.js';
 
 const meta = (name) => document.querySelector(`meta[name="${name}"]`)?.content || '';
-export const db = createClient(meta('supabase-url'), meta('supabase-key'));
+export const db = createClient(meta('supabase-url'), meta('supabase-key'), {
+  global: { fetch: (url, options = {}) => fetch(url, /\/(finance_[^/]*|rpc\/can_finance)(?:[?]|$)/.test(String(url)) ? { ...options, cache: 'no-store' } : options) },
+});
 export const $ = (sel, el = document) => el.querySelector(sel);
 // An element with a class and its text
 export const el = (tag, cls, text) => Object.assign(document.createElement(tag), cls ? { className: cls } : {}, text != null ? { textContent: text } : {});

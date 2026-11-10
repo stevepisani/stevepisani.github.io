@@ -66,6 +66,8 @@ jobs:
         run: node tools/trips-test.mjs
       - name: Places, on the real schema
         run: node tools/places-test.mjs
+      - name: Finance calculations and access controls
+        run: node tools/background-removal-hardening-test.mjs && node tools/finance-cache-test.mjs && node tools/finance-model-test.mjs && node tools/finance-tax-test.mjs && node tools/finance-csv-test.mjs && node tools/finance-import-test.mjs && node tools/finance-test.mjs
 
   # the smoke test in parts side by side: the desktop planet alone is about 14 minutes in one go,
 # so it's four parts (the last is the door)
@@ -95,6 +97,9 @@ jobs:
         with:
           name: github-pages
       - run: mkdir _site && tar -xf artifact.tar -C _site
+      - name: Finance desktop and phone security behavior
+        if: matrix.part == 'pages,apps,planets,nogl'
+        run: node tools/finance-ui-test.mjs
       - name: Smoke test
         run: node tools/smoke.mjs _site --only '${{ matrix.part }}'
       - if: failure() # what the page looked like when it failed

@@ -917,3 +917,16 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .saved-near__pick { flex: none; max-width: 9.5rem; min-height: 44px; }
 .leg__saved { margin-top: 6px; }
 .leg__saved summary { display: flex; align-items: center; min-height: 44px; color: var(--ink-2); font-size: .92rem; cursor: pointer; }
+
+/* Finance: the same shell and themes, cash first, category detail alongside the budget. */
+.finance-overview,.finance-spending{display:grid;grid-template-columns:1.1fr 1fr;gap:1.25rem}
+.finance-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;min-width:0}
+.finance-card h2{font-size:1.35rem;margin:0 0 1rem}.finance-amount{font-family:Fraunces,serif;font-size:clamp(2.5rem,6vw,4.5rem);margin:.5rem 0;color:var(--accent)}
+.finance-muted,.finance-category small{color:var(--ink2);font-size:.875rem}.finance-row{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line)}
+.finance-row strong{font-variant-numeric:tabular-nums;white-space:nowrap}.finance-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:1rem}
+.finance-category{display:grid;grid-template-columns:1fr auto;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:1rem;min-height:44px;cursor:pointer}.finance-category[aria-pressed=true]{background:var(--accent-soft)}.finance-category small{grid-column:1/-1}
+.finance-detail{padding:0 1rem;min-width:0}.finance-transaction{display:grid;gap:.5rem;padding:1rem 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.finance-notice{padding:1.5rem;background:var(--bg2);border-radius:var(--radius)}
+.finance-card progress{width:100%;accent-color:var(--accent);height:1rem;margin-top:1rem}.finance-card summary{cursor:pointer;min-height:44px;padding:.7rem 0}
+@media(max-width:700px){.finance-overview,.finance-spending{grid-template-columns:1fr}.finance-card{padding:1rem}.finance-detail{padding:0}.finance-row{font-size:.9rem}}
+#finance-view input,#finance-view select,#finance-view button{min-height:44px}#finance-view input,#finance-view select{max-width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.5rem}
+.finance-toolbar{flex-wrap:wrap}.finance-plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.finance-plan label{display:grid;gap:.4rem}.finance-plan textarea{width:100%;min-height:100px}.finance-transaction input{width:100%;box-sizing:border-box}@media(max-width:700px){.finance-plan{grid-template-columns:1fr}}

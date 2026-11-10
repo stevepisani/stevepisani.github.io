@@ -6,6 +6,10 @@ sections: Today, Closet, Trips, Places and Recipes. Each member sees the section
 (Steve all five, Lexi Recipes). One sign-in, one look, one small kit, so a new section is a table, some
 markup and a module, and nothing else.
 
+Finance is an additional, explicitly enabled section with a stricter boundary: live permission
+checks, owner-scoped data and no offline financial copy. It does not inherit wardrobe or MCP
+access. Its workflows, verification and Streamlit retirement gates are in [Finance](finance.md).
+
 ## How it fits together
 
 | Piece | What it does |
