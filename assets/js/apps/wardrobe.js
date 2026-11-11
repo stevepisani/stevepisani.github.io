@@ -1153,7 +1153,7 @@ function woreRow(date, plan, worn) {
     row.append(el('p', 'wore__done', today ? 'Worn today ✓' : 'Worn ✓'), button('link-btn wore__change', 'Change', () => pickWorn(date, plan, worn)));
     row.lastChild.setAttribute('aria-label', 'Change what you wore');
   } else {
-    row.append(button('btn wore__btn', 'Wore it', () => (planned.length ? logWorn(date, planned, plan) : pickWorn(date, plan, null))));
+    row.append(button('btn wore__btn', planned.length ? 'Wore it' : 'Log what you wore', () => (planned.length ? logWorn(date, planned, plan) : pickWorn(date, plan, null))));
     if (planned.length) row.append(button('link-btn wore__change', 'Something else', () => pickWorn(date, plan, null)));
   }
   return row;

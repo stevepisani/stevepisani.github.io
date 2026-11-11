@@ -10,7 +10,11 @@ month = `${parts.find(p=>p.type==='year').value}-${parts.find(p=>p.type==='month
 const money = n => n == null ? 'Review needed' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(n/100);
 const root = () => $('#finance-content');
 const button = (label, fn, cls='link-btn') => { const b=el('button',cls,label); b.type='button'; b.onclick=fn; return b; };
-const note = text => root()?.replaceChildren(el('p','finance-notice',text));
+const note = (text,retry=false) => {
+  const notice=el('div','finance-notice');notice.append(el('p','',text));
+  if(retry)notice.append(button('Try again',load,'btn btn--small'));
+  root()?.replaceChildren(notice);
+};
 export function clear(message='Unlock Finance to load current records.') {
   generation++; data=null; selected=null;
   note(message);
@@ -50,17 +54,33 @@ export async function load() {
     const [accounts,transactions,plans,budgets,scenarios]=await Promise.all(['finance_accounts','finance_transactions','finance_plans','finance_budgets','finance_tax_scenarios'].map(t=>all(t,ticket)));
     if(ticket!==generation || !active || document.hidden) return;
     data={accounts,transactions,plans,budgets,scenarios}; selected=previousCategory; draw();
-  } catch(e) { if(ticket===generation) { data=null; note(e.message); } }
+  } catch(e) { if(ticket===generation) { data=null; note(e.message,true); } }
 }
 const row = (label,value) => { const r=el('div','finance-row'); r.append(el('span','',label),el('strong','',money(value))); return r; };
 const card = title => { const c=el('section','finance-card'); c.append(el('h2','',title)); return c; };
+// Long editors keep their exit and commit actions in view, just like the app's sheets.
+function editorActions(pane,form,save,status) {
+  const opener=document.activeElement, bar=el('div','finance-editor__actions');
+  const snapshot=()=>Array.from(form.querySelectorAll('input,select,textarea'),c=>c.type==='checkbox'?c.checked:c.value);
+  const initial=JSON.stringify(snapshot());
+  const cancel=button('Cancel',()=>{
+    if(JSON.stringify(snapshot())!==initial && !confirm("Discard what you've entered?"))return;
+    pane.remove();if(opener?.isConnected)opener.focus();
+  },'btn btn--ghost btn--small');
+  save.className='btn btn--small';status.setAttribute('role','status');
+  bar.append(cancel,save);form.prepend(bar);pane.classList.add('finance-editor');
+}
 function draw() {
   if(!data) return;
   const host=root(); host.replaceChildren();
   const toolbar=el('div','finance-toolbar');
   const label=el('label','','Month '), input=el('input'); input.type='month'; input.value=month;
   input.onchange=()=>{ if(input.value) {month=input.value;selected=null;draw();} }; label.append(input);
-  toolbar.append(label,button('Refresh',load),button('Import',()=>importFile(host)),button('Export backup',exportBackup),button('Edit plan',()=>editPlan(host)),button('Add account',()=>editAccount(host))); host.append(toolbar);
+  const actions=el('div','finance-toolbar__actions'); actions.setAttribute('role','group'); actions.setAttribute('aria-label','Financial records');
+  actions.append(button('Import',()=>importFile(host),'btn btn--small'),button('Refresh',load,'btn btn--ghost btn--small'),button('Export backup',exportBackup,'btn btn--ghost btn--small'));
+  const settings=el('div','finance-toolbar__actions'); settings.setAttribute('role','group'); settings.setAttribute('aria-label','Financial plan');
+  settings.append(button('Edit plan',()=>editPlan(host),'btn btn--ghost btn--small'),button('Add account',()=>editAccount(host),'btn btn--ghost btn--small'));
+  toolbar.append(label,actions,settings); host.append(toolbar);
   const plan=data.plans.find(p=>p.year===Number(month.slice(0,4)));
   if(!plan) { host.append(el('p','finance-notice','No funding plan for this year. Import a reviewed plan to begin.')); return; }
   const f=funding(data.accounts,plan);
@@ -93,27 +113,62 @@ function drawSpending(host,plan) {
   const groups=[...s.groups,{category:'Needs review',transactions:s.review,spent:null,target:null},{category:'All transactions',transactions:data.transactions.filter(t=>t.posted_on.startsWith(month+'-')),spent:null,target:null}];
   if(!selected || !groups.some(g=>g.category===selected)) selected=groups[0]?.category;
   for(const g of groups) {
-    const b=button('',()=>{selected=g.category;draw();},'finance-category');
+    const b=button('',()=>{selected=g.category;draw();root()?.querySelector('.finance-category[aria-pressed=true]')?.focus({preventScroll:true});},'finance-category');
     b.setAttribute('aria-pressed',String(selected===g.category));
-    b.append(el('span','',g.category),el('strong','',g.spent===null?`${g.transactions.length} transactions`:money(g.spent)),el('small','',g.target===null?'No category target':`${money(g.target)} target`));categories.append(b);
+    b.append(el('span','',g.category),el('strong','',g.spent===null?`${g.transactions.length} transaction${g.transactions.length===1?'':'s'}`:money(g.spent)),el('small','',g.target===null?'No category target':`${money(g.target)} target`));categories.append(b);
   }
   const group=groups.find(g=>g.category===selected);
-  detail.append(el('h3','',group?.category || 'Transactions'));
-  for(const t of group?.transactions || []) {
-    const r=el('div','finance-transaction');r.append(el('span','',t.description),el('small','finance-muted',t.posted_on),el('strong','',new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(t.amount_cents/100)));
-    const label=el('label','','Treatment '), select=el('select');
-    for(const value of ['review','personal','business_income','business_expense','contractor','transfer','financing','tax_payment','retirement']) {const o=el('option','',value.replaceAll('_',' '));o.value=value;select.append(o);}select.value=t.treatment;label.append(select);
-    const categoryLabel=el('label','','Category '), category=el('input'); category.value=t.category;category.maxLength=100;categoryLabel.append(category);
-    const noteLabel=el('label','','Note '), memo=el('input');memo.value=t.note||'';memo.maxLength=2000;noteLabel.append(memo);
-    r.append(label,categoryLabel,noteLabel,button('Save',async()=>{
-      const ticket=generation;
-      const {data:changed,error}=await db.from('finance_transactions').update({treatment:select.value,category:category.value.trim()||'Uncategorized',note:memo.value}).eq('id',t.id).eq('updated_at',t.updated_at).select('id');
-      if(ticket!==generation) return;
-      if(error || !changed?.length) return clear('Could not save, or this transaction changed elsewhere. Refresh before trying again.');
-      await load();
-    }));detail.append(r);
+  const detailTitle=el('h3','',group?.category || 'Transactions');detailTitle.tabIndex=-1;detail.append(detailTitle);
+  const search=el('input'), count=el('p','finance-muted'), list=el('div','finance-transactions');
+  search.type='search';search.placeholder='Search transactions';search.setAttribute('aria-label','Search transactions in this category');
+  count.setAttribute('role','status');
+  const transactions=[...(group?.transactions||[])].sort((a,b)=>b.posted_on.localeCompare(a.posted_on));
+  let shown=50;const rows=new Map();
+  const more=button('Show more transactions',()=>{const previous=shown;shown+=50;renderTransactions();list.children[previous]?.querySelector('summary')?.focus({preventScroll:true});},'btn btn--ghost btn--small');
+  function transaction(t) {
+    if(rows.has(t.id))return rows.get(t.id);
+    const r=el('details','finance-transaction'),summary=el('summary','finance-transaction__summary');
+    const description=el('span','finance-transaction__description');
+    description.append(el('strong','',t.description),el('small','finance-muted',`${t.posted_on} · ${t.category} · ${t.treatment.replaceAll('_',' ')}${t.pending?' · Pending':''}`));
+    summary.append(description,el('strong','',new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(t.amount_cents/100)));
+    r.dataset.transactionId=t.id;summary.tabIndex=0;r.append(summary);
+    // Build editing fields only when this row is opened; long imports stay small in the DOM.
+    r.addEventListener('toggle',()=>{
+      if(!r.open || r.querySelector('form'))return;
+      const form=el('form','finance-transaction__form'),label=el('label','','Treatment '),select=el('select');
+      for(const value of ['review','personal','business_income','business_expense','contractor','transfer','financing','tax_payment','retirement']) {const o=el('option','',value.replaceAll('_',' '));o.value=value;select.append(o);}select.value=t.treatment;label.append(select);
+      const categoryLabel=el('label','','Category '),category=el('input');category.value=t.category;category.maxLength=100;categoryLabel.append(category);
+      const noteLabel=el('label','','Note '),memo=el('input');memo.value=t.note||'';memo.maxLength=2000;noteLabel.append(memo);
+      const status=el('p','finance-muted'),save=el('button','btn btn--small','Save');save.type='submit';status.setAttribute('role','status');
+      form.append(label,categoryLabel,noteLabel,status,save);r.append(form);
+      form.onsubmit=async e=>{
+        e.preventDefault();const ticket=generation;save.disabled=true;status.textContent='Saving…';
+        try {
+          const {data:changed,error}=await db.from('finance_transactions').update({treatment:select.value,category:category.value.trim()||'Uncategorized',note:memo.value}).eq('id',t.id).eq('updated_at',t.updated_at).select('id');
+          if(ticket!==generation)return;
+          if(error || !changed?.length){status.textContent='Could not save, or this transaction changed elsewhere. Your edits are still here. Refresh records before retrying.';save.disabled=false;return;}
+          await load();
+          if(generation!==ticket+1)return;
+          const currentDetail=root()?.querySelector('.finance-detail');
+          const target=currentDetail?.querySelector(`[data-transaction-id="${CSS.escape(t.id)}"] summary`) || currentDetail?.querySelector('h3');
+          target?.focus({preventScroll:true});
+          const feedback=currentDetail?.querySelector('[role=status]');if(feedback)feedback.textContent='Transaction saved. '+feedback.textContent;
+        }catch{if(ticket===generation){status.textContent='Connection failed. Your edits are still here; try Save again.';save.disabled=false;}}
+      };
+    });
+    rows.set(t.id,r);return r;
   }
-  if(!group?.transactions.length) detail.append(el('p','','No transactions in this category.'));
+  function renderTransactions() {
+    const query=search.value.trim().toLocaleLowerCase();
+    const matches=transactions.filter(t=>!query || [t.description,t.category,t.note,t.posted_on].some(v=>String(v||'').toLocaleLowerCase().includes(query)));
+    const visible=matches.slice(0,shown);
+    list.replaceChildren(...visible.map(transaction));
+    count.textContent=`${matches.length} transaction${matches.length===1?'':'s'}${visible.length<matches.length?` · showing ${visible.length}`:''}`;
+    more.hidden=visible.length>=matches.length;
+    if(!matches.length)list.append(el('p','',query?'No matching transactions. Try another search.':'No transactions in this category.'));
+  }
+  search.oninput=()=>{shown=50;renderTransactions();};
+  detail.append(search,count,list,more);renderTransactions();
   grid.append(categories,detail);cardEl.append(grid);host.append(cardEl);
 }
 addEventListener('offline',()=>clear('Finance needs a connection.'));
@@ -194,7 +249,7 @@ function editPlan(host) {
     const wrap=el('label','',label), input=el('input');input.type='number';input.min='0';input.max='10000000000';input.step='.01';input.required=true;input.value=existing?String(existing[key]/100):'';controls[key]=input;wrap.append(input);form.append(wrap);
   }
   const explanation=el('label','','Assumptions and unresolved items'), assumptions=el('textarea');assumptions.maxLength=8000;assumptions.value=existing?.assumptions||'';explanation.append(assumptions);form.append(explanation);
-  const status=el('p'), save=el('button','link-btn','Save reviewed plan');save.type='submit';form.append(status,save,button('Cancel',()=>pane.remove()));
+  const status=el('p'), save=el('button','link-btn','Save reviewed plan');save.type='submit';form.append(status);editorActions(pane,form,save,status);
   form.onsubmit=async e=>{
     e.preventDefault();if(ticket!==generation)return;
     const patch={year,assumptions:assumptions.value,reviewed_on:new Date().toLocaleDateString('en-CA')};
@@ -222,7 +277,7 @@ function editAccount(host,existing=null) {
   const balance=field('Balance in dollars (positive for debt owed)','number',existing?String(existing.balance_cents/100):'');balance.step='.01';
   const observed=field('Balance observed at (your local time)','datetime-local','');
   const at=new Date(existing?.as_of||Date.now());observed.value=new Date(+at-at.getTimezoneOffset()*60000).toISOString().slice(0,16);
-  const status=el('p'),save=el('button','link-btn','Save balance');save.type='submit';form.append(status,save,button('Cancel',()=>pane.remove()));
+  const status=el('p'),save=el('button','link-btn','Save balance');save.type='submit';form.append(status);editorActions(pane,form,save,status);
   form.onsubmit=async e=>{
     e.preventDefault();if(ticket!==generation)return;
     if(!/^-?\d+(\.\d{1,2})?$/.test(balance.value)){status.textContent='Use dollars with at most two decimal places.';return;}
@@ -259,7 +314,7 @@ function editTax(host,existing=null) {
     const wrap=el('label','',label),input=el('input');input.type='number';input.min='0';input.step='.01';input.required=true;input.value=existing?.inputs?.[key]!=null?String(existing.inputs[key]/100):key==='profit_cents'?'':'0';wrap.append(input);form.append(wrap);controls[key]=input;
   }
   const rdLabel=el('label','','Qualified owner research time (%)'),rd=el('input');rd.type='number';rd.min='0';rd.max='100';rd.step='.1';rd.value=existing?.inputs?.research_percent??0;rdLabel.append(rd);form.append(rdLabel);
-  const qbiLabel=el('label','','Model eligible QBI (conservative SSTB, no business W-2 wages/property support)'),qbi=el('input');qbi.type='checkbox';qbi.checked=existing?.inputs?.claim_qbi===true;qbiLabel.prepend(qbi);form.append(qbiLabel);
+  const qbiLabel=el('label','finance-check','Model eligible QBI (conservative SSTB, no business W-2 wages/property support)'),qbi=el('input');qbi.type='checkbox';qbi.checked=existing?.inputs?.claim_qbi===true;qbiLabel.prepend(qbi);form.append(qbiLabel);
   const assumptionsLabel=el('label','','Source notes and unresolved questions'),assumptions=el('textarea');assumptions.maxLength=4000;assumptions.value=existing?.assumptions||'';assumptionsLabel.append(assumptions);form.append(assumptionsLabel);
   const result=el('div','finance-tax-result'),status=el('p'),save=el('button','link-btn','Save scenario');save.type='submit';save.disabled=true;
   let current=null;const inputs=()=>{
@@ -270,7 +325,7 @@ function editTax(host,existing=null) {
     try{const input=inputs(),estimate=estimate2026(input);current={input,estimate};result.replaceChildren(row('Federal estimate',estimate.federal_cents),row('NJ estimate',estimate.state_cents),row('Remaining taxes',estimate.remaining_cents),row('QBI deduction',estimate.qbi_deduction_cents),row('Potential research credit',estimate.potential_credit_cents),row('Credit applied',estimate.applied_credit_cents));status.textContent='';save.disabled=false;}catch(e){current=null;save.disabled=true;result.replaceChildren();status.textContent=e.message;}
   };
   form.oninput=()=>{current=null;save.disabled=true;result.replaceChildren();};
-  form.append(button('Calculate',calculate),status,save,button('Cancel',()=>pane.remove()));
+  form.append(button('Calculate',calculate,'btn btn--ghost btn--small'),status);editorActions(pane,form,save,status);
   form.onsubmit=async e=>{
     e.preventDefault();if(ticket!==generation||!current)return;save.disabled=true;
     const {input,estimate}=current,patch={year:2026,name:name.value,profit_cents:input.profit_cents,federal_cents:estimate.federal_cents,state_cents:estimate.state_cents,paid_cents:input.federal_paid_cents+input.state_paid_cents,retirement_cents:input.retirement_cents,assumptions:assumptions.value||'2026 MFJ/NJ planning scenario; model limitations apply.',reviewed_on:new Date().toISOString().slice(0,10),inputs:input};

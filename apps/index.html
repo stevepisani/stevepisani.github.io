@@ -6,6 +6,7 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
 ---
 {%- comment -%} Icons, drawn once and used by name (<use href="#i-…">): the tabs, the categories (a garment with no photo), the weather. Line drawings in the text's colour. {%- endcomment -%}
 <svg class="icons" aria-hidden="true" focusable="false">
+  <symbol id="i-finance" viewBox="0 0 24 24"><path d="M4 7V5a2 2 0 0 1 2-2h12v4M4 7h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V7z"/><path d="M20 11h-5a2 2 0 0 0 0 4h5"/><circle cx="15" cy="13" r=".5"/></symbol>
   <symbol id="i-today" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></symbol>
   <symbol id="i-closet" viewBox="0 0 24 24"><path d="M12 7.5V7a2 2 0 1 0-2-2"/><path d="M12 7.5 2.8 14.6a1 1 0 0 0 .6 1.8h17.2a1 1 0 0 0 .6-1.8z"/></symbol>
   <symbol id="i-recipes" viewBox="0 0 24 24"><path d="M4.5 11h15v4.5a4 4 0 0 1-4 4h-7a4 4 0 0 1-4-4z"/><path d="M2.5 11h19M9.5 7.5c0-1.2 1-1.6 1-2.8M13.5 7.5c0-1.2 1-1.6 1-2.8"/></symbol>
@@ -58,7 +59,7 @@ lede: "Your own things: your clothes, each with a photo, what it is and where to
 
 {%- comment -%} Where you are: the sections (a tab bar at the bottom on a phone, a segmented control on a wider screen), each shown only to a member who sees it (me() in the database: Steve all five, Lexi Recipes) {%- endcomment -%}
 <nav class="tabbar wardrobe-tabs" id="tabs" aria-label="Sections">
-  <a href="#finance" data-value="finance" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Finance</span></a>
+  <a href="#finance" data-value="finance" hidden><svg aria-hidden="true"><use href="#i-finance"/></svg><span>Finance</span></a>
   <a href="#today" data-value="today" hidden><svg aria-hidden="true"><use href="#i-today"/></svg><span>Today</span></a>
   <a href="#closet" data-value="closet" hidden><svg aria-hidden="true"><use href="#i-closet"/></svg><span>Closet</span></a>
   <a href="#trips" data-value="trips" hidden><svg aria-hidden="true"><use href="#i-trips"/></svg><span>Trips</span></a>

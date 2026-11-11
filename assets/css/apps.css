@@ -844,8 +844,8 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 .stepper { display: flex; align-items: center; gap: 6px; }
 .app .stepper .btn { min-width: 44px; padding: 0; justify-content: center; font-size: 1.2rem; }
 .stepper output { min-width: 2.5ch; text-align: center; font: 600 1.1rem var(--font-body); font-variant-numeric: tabular-nums; }
-.app .pack-sheet__check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
-.app .pack-sheet__check input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--accent); }
+.app .pack-sheet__check, .app .finance-check { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font: 400 1rem var(--font-body); letter-spacing: 0; text-transform: none; color: var(--ink); }
+.app .pack-sheet__check input, .app .finance-check input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--accent); }
 
 /* starting a trip, or changing its places and dates */
 .leg-rows { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
@@ -921,12 +921,29 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 /* Finance: the same shell and themes, cash first, category detail alongside the budget. */
 .finance-overview,.finance-spending{display:grid;grid-template-columns:1.1fr 1fr;gap:1.25rem}
 .finance-card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;min-width:0}
-.finance-card h2{font-size:1.35rem;margin:0 0 1rem}.finance-amount{font-family:Fraunces,serif;font-size:clamp(2.5rem,6vw,4.5rem);margin:.5rem 0;color:var(--accent)}
-.finance-muted,.finance-category small{color:var(--ink2);font-size:.875rem}.finance-row{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line)}
+.finance-card h2{font-size:1.35rem;margin:0 0 1rem}.finance-amount{font-family:var(--font-display);font-size:clamp(2.5rem,6vw,4.5rem);margin:.5rem 0;color:var(--accent)}
+.finance-muted,.finance-category small{color:var(--ink-2);font-size:.875rem}.finance-row{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line)}
 .finance-row strong{font-variant-numeric:tabular-nums;white-space:nowrap}.finance-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:1rem}
 .finance-category{display:grid;grid-template-columns:1fr auto;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);padding:1rem;min-height:44px;cursor:pointer}.finance-category[aria-pressed=true]{background:var(--accent-soft)}.finance-category small{grid-column:1/-1}
-.finance-detail{padding:0 1rem;min-width:0}.finance-transaction{display:grid;gap:.5rem;padding:1rem 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.finance-notice{padding:1.5rem;background:var(--bg2);border-radius:var(--radius)}
+.finance-detail{padding:0 1rem;min-width:0}.finance-transaction{display:grid;gap:.5rem;padding:1rem 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.finance-notice{padding:1.5rem;background:var(--bg-2);border-radius:var(--radius)}
 .finance-card progress{width:100%;accent-color:var(--accent);height:1rem;margin-top:1rem}.finance-card summary{cursor:pointer;min-height:44px;padding:.7rem 0}
 @media(max-width:700px){.finance-overview,.finance-spending{grid-template-columns:1fr}.finance-card{padding:1rem}.finance-detail{padding:0}.finance-row{font-size:.9rem}}
-#finance-view input,#finance-view select,#finance-view button{min-height:44px}#finance-view input,#finance-view select{max-width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.5rem}
-.finance-toolbar{flex-wrap:wrap}.finance-plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.finance-plan label{display:grid;gap:.4rem}.finance-plan textarea{width:100%;min-height:100px}.finance-transaction input{width:100%;box-sizing:border-box}@media(max-width:700px){.finance-plan{grid-template-columns:1fr}}
+#finance-view input,#finance-view select{max-width:100%}
+.finance-toolbar{flex-wrap:wrap;align-items:flex-end}.finance-toolbar__actions{display:flex;flex-wrap:wrap;gap:.5rem}.finance-toolbar__actions:last-child{margin-left:auto}@media(max-width:700px){.finance-toolbar__actions:last-child{margin-left:0}.finance-toolbar{justify-content:flex-start}}.finance-plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.finance-plan label{display:grid;gap:.4rem}.finance-plan textarea{width:100%;min-height:100px}.finance-transaction input{width:100%;box-sizing:border-box}@media(max-width:700px){.finance-plan{grid-template-columns:1fr}}
+/* The same action order as sheets: exit left, commit right, reachable in long forms. */
+.finance-editor__actions{grid-column:1/-1;position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:3;display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.75rem 0;background:var(--card);border-bottom:1px solid var(--line)}
+.finance-editor .finance-plan>[role=status]{grid-column:1/-1;margin:0;color:var(--ink-2)}
+.finance-editor .finance-plan>[role=status]:empty{display:none}
+.finance-editor input,.finance-editor select,.finance-editor textarea{scroll-margin-top:calc(130px + env(safe-area-inset-top))}
+/* Scan transactions first; expand one row to correct it. */
+.finance-transaction{display:block;padding:0}
+.finance-card .finance-transaction__summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 0;list-style:none}
+.finance-transaction__summary::-webkit-details-marker{display:none}
+.finance-transaction__summary::after{content:'';flex:none;width:.4rem;height:.4rem;border-right:2px solid var(--link);border-bottom:2px solid var(--link);transform:rotate(-45deg)}
+.finance-transaction[open]>.finance-transaction__summary::after{transform:rotate(45deg)}
+.finance-transaction__description{display:grid;gap:.3rem;flex:1;min-width:0}
+.finance-transaction__summary>strong{white-space:nowrap;font-variant-numeric:tabular-nums}
+.finance-transaction__form{display:grid;gap:.75rem;padding:0 0 1rem}
+.finance-transaction__form>button{justify-self:start}
+.finance-transaction__form>[role=status]{margin:0}
+.finance-transaction__form>[role=status]:empty{display:none}

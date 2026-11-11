@@ -204,6 +204,13 @@ that save as you type, and "Add a photo". "Edit" opens the name, link, date, "No
 and remove (and, on one still to cook, its notes). Import, a pasted list of `Name | link` lines,
 is a link under the list.
 
+Action hierarchy: collection-level creation uses the primary button. Repeated recipe-row actions
+use secondary buttons; Finance groups record actions separately from plan/account editing.
+Long Finance editors keep Cancel and Save at the top while scrolling; Cancel checks for unsaved
+changes and returns focus to the opener. Finance has its own wallet symbol in the dock.
+Today says “Log what you wore” when it opens an empty picker, and “Wore it” only when it can
+confirm a planned outfit. The ongoing cross-app pass is recorded in [the UX audit](sjpj-ux-audit.md).
+
 Design rules for the apps, from the Oct 2026 critique and accessibility pass:
 - Show a control when there's something to do with it, not before (no rating on an uncooked
   recipe). The first phone screen should reach the list.
