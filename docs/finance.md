@@ -222,3 +222,14 @@ stage detail; private migration remains blocked until a complete run passes.
 build with intercepted synthetic API responses, including rejection of signed-out sessions.
 It checks both viewport flows and prevents unrelated private API reads; it is regression
 evidence, not a substitute for the deployed run.
+
+## Review interaction
+
+Monthly transaction detail is a compact expandable list, newest first, searchable within the
+chosen category. It renders 50 rows at a time and creates editing fields only when a row is
+opened. Search preserves unsaved fields in memory within that category; leaving Finance or
+hiding the page retains the same privacy clearing behavior. No drafts go to persistent storage.
+Save shows progress and an inline failure without losing the edited fields; success announces
+completion and restores focus. Failed initial loads offer Try again through the usual live
+permission checks. Long plan/account/scenario forms keep Cancel and Save visible while
+scrolling, with a discard confirmation when Cancel would lose changed values.

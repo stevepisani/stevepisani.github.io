@@ -6,15 +6,14 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
-0. **Finance in SJPJr replaces Streamlit.** Build the approved cash overview with category
-   spending detail, then migrate reconciliation, tax scenarios, obligations, goals and connected
-   refresh. The [replacement and cutover contract](finance.md) defines coverage and security
-   gates. The implementation is merged and deployed; synthetic production API and desktop/phone
-   security checks passed on Nov 10 (Actions run 42850495526, with test records removed).
-   Private migration is waiting on reliable sign-in email delivery: configure the dedicated
-   SMTP sender in [backend](backend.md#authentication-email-delivery), verify delivery and owner
-   access, then import and reconcile an exported backup. Retire Streamlit only after
-   reconciliation and independent operation pass. No private financial data has been imported.
+0. **Make SJPJr exceptional across every section.** Active goal: walk Finance, Today, Closet,
+   Trips, Places and Recipes in the actual app, compare specific flows with Mobbin references,
+   and implement a consistent interaction and visual system down to buttons and feedback.
+   Keep the existing identity and privacy boundaries. Track observed findings and acceptance
+   in [the UX audit](sjpj-ux-audit.md); an unvisited workflow is not verified.
+   Finance v0 cutover completed Nov 11: deployed security checks, private import/export
+   reconciliation, workflow tests and independent operation passed; Streamlit is retired with
+   a private rollback backup. Manual CSV imports and balance updates remain the v0 refresh path.
 
 0. **My Tiny Planet: planets for other people** ([Linear P-PRO-40](https://linear.app/tabby-stack/project/my-tiny-planet-1d0a488cfd88),
    [the plan](https://claude.ai/artifact/RF8tba5SpbNpawXT7b3ADk)). Anyone gets a little planet of
