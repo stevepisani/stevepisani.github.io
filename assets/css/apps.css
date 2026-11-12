@@ -931,7 +931,7 @@ a.info-row__title { color: var(--link); text-underline-offset: .18em; }
 #finance-view input,#finance-view select{max-width:100%}
 .finance-toolbar{flex-wrap:wrap;align-items:flex-end}.finance-toolbar__actions{display:flex;flex-wrap:wrap;gap:.5rem}.finance-toolbar__actions:last-child{margin-left:auto}@media(max-width:700px){.finance-toolbar__actions:last-child{margin-left:0}.finance-toolbar{justify-content:flex-start}}.finance-plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.finance-plan label{display:grid;gap:.4rem}.finance-plan textarea{width:100%;min-height:100px}.finance-transaction input{width:100%;box-sizing:border-box}@media(max-width:700px){.finance-plan{grid-template-columns:1fr}}
 /* The same action order as sheets: exit left, commit right, reachable in long forms. */
-.finance-editor__actions{grid-column:1/-1;position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:3;display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.75rem 0;background:var(--card);border-bottom:1px solid var(--line)}
+.finance-editor__actions{grid-column:1/-1;position:sticky;top:calc(52px + env(safe-area-inset-top));z-index:3;display:flex;justify-content:space-between;align-items:center;gap:.75rem;padding:.75rem 0;background:linear-gradient(var(--card),var(--card)),var(--bg);border-bottom:1px solid var(--line)}
 .finance-editor .finance-plan>[role=status]{grid-column:1/-1;margin:0;color:var(--ink-2)}
 .finance-editor .finance-plan>[role=status]:empty{display:none}
 .finance-editor input,.finance-editor select,.finance-editor textarea{scroll-margin-top:calc(130px + env(safe-area-inset-top))}

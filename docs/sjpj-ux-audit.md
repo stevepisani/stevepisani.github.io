@@ -159,7 +159,7 @@ checks. The rebuilt full-shell app smoke suite passed, and the generated phone r
 A final small refinement makes Show more move focus to the newly revealed rows and uses a
 decorative chevron instead of reading a plus/minus sign in each disclosure label.
 
-## Release review in progress
+## Release review
 
 Live Settings walkthrough: changed Auto to Terminal, inspected the dialog, restored Auto,
 then pressed Escape. The dialog closed and focus returned to Settings. The terminal view
@@ -175,6 +175,37 @@ links passed. The JavaScript build retains the pre-existing duplicate `head` war
 
 Current main advanced only with two Audible data sync commits; this task's changes remain
 isolated in the named worktree. No public screenshots or actual financial data were added.
-Local release checks and final diff review are complete. Remaining release gates: open a
-draft PR, verify CI, obtain the repository-required merge instruction, then verify the
-deployed changes. The broader goal remains active until those checks are complete.
+PR #160 merged with Steve's approval and deployed successfully on November 12, 2026.
+Production run 43121030420 initially stopped on the holiday smoke test: its scenario assertions
+passed, but the console recorded three GLTF blob-texture loading errors. The failed screenshot
+was inspected, and the same holiday test passed locally with its strict console check intact.
+Retrying the failed job passed and Pages deployment completed. The intermittent cause has not
+been conclusively identified; no assertions were weakened.
+
+## Deployed walkthrough: November 12, 2026
+
+Hands-on CUA checks in signed-in Chromium, after deployment:
+
+| Section | Observed workflow |
+| --- | --- |
+| Finance | Refresh; edit plan and cancel with focus restored; category selection; transaction pagination; search, no matches and clearing; expand correction fields without saving |
+| Today | Open the empty outfit picker and cancel; focus returns to Log what you wore |
+| Closet | Add and cancel; open garment details and Done |
+| Trips | New trip and cancel with focus restored; open itinerary; switch packing filters and restore the original filter |
+| Places | Open detail and Done; focus returns to the original place |
+| Recipes | Add; empty submission correctly focuses required Name; cancel |
+
+Finance's dock, toolbar and long plan editor, plus Recipes' search, creation and filters, were
+also inspected at a 390px Chromium emulated phone viewport. This is not physical iPhone/Safari
+coverage. Production records were not edited; write, failure, undo and security behavior remain
+covered by synthetic fixtures and the preceding release checks. The original theme was preserved
+and DevTools was closed after testing. No private records or screenshots are committed here.
+
+Two polish defects were observed: closing a garment lost focus when redraw re-appended its card,
+and dark-mode Finance sticky actions allowed fields to show through. The follow-up preserves a
+focused visible Closet button across reordering and composites the action-bar background over
+an opaque page color. A garment-close focus regression and dark/terminal editor screenshots
+cover these cases. Targeted app and Finance checks, the full repository `npm test`, JavaScript
+build, strict Jekyll and 258 internal links passed. Scrolled dark-mode phone and terminal desktop
+editor screenshots were inspected. Follow-up CI, merge approval and deployed recheck remain;
+these fixes are not part of the already deployed PR #160.

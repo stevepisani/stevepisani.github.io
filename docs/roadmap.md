@@ -11,6 +11,9 @@ rather than leaving it in a chat.
    and implement a consistent interaction and visual system down to buttons and feedback.
    Keep the existing identity and privacy boundaries. Track observed findings and acceptance
    in [the UX audit](sjpj-ux-audit.md); an unvisited workflow is not verified.
+   PR #160 deployed Nov 12; hands-on live walkthroughs covered all six sections, with Finance
+   and Recipes also checked at a 390px emulated phone width. Follow-up: preserve Closet card
+   focus after closing details and make sticky Finance actions opaque; verify and release these.
    Finance v0 cutover completed Nov 11: deployed security checks, private import/export
    reconciliation, workflow tests and independent operation passed; Streamlit is retired with
    a private rollback backup. Manual CSV imports and balance updates remain the v0 refresh path.
