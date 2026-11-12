@@ -97,6 +97,9 @@ function paintTile(it) {
 }
 
 function render() {
+  // Reordering existing tiles detaches the focused button, including the opener
+  // restored by the native dialog when a garment is closed.
+  const focusedTile = document.activeElement?.closest('#grid .tile__open');
   const q = $('#search').value.trim().toLowerCase();
   const shelf = list.filter((it) => it.retired === (view.shelf === 'retired'));
   const fits = (it) => (!view.season || it.seasons?.includes(view.season)) && (!view.dress || it.dressiness === view.dress)
@@ -143,6 +146,7 @@ function render() {
     $('#grid').append(tile);
   }
   $('#grid').setAttribute('aria-busy', 'false');
+  if (focusedTile?.isConnected && !focusedTile.closest('.tile').hidden) focusedTile.focus({ preventScroll: true });
   const narrowed = q || view.cat || view.colour || on;
   $('#empty').hidden = shown > 0;
   $('#empty').replaceChildren(failed ? "Your closet didn't load. Pull down to try again."

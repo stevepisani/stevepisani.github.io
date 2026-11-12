@@ -72,6 +72,14 @@ await page.getByLabel('Assumptions and unresolved items',{exact:true}).scrollInt
 const actions=await page.locator('.finance-editor__actions').boundingBox();
 assert.ok(actions.y>=0 && actions.y+actions.height<=1000,'editor actions must stay in the viewport');
 await page.screenshot({path:`${out}/editor-${width}.png`});
+for(const theme of ['dark','terminal']){
+  await page.setViewportSize({width,height:626});
+  await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  await page.getByLabel('Assumptions and unresolved items',{exact:true}).scrollIntoViewIfNeeded();
+  await page.screenshot({path:`${out}/editor-${theme}-${width}.png`,animations:'disabled'});
+}
+await page.setViewportSize({width,height:1000});
+await page.evaluate(()=>delete document.documentElement.dataset.theme);
 await page.getByLabel('Monthly household target',{exact:true}).fill('13000.25');
 page.once('dialog',dialog=>dialog.dismiss());
 await page.getByRole('button',{name:'Cancel',exact:true}).click();

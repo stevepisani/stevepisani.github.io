@@ -949,6 +949,8 @@ async function apps(page, shot) {
   const patched = asked.filter((a) => a.method === 'PATCH' && a.path.includes('wardrobe_items')).map((a) => a.body);
   if (!patched.some((b) => b.brand === 'Smoke Brand') || !patched.some((b) => b.dressiness === 'formal')) throw new Error(`the sheet saved ${JSON.stringify(patched)}`);
   await until(page, () => location.hash === '#closet' || location.hash === '');
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (!(await page.evaluate(() => document.activeElement === document.querySelector('#grid .tile:not([hidden]) .tile__open')))) throw new Error('closing a garment lost focus on its card after redraw');
   step('an item opens on what it is, its fields behind Edit save as they\'re typed; closing goes back');
   await page.click('#add');
   await page.fill('#add-dialog [name="link"]', 'everlane.com/products/crew');

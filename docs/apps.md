@@ -208,6 +208,9 @@ Action hierarchy: collection-level creation uses the primary button. Repeated re
 use secondary buttons; Finance groups record actions separately from plan/account editing.
 Long Finance editors keep Cancel and Save at the top while scrolling; Cancel checks for unsaved
 changes and returns focus to the opener. Finance has its own wallet symbol in the dock.
+Sticky editor actions composite their card color over an opaque page color, so scrolling fields
+cannot show through in dark mode. Closet redraws preserve focus on a visible garment button,
+including the opener restored when its detail sheet closes.
 Today says “Log what you wore” when it opens an empty picker, and “Wore it” only when it can
 confirm a planned outfit. The ongoing cross-app pass is recorded in [the UX audit](sjpj-ux-audit.md).
 
