@@ -6,6 +6,10 @@ the app's identity, data, permissions and Finance's private-storage boundaries.
 
 ## Walkthrough coverage
 
+This historical table predates the November 12/15 deployed checks below. Those checks close
+the PR #160/#161 release gates; remaining workflow/design gaps are tracked in the current
+completion audit at the end. Physical-device Safari coverage is still not claimed.
+
 | Area | Observed so far | Still required |
 |---|---|---|
 | Shared shell | Live desktop/390px navigation; Terminal/Auto settings and Escape/focus; synthetic light/dark/terminal and sign-in/sign-out checks | Post-deploy verification; physical-device check not performed |
@@ -207,5 +211,102 @@ focused visible Closet button across reordering and composites the action-bar ba
 an opaque page color. A garment-close focus regression and dark/terminal editor screenshots
 cover these cases. Targeted app and Finance checks, the full repository `npm test`, JavaScript
 build, strict Jekyll and 258 internal links passed. Scrolled dark-mode phone and terminal desktop
-editor screenshots were inspected. Follow-up CI, merge approval and deployed recheck remain;
-these fixes are not part of the already deployed PR #160.
+editor screenshots were inspected. PR #161 subsequently merged and deployed at
+`b0183bdb982c90a8a6cb5e7d8729fa81130c61be`, with all production jobs passing in
+[run 43271582888](https://github.com/stevepisani/stevepisani.github.io/actions/runs/43271582888).
+Its deployed CSS and JavaScript matched the tested build. On November 15, hands-on Chromium
+verification confirmed garment Done returns focus to its original card and Tab advances to the
+next card. Finance's scrolled actions were opaque on desktop and at 390 × 626; canceling the
+unchanged plan restored the opener. No personal records were changed.
+
+## Current completion audit: November 15
+
+The previous goal turn made progress: PR #161's two deployed fixes were verified and the
+[PR record](https://github.com/stevepisani/stevepisani.github.io/pull/161) updated. Completion of
+the broader goal is still unproven. Current main differs only by Audible syncs since that merge.
+
+| Requirement | Evidence and remaining work |
+| --- | --- |
+| Actual walkthroughs across six sections | November 12 section-by-section evidence above; mutation flows additionally use synthetic smoke fixtures. Today’s empty-plan handoff still needs a complete path check. |
+| Mobbin comparisons | Inspected references above cover Finance, Closet, Trips and Recipes; retain domain and platform limits rather than infer missing flows. |
+| Coherent buttons/forms/navigation/themes | PR #160 shared hierarchy, fields, distinct Finance icon, theme tokens and sticky actions; PR #161 focus/opacity verified live. Finance management still occupies too much phone space. |
+| Feedback, accessibility and responsive behavior | Synthetic failure/retry/draft/privacy tests, keyboard correction walkthrough, live cancel/focus and emulated phone checks. Real iPhone/Safari remains untested. |
+| Preserve data/security | Synthetic writes and owner/privacy checks passed; deployed walkthroughs did not edit records. No screenshots or private values are in this repository. |
+| Release gates and durable tracking | PRs #160/#161 merged, CI/deployment/live checks passed. New changes below require their own checks, review, merge and deployment. |
+
+The next live session opened a fresh Chromium profile at the sign-in screen, not the previously
+authenticated tab. Sign-in was requested; this is a new session dependency, not evidence of a
+regression or a completed walkthrough. Source and synthetic work can continue meanwhile.
+
+### Finance management hierarchy (in development)
+
+The previously observed phone toolbar puts five management actions ahead of the balances.
+New iOS references were inspected: [Wealthfront](https://mobbin.com/screens/cd0cef83-c4cb-41a8-bed8-094c2c816377)
+places account creation/linking below balance information; [Neo Financial](https://mobbin.com/screens/af3ef809-655b-4d32-b2c3-1ea257d816b3)
+leads with spending, account filtering and categories. These inform hierarchy, not copied native
+controls. The Copilot result is a metrics sheet, so it is not evidence for dashboard management.
+
+The implementation keeps Month and Refresh visible, groups setup/maintenance under Manage,
+and automatically reveals Import when a funding plan is missing. Choosing an action closes the
+panel; Escape closes it with focus retained. Cancel returns to Manage if its opener is folded.
+Targeted Finance desktop/phone tests passed, including disclosure/Escape, cancel focus, all
+existing management actions and privacy behavior. Screenshot review caught the month field
+overlapping Refresh at 390px; the narrow layout now uses two rows and a non-overlap regression
+passes. The corrected expanded phone panel was inspected. JavaScript build, strict Jekyll and
+258 links passed before that final CSS adjustment; final build/full suite, fresh hands-on
+synthetic review and PR/deployment gates remain. This work is local and not yet published.
+
+Release-check follow-up: the full command passed the model/schema and targeted UI tests, then
+exposed an outdated backup-export helper that clicked a now-hidden control. The verifier now
+opens Manage when needed; its desktop and phone synthetic runs passed export, anonymous access,
+offline clearing, sign-out and owner isolation. The remaining full smoke suite is running
+(`/tmp/sjpj-manage-smoke.log`); do not infer a pass yet. The expanded desktop management
+screenshot was inspected too. Chromium is unlocked but the live Today tab still shows sign-in;
+its authenticated walkthrough remains pending. No personal records were changed.
+
+Hands-on synthetic browser verification passed: Manage opened with Return, Escape closed it
+and retained focus, Edit plan focused its first input, and Cancel restored Manage focus.
+The original live sign-in tab was restored. Empty-plan guidance now precedes the toolbar so
+the automatically expanded panel cannot obscure it; desktop/phone non-overlap assertions
+and the targeted Finance suite passed, and the 390px empty-state screenshot was inspected.
+The broad smoke run is still active; the final source adjustment needs a rebuilt-app check.
+
+## Web and MCP parity audit — November 15
+
+The web app and the embedded MCP card are separate interfaces. A web CSS or focus fix does
+not establish parity in chat. Source inspection of `mcp/server.js` and `mcp-app/widget.js`
+confirms the following; this is not a claim of a fresh deployed connector walkthrough.
+
+| Area | MCP tool coverage | Embedded interface | Remaining evidence/work |
+|---|---|---|---|
+| Today | Day/history tools registered | No dedicated Today view | Walk the planning handoff and chat-to-web outcome |
+| Closet | Wardrobe tools registered | Closet, garment and ingest views | Recheck keyboard navigation, focus, feedback and host themes separately from web |
+| Trips | Trips, packing and trip parts registered | Itinerary and packing views | Recheck navigation, packing feedback and responsive host behavior |
+| Places | Saved-place reads registered | No dedicated Places view | Record the read-only boundary in the workflow comparison |
+| Recipes | No recipe area registered | No recipe view | Capability gap; not delivered by the web button changes |
+| Finance | No finance area registered | No finance view | Capability gap with a deliberate authorization boundary |
+
+Finance's `can_finance()` currently rejects OAuth tokens carrying `client_id`. Existing
+wardrobe connector consent must not be widened implicitly to financial records. Any future
+Finance MCP implementation needs explicit scoped authorization, owner isolation, denial tests,
+and its own deployment verification. No such access is introduced in the current UI change.
+
+Next parity pass: inspect the existing chat card with synthetic records and the actual host
+bridge, document concrete interaction differences, and separate UI fixes from new tool/access
+capabilities. Recipe and Finance capability work requires its own coherent implementation and
+review; neither is represented as completed in this audit.
+
+Final-source validation: JavaScript build, strict Jekyll build into an isolated temporary
+destination, and all 258 internal links passed. The real built-app Finance verifier also
+passed against that final build on desktop and phone. Final test review also restored populated
+records before the sign-out race test (after the empty-plan case); that strengthened desktop/phone
+regression passed. Its optional site-directory argument
+allows this check without replacing files used by an in-progress smoke run. The broad smoke
+run remains pending; no release or live parity completion is claimed.
+
+Release gate update: the full smoke suite completed with exit code 0 and `smoke test passed`,
+including desktop/phone apps and offline behavior, desktop/phone planets, holidays, embedded
+cards, host fallbacks, reduced-motion responses and no-WebGL behavior. Earlier pending-run
+notes above are superseded by this result. Combined with the completed model/schema checks,
+final build/link checks and final Finance UI/built-app checks, local validation is complete.
+PR CI, review, deployment and authenticated live verification remain open.

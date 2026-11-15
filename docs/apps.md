@@ -205,7 +205,10 @@ and remove (and, on one still to cook, its notes). Import, a pasted list of `Nam
 is a link under the list.
 
 Action hierarchy: collection-level creation uses the primary button. Repeated recipe-row actions
-use secondary buttons; Finance groups record actions separately from plan/account editing.
+use secondary buttons. Finance keeps Month and Refresh visible, with import, backup and
+plan/account editing under Manage. The native disclosure supports keyboard activation and
+Escape; selecting an action closes it, and canceling an editor returns to Manage. When no
+funding plan exists, management opens automatically so Import is immediately available.
 Long Finance editors keep Cancel and Save at the top while scrolling; Cancel checks for unsaved
 changes and returns focus to the opener. Finance has its own wallet symbol in the dock.
 Sticky editor actions composite their card color over an opaque page color, so scrolling fields

@@ -24,8 +24,19 @@ try{
 for(const width of [1280,390]){
 const page=await browser.newPage({viewport:{width,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto('file://'+out+'/index.html');
+const manageAction=async name=>{if(!(await page.getByRole('button',{name,exact:true}).isVisible()))await page.getByText('Manage',{exact:true}).click();await page.getByRole('button',{name,exact:true}).click();};
 await page.evaluate(async()=>{await finance.permission({id:'owner'});await finance.enter();});
 await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
+assert.equal(await page.getByRole('button',{name:'Import',exact:true}).isVisible(),false);
+const monthBox=await page.getByLabel('Month',{exact:true}).boundingBox(), refreshBox=await page.getByRole('button',{name:'Refresh',exact:true}).boundingBox();
+assert.ok(monthBox.x+monthBox.width<=refreshBox.x || monthBox.y+monthBox.height<=refreshBox.y,'month and refresh must not overlap');
+await page.getByText('Manage',{exact:true}).click();
+await page.getByRole('button',{name:'Import',exact:true}).waitFor();
+assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+await page.screenshot({path:`${out}/management-${width}.png`});
+await page.getByText('Manage',{exact:true}).press('Escape');
+assert.equal(await page.getByRole('button',{name:'Import',exact:true}).isVisible(),false);
+assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('aria-label')),'Manage finances');
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
 await page.screenshot({path:`${out}/${width}.png`,fullPage:true});
 for(const theme of ['light','dark','terminal']){
@@ -59,14 +70,14 @@ await page.getByText('No transactions in this category.').waitFor();
 assert.equal(await page.evaluate(()=>document.activeElement.tagName),'H3');
 await page.getByText(/Transaction saved/).waitFor();
 assert.equal(await page.evaluate(()=>window.fixture.finance_transactions[1].treatment),'business_expense');
-await page.getByRole('button',{name:'Import',exact:true}).click();
+await manageAction('Import');
 await page.getByLabel('Finance import file').setInputFiles({name:'synthetic.json',mimeType:'application/json',buffer:Buffer.from('{"schema_version":1,"accounts":[]}')});
 await page.getByText(/0 accounts · 0 transactions/).waitFor();
 assert.equal(await page.evaluate(()=>window.lastImport),undefined);
 await page.getByRole('button',{name:'Import records',exact:true}).click();
 await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
 assert.equal(await page.evaluate(()=>window.lastImport.schema_version),1);
-await page.getByRole('button',{name:'Edit plan',exact:true}).click();
+await manageAction('Edit plan');
 // Long forms keep cancel/save visible; declining discard preserves the draft.
 await page.getByLabel('Assumptions and unresolved items',{exact:true}).scrollIntoViewIfNeeded();
 const actions=await page.locator('.finance-editor__actions').boundingBox();
@@ -87,16 +98,16 @@ assert.equal(await page.getByLabel('Monthly household target',{exact:true}).inpu
 page.once('dialog',dialog=>dialog.accept());
 await page.getByRole('button',{name:'Cancel',exact:true}).click();
 assert.equal(await page.evaluate(()=>window.fixture.finance_plans[0].monthly_target_cents),1200000);
-assert.equal(await page.evaluate(()=>document.activeElement.textContent),'Edit plan');
-await page.getByRole('button',{name:'Edit plan',exact:true}).click();
+assert.equal(await page.evaluate(()=>document.activeElement.getAttribute('aria-label')),'Manage finances');
+await manageAction('Edit plan');
 await page.getByLabel('Monthly household target',{exact:true}).fill('13000.25');
 await page.getByRole('button',{name:'Save reviewed plan',exact:true}).click();
 await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
 assert.equal(await page.evaluate(()=>window.fixture.finance_plans[0].monthly_target_cents),1300025);
-const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'Export backup'}).click();
+const downloadPromise=page.waitForEvent('download');await manageAction('Export backup');
 const download=await downloadPromise;const backup=JSON.parse(readFileSync(await download.path(),'utf8'));
 assert.equal(backup.transactions[0].account_source_key,'bank:cash');assert.equal(backup.accounts[0].id,undefined);
-await page.getByRole('button',{name:'Import',exact:true}).click();
+await manageAction('Import');
 await page.getByLabel('Finance import file').setInputFiles({name:'bank.csv',mimeType:'text/csv',buffer:Buffer.from('Date,Description,Debit,Credit\n2026-01-02,Example cafe,12.34,')});
 await page.getByLabel('Destination account').selectOption('bank:cash');
 await page.getByText(/1 td transactions to review/).waitFor();
@@ -108,7 +119,7 @@ await page.getByLabel('Balance in dollars (positive for debt owed)',{exact:true}
 await page.getByRole('button',{name:'Save balance',exact:true}).click();
 await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
 assert.equal(await page.evaluate(()=>window.fixture.finance_accounts[0].balance_cents),12000125);
-await page.getByRole('button',{name:'Add account',exact:true}).click();
+await manageAction('Add account');
 await page.getByLabel('Account label',{exact:true}).fill('Another synthetic account');
 await page.getByLabel('Balance in dollars (positive for debt owed)',{exact:true}).fill('20');
 await page.getByRole('button',{name:'Save balance',exact:true}).click();
@@ -145,7 +156,19 @@ await page.getByText('No matching transactions. Try another search.').waitFor();
 await search.fill('Synthetic restaurant');
 assert.equal(await page.getByLabel('Note',{exact:true}).inputValue(),'Unsaved synthetic note');
 await page.screenshot({path:`${out}/review-${width}.png`,fullPage:true});
-// A pending response must not restore finance after logout.
+// Empty-plan guidance must remain visible while management is expanded.
+const plansBeforeEmpty=await page.evaluate(()=>window.fixture.finance_plans);
+await page.evaluate(async()=>{window.fixture.finance_plans=[];await finance.load();});
+await page.getByText('No funding plan for this year. Import a reviewed plan to begin.').waitFor();
+assert.equal(await page.getByRole('button',{name:'Import',exact:true}).isVisible(),true);
+const emptyNotice=await page.locator('.finance-notice').boundingBox();
+const emptyActions=await page.locator('.finance-manage__panel').boundingBox();
+assert.ok(emptyNotice.y+emptyNotice.height<=emptyActions.y,'Management must not cover the empty-plan guidance');
+await page.screenshot({path:`${out}/empty-plan-${width}.png`,fullPage:true});
+// A pending response with populated finance data must not restore it after logout.
+await page.evaluate(async plans=>{window.fixture.finance_plans=plans;await finance.load();},plansBeforeEmpty);
+await page.getByRole('heading',{name:'Available after reserves'}).waitFor();
+assert.ok(await page.locator('.finance-amount').count()>0);
 await page.evaluate(()=>{window.delay=100;window.pendingLoad=finance.load();});
 await page.evaluate(()=>authEvent('SIGNED_OUT',null));
 await page.evaluate(()=>window.pendingLoad);

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,existsSync,statSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
 import {verifyFinanceBrowser} from './finance-browser-live.mjs';
-const root=resolve('_site'),ref='dkaiavlnmtetqigxnkwb';
+const root=resolve(process.argv[2]||'_site'),ref='dkaiavlnmtetqigxnkwb';
 const now=new Date().toISOString();let generations=0;
 const revoked=new Set(),stages=[],forbidden=[];
 const rows={

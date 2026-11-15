@@ -30,8 +30,10 @@ export async function verifyFinanceBrowser({ref,freshSessions,stage=()=>{},prepa
         if(!(await page.locator('#finance-content').innerText()).includes('Synthetic checking'))throw Error('Missing synthetic account');
         if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw Error('Finance overflow');
         step('backup export');
+        const exportButton=page.getByRole('button',{name:'Export backup'});
+        if(!await exportButton.isVisible())await page.getByText('Manage',{exact:true}).click();
         const downloadEvent=page.waitForEvent('download');
-        await page.getByRole('button',{name:'Export backup'}).click();
+        await exportButton.click();
         const download=await downloadEvent;
         const stream=await download.createReadStream();let backup='';for await(const chunk of stream)backup+=chunk;
         const parsed=JSON.parse(backup);
