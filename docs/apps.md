@@ -791,6 +791,11 @@ to set in the app.
     Shared; ticked with `set_packing_status`, unticking goes back to where it was; twins by
     colour, bag and status, how often each is worn).
 
+  Card keyboard navigation focuses the garment heading on open (Shift+Tab reaches Back),
+  restores the originating garment after Back, and keeps the activated category filter focused
+  after redraw. The same paths are checked with fullscreen and inline-only hosts, desktop/phone
+  widths and light/dark themes in `tools/mcp-card-focus-test.mjs`.
+
   When Steve opens a garment in the card, the card tells the model (`ui/update-model-context`),
   so "what goes with this?" in the chat knows what "this" is. Without full screen (a host that
   doesn't offer it), the same detail opens inline with a Back link.
