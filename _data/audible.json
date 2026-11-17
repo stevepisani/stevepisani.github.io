@@ -587,31 +587,6 @@
       "percent": 36,
       "added": "2020-08-14",
       "last_heard": "2024-01-12"
-    },
-    {
-      "asin": "1549191144",
-      "title": "Memory's Legion",
-      "subtitle": "The Complete Expanse Story Collection",
-      "authors": [
-        "James S. A. Corey"
-      ],
-      "narrators": [
-        "Jefferson Mays",
-        "Daniel Abraham",
-        "Ty Franck"
-      ],
-      "series": "The Expanse",
-      "seq": "",
-      "genre": "Science Fiction & Fantasy",
-      "minutes": 982,
-      "released": "2022-03-15",
-      "cover": "https://m.media-amazon.com/images/I/51n-WPUPRuL._SL500_.jpg",
-      "sample": "https://samples.audible.com/bk/hach/006815/bk_hach_006815_sample.mp3",
-      "finished": false,
-      "finished_on": null,
-      "percent": 17,
-      "added": "2026-05-16",
-      "last_heard": "2026-05-17"
     }
   ],
   "finished": [
@@ -695,7 +670,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1730,7 +1705,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -5245,8 +5220,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "The Dune Sequence",
-      "seq": "12",
+      "series": "Dune",
+      "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5797,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-16"
+  "updated": "2026-11-17"
 }
