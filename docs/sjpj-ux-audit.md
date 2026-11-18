@@ -310,3 +310,31 @@ cards, host fallbacks, reduced-motion responses and no-WebGL behavior. Earlier p
 notes above are superseded by this result. Combined with the completed model/schema checks,
 final build/link checks and final Finance UI/built-app checks, local validation is complete.
 PR CI, review, deployment and authenticated live verification remain open.
+
+### Observed MCP keyboard follow-up
+
+A hands-on Chromium walkthrough used the existing built MCP card inside the official
+AppBridge with two synthetic garments and read-only tool responses. Tab entered the first
+garment; Return opened its detail, but focus moved to the frame. Tab reached Back; Return
+returned to the full wardrobe, but focus again moved to the frame instead of the garment.
+Selecting Tops also lost focus; the next Tab restarted at All. This confirms the web focus
+fix did not carry into the separate card renderer. No live connector or personal records
+were used. The live Today tab was restored and still requires sign-in.
+
+Follow-up acceptance: detail navigation focuses a meaningful heading or Back action, Back
+restores the originating garment when present, and filter redraw preserves the activated
+filter. Verify with the actual host bridge and a hands-on keyboard repeat before claiming
+MCP parity. This issue is separate from the compact Finance controls in PR #162.
+
+MCP focus implementation (isolated `codex/sjpj-mcp-focus` checkout): garment details now focus
+their heading, Back restores the original garment, and category redraw keeps the activated
+filter focused. The official AppBridge regression passed desktop/phone, light/dark and
+fullscreen/inline-only combinations. A hands-on Chromium repeat confirmed heading focus,
+Shift+Tab to Back, return to the garment, Tops retaining focus, then Tab advancing to Shoes.
+Synthetic screenshots were inspected; no personal data or connector writes were used. The
+regression is included in npm test and the app smoke CI job. Full release checks remain.
+
+MCP focus release validation completed: JavaScript build, strict Jekyll, link checks and the
+full npm test command all passed with exit code 0, including the existing card-in-chat
+integration and full smoke suite. The focus follow-up is ready for draft review; CI, merge
+approval, deployment and live-host verification remain.

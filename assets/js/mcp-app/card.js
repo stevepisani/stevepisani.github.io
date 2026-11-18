@@ -114,17 +114,28 @@ export function photo(url, it, cls = 'w-photo') {
   return box;
 }
 export function say(text, bad = false) { const p = el('p', bad ? 'w-note w-note--bad' : 'w-note', text); app.prepend(p); return p; }
+const focusKey = () => app.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+function restoreFocus(key, fallback = false) {
+  const target = key && [...app.querySelectorAll('[data-focus-key]')].find(n => n.dataset.focusKey === key);
+  if (target) { target.focus(); return; }
+  if (!fallback) return;
+  const heading = app.querySelector('h2');
+  if (heading) { heading.tabIndex = -1; heading.focus(); }
+  else app.querySelector('button')?.focus();
+}
 export function back() {
   if (!stack.length) return null;
-  return button('w-link w-back', '‹ Back', () => draw(stack.pop(), false));
+  return button('w-link w-back', '‹ Back', () => { const previous = stack.pop(); draw(previous.data, false); restoreFocus(previous.focusKey, true); });
 }
 // open a garment: full screen where the host has it (no drilling down inside the chat), else here
 export async function openItem(id, from) {
+  const opener = focusKey();
   await goFull();
   try {
     const r = await callTool('get_item', { id });
-    if (from) stack.push(from);
+    if (from) stack.push({ data: from, focusKey: opener });
     draw(r, false);
+    restoreFocus(null, true);
     tell(`Steve opened ${r.item?.name || 'a garment'} (item ${id}) in the card.`);
   } catch (e) { say(e.message, true); }
 }
@@ -141,14 +152,16 @@ function show(result) {
 }
 export function start(data) { root = data; stack = []; ui = {}; draw(data, false); }
 export function draw(data, keep = true) {
+  const focused = focusKey();
   disposeView();
   disposeView = () => {};
-  if (keep && current) stack.push(current);
+  if (keep && current) stack.push({ data: current, focusKey: focused });
   current = data;
   app.textContent = '';
   document.documentElement.classList.toggle('is-full', full());
   const dispose = (views[data?.view] || (() => {}))(data);
   if (typeof dispose === 'function') disposeView = dispose;
+  restoreFocus(focused);
 }
 
 // ---------- The views, by name (views/*.js add theirs) ----------

@@ -19,6 +19,9 @@ rather than leaving it in a chat.
    The web/MCP parity audit also records separate chat-card verification and missing Recipe/Finance
    capabilities. Finance connector access remains denied until separately scoped and verified;
    web UI changes do not automatically update the embedded chat interface.
+   The isolated MCP focus follow-up fixes garment open/Back and category-filter focus loss.
+   Its eight automated host/theme/viewport combinations, hands-on repeat and full local release
+   checks passed; publication, CI and deployed verification remain. Finance PR #162 is CI-green and awaits Steve’s merge approval.
    Finance v0 cutover completed Nov 11: deployed security checks, private import/export
    reconciliation, workflow tests and independent operation passed; Streamlit is retired with
    a private rollback backup. Manual CSV imports and balance updates remain the v0 refresh path.

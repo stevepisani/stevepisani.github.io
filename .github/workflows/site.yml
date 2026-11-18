@@ -100,6 +100,9 @@ jobs:
       - name: Finance desktop and phone security behavior
         if: matrix.part == 'pages,apps,planets,nogl'
         run: node tools/finance-ui-test.mjs && node tools/finance-browser-live-test.mjs
+      - name: MCP card keyboard focus
+        if: matrix.part == 'pages,apps,planets,nogl'
+        run: node tools/mcp-card-focus-test.mjs
       - name: Smoke test
         run: node tools/smoke.mjs _site --only '${{ matrix.part }}'
       - if: failure() # what the page looked like when it failed

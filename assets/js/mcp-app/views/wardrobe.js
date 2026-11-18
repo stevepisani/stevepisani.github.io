@@ -15,6 +15,7 @@ export function label(it, twins) {
 function tile(it, twins, from) {
   const { name, meta } = label(it, twins);
   const b = button('w-tile', null, () => openItem(it.id, from));
+  b.dataset.focusKey = `item:${it.id}`;
   b.setAttribute('aria-label', [it.name, meta].filter(Boolean).join(', '));
   b.append(photo(it.hero_photo, it), el('span', 'w-tile__name', name));
   if (meta) b.append(el('span', 'w-tile__meta', meta));
@@ -47,6 +48,7 @@ function closet(data) {
     for (const c of [null, ...cats]) {
       const n = c ? items.filter((i) => i.category === c).length : items.length;
       const chip = button('w-chip', `${c ? CATS[c] || words(c) : 'All'} ${n}`, () => { ui.cat = c; draw(data, false); });
+      chip.dataset.focusKey = `category:${c || 'all'}`;
       chip.setAttribute('aria-pressed', (ui.cat || null) === c);
       chips.append(chip);
     }
