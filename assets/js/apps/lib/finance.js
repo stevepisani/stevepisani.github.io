@@ -65,7 +65,10 @@ function editorActions(pane,form,save,status) {
   const initial=JSON.stringify(snapshot());
   const cancel=button('Cancel',()=>{
     if(JSON.stringify(snapshot())!==initial && !confirm("Discard what you've entered?"))return;
-    pane.remove();if(opener?.isConnected)opener.focus();
+    pane.remove();if(opener?.isConnected) {
+      const disclosure=opener.closest('details');
+      (disclosure && !disclosure.open ? disclosure.querySelector('summary') : opener)?.focus();
+    }
   },'btn btn--ghost btn--small');
   save.className='btn btn--small';status.setAttribute('role','status');
   bar.append(cancel,save);form.prepend(bar);pane.classList.add('finance-editor');
@@ -77,12 +80,22 @@ function draw() {
   const label=el('label','','Month '), input=el('input'); input.type='month'; input.value=month;
   input.onchange=()=>{ if(input.value) {month=input.value;selected=null;draw();} }; label.append(input);
   const actions=el('div','finance-toolbar__actions'); actions.setAttribute('role','group'); actions.setAttribute('aria-label','Financial records');
-  actions.append(button('Import',()=>importFile(host),'btn btn--small'),button('Refresh',load,'btn btn--ghost btn--small'),button('Export backup',exportBackup,'btn btn--ghost btn--small'));
+  actions.append(button('Import',()=>importFile(host),'btn btn--small'),button('Export backup',exportBackup,'btn btn--ghost btn--small'));
   const settings=el('div','finance-toolbar__actions'); settings.setAttribute('role','group'); settings.setAttribute('aria-label','Financial plan');
   settings.append(button('Edit plan',()=>editPlan(host),'btn btn--ghost btn--small'),button('Add account',()=>editAccount(host),'btn btn--ghost btn--small'));
-  toolbar.append(label,actions,settings); host.append(toolbar);
+  const manage=el('details','finance-manage'), summary=el('summary','btn btn--ghost btn--small','Manage');
+  summary.setAttribute('aria-label','Manage finances');
+  manage.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();manage.open=false;summary.focus();}});
+  manage.addEventListener('click',e=>{
+    if(!e.target.closest('button'))return;
+    manage.open=false;
+    if(manage.contains(document.activeElement))summary.focus();
+  });
+  const management=el('div','finance-manage__panel');
+  management.append(actions,settings);manage.append(summary,management);
+  toolbar.append(label,button('Refresh',load,'btn btn--ghost btn--small'),manage); host.append(toolbar);
   const plan=data.plans.find(p=>p.year===Number(month.slice(0,4)));
-  if(!plan) { host.append(el('p','finance-notice','No funding plan for this year. Import a reviewed plan to begin.')); return; }
+  if(!plan) { manage.open=true;host.prepend(el('p','finance-notice','No funding plan for this year. Import a reviewed plan to begin.')); return; }
   const f=funding(data.accounts,plan);
   const grid=el('div','finance-overview');
   const available=card('Available after reserves');
