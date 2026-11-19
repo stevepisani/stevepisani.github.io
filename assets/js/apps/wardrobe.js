@@ -973,6 +973,7 @@ async function drawToday() {
       const btn = el('button', 'link-btn', text);
       btn.type = 'button';
       btn.disabled = d < a || d > b;
+      btn.dataset.dayStep = dir;
       btn.addEventListener('click', () => { dayOn = d; slide = dir; drawToday(); });
       return btn;
     };
@@ -1057,7 +1058,12 @@ async function drawToday() {
   aside.append(...side);
   // a line being typed stays as it is through a redraw (the weather arriving, a pull)
   const typing = document.activeElement?.id === 'journal-line' ? document.activeElement : null;
+  const dayStep = box.contains(document.activeElement) ? document.activeElement?.dataset.dayStep : null;
   box.replaceChildren(main, ...(side.length ? [aside] : []));
+  if (dayStep) {
+    const buttons = [...box.querySelectorAll('[data-day-step]')];
+    (buttons.find(b => b.dataset.dayStep === dayStep && !b.disabled) || buttons.find(b => !b.disabled))?.focus({ preventScroll: true });
+  }
   const line = $('#journal-line');
   if (typing && line && typing.dataset.date === line.dataset.date) { line.value = typing.value; line.focus({ preventScroll: true }); }
 }
@@ -1280,14 +1286,18 @@ const options = (select, pairs, value) => {
   select.replaceChildren(...pairs.map(([v, text]) => new Option(text, v)));
   select.value = pairs.some(([v]) => v === value) ? value : pairs[0]?.[0] ?? '';
 };
-const chips = (box, pairs, value) => box.replaceChildren(...pairs.map(([v, text, n]) => {
-  const b = el('button', '', text);
-  b.type = 'button';
-  b.dataset.value = v;
-  b.setAttribute('aria-pressed', v === value);
-  if (n != null) b.append(el('span', '', n));
-  return b;
-}));
+const chips = (box, pairs, value) => {
+  const focused = box.contains(document.activeElement) ? document.activeElement?.dataset.value : undefined;
+  box.replaceChildren(...pairs.map(([v, text, n]) => {
+    const b = el('button', '', text);
+    b.type = 'button';
+    b.dataset.value = v;
+    b.setAttribute('aria-pressed', v === value);
+    if (n != null) b.append(el('span', '', n));
+    return b;
+  }));
+  if (focused !== undefined) [...box.children].find(b => b.dataset.value === focused)?.focus({ preventScroll: true });
+};
 
 let addFor = ''; // the filters the add form's pickers were last set from
 function drawPack() {
