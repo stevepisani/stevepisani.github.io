@@ -94,10 +94,14 @@ import { holidayNow } from './holidays.js';
       var c = JSON.parse(localStorage.getItem(key));
       if (c && Date.now() - c.at < maxAge) return Promise.resolve(c.data);
     } catch (e) {}
-    return fetch(url).then(function (r) {
+    // a request that never answers has failed (a phone between networks), so nothing waits on it for good
+    var stop = window.AbortController ? new AbortController() : null;
+    var quiet = setTimeout(function () { if (stop) stop.abort(); }, 15000);
+    return fetch(url, stop ? { signal: stop.signal } : {}).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (data) {
+      clearTimeout(quiet);
       data = shape(data);
       try { localStorage.setItem(key, JSON.stringify({ at: Date.now(), data: data })); } catch (e) {}
       return data;

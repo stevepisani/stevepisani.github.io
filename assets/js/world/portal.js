@@ -347,6 +347,7 @@ async function load(place, parent, progress) {
       canvas.style.display = '';
       fit();
       last = performance.now();
+      cancelAnimationFrame(raf); // started twice (stepped back and in again as it loaded): still one loop
       raf = requestAnimationFrame(frame);
       // until Spark has sorted the splats and they're drawn (or a few seconds: never stuck at the step), and a frame more
       await new Promise((r) => {

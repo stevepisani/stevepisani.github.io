@@ -382,13 +382,15 @@ export function sheet(dialog, dismiss) {
     dialog.style.transition = 'none';
     dialog.style.transform = `translateY(${dy}px)`;
   }, { passive: false });
+  const settle = () => { y0 = null; dialog.style.transition = ''; dialog.style.transform = ''; };
   dialog.addEventListener('touchend', () => {
     if (y0 == null) return;
-    y0 = null;
-    dialog.style.transition = '';
-    dialog.style.transform = '';
+    settle();
     if (dy > 120 || (dy > 50 && dy / (Date.now() - t0) > 0.5)) out();
   });
+  // a swipe the phone takes over (a system gesture, a call coming in) has no touchend: back where it was, not left part-way down
+  dialog.addEventListener('touchcancel', settle);
+  dialog.addEventListener('close', settle);
   return dialog;
 }
 

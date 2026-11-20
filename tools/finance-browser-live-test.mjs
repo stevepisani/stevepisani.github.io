@@ -3,10 +3,14 @@
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync,statSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
-import {verifyFinanceBrowser} from './finance-browser-live.mjs';
+// The app's service worker fetches for itself, past a plain route, so a page it controls would load
+// the live site's scripts, not this build's (and break whenever a chunk's name differs). This has
+// Playwright route the worker's requests too; it's read as Playwright loads, so that comes after.
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS='1';
+const {verifyFinanceBrowser}=await import('./finance-browser-live.mjs');
 const root=resolve(process.argv[2]||'_site'),ref='dkaiavlnmtetqigxnkwb';
 const now=new Date().toISOString();let generations=0;
-const revoked=new Set(),stages=[],forbidden=[];
+const revoked=new Set(),stages=[],forbidden=[],live=[];
 const rows={
  finance_accounts:[{id:'cash',source_key:'synthetic-live',name:'Synthetic checking',kind:'cash',balance_cents:10000,as_of:now,included:true,currency:'USD'}],
  finance_transactions:[{id:'t1',account_id:'cash',source_key:'synthetic-transaction',posted_on:'2026-01-01',description:'Synthetic payment',amount_cents:-100,treatment:'personal',category:'Food',pending:false}],
@@ -22,6 +26,7 @@ const freshSessions=async()=>{
  });
 };
 await verifyFinanceBrowser({ref,freshSessions,stage:s=>{stages.push(s);console.log(s);},prepareContext:async context=>{
+ context.on('response',r=>{if(r.fromServiceWorker()&&r.status()>=400)live.push(r.url());});
  await context.route('**/*',async route=>{
   const request=route.request(),url=new URL(request.url());
   if(url.origin==='https://stevenpisani.com'){
@@ -44,6 +49,6 @@ await verifyFinanceBrowser({ref,freshSessions,stage:s=>{stages.push(s);console.l
   forbidden.push(url.pathname);return route.abort();
  });
 }});
-assert.equal(generations,2);assert.equal(revoked.size,2);assert.deepEqual(forbidden,[]);
+assert.equal(generations,2);assert.equal(revoked.size,2);assert.deepEqual(forbidden,[]);assert.deepEqual(live,[]);
 assert.equal(stages.filter(s=>s.endsWith('second owner isolation')).length,2);
 console.log('Deployed verifier regression: real built app, fresh sessions after logout, two viewports and no unrelated private API reads passed.');

@@ -230,7 +230,8 @@ Design rules for the apps, from the Oct 2026 critique and accessibility pass:
 And from the Oct 2026 redesign (Apple's HIG and Krug, for one user on an iPhone first):
 - Every dialog is a sheet: a bar on top with the way out on the left (Cancel, or nothing when
   everything already saved), what it is in the middle, the main button on the right. On a phone it
-  rises from the bottom with a grabber, and a swipe down, Esc or a tap outside puts it away; none
+  rises from the bottom with a grabber, and a swipe down, Esc or a tap outside puts it away (a swipe
+  the phone takes over mid-way, `touchcancel`, puts it back where it was); none
   of those throws away typing without asking.
 - The content is the clothes: photos sit on the studio (`--studio`, the pale grey the catalog
   photos are shot on, the same in every theme and dimmed at night), so a photo and its tile are one
