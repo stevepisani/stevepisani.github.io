@@ -230,6 +230,15 @@ PRO-2293. No new paid generation is part of this change.
 
 ## Done lately
 
+- Nov 2026: text that got stuck on phones. A bartender's reply that never arrived (a phone between
+  networks) left the conversation on screen for good, even after leaving the bar, and the box took
+  no more questions: replies are given up on after 15 s and the house answers, and leaving the bar
+  ends the conversation. Also: the keyboard's layout follows the keyboard (Android's Back gives
+  "Leave the bar" back), a touch the phone never ended no longer blocks every tap after it, the
+  door has "Step back" while its place loads, a bottle that won't send says so after 15 s, the
+  launches too, and a sheet in SJPJr whose swipe is interrupted goes back where it was. Checked
+  in a phone-sized browser with requests held back (the smoke test does this now); not on a real
+  phone's keyboard.
 - Oct 2026: what's public on GitHub, audited. No real secret ever committed; the tests' trip and
   family are made up now, and members' emails are a repo secret (`MEMBERS`), not in migrations.
   Test data is always made up: never the real trip, family or addresses.

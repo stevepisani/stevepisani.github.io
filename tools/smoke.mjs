@@ -152,6 +152,15 @@ async function pages(page) {
 // The planet, everything a visitor can do
 async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) {
   const t0 = Date.now();
+  // a phone's keyboard, pretended: window.__keyboard(px) takes that much off the bottom of what's
+  // visible (the visual viewport), as one coming up does, and gives it back at 0
+  if (phone) await page.addInitScript(() => {
+    const vv = new EventTarget();
+    let kb = 0;
+    Object.defineProperties(vv, { height: { get: () => innerHeight - kb }, width: { get: () => innerWidth }, offsetTop: { get: () => 0 }, offsetLeft: { get: () => 0 }, scale: { get: () => 1 } });
+    Object.defineProperty(window, 'visualViewport', { get: () => vv, configurable: true });
+    window.__keyboard = (px) => { kb = px; vv.dispatchEvent(new Event('resize')); };
+  });
   await page.goto(base + '/?test=1');
   await until(page, () => window.__sceneReady, null, 240000);
   step(`scene up in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
@@ -187,7 +196,10 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     await shot('seated');
     step(walkedUp ? 'tap the bar: walked up to it; tap the stool: sat down' : 'tap the stool: walked over and sat down');
 
-    // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave
+    // pick up the menu, order, the panel pours out of the mug, back to the menu, put it down, leave.
+    // First a touch that never ends (a phone can take one for a gesture of its own and say nothing):
+    // the next tap still counts
+    await page.evaluate(() => document.getElementById('world-canvas').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 77, isPrimary: true, pointerType: 'touch', clientX: 40, clientY: 300, bubbles: true })));
     await tap(await onScreen('menu'));
     await until(page, () => window.__world.menuHeld && !document.getElementById('menu').hidden);
     await press(page, '#menu a[data-order="lab"]');
@@ -240,8 +252,39 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     await until(page, () => !document.getElementById('world').classList.contains('is-typing') && getComputedStyle(document.getElementById('seat-leave')).display !== 'none');
     step(`asked the bartender: the question showed, and offline the house answered ("${await page.textContent('#chat-log li:last-child')}")`);
 
-    await press(page, '#seat-leave');
+    // on a phone the world fits above the keyboard while you type; a keyboard put away with the box
+    // still in it (Android's Back) gives "Leave the bar" back, and tapping the box again brings the keyboard's layout back
+    if (phone) {
+      const fits = (typing, h) => until(page, ([typing, h]) => { const w = document.getElementById('world'); return w.classList.contains('is-typing') === typing && Math.abs(w.getBoundingClientRect().height - (innerHeight - h)) < 2 && (getComputedStyle(document.getElementById('seat-leave')).display === 'none') === typing; }, [typing, h], 30000);
+      await page.focus('#chat-input');
+      await page.evaluate(() => window.__keyboard(336));
+      await fits(true, 336);
+      await page.evaluate(() => window.__keyboard(0));
+      await fits(false, 0);
+      if (await page.evaluate(() => document.activeElement.id) !== 'chat-input') throw new Error('putting the keyboard away took the box out of focus');
+      await page.evaluate(() => window.__keyboard(336));
+      await fits(true, 336);
+      await page.evaluate(() => { window.__keyboard(0); document.activeElement.blur(); });
+      await fits(false, 0);
+      step('the keyboard: the bar fits above it, and putting it away any way gives "Leave the bar" back');
+    }
+
+    // a reply that never comes (a phone between networks): it's given up on, the house answers, and
+    // the next question is taken; leaving mid-answer drops the question, and nothing of the
+    // conversation is left on screen away from the bar
+    const stalled = [];
+    await page.route('**/functions/v1/bartender', (route) => { stalled.push(route); });
+    // asked and looked at in one go (the wait is short under ?test, and frames are slow here)
+    const ask = async (q, then = '') => { await page.fill('#chat-input', q); return page.evaluate((then) => { document.getElementById('chat').requestSubmit(); const busy = document.querySelector('#chat button[type="submit"]').disabled; if (then) window.__world[then](); return busy; }, then); };
+    if (!(await ask('How long have you worked here?'))) throw new Error('while the bartender is answering, Ask should say so (disabled)');
+    await until(page, () => { const l = document.querySelectorAll('#chat-log li'); return l.length === 4 && !l[3].classList.contains('is-thinking') && l[3].textContent.length > 10 && !document.querySelector('#chat button[type="submit"]').disabled; }, null, 60000);
+    if (!stalled.length) throw new Error('the question never reached the bartender');
+    await ask('And tomorrow?', 'leaveBar');
     await expectState(page, 'walk', 120000);
+    await until(page, () => document.getElementById('chat-log').hidden && document.querySelectorAll('#chat-log li').length === 4 && !document.getElementById('world').classList.contains('is-typing'), null, 30000);
+    await page.unroute('**/functions/v1/bartender');
+    for (const route of stalled) await route.abort().catch(() => {});
+    step('a reply that never comes: the house answered instead, and leaving mid-answer left nothing on screen');
     step('left the bar');
 
     // a tap on the bar away from your stool (its far end) walks you up to it but doesn't sit you
@@ -564,6 +607,17 @@ async function planet(page, shot, { phone = false, parts = [1, 2, 3, 4] } = {}) 
     await page.mouse.move(640, 300); await page.mouse.down(); await page.mouse.move(640, 400, { steps: 4 }); await page.mouse.up();
     await page.waitForTimeout(500);
     if (!(await lookUp() > before)) throw new Error("on the planet a drag down should tip the view up");
+    // while the place loads (however long: here its files are held back) there's a way back on screen
+    const held = [];
+    await page.route(/\/assets\/splats\//, (route) => { held.push(route); });
+    await page.evaluate(() => window.__world.goUse('door'));
+    await page.waitForFunction(() => window.__world.state === 'door' && !window.__world.cameraFlying, null, tick);
+    if (await page.isHidden('#door-leave') || (await page.textContent('#door-leave')) !== 'Step back') throw new Error('at the door, while the place loads, there should be a "Step back" button');
+    await press(page, '#door-leave');
+    await page.waitForFunction(() => window.__world.state === 'walk' && !window.__world.cameraFlying, null, tick);
+    if (!(await page.isHidden('#door-leave')) || !(await page.isHidden('#hint')) && /%/.test(await page.textContent('#hint'))) throw new Error('stepping back from a door still loading left its button or its progress on screen');
+    await page.unroute(/\/assets\/splats\//);
+    for (const route of held) await route.continue().catch(() => {});
     await page.evaluate(() => window.__world.goUse('door'));
     await page.waitForFunction(() => window.__world.door.inside, null, tick);
     if (await page.evaluate(() => location.hash) !== '#door') throw new Error("stepping through the door didn't add a history entry");

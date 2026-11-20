@@ -240,7 +240,11 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag,
   // a long press is a look, not a request for the browser's menu
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
-    if (press.id !== null) return;
+    // one finger at a time; but a new first finger means the last one is gone, whether or not the
+    // phone ever said so (a touch taken by a system gesture can end with no pointerup or cancel),
+    // or every tap after it would be ignored
+    if (press.id !== null && !e.isPrimary) return;
+    if (press.id !== null) release({ pointerId: press.id, type: 'pointercancel' });
     press.id = e.pointerId; press.x = press.lx = e.clientX; press.y = press.ly = e.clientY; press.dragged = false;
     if (onPress) onPress();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* not capturable; drags still work inside the canvas */ }
@@ -270,6 +274,7 @@ export function bindInput(player, canvas, { onTap, onHover, onKeyAction, onDrag,
   };
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('lostpointercapture', release); // taken away mid-press (after a pointerup it's already over)
   canvas.addEventListener('pointerleave', () => onHover(null, null));
 
   return { clear() { keys.clear(); recompute(); } };

@@ -1192,13 +1192,25 @@ async function start() {
   // Typing on a phone: the keyboard takes the bottom of the screen and iOS would slide the page up
   // to show the box (losing the top bar and the robot's head). Instead the world fits what's left
   // above the keyboard (`.is-typing`: fixed to the visual viewport), so the bar stays whole.
+  // Nothing about the keyboard may leave things stuck where they were. A keyboard put away with the
+  // box still in it (Android's Back) is done typing, like Done: "Leave the bar" comes back, and
+  // tapping the box again brings both back. And once a keyboard has gone, the page is at its top.
   const vv = window.visualViewport;
+  let fullH = vv ? vv.height : 0, kbUp = false; // the view with no keyboard, and whether one has come up since the box was tapped
   const fitView = () => {
     if (!vv) return;
-    root.style.setProperty('--vv-top', `${vv.offsetTop}px`);
+    root.style.setProperty('--vv-top', `${Math.max(0, vv.offsetTop)}px`);
     root.style.setProperty('--vv-h', `${vv.height}px`);
   };
-  if (vv) { vv.addEventListener('resize', fitView); vv.addEventListener('scroll', fitView); }
+  const onView = () => {
+    if (document.activeElement !== chatInput) fullH = vv.height;
+    else if (vv.height < fullH - 120) { kbUp = true; typing(true); }
+    else if (kbUp && vv.height > fullH - 60) typing(false);
+    fitView();
+  };
+  if (vv) { vv.addEventListener('resize', onView); vv.addEventListener('scroll', onView); }
+  const pageToTop = () => { if (state !== 'fallback' && !document.activeElement?.matches?.('input, textarea') && (scrollX || scrollY)) scrollTo(0, 0); };
+  root.addEventListener('focusout', () => setTimeout(pageToTop, 500));
   // Face to face: when you go to ask something, you look the bartender in the eye (the same eased
   // lean as watching a drink made: something you asked for, so the camera moves); you sit back
   // when you're done typing and it's done talking.
@@ -1218,12 +1230,16 @@ async function start() {
       seatLook.yaw = seatLook.pitch = 0;
     } else if (!making && !board.on) view.want = 0;
   }
-  // typing is the box having focus (a phone's keyboard is up exactly then)
-  chatInput.addEventListener('focus', () => { root.classList.add('is-typing'); fitView(); faceRobot(true); });
-  chatInput.addEventListener('blur', () => {
-    root.classList.remove('is-typing');
-    faceTimer = setTimeout(() => { if (document.activeElement !== chatInput && !talking) faceRobot(false); }, 350);
-  });
+  // typing is the box having focus with, as far as the phone says, its keyboard up
+  function typing(on) {
+    if (on === root.classList.contains('is-typing')) return;
+    fitView();
+    root.classList.toggle('is-typing', on);
+    if (on) faceRobot(true);
+    else faceTimer = setTimeout(() => { if (document.activeElement !== chatInput && !talking) faceRobot(false); }, 350);
+  }
+  chatInput.addEventListener('focus', () => { if (vv) fullH = vv.height; kbUp = false; typing(true); });
+  chatInput.addEventListener('blur', () => typing(false));
   // Ask and the questions don't take focus from the box: the keyboard stays up and nothing moves
   // under your finger mid-tap (as in any chat app)
   for (const el of [chat.querySelector('button'), chatAsk]) el.addEventListener('pointerdown', (e) => { if (document.activeElement === chatInput) e.preventDefault(); });
@@ -1232,6 +1248,13 @@ async function start() {
     onclick: () => { chatInput.value = q; chat.requestSubmit(); } })));
   const talk = [];
   let talking = false, talked = false;
+  // A conversation always ends. A reply that stops coming (a phone changing networks, the page put
+  // away mid-answer) is given up on after WAIT of nothing, and the house answers; leaving the bar
+  // ends it at once (hush). Nothing of it is ever left on screen away from your stool.
+  const WAIT = TEST ? 4000 : 15000;
+  let hush = () => {};
+  const within = (ms, promise) => Promise.race([promise, new Promise((r) => setTimeout(r, ms, ''))]);
+  const askButton = chat.querySelector('button');
   const CLOSED = "The bar's closed for a moment. The menu's right in front of you.";
   const said = (who, text) => { // one line of the transcript; the robot's starts empty and fills in
     const li = document.createElement('li');
@@ -1250,27 +1273,35 @@ async function start() {
     chatAsk.hidden = true;
     clearInterval(chatter);
     bubble.hidden = true;
-    talking = true;
+    talking = askButton.disabled = true;
     chatLog.hidden = false;
-    said('q', q);
+    const asked = said('q', q);
     const line = said('a', '');
     line.classList.add('is-thinking');
     chatInput.value = '';
     talk.push({ role: 'user', content: q });
-    let answer = '';
+    let answer = '', left = false, quiet = 0;
+    const stop = new AbortController();
+    const waiting = () => { clearTimeout(quiet); quiet = setTimeout(() => stop.abort(), WAIT); };
+    hush = () => { left = true; stop.abort(); };
+    const house = () => (left ? '' : within(WAIT, houseAnswer(q).catch(() => '')));
     // the suggested questions are the house's to answer (barback.js): instant, and no cost
-    if (talk.length === 1 && (parts.robot.ask || []).includes(q)) answer = await houseAnswer(q).catch(() => '');
-    if (!answer) try {
+    if (talk.length === 1 && (parts.robot.ask || []).includes(q)) answer = await house();
+    if (!answer && !left) try {
+      waiting();
       const res = await fetch(`${DB.url}/functions/v1/bartender`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}` },
         body: JSON.stringify({ messages: talk.slice(-12), stream: true }),
+        signal: stop.signal,
       });
+      waiting();
       if ((res.headers.get('content-type') || '').includes('application/json')) answer = (await res.json()).reply || '';
       else if (res.ok && res.body) { // plain text, streamed: show it as it comes
         const reader = res.body.getReader(), decoder = new TextDecoder();
         bar.robot.talk(true); // its gauge flickers as the words come
         for (let r = await reader.read(); !r.done; r = await reader.read()) {
+          waiting();
           answer += decoder.decode(r.value, { stream: true });
           line.classList.remove('is-thinking');
           line.textContent = answer;
@@ -1278,16 +1309,19 @@ async function start() {
         }
         answer += decoder.decode();
       }
-    } catch (err) { /* offline, or the function isn't there: the house answers below */ }
+    } catch (err) { /* offline, the function isn't there, or it went quiet: the house answers below (what had come is kept) */ }
+    clearTimeout(quiet);
+    hush = () => {};
     answer = answer.trim();
-    if (!answer) answer = await houseAnswer(q).catch(() => ''); // the model's out (no credit, an outage, a limit, offline): answer from the site's own facts
+    if (!answer) answer = await house(); // the model's out (no credit, an outage, a limit, offline): answer from the site's own facts
     if (answer) talk.push({ role: 'assistant', content: answer });
     else talk.pop(); // keep the conversation taking turns
     line.classList.remove('is-thinking');
     line.textContent = answer || CLOSED;
+    if (left && !answer) { asked.remove(); line.remove(); } // you'd gone before a word of it: it was never asked
     chatLog.scrollTop = chatLog.scrollHeight;
     bar.robot.talk(false);
-    talking = false;
+    talking = askButton.disabled = false;
     if (document.activeElement !== chatInput) faceTimer = setTimeout(() => faceRobot(false), 4000); // a moment to read it, then sit back
   });
   let leaving = false;
@@ -1326,6 +1360,8 @@ async function start() {
   }
 
   leaveBar = () => {
+    hush(); // a question still being answered: dropped
+    if (document.activeElement === chatInput) chatInput.blur();
     stopMaking(); // and leans back from the board
     drinkBackOnBar();
     ordering = false;
@@ -2060,6 +2096,8 @@ async function start() {
     flyPath([{ ...door.stand, ms: 700 }]);
     const say = (f) => { hint.textContent = `${P.name}, ${P.where}… ${Math.round(f * 100)}%`; hint.hidden = false; hint.dataset.key = 'door-load'; };
     say(0);
+    doorLeave.textContent = 'Step back'; // a way back while it loads (a phone has no Esc), however long that takes
+    doorLeave.hidden = false;
     import(/* the place's own bundle, by URL: never part of world.js */ portalUrl)
       .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, fov: BASE_FOV, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95), onBack: () => stepBack({ through: true }) }))
       .then((view) => {
@@ -2076,6 +2114,7 @@ async function start() {
             const C = P.credit;
             portalCredit.innerHTML = `<b>${P.name}</b>, ${P.where}. ${C.made} ${C.by} (<a href="${C.source}" target="_blank" rel="noopener">${C.site}</a>), <a href="${C.licenseUrl}" target="_blank" rel="noopener">${C.license}</a>${C.note ? `, ${C.note}` : ''}.`;
             portalCredit.hidden = false;
+            doorLeave.textContent = 'Step back through';
             doorLeave.hidden = false;
             door.busy = false;
             showHint(coarse ? 'Drag to look around. Tap the ground to walk.' : 'Drag to look around. Click the ground to walk.', 'portal');
@@ -2519,16 +2558,18 @@ async function start() {
   // Sent to the shared table. Tests (?test, automated browsers) don't write to it.
   async function sendBottle(message, signed) {
     if (TEST || navigator.webdriver) { window.__lastBottle = { message, signed }; return { ok: true }; }
+    const stop = new AbortController(), quiet = setTimeout(() => stop.abort(), 15000); // a send that never answers didn't send
     try {
       const res = await fetch(`${DB.url}/rest/v1/bottles`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', apikey: DB.key, authorization: `Bearer ${DB.key}`, prefer: 'return=minimal' },
         body: JSON.stringify({ message, signed: signed || null }),
+        signal: stop.signal,
       });
       if (res.ok) return { ok: true };
       const body = await res.json().catch(() => ({}));
       return { ok: false, full: /full of bottles/.test(body.message || '') };
-    } catch (e) { return { ok: false }; }
+    } catch (e) { return { ok: false }; } finally { clearTimeout(quiet); }
   }
   noteForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -2898,7 +2939,10 @@ async function start() {
     makeSkip.hidden = !(making && state === 'seat' && panel.hidden && menu.hidden);
     chat.hidden = !(state === 'seat' && !flight && !leaving && !making && !ordering && !board.on && panel.hidden && menu.hidden);
     chatAsk.hidden = chat.hidden || talked || !(parts.robot.ask || []).length;
-    if (chat.hidden && !chatLog.hidden && !talking) chatLog.hidden = true; // the conversation goes when the box does
+    if (chat.hidden && document.activeElement === chatInput) chatInput.blur(); // the box went from under the keyboard
+    if (root.classList.contains('is-typing') && document.activeElement !== chatInput) typing(false); // however it lost the keyboard
+    const atBar = state === 'seat' && !leaving;
+    if (!chatLog.hidden && (!atBar || (chat.hidden && !talking))) chatLog.hidden = true; // the conversation goes when the box does, and never leaves the bar
     else if (!chat.hidden && chatLog.hidden && chatLog.children.length) chatLog.hidden = false; // and comes back with it
     // at the fire: the stick toasts by how close it is to the flame (real frame time: it's yours)
     const atFire = state === 'camp' && !flight && panel.hidden && menu.hidden;
