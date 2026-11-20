@@ -2101,7 +2101,9 @@ async function start() {
     import(/* the place's own bundle, by URL: never part of world.js */ portalUrl)
       .then((m) => m.enter(it.place, { parent: root, reduce: reducedMotion, fov: BASE_FOV, progress: (f) => go === door.tries && state === 'door' && say(f * 0.95), onBack: () => stepBack({ through: true }) }))
       .then((view) => {
-        if (go !== door.tries || state !== 'door' || door.leaving) { view.leave(); return; } // stepped back while it loaded
+        // stepped back while it loaded: it's put away, unless you've stepped in again since (that
+        // step has the place now, and putting it away would leave you standing at the door for good)
+        if (go !== door.tries || state !== 'door' || door.leaving) { if (state !== 'door' || door.leaving || door.it.place !== it.place) view.leave(); return; }
         door.view = view;
         if (hint.dataset.key === 'door-load') hint.hidden = true;
         flyPath([{ ...door.sill, ms: 1300 }], () => {
