@@ -86,11 +86,10 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .topbar__nav a { color: #dfe2f5; text-decoration: none; font: 500 .9rem var(--font-body); white-space: nowrap; padding: 9px 14px; border-radius: 999px; min-height: 36px; display: inline-flex; align-items: center; }
 .topbar__nav a:hover { background: rgb(255 255 255 / .1); color: #fff; }
 .topbar__nav a[aria-current="page"] { background: #fff; color: #11132a; }
-.topbar__menu { display: none; font: 600 .95rem var(--font-body); color: #fff; min-width: 44px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); cursor: pointer; }
+.topbar__menu { display: none; font: 700 .95rem var(--font-body); min-width: 44px; min-height: 44px; padding: 0 18px; cursor: pointer; }
 /* the sections, and on phones the Menu button, with the speaker beside them */
 .topbar__end { display: flex; align-items: center; gap: 8px; flex-shrink: 0; } /* the buttons keep their size; the tagline wraps first */
-.topbar__sound { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #dfe2f5; cursor: pointer; }
-.topbar__sound:hover { color: #fff; background: rgb(14 16 36 / .85); }
+.topbar__sound { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0; cursor: pointer; }
 .topbar__sound[hidden] { display: none; }
 .topbar__sound[aria-pressed="true"] .topbar__sound-off, .topbar__sound[aria-pressed="false"] .topbar__sound-on { display: none; }
 /* seven sections: below this they'd wrap, so the Menu button takes over */
@@ -99,11 +98,28 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
   .topbar__menu { display: inline-flex; align-items: center; }
 }
 
-/* ---------- Hints: one at a time, just in time ---------- */
-.hint { position: absolute; z-index: 3; left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%); margin: 0; padding: 10px 18px; border-radius: 999px; background: rgb(14 16 36 / .72); backdrop-filter: blur(10px); color: #fff; font: 500 .95rem var(--font-body); white-space: nowrap; border: 1px solid rgb(255 255 255 / .12); animation: rise .5s ease-out; pointer-events: none; }
+/* ---------- Keys, fields and captions: raised is to press, sunken is to type in, no box is to read ----------
+   Every button laid over the planet is a key: a face, a lip under it, and it goes down when pressed
+   (or stays down while it's on: a held throw, a sample playing). --face, --lip and --hi colour one;
+   cream by default, coral for the main thing to do where you are, lacquer on the menu's paper.
+   The × and ‹ › on a card stay plain glyphs, and the launch console's keys are the console's own. */
+:is(.seat-leave, .camp-eat, .topbar__menu, .topbar__sound, .chat button, .chat-ask button, .note__foot button, .board-card__make, .scope-card__more, .star-card .book__sample, .menu__leave) {
+  --face: linear-gradient(#fdf6e3, #eadcba); --lip: #8f7747; --hi: #fff; --drop: 4px;
+  border: 0; border-radius: 14px; background: var(--face); color: var(--ink-dark); font-weight: 700; -webkit-backdrop-filter: none; backdrop-filter: none;
+  box-shadow: inset 0 1px 0 var(--hi), 0 var(--drop) 0 var(--lip), 0 calc(var(--drop) + 5px) 16px rgb(0 0 0 / .5);
+  transition: translate .06s, box-shadow .06s, filter .15s; }
+:is(.camp-eat, .chat button, .note__foot .note__roll, .board-card__make) { --face: linear-gradient(#f58a6e, #e8634a); --lip: #8f321f; --hi: #ffc1ae; }
+.menu__leave { --face: linear-gradient(#63391f, #4a2c1a); --lip: #1b1412; --hi: rgb(255 220 160 / .35); color: var(--paper); }
+.chat-ask button { --drop: 3px; border-radius: 11px; font-weight: 600; }
+:is(.seat-leave, .camp-eat, .topbar__menu, .topbar__sound, .chat button, .chat-ask button, .note__foot button, .board-card__make, .scope-card__more, .star-card .book__sample, .menu__leave):hover { filter: brightness(1.06); }
+:is(.seat-leave, .camp-eat, .topbar__menu, .topbar__sound, .chat button, .chat-ask button, .note__foot button, .board-card__make, .scope-card__more, .star-card .book__sample, .menu__leave):is(:active, .is-winding, [aria-pressed="true"]:not(.topbar__sound)) {
+  translate: 0 calc(var(--drop) - 1px); box-shadow: inset 0 1px 0 var(--hi), 0 1px 0 var(--lip), 0 3px 6px rgb(0 0 0 / .5); }
+:is(.seat-leave, .camp-eat, .topbar__menu, .topbar__sound, .chat button, .chat-ask button, .note__foot button, .board-card__make, .scope-card__more, .star-card .book__sample, .menu__leave):focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+
+/* ---------- Hints: one at a time, just in time. A caption: words on the scene, never in a box a button could be ---------- */
+.hint { position: absolute; z-index: 3; left: 50%; bottom: max(28px, env(safe-area-inset-bottom)); transform: translateX(-50%); width: max-content; max-width: min(520px, calc(100vw - 32px)); margin: 0; color: #fff; font: 500 1rem/1.35 var(--font-body); text-align: center; text-wrap: balance; text-shadow: 0 1px 2px #000, 0 0 10px #000, 0 0 22px rgb(0 0 0 / .9); animation: rise .5s ease-out; pointer-events: none; }
 .hint[hidden] { display: none; }
 @keyframes rise { from { opacity: 0; transform: translate(-50%, 8px); } }
-@media (max-width: 480px) { .hint { white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); } }
 
 /* Cursor tooltip on hover (mouse only) */
 .tip { position: fixed; z-index: 4; left: 0; top: 0; display: grid; gap: 1px; padding: 8px 12px; border-radius: 10px; background: #fff; color: #11132a; box-shadow: 0 8px 24px rgb(0 0 0 / .35); pointer-events: none; font-size: .85rem; }
@@ -125,7 +141,6 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .world[data-state="shore"] .world__bubble::before, .world[data-state="note"] .world__bubble::before { content: none; } /* how your throw went; where your bottle went */
 .world[data-state="walk"] .world__bubble::before { content: none; } /* what the petunias think */
 #shore-throw, #carry-throw { touch-action: none; }
-#shore-throw.is-winding, #carry-throw.is-winding { border-color: var(--accent); background: rgb(14 16 36 / .85); }
 .world__bubble[hidden] { display: none; }
 @keyframes rise-c { from { opacity: 0; } }
 @media (max-width: 760px) { .world[data-state="seat"] .world__bubble { display: none; } }
@@ -178,8 +193,7 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .menu__note { font: italic .84rem/1.35 var(--font-display); color: var(--ink-soft); }
 .menu__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; padding-top: 10px; border-top: 2px solid var(--lacquer); font-size: .88rem; }
 .menu__foot a { color: var(--ink-soft); }
-.menu__leave { font: 600 .9rem var(--font-body); color: var(--paper); background: var(--lacquer); border: 0; border-radius: 999px; min-height: 44px; padding: 0 18px; cursor: pointer; }
-.menu__leave:hover { background: var(--coral); }
+.menu__leave { font: 700 .9rem var(--font-body); min-height: 44px; padding: 0 18px; cursor: pointer; }
 .menu[data-mode="nav"] .menu__leave { display: none; }
 /* only the no-WebGL menu links out (at the bar every item opens in place) */
 .menu__ext { display: none; font-weight: 600; }
@@ -197,11 +211,9 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 }
 
 /* Seated with the menu down: a way out that doesn't need the menu (Esc works too) */
-.seat-leave { position: absolute; z-index: 3; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .2); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
-.seat-leave:hover { background: rgb(14 16 36 / .85); }
+.seat-leave { position: absolute; z-index: 3; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; padding: 0 18px; font: 700 .9rem var(--font-body); cursor: pointer; }
 .seat-leave[hidden] { display: none; }
-.camp-eat { position: absolute; z-index: 3; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; min-width: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
-.camp-eat:hover { background: rgb(14 16 36 / .85); }
+.camp-eat { position: absolute; z-index: 3; right: 16px; bottom: max(16px, env(safe-area-inset-bottom)); min-height: 44px; min-width: 44px; padding: 0 20px; font: 700 .9rem var(--font-body); cursor: pointer; }
 .camp-eat[hidden] { display: none; }
 /* Making a drink: what the robot's doing, one step at a time, above the bottom buttons */
 /* A message in a bottle: the writing surface sits exactly over the unrolled 3D letter (main.js
@@ -215,8 +227,7 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .note__sign input { width: min(9em, 65%); border: 0; border-bottom: 1px solid rgb(43 29 18 / .35); background: transparent; color: #2b1d12; font: inherit; font-size: max(16px, calc(var(--gap) * 0.75)); outline: 0; padding: 0 2px; }
 .note textarea:focus-visible, .note__sign input:focus-visible { box-shadow: 0 2px 0 rgb(232 99 74 / .6); }
 .note__foot { position: absolute; left: 50%; top: calc(100% + 12px); transform: translateX(-50%); width: max(100%, 300px); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.note__foot button { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
-.note__foot .note__roll { background: var(--coral); border-color: transparent; color: #1a1b2e; }
+.note__foot button { min-height: 44px; padding: 0 18px; font: 700 .9rem var(--font-body); cursor: pointer; }
 .note__left { color: rgb(255 255 255 / .75); font: 500 .8rem var(--font-body); text-shadow: 0 1px 4px rgb(0 0 0 / .6); }
 
 /* Ask the bartender: the question box at the bottom (the Leave button's row on desktop, just above
@@ -226,14 +237,12 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 /* something to ask, until you've asked something: a row of chips just over the question box */
 .chat-ask { position: absolute; z-index: 3; left: 50%; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 56px); transform: translateX(-50%); width: min(420px, calc(100vw - 360px)); display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .chat-ask[hidden] { display: none; }
-.chat-ask button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .22); background: rgb(14 16 36 / .55); backdrop-filter: blur(10px); color: #eef0fa; font: 500 .85rem var(--font-body); cursor: pointer; }
-.chat-ask button:hover { background: rgb(14 16 36 / .8); color: #fff; }
+.chat-ask button { min-height: 36px; padding: 0 14px; font: 600 .85rem var(--font-body); cursor: pointer; }
 @media (pointer: coarse) { .chat-ask button { min-height: 44px; } }
-.chat input { flex: 1; min-width: 0; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 500 16px var(--font-body); } /* 16 px or iOS zooms in */
+.chat input { flex: 1; min-width: 0; min-height: 44px; padding: 0 16px; border-radius: 14px; border: 1px solid rgb(255 255 255 / .16); background: rgb(6 7 18 / .72); box-shadow: inset 0 3px 7px rgb(0 0 0 / .75); backdrop-filter: blur(10px); color: #fff; font: 500 16px var(--font-body); } /* 16 px or iOS zooms in */
 .chat input::placeholder { color: rgb(255 255 255 / .72); }
 .chat input:focus-visible { outline: 2px solid var(--coral); outline-offset: 2px; }
-.chat button { min-height: 44px; min-width: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .25); background: rgb(14 16 36 / .6); backdrop-filter: blur(10px); color: #fff; font: 600 .9rem var(--font-body); cursor: pointer; }
-.chat button:hover { background: rgb(14 16 36 / .85); }
+.chat button { min-height: 44px; min-width: 44px; padding: 0 18px; font: 700 .9rem var(--font-body); cursor: pointer; }
 /* the conversation: up under the top bar, the bartender's answers pointing down at him, so the
    counter and the menu on it stay clear; your questions on the right, older ones scrolling away
    under a fade at the top; an answer shows as it arrives */
@@ -256,14 +265,14 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .making__text { margin: 0; font: 600 1.05rem/1.35 var(--font-body); text-wrap: balance; }
 /* the recipe while it's made: each pour lights up as it goes in, then ticks off */
 .making__build { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 6px; margin: 10px 0 0; padding: 0; list-style: none; font: 500 .78rem/1.3 var(--font-body); }
-.making__build li { padding: 3px 9px; border-radius: 999px; border: 1px solid rgb(255 255 255 / .14); color: rgb(255 255 255 / .55); transition: color .3s, border-color .3s, background .3s; }
-.making__build li.is-now { color: #fff; border-color: var(--accent); background: rgb(255 255 255 / .08); }
+.making__build li { padding: 3px 5px; color: rgb(255 255 255 / .55); transition: color .3s; } /* words, not chips: nothing here is to press */
+.making__build li.is-now { color: #fff; text-decoration: underline 2px var(--accent); text-underline-offset: 5px; }
 .making__build li.is-done { color: rgb(255 255 255 / .85); }
 .making__build li.is-done::before { content: "✓ "; color: var(--accent); }
 .making__dots { display: flex; justify-content: center; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
 .making__dots li { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / .25); transition: background .3s; }
 .making__dots li.is-done { background: var(--accent); }
-.camp-eat.is-burning { border-color: var(--coral); }
+.camp-eat.is-burning { --face: linear-gradient(#ff7a4a, #c8371f); --lip: #6e1c0e; }
 /* above the bottom buttons (the fire's, the hammock's, the shore's, a carried thing's, the chalkboard's) */
 .world[data-state="camp"] .hint, .world[data-state="hammock"] .hint, .world[data-state="shore"] .hint,
 .world:has(#carry-throw:not([hidden])) .hint, .world:has(#board-back:not([hidden])) .hint { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px); }
@@ -353,8 +362,6 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .star-card__kind { margin: 0; font: .72rem var(--font-mono); letter-spacing: .04em; text-transform: uppercase; color: #9fb4ff; }
 .star-card__title { margin: 4px 0; font: 600 1.15rem/1.2 var(--font-display); color: #fff; }
 .star-card__meta { margin: 0 0 4px; font-size: .85rem; line-height: 1.4; color: #b4b9d6; }
-.star-card .book__sample { background: transparent; color: #eef0fa; border-color: rgb(143 162 255 / .45); }
-.star-card .book__sample[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .star-card__close { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.6rem; cursor: pointer; }
 .star-card__steps { position: absolute; right: 4px; bottom: 4px; display: flex; }
 .star-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #b4b9d6; font-size: 1.5rem; cursor: pointer; }
@@ -406,8 +413,7 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .board-card__note { margin: 0 0 6px; font: italic .88rem/1.45 var(--font-display); color: rgb(247 243 232 / .7); }
 .board-card__note:empty { display: none; }
 .board-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
-.board-card__make { min-height: 44px; padding: 0 20px; border-radius: 999px; border: 1px solid #ffd36e; background: #ffd36e; color: #1d2a22; font: 700 .95rem var(--font-body); cursor: pointer; }
-.board-card__make:hover { background: #ffe39a; }
+.board-card__make { min-height: 44px; padding: 0 20px; font: 700 .95rem var(--font-body); cursor: pointer; }
 .board-card__steps { display: flex; }
 .board-card__steps button, .board-card__close { width: 44px; height: 44px; border: 0; background: none; color: rgb(247 243 232 / .7); font-size: 1.5rem; cursor: pointer; }
 .board-card__steps button:hover, .board-card__close:hover { color: #fff; }
@@ -486,9 +492,8 @@ html, .world-page { touch-action: pan-x pan-y; } /* world.css is only on the hom
 .scope-card__name { margin: 2px 0 4px; font: 600 1.25rem/1.2 var(--font-display); color: #fff; }
 .scope-card__line { margin: 0; font: .92rem/1.45 var(--font-body); color: #cfd3ea; }
 .scope-card__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
-.scope-card__more { min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid rgb(201 166 107 / .6); background: transparent; color: #f0e3c8; font: 600 .88rem var(--font-body); cursor: pointer; }
+.scope-card__more { min-height: 44px; padding: 0 16px; font: 700 .88rem var(--font-body); cursor: pointer; }
 .scope-card__more[hidden] { display: none; }
-.scope-card__more:hover { background: rgb(201 166 107 / .15); }
 .scope-card__steps { display: flex; margin-left: auto; }
 .scope-card__steps button { width: 44px; height: 44px; border: 0; background: none; color: #cfd3ea; font-size: 1.5rem; cursor: pointer; }
 .scope-card__steps button:hover { color: #fff; }
