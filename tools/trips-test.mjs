@@ -42,6 +42,16 @@ await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01'
 await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01', to: '2026-11-02' }], travelers: [{ name: 'Shared', type: 'adult' }] }, /shared/, '1: "shared" is no traveler\'s key');
 await bad('create_trip', { name: 'x', legs: [{ place: 'Rome', from: '2026-11-01', to: '2026-11-02' }], travelers: [{ name: 'A', type: 'toddler' }] }, /adult, child, infant, other/, '1: a traveler\'s type is one of the four');
 
+{
+  const legs = [{ place: 'London', from: '2026-10-07', to: '2026-10-09' }];
+  const { id } = await tool('create_trip', { name: 'Rescheduled visit', legs });
+  await tool('plan_days', { trip_id: id, days: [{ date: legs[0].from, occasion: 'Arrive' }] });
+  await tool('update_trip', { id, legs: [{ ...legs[0], from: '2026-10-08' }] });
+  const check = await tool('analyze_trip_packing', { trip_id: id });
+  ok(check.warnings.some((w) => w.code === 'plan_outside_trip' && w.date === legs[0].from), 'date correction flags the old plan for reconciliation', check.warnings);
+  await tool('delete_trip', { id });
+}
+
 // ---------- 2. Transport ----------
 const tr = await tool('add_transport', { trip_id: T, transport: [
   { type: 'flight', carrier: 'British Airways', number: 'BA2741', origin: 'London City', origin_code: 'lcy', destination: 'Florence', destination_code: 'FLR', date: '2026-10-13', departure_time: '11:15', arrival_time: '14:25' },
@@ -124,9 +134,29 @@ const planned = await tool('plan_days', { trip_id: T, days: [
 ] });
 const d9 = planned.days.find((d) => d.date === '2026-10-09');
 ok(!planned.error && d9.activities.length === 2 && d9.activities[0].type === 'sightseeing' && d9.activities.every((x) => x.id) && d9.occasion === 'sightseeing + work' && !d9.items.length, '10: a day with several activities, in time order, each with an id, and its summary', d9);
+// Repeat the original input, including two activities without ids and out-of-order times.
+const snapshot = await tool('get_trip', { id: T });
+const repeat = { trip_id: T, expected_updated_at: snapshot.trip.updated_at, days: [{
+  date: d9.date, occasion: d9.occasion, activities: d9.activities.toReversed().map(({ id, ...fields }) => fields),
+}] };
+const same = await tool('plan_days', repeat);
+ok(same.updated_at === snapshot.trip.updated_at && same.days[0].activities.every((x, i) => x.id === d9.activities[i].id), 'identical retry preserves the revision and activity identities', same);
+// Simulate an edit between validation and UPDATE, including for a legacy caller without a revision.
+const setTrip = ctx.trips.set;
+try {
+  ctx.trips.set = async (...args) => {
+    await setTrip(T, { notes: 'Another editor saved this' });
+    return setTrip(...args);
+  };
+  await bad('plan_days', { trip_id: T, days: [{ date: d9.date, note: 'Race' }] }, /Trip changed/, 'database revision predicate rejects an interleaved edit');
+} finally {
+  ctx.trips.set = setTrip;
+}
 const keepId = d9.activities[1].id;
 const replanned = await tool('plan_days', { trip_id: T, days: [{ date: '2026-10-09', occasion: 'sightseeing + work', activities: [{ id: keepId, title: 'Work', type: 'work', start_time: '14:00', end_time: '18:00' }], items: [shirtB, pants] }] });
 ok(replanned.days[0].activities.length === 1 && replanned.days[0].activities[0].id === keepId && replanned.days[0].items.length === 2, '10: a day given again is replaced whole; an activity keeps its id', replanned.days[0]);
+await bad('plan_days', repeat, /Trip changed/, 'stale replacement is refused');
+ok((await tool('get_trip', { id: T })).days.find((d) => d.date === d9.date).activities.length === 1, 'independent read confirms the newer plan survived');
 await bad('plan_days', { trip_id: T, days: [{ date: '2026-10-10', activities: [{ title: 'Lunch', type: 'brunch' }] }] }, /travel, work/, '10: an activity type outside the list is refused');
 await bad('plan_days', { trip_id: T, days: [{ date: '2026-10-10', activities: [{ title: 'Late', start_time: '18:00', end_time: '17:00' }] }] }, /ends before it starts/, '10: an activity that ends before it starts is refused');
 await bad('plan_days', { trip_id: T, days: [{ date: '2026-12-01', occasion: 'x' }] }, /isn't a day of this trip/, '10: a day outside the trip is refused');

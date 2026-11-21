@@ -26,7 +26,7 @@ const TOOLS = [
   {
     name: "log_day",
     title: "Log what happened",
-    description: "Records what Steve wore on a day, a line about it, or both, when he says so; the day is today where he is unless date is given (never a day to come). wore: wardrobe item ids from find_items, or the garments' names as he said them (each must match one garment; an unclear one is refused with the candidates); or as_planned: true for the outfit planned that day. Logging a day again replaces what it says (the earlier record is kept as its history); wore: [] clears what's logged as worn, journal: \"\" the line. Pass what he said in said, and client_ref always (a retry returns what was stored). dry_run shows what would be stored. Returns what was stored.",
+    description: "For a completed activity, read get_history for the date, preserve earlier journal details and verify the saved account with get_history. Records what Steve wore on a day, a line about it, or both, when he says so; the day is today where he is unless date is given (never a day to come). wore: wardrobe item ids from find_items, or the garments' names as he said them (each must match one garment; an unclear one is refused with the candidates); or as_planned: true for the outfit planned that day. Logging a day again replaces what it says (the earlier record is kept as its history); wore: [] clears what's logged as worn, journal: \"\" the line. Pass what he said in said, and client_ref always (a retry returns what was stored). dry_run shows what would be stored. Returns what was stored.",
     inputSchema: {
       type: "object",
       properties: {
@@ -306,6 +306,6 @@ export default {
     log_day: ["Logging the day…", "Logged the day"],
     get_history: ["Reading what happened…", "Read what happened"],
   },
-  instructions: "Days: log_day when Steve says what he wore or did; get_history for what he's worn.",
+  instructions: "Days: log_day for what Steve did or wore; get_history for actuals.",
   call,
 };

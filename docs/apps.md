@@ -637,6 +637,14 @@ sent.
   lodging and transport in the order they happen, links, bags with how many entries each, days
   with place, weather, activities, outfit and whether it's a travel day, and the packing with a
   count. Garments come once, in `garments`, marked `retired` or `missing` when they've gone since.
+- For an agreed day edit, read `get_trip`, preserve the rest of that date, and pass
+  `trip.updated_at` as `plan_days.expected_updated_at`. Identical retries retain activity IDs.
+  A conflicting change requires a fresh read and reconciliation. A successful write returns
+  the database revision and saved days. Verify the affected dates with `get_trip`.
+- After changing legs, `analyze_trip_packing` reports `plan_outside_trip` for stranded days.
+  Date changes do not move bookings or day plans automatically. Completed activities belong in
+  the dated journal via `log_day`. Read the existing journal before adding a detail and check
+  `get_history` afterward.
 - **`analyze_trip_packing`** is separate, so `get_trip` stays predictable: counts by status,
   traveler, category and bag; the wardrobe (planned and listed, planned but not packed, listed
   but never planned, planned on several days); the days (with no plan, with activities but no

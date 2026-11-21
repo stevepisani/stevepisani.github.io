@@ -124,9 +124,12 @@ export async function wardrobeDb() {
     storeUpload: async (file) => { if (/broken/.test(file.download_url)) return null; uploads.push(file.file_id); return `wardrobe/${STEVE}/${file.file_id}.jpg`; },
     trips: {
       list: () => q(`select * from public.trips where deleted_at is null`),
-      get: (id) => byId(`select * from public.trips where id = $1 and deleted_at is null`, id),
+      get: (id) => byId(`select *, updated_at::text as updated_at from public.trips where id = $1 and deleted_at is null`, id),
       add: (row) => insert('trips', row),
-      set: (id, patch) => update('trips', id, patch),
+      set: async (id, patch, revision) => {
+        if (revision === undefined) return update('trips', id, patch);
+        return (await q(`update public.trips set days = $2::jsonb where id = $1 and updated_at = $3 and deleted_at is null returning *, updated_at::text as updated_at`, [id, JSON.stringify(patch.days), revision]))[0];
+      },
     },
     parts: {
       get: (table, id) => byId(`select * from public.${part(table)} where id = $1`, id),

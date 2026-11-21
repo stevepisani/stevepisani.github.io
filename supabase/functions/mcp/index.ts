@@ -175,7 +175,13 @@ Deno.serve(async (req) => {
       list: async () => { const { data, error } = await db.from("trips").select("*").is("deleted_at", null); if (error) throw error; return data; },
       get: async (id: string) => { const { data, error } = await db.from("trips").select("*").eq("id", id).is("deleted_at", null).maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
       add: async (row: Record<string, unknown>) => { const { data, error } = await db.from("trips").insert(row).select().single(); if (error) throw error; return data; },
-      set: async (id: string, patch: Record<string, unknown>) => { const { data, error } = await db.from("trips").update(patch).eq("id", id).select().maybeSingle(); if (error && error.code !== "22P02") throw error; return data; },
+      set: async (id: string, patch: Record<string, unknown>, revision?: string) => {
+        let query = db.from("trips").update(patch).eq("id", id).is("deleted_at", null);
+        if (revision !== undefined) query = query.eq("updated_at", revision);
+        const { data, error } = await query.select().maybeSingle();
+        if (error && error.code !== "22P02") throw error;
+        return data;
+      },
     },
     // a trip's parts, each its own row: packing entries, bags, transport, lodging, resources
     parts: {
