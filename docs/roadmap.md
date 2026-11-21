@@ -230,6 +230,14 @@ PRO-2293. No new paid generation is part of this change.
 
 ## Done lately
 
+- Nov 2026: buttons look like buttons, and comments don't. On the planet everything to press and
+  everything only to read was the same dark glass pill ("Leave the bar", the suggested questions,
+  the question box, and hints like "Press and hold to roast a marshmallow."). Now every button is a
+  key with a lip that goes down when pressed (cream; coral for the main action), the question box is
+  sunk in, and hints are captions with no box. The recipe steps while a drink is made are words, not
+  chips. The site's and SJPJr's `.btn` got the same lip and press in their own colours. Not yet done:
+  the × and ‹ › on cards are still plain glyphs, and the launch console keeps its own keys. Checked
+  in headless Chromium on desktop and phone sizes, not on a real phone.
 - Nov 2026: text that got stuck on phones. A bartender's reply that never arrived (a phone between
   networks) left the conversation on screen for good, even after leaving the bar, and the box took
   no more questions: replies are given up on after 15 s and the house answers, and leaving the bar

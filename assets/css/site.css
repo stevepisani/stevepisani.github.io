@@ -145,9 +145,11 @@ mark { background: var(--mark); color: inherit; padding: 0 .2em; border-radius: 
 .site-foot__links a { color: var(--ink-2); }
 
 /* ---------- Buttons, chips, cards ---------- */
-.btn { display: inline-block; padding: 11px 18px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; border: 2px solid var(--accent); transition: transform .15s; }
-.btn:hover { transform: translateY(-2px); }
-.btn--ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+/* a button has a lip under it and goes down when pressed (the planet's keys, world.css, in the page's colours) */
+.btn { --lip: color-mix(in srgb, var(--accent) 62%, #000); display: inline-block; padding: 11px 18px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; border: 2px solid var(--accent); box-shadow: 0 3px 0 var(--lip); transition: translate .06s, box-shadow .06s, filter .15s; }
+.btn:hover { filter: brightness(1.06); }
+.btn:not(:disabled):active { translate: 0 3px; box-shadow: 0 0 0 var(--lip); }
+.btn--ghost { --lip: var(--line); background: transparent; color: var(--ink); border-color: var(--line); }
 .btn--ghost:hover { border-color: var(--ink); }
 
 .chips { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 0 0 1em; }
