@@ -43,6 +43,7 @@ const ACTIVITY = {
   additionalProperties: false,
 };
 
+const REVISION = { type: "string", description: "Pass trip.updated_at from the latest get_trip to protect that snapshot." };
 const TOOLS = [
   {
     name: "list_trips",
@@ -62,7 +63,7 @@ const TOOLS = [
   {
     name: "analyze_trip_packing",
     title: "Check a trip's packing",
-    description: "Facts about a trip's packing, worked out by fixed rules (no suggestions): counts by status, traveler, category and bag; planned garments not packed or not on the list at all, garments on the list but never planned, garments planned on several days; days with no plan, days with activities but no outfit, travel and work days; and warnings (a planned garment not on the list, an essential not packed, a garment deleted or retired since, an unknown traveler, transport or lodging outside the trip, lodging that overlaps). What to bring is for you to suggest from these and the weather.",
+    description: "Facts about a trip's packing, worked out by fixed rules (no suggestions): counts by status, traveler, category and bag; planned garments not packed or not on the list at all, garments on the list but never planned, garments planned on several days; days with no plan, days with activities but no outfit, travel and work days; and warnings (a planned garment not on the list, an essential not packed, a garment deleted or retired since, an unknown traveler, planned days, transport or lodging outside the trip, lodging that overlaps). What to bring is for you to suggest from these and the weather.",
     inputSchema: { type: "object", properties: { trip_id: { type: "string" } }, required: ["trip_id"], additionalProperties: false },
     annotations: read,
   },
@@ -76,15 +77,15 @@ const TOOLS = [
   {
     name: "update_trip",
     title: "Change a trip",
-    description: "Changes a trip's own fields; only what's given changes. name; notes (\"\" clears); legs (replaces all of them, in order); travelers (replaces the whole list: give everyone who's going; a traveler keeps its id when its key is given again; packing entries and bags pointing at a key no longer there keep it, and analyze_trip_packing flags them); laundry (null clears). Lodging, transport, bags, links, days and packing have their own tools.",
+    description: "For changed trip dates, read get_trip, replace the legs, verify with get_trip and check analyze_trip_packing for conflicts. Changes a trip's own fields; only what's given changes. name; notes (\"\" clears); legs (replaces all of them, in order); travelers (replaces the whole list: give everyone who's going; a traveler keeps its id when its key is given again; packing entries and bags pointing at a key no longer there keep it, and analyze_trip_packing flags them); laundry (null clears). Lodging, transport, bags, links, days and packing have their own tools.",
     inputSchema: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, notes: { type: "string" }, legs: { type: "array", items: LEG, minItems: 1 }, travelers: { type: "array", items: TRAVELER }, laundry: LAUNDRY }, required: ["id"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true, openWorldHint: true },
   },
   {
     name: "plan_days",
     title: "Plan days of a trip",
-    description: "Sets given days of a trip, each whole: replaces what that date had and leaves other dates alone. Per day: activities (the structured plan: several a day, each with a title and optionally type, local start and end times, location; keep their ids from get_trip when giving a day again), occasion (a short summary: \"sightseeing + work\"), items (the outfit: wardrobe item ids from find_items), note. A day given with nothing is cleared. Older calls with only occasion, items and note work as before.",
-    inputSchema: { type: "object", properties: { trip_id: { type: "string" }, days: { type: "array", minItems: 1, items: { type: "object", properties: { date: DATE, activities: { type: "array", items: ACTIVITY }, occasion: { type: "string", description: "A short summary of the day: \"Uffizi, then dinner out\"." }, items: { type: "array", items: { type: "string" }, description: "The outfit: wardrobe item ids." }, note: { type: "string" } }, required: ["date"], additionalProperties: false } } }, required: ["trip_id", "days"], additionalProperties: false },
+    description: "For a confirmed itinerary change, read get_trip first, preserve untouched fields and pass expected_updated_at. Sets given days of a trip, each whole: replaces what that date had and leaves other dates alone. Per day: activities (the structured plan: several a day, each with a title and optionally type, local start and end times, location; keep their ids from get_trip when giving a day again), occasion (a short summary: \"sightseeing + work\"), items (the outfit: wardrobe item ids from find_items), note. A day given with nothing is cleared. Older calls with only occasion, items and note work as before.",
+    inputSchema: { type: "object", properties: { trip_id: { type: "string" }, expected_updated_at: REVISION, days: { type: "array", minItems: 1, items: { type: "object", properties: { date: DATE, activities: { type: "array", items: ACTIVITY }, occasion: { type: "string", description: "A short summary of the day: \"Uffizi, then dinner out\"." }, items: { type: "array", items: { type: "string" }, description: "The outfit: wardrobe item ids." }, note: { type: "string" } }, required: ["date"], additionalProperties: false } } }, required: ["trip_id", "days"], additionalProperties: false },
     annotations: { ...write, idempotentHint: true },
   },
   {
@@ -189,6 +190,7 @@ function analyze(w, garments) {
 
   // the days
   const dayOf = new Map(t.days.map((d) => [d.date, d]));
+  for (const d of t.days) if (a && (d.date < a || d.date > b)) warn("plan_outside_trip", `${d.date} has a saved plan outside the current trip dates (${a} to ${b}).`, { date: d.date });
   const days_without_plan = tripDays.filter((d) => !dayOf.has(d));
   const days_with_activities_but_no_outfit = t.days.filter((d) => d.activities?.length && !d.items?.length).map((d) => d.date);
   for (const d of days_with_activities_but_no_outfit) warn("no_outfit", `${d} has activities but no outfit.`, { date: d });
@@ -259,7 +261,7 @@ async function getTrip(args, ctx) {
     text,
     data: {
       view: "trip",
-      trip: pick({ id: t.id, name: t.name, notes: t.notes, start: a, end: b, laundry: t.laundry }, ["id", "name", "notes", "start", "end", "laundry"]),
+      trip: pick({ id: t.id, updated_at: t.updated_at, name: t.name, notes: t.notes, start: a, end: b, laundry: t.laundry }, ["id", "updated_at", "name", "notes", "start", "end", "laundry"]),
       travelers: t.travelers,
       legs: legsOut,
       lodging: lodging.map((x) => strip(x, ["id", "name", "place", "address", "check_in", "check_out", "confirmation", "booking_url", "notes"])),
@@ -271,6 +273,13 @@ async function getTrip(args, ctx) {
       garments,
     },
   };
+}
+
+// PostgreSQL jsonb can reorder object keys. Array order is part of the plan.
+function planJson(days) {
+  return JSON.stringify(days, (_, value) => value && typeof value === "object" && !Array.isArray(value)
+    ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+    : value);
 }
 
 async function call(name, args, ctx) {
@@ -336,18 +345,40 @@ async function call(name, args, ctx) {
       const missing = ids.filter((i) => !byId.has(i));
       if (missing.length) throw new Invalid(`Not in the wardrobe: ${missing.join(", ")}. Use ids from find_items.`);
       const had = days.get(d.date)?.activities || [];
+      const reserved = new Set((d.activities || []).map((x) => x.id).filter(Boolean));
+      const available = had.filter((x) => x.id && !reserved.has(x.id));
       const activities = (d.activities || []).map((x) => {
         const title = str(x.title, 200, `An activity on ${d.date}`, { required: true });
         const start_time = clock(x.start_time, `${title}'s start_time`), end_time = clock(x.end_time, `${title}'s end_time`);
         if (start_time && end_time && end_time < start_time) throw new Invalid(`${title} ends before it starts (${start_time}–${end_time}).`);
-        return pick({ id: had.some((y) => y.id === x.id) || /^[0-9a-f-]{36}$/.test(x.id || "") ? x.id : uuid(), title, type: oneOf(x.type, ACTIVITY_TYPES, `${title}'s type`), start_time, end_time, location: str(x.location, 200, "location"), notes: str(x.notes, 500, "notes"), place_id: str(x.place_id, 64, "place_id") }, ["id", "title", "type", "start_time", "end_time", "location", "notes", "place_id"]);
+        const fields = pick({ title, type: oneOf(x.type, ACTIVITY_TYPES, `${title}'s type`), start_time, end_time, location: str(x.location, 200, "location"), notes: str(x.notes, 500, "notes"), place_id: str(x.place_id, 64, "place_id") }, ["title", "type", "start_time", "end_time", "location", "notes", "place_id"]);
+        if (x.id && (had.some((y) => y.id === x.id) || /^[0-9a-f-]{36}$/.test(x.id))) return { id: x.id, ...fields };
+        const match = available.findIndex(({ id, ...old }) => Object.keys(old).length === Object.keys(fields).length && Object.keys(fields).every((k) => old[k] === fields[k]));
+        return { id: match < 0 ? uuid() : available.splice(match, 1)[0].id, ...fields };
       }).sort((x, y) => (x.start_time || "99").localeCompare(y.start_time || "99"));
       const occasion = str(d.occasion, 200, "occasion"), note = str(d.note, 500, "note");
       if (!ids.length && !occasion && !note && !activities.length) { days.delete(d.date); continue; }
       days.set(d.date, { ...pick({ date: d.date, occasion, activities }, ["date", "occasion", "activities"]), items: ids, ...pick({ note }, ["note"]) });
     }
-    const u = await ctx.trips.set(t.id, { days: [...days.values()].sort((x, y) => x.date.localeCompare(y.date)) });
-    return { text: `Planned ${plural(args.days.length, "day")} of ${u.name}; ${u.days.length} planned in all.`, data: { id: u.id, planned: u.days.length, days: (args.days || []).map((d) => u.days.find((x) => x.date === d.date) || { date: d.date, cleared: true }) } };
+    const next = [...days.values()].sort((x, y) => x.date.localeCompare(y.date));
+    const conflict = "Trip changed. Read get_trip and reconcile the requested days before retrying plan_days.";
+    const expected = planJson(next);
+    const changed = expected !== planJson(t.days);
+    let u = t;
+    if (changed) {
+      u = args.expected_updated_at !== undefined && args.expected_updated_at !== t.updated_at
+        ? null : await ctx.trips.set(t.id, { days: next }, t.updated_at);
+      if (!u) {
+        console.info("plan_days conflict");
+        throw new Invalid(conflict);
+      }
+      if (planJson(u.days) !== expected) {
+        console.warn("plan_days verification_failed");
+        throw new Invalid("Saved plan could not be verified. Read get_trip before retrying.");
+      }
+    }
+    console.info(changed ? "plan_days saved" : "plan_days unchanged");
+    return { text: `Planned ${plural(args.days.length, "day")} of ${u.name}; ${u.days.length} planned in all.`, data: { id: u.id, updated_at: u.updated_at, planned: u.days.length, days: (args.days || []).map((d) => u.days.find((x) => x.date === d.date) || { date: d.date, cleared: true }) } };
   }
   throw new Invalid(`There's no tool called ${name}.`);
 }
@@ -365,7 +396,7 @@ export default {
     plan_days: ["Planning the days…", "Planned"],
     delete_trip: ["Moving the trip to the trash…", "Moved the trip to the trash"],
   },
-  instructions: "Trips: get_trip first (the whole trip, weather too). SJPJr keeps and checks the facts (analyze_trip_packing); you suggest outfits and what to bring. add_packing_items appends; set_packing replaces the whole list.",
+  instructions: "Trips: list_trips for ids; get_trip for dates and plans. Save confirmed edits with update_trip or plan_days; verify with get_trip. add_packing_items appends; set_packing replaces.",
   call,
   analyze, // for the tests
 };
