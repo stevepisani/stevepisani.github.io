@@ -214,6 +214,10 @@ changes and returns focus to the opener. Finance has its own wallet symbol in th
 Sticky editor actions composite their card color over an opaque page color, so scrolling fields
 cannot show through in dark mode. Closet redraws preserve focus on a visible garment button,
 including the opener restored when its detail sheet closes.
+Today's date buttons retain focus across redraws; at a trip boundary, focus moves to the
+enabled direction. Packing status and traveler filters retain the activated chip and its
+place in the Tab order. Redraws only restore a control that held focus, so background updates
+do not pull focus away from other controls.
 Today says “Log what you wore” when it opens an empty picker, and “Wore it” only when it can
 confirm a planned outfit. The ongoing cross-app pass is recorded in [the UX audit](sjpj-ux-audit.md).
 

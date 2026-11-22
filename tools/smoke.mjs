@@ -1113,10 +1113,17 @@ async function apps(page, shot) {
   if ((await page.locator('#pack-groups .pack-row__must').count()) !== 2) throw new Error('the essential entries carry no marker');
   if (!(await page.isVisible('#pack-from-plan'))) throw new Error("the planned outfits' things aren't offered");
   await page.click('#pack-who button[data-value="lexi"]');
+  if (!(await page.locator('#pack-who button[data-value="lexi"]').evaluate(b => b === document.activeElement))) throw new Error('Packing traveler filter lost focus after redraw');
   if ((await rowsShown()) !== 1 || !/Sunscreen/.test(await page.textContent('#pack-groups'))) throw new Error("Lexi's filter didn't narrow the board to her things");
   await page.click('#pack-who button[data-value="shared"]');
   if ((await rowsShown()) !== 2 || !/Plug adapter/.test(await page.textContent('#pack-groups')) || !/Passports/.test(await page.textContent('#pack-groups'))) throw new Error('Shared should be what\'s shared and what\'s nobody\'s');
   await page.click('#pack-who button[data-value=""]');
+  await page.locator('#pack-status button[data-value="packed"]').focus();
+  await page.keyboard.press('Enter');
+  if (!(await page.locator('#pack-status button[data-value="packed"]').evaluate(b => b === document.activeElement))) throw new Error('Packing status filter lost focus after keyboard activation');
+  await page.keyboard.press('Tab');
+  if (!(await page.locator('#pack-status button[data-value="all"]').evaluate(b => b === document.activeElement))) throw new Error('Packing filter Tab order restarted after redraw');
+  await page.click('#pack-status button[data-value="open"]');
   await page.selectOption('#pack-cat', 'baby');
   if ((await rowsShown()) !== 1 || !/Diapers/.test(await page.textContent('#pack-groups'))) throw new Error("the category picker didn't narrow the board");
   await page.selectOption('#pack-cat', '');
@@ -1278,6 +1285,19 @@ async function apps(page, shot) {
   await until(page, () => !document.getElementById('sheet').open && !document.getElementById('today-view').hidden);
   await page.click('.today-card__step button:last-child');
   await until(page, () => /Friday/.test(document.querySelector('.today-card__kicker').textContent));
+  if (!(await page.locator('[data-day-step="on"]').evaluate(b => b === document.activeElement))) throw new Error('Today next-day control lost focus after redraw');
+  await page.locator('[data-day-step="back"]').focus();
+  await page.keyboard.press('Enter');
+  await until(page, () => /^Today/.test(document.querySelector('.today-card__kicker').textContent));
+  if (!(await page.locator('[data-day-step="back"]').evaluate(b => b === document.activeElement))) throw new Error('Today previous-day control lost focus after keyboard activation');
+  // At the trip's first day, move focus to the enabled forward control rather than a disabled button.
+  for (let i = 0; i < 8; i++) {
+    const before = await page.locator('.today-card__kicker').textContent();
+    await page.locator('[data-day-step="back"]').press('Enter');
+    await page.waitForFunction(text => document.querySelector('.today-card__kicker').textContent !== text, before);
+  }
+  if (!(await page.locator('[data-day-step="back"]').isDisabled()) || !(await page.locator('[data-day-step="on"]').evaluate(b => b === document.activeElement))) throw new Error('Today trip boundary needs focus on the enabled date control');
+  await shot('today-date-focus');
   step('Today: the day, its weather and outfit, the rain and the suede; the next day; Back closes an item');
   // Wore it, mid-trip: one tap logs the day's planned outfit (one POST: the day, its pieces, the
   // trip, as planned, who); it reads as done, and Undo takes it back

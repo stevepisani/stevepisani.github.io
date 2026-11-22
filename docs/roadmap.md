@@ -21,7 +21,15 @@ rather than leaving it in a chat.
    web UI changes do not automatically update the embedded chat interface.
    The isolated MCP focus follow-up fixes garment open/Back and category-filter focus loss.
    Its eight automated host/theme/viewport combinations, hands-on repeat and full local release
-   checks passed; publication, CI and deployed verification remain. Finance PR #162 is CI-green and awaits Steve’s merge approval.
+   checks passed. PRs #162 (Finance controls) and #163 (MCP garment focus) merged Nov 18 after
+   green PR checks. Both production deploys passed; Finance controls were verified hands-on
+   live, and the published MCP bundle passed all eight synthetic host-bridge combinations.
+   The actual chat-host garment open/Back focus check passed Nov 19. A live desktop recheck covered all six
+   sections on the preceding version and found keyboard focus loss
+   in Today's date buttons and web packing filters. The follow-up preserves those controls across
+   redraws; app integration tests passed, including keyboard navigation and trip-boundary fallback.
+   Full local release validation passed. PR review, CI and deployment remain. Recover the unpublished Today handoff and
+   MCP trip-focus follow-ups from their recorded patches; their temporary checkouts are gone.
    Finance v0 cutover completed Nov 11: deployed security checks, private import/export
    reconciliation, workflow tests and independent operation passed; Streamlit is retired with
    a private rollback backup. Manual CSV imports and balance updates remain the v0 refresh path.

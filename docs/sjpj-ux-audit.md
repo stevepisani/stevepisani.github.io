@@ -338,3 +338,65 @@ MCP focus release validation completed: JavaScript build, strict Jekyll, link ch
 full npm test command all passed with exit code 0, including the existing card-in-chat
 integration and full smoke suite. The focus follow-up is ready for draft review; CI, merge
 approval, deployment and live-host verification remain.
+
+## Live desktop recheck — November 18
+
+PRs #162 and #163 were merged after their PR checks passed. Production deployment and
+verification of those new bundles remain pending; the observations below are of the preceding
+live version in an authenticated Chrome window. No records were saved or changed.
+
+- Finance initially remained at its loading message. A full toolbar reload with Chrome brought
+  to the foreground completed the permission check and all five table reads, including the
+  transaction pages. This does not establish a server or authentication failure. The old toolbar
+  was still present. Edit plan opened, and Cancel restored focus to Edit plan.
+- Closet opened a garment and Done returned focus to its originating tile.
+- Trips opened the itinerary and packing list. The Packed filter changed the view, but focus
+  fell back to the document rather than staying on the activated filter.
+- Places opened a saved-place detail; Done restored focus to the originating item.
+- Recipes filtered the collection to cooked recipes and retained focus on that filter. The
+  collection was returned to All.
+- Today moved to the preceding date and back to the current date. Both date-button redraws
+  lost focus to the document. Preserve the corresponding date control in a follow-up.
+
+The temporary checkouts for the unpublished Today planning handoff and additional MCP trip
+focus work were no longer present. Neither follow-up was included in these merges; recovery,
+fresh validation and review remain necessary. The published MCP garment focus change in
+#163 is separate from that unfinished trip work.
+
+PR #162's production run 44400188747 subsequently passed and deployed. A fresh live reload
+showed the compact toolbar. Manage opened with Enter, Escape closed it while retaining focus,
+Edit plan focused the first field, and Cancel restored Manage focus. Refresh completed and
+restored the dashboard. These controls are now verified live; #163's production run remains
+in progress. No financial records were changed.
+
+PR #163's production run 44400332493 also passed and deployed. The public card bundle
+downloaded afterward (SHA-256 `2f3d0136898cc780a694ed0574aef594e222a8f369850e58a298dff8dbef0abf`)
+passed the existing MCP card focus regression in all eight desktop/phone, light/dark and
+fullscreen/inline combinations. The regression used that downloaded script with synthetic
+records and the official AppBridge; all network requests were blocked. The phone dark-theme
+screenshot was inspected. A live read through the SJPJr connector succeeded too. No embedded
+SJPJr app tab was available in this chat, so an actual chat-host card walkthrough remains
+unverified. Server card-script caching can delay a new resource by up to ten minutes, and an
+already-open host card may need refreshing. This result does not claim complete web/MCP parity.
+
+## Today and packing focus follow-up — November 19
+
+The web redraw now restores the focused Today date direction, or the enabled opposite direction
+at the trip boundary. Packing chip redraws retain the focused status or traveler value, including
+Everyone's empty value. Restoration checks the current focused element rather than retaining
+a stale opener across asynchronous weather loading. The app regression adds keyboard activation,
+forward Tab continuity and first-trip-day fallback checks. Build and link checks passed; browser
+validation and actual chat-host verification remain pending.
+
+The actual SJPJr card was expanded into this chat's side panel. Opening a garment returned
+its real detail and focused the garment heading; Back returned to the same wardrobe tile
+with focus restored. Both focus states were confirmed against the host DOM, and the final
+focused tile was inspected visually. No records were changed. This verifies the published
+garment open/Back fix in the actual host; this compact one-item card did not expose category
+filters, whose eight synthetic-host combinations remain the separate evidence.
+
+The focused app integration suite passed, including the new Today and packing assertions,
+existing edits/undo, member isolation, real host-bridge fixtures and offline replay. The
+boundary-focus screenshot was inspected. Full `npm test` then passed with exit code 0,
+including model/schema/security checks, Finance and MCP UI tests, desktop/phone homepage,
+holiday, planet preview and no-WebGL coverage. PR CI, review and deployment remain.
