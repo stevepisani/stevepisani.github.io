@@ -83,6 +83,7 @@ function draw() {
   actions.append(button('Import',()=>importFile(host),'btn btn--small'),button('Export backup',exportBackup,'btn btn--ghost btn--small'));
   const settings=el('div','finance-toolbar__actions'); settings.setAttribute('role','group'); settings.setAttribute('aria-label','Financial plan');
   settings.append(button('Edit plan',()=>editPlan(host),'btn btn--ghost btn--small'),button('Add account',()=>editAccount(host),'btn btn--ghost btn--small'));
+  const connections=el('a','btn btn--ghost btn--small','Finance connections'); connections.href='/apps/finance-access'; settings.append(connections);
   const manage=el('details','finance-manage'), summary=el('summary','btn btn--ghost btn--small','Manage');
   summary.setAttribute('aria-label','Manage finances');
   manage.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();manage.open=false;summary.focus();}});

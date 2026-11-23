@@ -8,7 +8,8 @@ markup and a module, and nothing else.
 
 Finance is an additional, explicitly enabled section with a stricter boundary: live permission
 checks, owner-scoped data and no offline financial copy. It does not inherit wardrobe or MCP
-access. Its workflows, verification and Streamlit retirement gates are in [Finance](finance.md).
+access. Read-only MCP access is separately granted per owner and OAuth client through
+`/apps/finance-access`. Its workflows, verification and Streamlit retirement gates are in [Finance](finance.md).
 
 ## How it fits together
 
@@ -712,6 +713,11 @@ to set in the app.
 4. Its data in `ctx` (`index.ts`, and `tools/wardrobe-db.mjs` for the tests), and its checks in
    `tools/wardrobe-test.mjs` (and the smoke test's card session for a view).
 5. The tool list below, and the consent page's line (`apps/authorize.html`) if it's records.
+
+- **Finance** (separately authorized, read-only): `get_finance_summary`, `get_finance_spending`,
+  `find_finance_transactions`, `get_finance_tax_scenarios`, `estimate_finance_tax`. The
+  [Finance contract](finance.md#finance-in-chat) describes grant management, isolation, shared
+  calculations and the required actual-chat release check. These return structured data and text.
 
 - **Tools** (read-only marked so): `get_today` (read-only; start here for anything about today),
   `log_day` and `get_history` (read-only) ("Days" above); `find_places` (read-only, "Places" above); `find_items` (start here for clothes; one entry per physical piece, flat:

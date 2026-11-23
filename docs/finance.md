@@ -76,7 +76,9 @@ uniqueness, and a transaction's account must belong to the same owner.
 
 `members.finance_enabled` is an administrator-controlled capability, initially false. The
 `can_finance()` database function requires membership and refuses tokens containing an OAuth
-`client_id`; current wardrobe connector consent grants no finance access. Every finance table
+`client_id` for web access and all writes/imports. Current wardrobe connector consent grants no
+finance access. A separate `can_read_finance()` policy permits reads only after the owner grants
+that OAuth client access in Finance connections (below). Every finance table
 has forced row-level security, owner checks on reads and writes, no anonymous privileges and
 no public view. Enabling real use remains gated on deployed verification.
 
@@ -233,3 +235,47 @@ Save shows progress and an inline failure without losing the edited fields; succ
 completion and restores focus. Failed initial loads offer Try again through the usual live
 permission checks. Long plan/account/scenario forms keep Cancel and Save visible while
 scrolling, with a discard confirmation when Cancel would lose changed values.
+
+
+## Finance in chat
+
+The MCP has five read-only tools: `get_finance_summary`, `get_finance_spending`,
+`find_finance_transactions`, `get_finance_tax_scenarios`, and `estimate_finance_tax`.
+They use the same five private tables and the existing `funding`, `spending`, `businessActuals`
+and `estimate2026` functions. Nothing is copied to another system, no bank feed is refreshed,
+and no financial write/import tool is registered. Responses are text and structured data;
+this release does not add an embedded Finance card.
+
+Sign in to `/apps/finance-access` (Finance → Manage → Finance connections). This page lists
+Supabase's existing OAuth grants and offers **Allow Finance read access** for each client.
+The choice is separate from ordinary OAuth consent, unchecked/ungranted by default, and
+names the financial records the selected app will receive. A grant is keyed by both `auth.uid()`
+and OAuth `client_id`, never a shared member flag or a client-supplied owner argument.
+**Remove Finance access** deletes that grant; old grants whose OAuth connection has gone away
+remain visible for removal. Removing Finance access stops subsequent reads, not copies already
+returned to a chat. Removing the OAuth connection also invalidates that connection according to
+Supabase's token rules; explicitly remove its Finance grant to remove the stored permission.
+
+`20261123000100_finance_mcp.sql` adds a SELECT-only policy to the five tables. It retains the
+original first-party-only write policies and `can_finance()` import check. The connector cannot
+read or modify its own grants. First-party grant management also requires Finance eligibility.
+Disabling membership/Finance blocks both paths. Grants never cross owners, even for the same
+OAuth client. The server uses the request's authenticated Supabase client, adds an owner filter,
+and checks access before and after reading; no service-role read or cross-request financial
+cache is used. Anonymous requests have no privileges.
+
+Each read is bounded to one year (accounts remain current), with stable 500-row database pages
+and a 100,000-row safety cap that fails rather than returning partial totals. Transaction search
+returns at most 100 records and an offset for the next page. Tool arguments reject unknown keys,
+including owner IDs. Summary results retain account timestamps, plan review dates, forecasts and
+unreviewed counts; stale available cash remains null. Saved tax scenarios retain assumptions and
+review dates. What-if tax calls require every model input explicitly and never save a result.
+The tax model's existing scope and limitations still apply; it does not establish eligibility.
+
+Release checks: `finance-mcp-test.mjs` exercises the production adapter and JSON-RPC against
+real migrations/RLS, including legacy denial, client/owner isolation, writes/imports denied,
+revocation and shared-calculation parity. `finance-access-test.mjs` exercises explicit consent,
+removal, failure, changed users, text escaping and keyboard focus on desktop and phone.
+Production completion still requires Site/Supabase deployment, actual owner consent, refreshed
+chat tool discovery, and successful summary/spending/transaction/scenario calls in chat, followed
+by a revoke/denial/regrant check. Local tests alone do not satisfy this gate.
