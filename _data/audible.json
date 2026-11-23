@@ -75,7 +75,7 @@
       "subtitle": null,
       "authors": [
         "Walter Isaacson",
-        "Walter Isaacson - introduction"
+        "Walter Isaacson — Introduction"
       ],
       "narrators": [
         "Jeremy Bobb"
@@ -670,7 +670,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1355,7 +1355,7 @@
       ],
       "narrators": [
         "KC Davis LPC",
-        "Dr. Raquel Martin"
+        "Dr. Dr. Raquel Martin"
       ],
       "series": null,
       "seq": null,
@@ -1682,8 +1682,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
-      "seq": "",
+      "series": "Captive's War",
+      "seq": "1.5",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -2930,7 +2930,7 @@
       "subtitle": "Jennifer Doudna, Gene Editing, and the Future of the Human Race",
       "authors": [
         "Walter Isaacson",
-        "Walter Isaacson - introduction"
+        "Walter Isaacson — Introduction"
       ],
       "narrators": [
         "Kathe Mazur"
@@ -4813,7 +4813,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Education & Learning",
+      "genre": "Home & Garden",
       "minutes": 357,
       "released": "2017-08-22",
       "cover": "https://m.media-amazon.com/images/I/51d-9rKtbIL._SL500_.jpg",
@@ -4836,7 +4836,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Health & Wellness",
+      "genre": "Religion & Spirituality",
       "minutes": 353,
       "released": "2014-09-09",
       "cover": "https://m.media-amazon.com/images/I/516nwT9bECL._SL500_.jpg",
@@ -5220,8 +5220,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "The Dune Sequence",
-      "seq": "12",
+      "series": "Dune",
+      "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5772,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-22"
+  "updated": "2026-11-23"
 }
