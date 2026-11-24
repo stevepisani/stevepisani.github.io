@@ -238,6 +238,13 @@ PRO-2293. No new paid generation is part of this change.
 
 ## Done lately
 
+- Nov 2026: the planet's buttons are arcade buttons. Steve didn't love the flat cream keys, and
+  picked this from three rounds of options: a dished plunger in a chrome collar, modelled and lit
+  in three.js and rendered to small pictures (`tools/keys.mjs`, about 9 KB each), which `world.css`
+  stretches to any width, so every button is the same real object and sinks into its collar when
+  pressed. Cream, coral for the main action; the questions to ask are a smaller size. Hints stay
+  captions and the question box stays sunk in. The site's and SJPJr's `.btn` keep their flat keys.
+  Checked in headless Chromium on desktop and phone sizes, not on a real phone.
 - Nov 2026: buttons look like buttons, and comments don't. On the planet everything to press and
   everything only to read was the same dark glass pill ("Leave the bar", the suggested questions,
   the question box, and hints like "Press and hold to roast a marshmallow."). Now every button is a
