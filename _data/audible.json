@@ -1987,7 +1987,7 @@
       ],
       "series": null,
       "seq": null,
-      "genre": "Literature & Fiction",
+      "genre": "Science Fiction & Fantasy",
       "minutes": 1306,
       "released": "2022-08-23",
       "cover": "https://m.media-amazon.com/images/I/61tFfGPEybL._SL500_.jpg",
@@ -5220,8 +5220,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "Dune",
-      "seq": "1",
+      "series": "The Dune Sequence",
+      "seq": "12",
       "genre": "Science Fiction & Fantasy",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5772,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-23"
+  "updated": "2026-11-24"
 }
