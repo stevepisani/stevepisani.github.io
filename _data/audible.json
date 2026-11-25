@@ -670,7 +670,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1705,7 +1705,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -4319,10 +4319,10 @@
       "title": "Abaddon's Gate",
       "subtitle": null,
       "authors": [
-        "James S. A. Corey"
+        "James S. A. Corey 84508682"
       ],
       "narrators": [
-        "Jefferson Mays"
+        "Jefferson Mays 85518489"
       ],
       "series": "The Expanse",
       "seq": "3",
@@ -5772,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-24"
+  "updated": "2026-11-25"
 }
