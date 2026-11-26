@@ -40,6 +40,18 @@ try{
   phase='import and duplicate protection';const payload={schema_version:1,transactions:[{account_source_key:'synthetic-live',source_key:'synthetic-transaction',posted_on:'2026-01-01',description:'Synthetic payment',amount_cents:-100,treatment:'personal'}]};
   for(let i=0;i<2;i++)check((await api('/rest/v1/rpc/finance_import',users[0].token,{payload})).ok);
   const ledger=await api('/rest/v1/finance_transactions?select=id',users[0].token);check(ledger.ok&&ledger.data?.length===1);
+  phase='connector grant management';
+  const clientId=randomUUID();
+  const grant=await api('/rest/v1/finance_connector_grants',users[0].token,{client_id:clientId});
+  check(grant.ok&&grant.data?.length===1&&grant.data[0].owner===users[0].id);
+  const otherGrants=await api('/rest/v1/finance_connector_grants?select=client_id',users[1].token);
+  check(otherGrants.ok&&otherGrants.data?.length===0);
+  const forgedGrant=await api('/rest/v1/finance_connector_grants',users[1].token,{owner:users[0].id,client_id:randomUUID()});
+  check(forgedGrant.status===403);
+  const anonymousGrant=await api('/rest/v1/finance_connector_grants?select=client_id');
+  check([401,403].includes(anonymousGrant.status));
+  const removed=await api(`/rest/v1/finance_connector_grants?client_id=eq.${clientId}`,users[0].token,undefined,'DELETE');
+  check(removed.ok&&removed.data?.length===1);
   if(process.argv.includes('--browser')) {
     phase='synthetic browser plan';
     check((await api('/rest/v1/finance_plans',users[0].token,{year:new Date().getFullYear(),monthly_target_cents:1000,retirement_goal_cents:1000,tax_reserve_cents:1000,contractor_reserve_cents:1000,operations_reserve_cents:1000,household_reserve_cents:1000,expected_receipts_cents:1000,reviewed_on:new Date().toISOString().slice(0,10),assumptions:'Synthetic deployment verification'})).ok);

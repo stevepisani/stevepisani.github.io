@@ -32,6 +32,7 @@ import trash from "./areas/trash.js";
 import days from "./areas/days.js";
 import places from "./areas/places.js";
 import imageTest from "./areas/test.js";
+import finance from "./areas/finance.js";
 export { APP_URI };
 export { CATEGORIES, SOURCES, ROLES } from "./areas/wardrobe.js";
 
@@ -40,7 +41,7 @@ export const PROTOCOLS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"
 // ---------- The areas, and the rules they all keep (docs/apps.md, "The rules") ----------
 // An area is one file in areas/: { name, records, tools, status, instructions, call }. A new one
 // is a file and a line here.
-export const AREAS = [days, wardrobe, trips, packing, tripParts, places, trash, imageTest];
+export const AREAS = [days, wardrobe, trips, packing, tripParts, places, trash, imageTest, finance];
 // 1. Steve's own records (an area with records: true) can be read and changed from a chat. The
 //    site's content (drinks, books, what he's written) is read-only here: it changes in the repo.
 // 2. Deleting a garment, photo or trip moves it to the trash, from a chat as from the app: hidden
@@ -71,7 +72,7 @@ for (const area of AREAS) for (const t of area.tools) {
   TOOLS.push({ ...t, ...(!t.annotations.readOnlyHint && { description: `${t.description}\n${TRASH.includes(t.name) ? TRASHES : REMOVES.includes(t.name) ? REMOVING : WRITES}` }), _meta: { ...t._meta, "openai/toolInvocation/invoking": invoking, "openai/toolInvocation/invoked": invoked } });
 }
 const INSTRUCTIONS = [
-  "SJPJr: Steve Pisani's own things, private to him: his wardrobe, trips, days and saved places. Start with get_today for anything about today (what to wear, what's on), find_items for clothes (one per garment, flat). Refer to things by name.",
+  "SJPJr: private records. Start with get_today for today, find_items for clothes, get_finance_summary for Finance. Refer to things by name.",
   RULES,
   ...AREAS.map((a) => a.instructions),
 ].filter(Boolean).join(" ");
@@ -84,7 +85,7 @@ export const ICONS = [
   { src: `${SITE}/assets/images/sj-180.png`, mimeType: "image/png", sizes: ["180x180"] },
   { src: `${SITE}/assets/images/sj-64.png`, mimeType: "image/png", sizes: ["64x64"] },
 ];
-export const SERVER = { name: "sjpjr", title: "SJPJr", version: "2.2.0", description: "Steve Pisani's own things: his wardrobe, trips, days and saved places, to find, add and plan what to wear and pack, record what he wore, and find what he's saved nearby.", websiteUrl: SITE, icons: ICONS };
+export const SERVER = { name: "sjpjr", title: "SJPJr", version: "2.3.0", description: "Steve Pisani's own things: wardrobe, trips, days and saved places, plus separately authorized, read-only Finance.", websiteUrl: SITE, icons: ICONS };
 
 // ---------- The in-chat card (MCP Apps, SEP-1865, which ChatGPT and Claude both render) ----------
 // One small HTML page, served as the resource APP_URI, that shows whatever a tool returned by its

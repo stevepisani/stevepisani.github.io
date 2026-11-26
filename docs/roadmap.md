@@ -6,6 +6,14 @@ rather than leaving it in a chat.
 
 ## Next up (ready to build, nothing needed from Steve)
 
+0. **Finance MCP with explicit consent (Nov 23, in progress).** Reuse the Finance web app's
+   data and calculations through read-only tools. Separate owner/client grants, first-party
+   grant management and revocation, no connector writes. The complete local test suite passed,
+   with 53 focused MCP/security checks and desktop/phone consent checks. Draft PR/CI, Steve's
+   merge and both deployments remain. Completion
+   requires actual chat tool discovery, owner-authorized reads and a revoke/denial/regrant check;
+   neither local tests nor tool registration alone finishes this work. See [Finance](finance.md#finance-in-chat).
+
 0. **Make SJPJr exceptional across every section.** Active goal: walk Finance, Today, Closet,
    Trips, Places and Recipes in the actual app, compare specific flows with Mobbin references,
    and implement a consistent interaction and visual system down to buttons and feedback.

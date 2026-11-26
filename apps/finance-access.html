@@ -1,0 +1,15 @@
+---
+layout: app
+app: finance-access
+title: Finance connections
+heading: Finance connections
+lede: Choose which connected apps may read your private financial records.
+---
+<section class="card">
+  <p>Read access includes account balances, transactions, budgets, funding plans and tax scenarios. The app can use these records in your chats. It cannot import, edit or delete financial records, make payments or grant itself access.</p>
+  <p>Only allow an app you recognize. Removing access stops future reads; it cannot erase information already returned to a chat.</p>
+  <p><a href="{{ '/apps/#finance' | relative_url }}">Back to Finance</a></p>
+  <p><button class="btn btn--ghost btn--small" id="finance-access-refresh" type="button">Refresh connections</button></p>
+  <div id="finance-connections"></div>
+  <p id="finance-access-note" role="status"></p>
+</section>

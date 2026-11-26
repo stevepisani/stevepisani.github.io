@@ -11,6 +11,7 @@
 // gives out (RFC 9728's resource, the 401's metadata link) are that one.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { PROTOCOLS, rpc } from "./server.js";
+import { financeData } from "./finance-data.js";
 import { LINK_MINUTES, photoToken, servePhoto } from "./images.js";
 import { fetchLimited, readProduct, storeImage } from "../_shared/product.js";
 import { legWeather, locate } from "../_shared/weather.js";
@@ -125,6 +126,7 @@ Deno.serve(async (req) => {
     set: (id: string, patch: Record<string, unknown>) => rows(db.from(name).update(patch).eq("id", id).select().single()),
   });
   const ctx = {
+    finance: financeData(db, uid),
     items: {
       list: () => rows(db.from("wardrobe_closet").select("*")),
       get: closet,
