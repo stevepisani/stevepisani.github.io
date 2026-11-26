@@ -1682,8 +1682,8 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
-      "seq": "1.5",
+      "series": "The Captive's War",
+      "seq": "",
       "genre": "Science Fiction & Fantasy",
       "minutes": 163,
       "released": "2024-10-01",
@@ -1705,7 +1705,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -4319,10 +4319,10 @@
       "title": "Abaddon's Gate",
       "subtitle": null,
       "authors": [
-        "James S. A. Corey 84508682"
+        "James S. A. Corey"
       ],
       "narrators": [
-        "Jefferson Mays 85518489"
+        "Jefferson Mays"
       ],
       "series": "The Expanse",
       "seq": "3",
@@ -5220,8 +5220,8 @@
         "Patricia Kilgarriff",
         "Scott Sowers"
       ],
-      "series": "The Dune Sequence",
-      "seq": "12",
+      "series": "Dune",
+      "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 1262,
       "released": "2007-05-29",
@@ -5772,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-25"
+  "updated": "2026-11-26"
 }
