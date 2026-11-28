@@ -14,7 +14,7 @@
 {%- comment -%} The fonts are the site's own (tools/fonts.mjs): their rules inline, so nothing blocks the first paint {%- endcomment %}
 <style>{% include fonts-site.css %}</style>
 <link rel="stylesheet" href="{{ '/assets/css/site.css' | relative_url }}">
-{% if page.layout == 'app' %}<link rel="stylesheet" href="{{ '/assets/css/apps.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+{% if page.layout == 'app' %}<link rel="stylesheet" href="{{ '/assets/css/apps.css' | relative_url }}?v={{ site.data.build.v }}">
 <meta name="robots" content="noindex">
 {%- comment -%} A private app is a home-screen app (docs/apps.md): full screen, under the status bar, in the theme's colours; one with a manifest (apps/<app>.webmanifest) has its own name and icon {%- endcomment %}
 {%- capture manifest %}/apps/{{ page.app }}.webmanifest{% endcapture %}
