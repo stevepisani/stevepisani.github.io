@@ -67,7 +67,7 @@
       "finished_on": null,
       "percent": 81,
       "added": "2025-06-09",
-      "last_heard": "2026-08-19"
+      "last_heard": "2026-11-28"
     },
     {
       "asin": "B0BX4SCV1V",
@@ -608,10 +608,10 @@
       "cover": "https://m.media-amazon.com/images/I/51wvy7jratL._SL500_.jpg",
       "sample": "https://samples.audible.com/bk/blak/020509/bk_blak_020509_sample.mp3",
       "finished": true,
-      "finished_on": "2026-11-19",
+      "finished_on": "2026-11-28",
       "percent": 100,
       "added": "2026-08-17",
-      "last_heard": "2026-11-19"
+      "last_heard": null
     },
     {
       "asin": "B079YY41HL",
@@ -670,7 +670,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "Captive's War",
+      "series": "The Captive's War",
       "seq": "2",
       "genre": "Science Fiction & Fantasy",
       "minutes": 868,
@@ -1705,7 +1705,7 @@
       "narrators": [
         "Jefferson Mays"
       ],
-      "series": "The Captive's War",
+      "series": "Captive's War",
       "seq": "1",
       "genre": "Science Fiction & Fantasy",
       "minutes": 894,
@@ -5772,5 +5772,5 @@
       "last_heard": "2022-05-23"
     }
   ],
-  "updated": "2026-11-27"
+  "updated": "2026-11-28"
 }
