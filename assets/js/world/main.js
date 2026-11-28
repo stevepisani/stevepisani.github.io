@@ -335,14 +335,16 @@ async function start() {
   // Models: one GLB, plus fonts for the canvas textures.
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const modelsUrl = document.querySelector('script[data-models]').dataset.models;
-  // Everything the first frame needs is asked for at once (most of it's already coming, preloaded
-  // by world.html), and the planet and sky are built while it arrives: on a slow connection the
-  // download is most of the wait, and building them is most of the rest.
+  // Everything the first frame needs is asked for at once (most of it's already coming: world.html
+  // preloads it the moment this script is in, `firstFrame()`), and the planet and sky are built
+  // while it arrives: on a slow connection the download is most of the wait, and building them is
+  // most of the rest.
+  window.firstFrame?.();
   let got = 0;
-  const want = document.querySelectorAll('link[rel="preload"][as="fetch"]').length || 1;
+  const want = document.getElementById('first-frame')?.content.querySelectorAll('link[as="fetch"]').length || 1;
   const modelsIn = Promise.all([
     new Promise((res, rej) => loader.load(modelsUrl, res, undefined, rej)),
-    // the bar fills as each model the first frame needs is in (world.html preloads exactly those)
+    // the bar fills as each model the first frame needs is in (world.html's #first-frame lists exactly those)
     loadHeroes(loader, modelsUrl.replace(/props\.glb$/, 'hero/'), { onEach: () => setProgress(0.1 + 0.6 * ++got / want) }),
     fontsReady(),
   ]);

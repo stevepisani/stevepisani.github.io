@@ -35,6 +35,7 @@
 // Library versions live in package.json, nowhere else.
 import { backgroundRemovalHardening } from './background-removal-hardening.mjs';
 import * as esbuild from 'esbuild';
+import { createHash } from 'node:crypto';
 import { rmSync, readFileSync, readdirSync, writeFileSync, watch as watchFile } from 'node:fs';
 import { writeLibrary } from './library.mjs';
 import { writePlanet } from './planet.mjs';
@@ -114,6 +115,8 @@ writePlanet(root);
 const heroes = JSON.parse(readFileSync(root + 'assets/models/hero/manifest.json', 'utf8'));
 writeFileSync(root + '_data/hero_preload.json', JSON.stringify(Object.values(heroes).filter((h) => !h.lazy).map((h) => h.file)) + '\n');
 rmSync(out, { recursive: true, force: true });
+/** _data/build.json: `v`, the version the layouts put on the bundles' URLs. */
+function writeVersion(v) { writeFileSync(root + '_data/build.json', JSON.stringify({ v }) + '\n'); }
 const builds = [
   { ...common, entryPoints: { site: 'assets/js/site.js' }, outdir: out, format: 'iife' },
   // ESM with splitting so physics.js's import() becomes its own file; nothing else is split off
@@ -142,6 +145,7 @@ if (watch) {
   for (const b of builds) await (await esbuild.context(b)).watch();
   for (const f of ['_data/audible.json', '_data/books.yml']) watchFile(root + f, () => { try { writeLibrary(root); } catch (e) { console.error(e.message); } });
   for (const f of ['_data/bar.yml', '_data/drinks.yml']) watchFile(root + f, () => { try { writePlanet(root); } catch (e) { console.error(e.message); } });
+  writeVersion(String(Date.now())); // a page and its scripts from one session; restart to bump it
   console.log('Watching assets/js for changes…');
 } else {
   const results = await Promise.all(builds.map((b) => esbuild.build(b)));
@@ -150,5 +154,14 @@ if (watch) {
   // (it happens when something imported both directly and by import() is shared).
   const shared = outputs['assets/js/dist/world.js'].imports.filter((i) => i.kind === 'import-statement');
   if (shared.length) throw new Error(`world.js imports ${shared.map((i) => i.path).join(', ')} statically; keep import() targets self-contained`);
+  // The bundles' version (`?v=` on every script and the CSS that carries one): a hash of what they
+  // are, so a deploy that changes no code (the daily Audible one) leaves a returning visitor's
+  // cached copies good, and a page never runs another build's script.
+  const hash = createHash('sha256');
+  for (const f of readdirSync(out, { recursive: true }).filter((f) => !f.endsWith('.map')).sort()) {
+    try { hash.update(f).update(readFileSync(`${out}/${f}`)); } catch (e) { if (e.code !== 'EISDIR') throw e; }
+  }
+  for (const f of ['apps.css', 'planet.css']) hash.update(readFileSync(`${root}assets/css/${f}`));
+  writeVersion(hash.digest('hex').slice(0, 12));
   for (const [file, o] of Object.entries(Object.assign({}, outputs, ...results.slice(2).map((r) => r.metafile.outputs)))) if (!file.endsWith('.map')) console.log(`${file.replace('assets/js/', '')}  ${(o.bytes / 1024).toFixed(0)} KB`);
 }

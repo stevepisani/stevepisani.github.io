@@ -246,6 +246,15 @@ PRO-2293. No new paid generation is part of this change.
 
 ## Done lately
 
+- Nov 2026: a third faster pass. On a slow phone (1.6 Mbps, 150 ms, a 4× slower CPU) the 3D
+  script used to share the connection with the models and arrive last, at 7 s; now the models
+  and the Earth are asked for only once the script is in, so it arrives at 3.7 s and builds the
+  planet while they download. The planet is ready to draw at 9.3 s instead of 11.8 s, and the
+  launch screen paints at 0.8 s instead of 1.1 s. On a fast connection nothing changes (ready at
+  about 1.5 s on a computer). The bundles' `?v=` is now a hash of the bundles, not the build
+  time, so the daily Audible deploy no longer makes a returning visitor download the 400 KB
+  script again. Shader compile and the first frames can't be timed in the cloud (software
+  WebGL); on a real phone they come on top. Not tested on a real phone.
 - Nov 2026: the planet's buttons are arcade buttons. Steve didn't love the flat cream keys, and
   picked this from three rounds of options: a dished plunger in a chrome collar, modelled and lit
   in three.js and rendered to small pictures (`tools/keys.mjs`, about 9 KB each), which `world.css`

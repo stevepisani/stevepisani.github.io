@@ -3,9 +3,9 @@
 <head>
   {% include head.html %}
   <script>document.documentElement.dataset.theme = 'dark';</script>
-  <link rel="stylesheet" href="{{ '/assets/css/planet.css' | relative_url }}?v={{ site.time | date: '%s' }}">
+  <link rel="stylesheet" href="{{ '/assets/css/planet.css' | relative_url }}?v={{ site.data.build.v }}">
   {%- comment -%} A friend's planet is its own small bundle (assets/js/planets/, docs/planets.md), not Steve's world {%- endcomment %}
-  <link rel="modulepreload" href="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high">
+  <link rel="modulepreload" href="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.data.build.v }}" fetchpriority="high">
 </head>
 <body class="planet-page">
   {{ content }}
@@ -79,6 +79,6 @@
       addEventListener('resize', draw); draw();
     })();
   </script>
-  <script type="module" src="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high"></script>
+  <script type="module" src="{{ '/assets/js/dist/planets.js' | relative_url }}?v={{ site.data.build.v }}" fetchpriority="high"></script>
 </body>
 </html>

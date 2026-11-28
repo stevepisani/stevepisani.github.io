@@ -5,28 +5,34 @@
   <script>document.documentElement.dataset.theme = 'dark';</script>
   <style>{% include fonts-world.css %}</style>
   <link rel="stylesheet" href="{{ '/assets/css/world.css' | relative_url }}">
-  <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
   <!-- The whole world, three.js included, is one minified file (npm run build, tools/build-js.mjs) -->
-  {%- comment -%} The bundle URLs carry the build time, so a cached page and the script it loads always
-  belong to the same build: GitHub Pages caches each for ten minutes, and a page from one build with the
-  script from another stalls on the first frame. {%- endcomment -%}
-  {%- comment -%} First in line: nothing on the planet starts until the script runs, and the models below
-  would otherwise share the connection with it equally. {%- endcomment %}
-  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high">
-  {%- comment -%} The hero models the first frame needs (written by npm run build from their manifest):
-  fetched alongside the script rather than after it has run. {%- endcomment %}
-  <link rel="preload" href="{{ '/assets/images/earth/earth-day-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
-  <link rel="preload" href="{{ '/assets/images/earth/earth-night-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
-  {%- for f in site.data.hero_preload %}
-  <link rel="preload" href="{{ '/assets/models/hero/' | append: f | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
-  {%- endfor %}
+  {%- comment -%} The bundle URLs carry a hash of the bundles (_data/build.json, from npm run build), so a
+  cached page and the script it loads always belong to the same build (GitHub Pages caches each for ten
+  minutes, and a page from one build with the script from another stalls on the first frame), and a
+  deploy that changes no code leaves a returning visitor's copy good. {%- endcomment -%}
+  {%- comment -%} First in line, and alone: nothing on the planet starts until the script runs, and the
+  first frame's models and Earth are asked for only once it's in (`firstFrame` below). Fetched alongside
+  it, they shared a slow phone's connection equally and the script came in last, at 7 s instead of 3;
+  asked for after it, they download while the script builds the planet. {%- endcomment %}
+  <link rel="modulepreload" href="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.data.build.v }}" fetchpriority="high" onload="firstFrame()">
+  {%- comment -%} What the first frame needs besides the script: the models (the hero ones written by npm
+  run build from their manifest) and the Earth. main.js calls firstFrame() too, in case it runs first. {%- endcomment %}
+  <template id="first-frame">
+    <link rel="preload" href="{{ '/assets/models/props.glb' | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
+    {%- for f in site.data.hero_preload %}
+    <link rel="preload" href="{{ '/assets/models/hero/' | append: f | relative_url }}" as="fetch" type="model/gltf-binary" crossorigin>
+    {%- endfor %}
+    <link rel="preload" href="{{ '/assets/images/earth/earth-day-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
+    <link rel="preload" href="{{ '/assets/images/earth/earth-night-1k.webp' | relative_url }}" as="image" type="image/webp" crossorigin>
+  </template>
+  <script>function firstFrame() { var t = document.getElementById('first-frame'); if (t && !t.dataset.sent) { t.dataset.sent = 1; document.head.append(t.content.cloneNode(true)); } }</script>
 </head>
 <body class="world-page">
   <a class="skip-link" href="#topbar">Skip to the sections</a>
   <main id="main">
     {{ content }}
   </main>
-  <script src="{{ '/assets/js/dist/site.js' | relative_url }}?v={{ site.time | date: '%s' }}" defer></script>
-  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.time | date: '%s' }}" fetchpriority="high" data-models="{{ '/assets/models/props.glb' | relative_url }}" data-earth="{{ '/assets/images/earth/' | relative_url }}"></script>
+  <script src="{{ '/assets/js/dist/site.js' | relative_url }}?v={{ site.data.build.v }}" defer></script>
+  <script type="module" src="{{ '/assets/js/dist/world.js' | relative_url }}?v={{ site.data.build.v }}" fetchpriority="high" data-models="{{ '/assets/models/props.glb' | relative_url }}" data-earth="{{ '/assets/images/earth/' | relative_url }}"></script>
 </body>
 </html>
